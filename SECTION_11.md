@@ -1,6 +1,6 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.0  
+**Protocol Version:** 11.1  
 **Last Updated:** 2026-01-21  
 **License:** [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
 

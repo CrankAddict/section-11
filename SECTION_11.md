@@ -1,12 +1,12 @@
-# Section 11 — AI Coach Guidance Protocol
+# Section 11 — AI Coach Protocol
 
 **Protocol Version:** 11.0  
 **Last Updated:** 2026-01-21  
 **License:** [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
 
 ### Changelog
-- Introduced modular split (11A: AI Guidance, 11B: Validation Protocol)
-- Added FTP Governance and readiness-linked Weight Adjustment controls
+- Reordered 11 B/11 C for logical flow (Construction → Validation)
+- Introduced modular split (11A: AI Guidance, 11B: Training Plan, 11C: Validation Protocol)
 - Unified terminology (Fatigue Index Ratio, Deterministic Tolerance ±3 W / ±1 %)
 - Confirmed alignment with URF v5.1, RPS Durability, and Intervals.icu v17 frameworks
 
@@ -20,7 +20,7 @@ It enables AI systems to interpret, update, and guide an athlete's plan even wit
 
 ---
 
-## 11 A. AI Coach Guidance Protocol (For LLM-Based Coaching Systems)
+## 11 A. AI Coach Protocol (For LLM-Based Coaching Systems)
 
 ### Purpose
 
@@ -505,7 +505,98 @@ The dossier’s performance-objective tables define the **authoritative phase st
 
 ---
 
-## 11 B. AI Validation Protocol
+End of Section 11 A. AI Coach Protocol
+
+---
+
+## 11 B. AI Training Plan Protocol
+
+**Purpose:**  
+Define deterministic, phase-aligned rules for AI or automated systems that generate or modify training plans, ensuring consistency with the dossier’s endurance framework, physiological safety, and audit traceability.
+
+---
+
+### 1 — Phase Alignment
+Identify the current macro-phase (**Base → Build → Peak → Taper → Recovery**) using:
+- **TSB trend**, **RI trend**, and **ACWR range (0.8 – 1.3)**  
+- Active-phase objectives defined in *Section 3 — Training Schedule & Framework*  
+
+Generated plans must explicitly state the detected phase in their audit header.
+
+---
+
+### 2 — Volume Ceiling Validation
+- Weekly training hours may fluctuate ±10 % around the athlete’s validated baseline (~15 h).  
+- Expansions beyond this range require **RI ≥ 0.8 for ≥ 7 days** and HRV stability within ±10 % of baseline.  
+- Any week exceeding this threshold must flag  
+  `"load_variance": true` in the audit metadata.
+
+---
+
+### 3 — Intensity Distribution Control
+- Maintain **polarisation ≈ 0.8 (80 / 20)** across the microcycle.  
+- **Z3+ (≥ LT2)** time ≤ 20 % of total moving duration.  
+- **Z1–Z2** time ≥ 75 % of total duration.  
+- Over-threshold accumulation outside these bounds triggers automatic plan validation error.
+
+---
+
+### 4 — Session Composition Rules
+- **2 structured sessions/week** (Sweet Spot or VO₂ max)  
+- **1 long Z2 durability ride**  
+- Remaining sessions = Z1–Z2 recovery or aerobic maintenance  
+- Back-to-back high-intensity days prohibited unless **TSB > 0 and RI ≥ 0.85**
+
+---
+
+### 5 — Progression Integration
+Only one progression vector may change per week **unless**:
+- Pathways 1+2 (Duration + Interval): permitted if RI ≥ 0.8, HRV within 10%, no negative fatigue trend
+- Pathways 2+3 (Interval + Environmental): permitted if RI ≥ 0.85, HRV stable, no recent load spikes
+- Pathways 1+3 (Duration + Environmental): **never permitted**
+
+---
+
+### 6 — Audit Metadata (Required Header)
+
+Every generated or modified plan must embed machine-readable metadata for audit and reproducibility:
+
+```json
+{
+  "plan_version": "auto",
+  "phase": "Build",
+  "week": 3,
+  "load_target_TSS": 520,
+  "volume_hours": 15.2,
+  "polarization_ratio": 0.81,
+  "progression_vector": "duration",
+  "load_variance": false,
+  "validation_protocol": "URF_v5.1",
+  "confidence": "high"
+}
+```
+
+---
+
+Interpretation:
+This header documents provenance, deterministic context, and planning logic for downstream validation under Section 11 C — AI Validation Protocol.
+
+### 7 — Compliance & Error Handling
+
+Plans breaching tolerance limits must not publish until validated.
+
+AI systems must output an explicit reason string for rejections, e.g.:
+"error": "ACWR > 1.35 — exceeds safe progression threshold"
+
+Human-review override requires athlete confirmation and metadata flag "override": true.
+
+---
+
+End of Section 11 B. AI Training Plan Protocol
+
+---
+
+## 11 C. AI Validation Protocol
 
 This subsection defines the formal self-validation and audit metadata structure used by AI systems before generating recommendations, ensuring full deterministic compliance and traceability.
 
@@ -533,17 +624,44 @@ This subsection defines the formal self-validation and audit metadata structure 
 
 ### Field Definitions
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `protocol_version` | string | Section 11 version being followed |
-| `checklist_passed` | array | List of checklist items (1–10) that passed validation |
-| `checklist_failed` | array | List of checklist items that failed, with reasons |
-| `data_timestamp` | ISO 8601 | Timestamp of the data being referenced |
-| `data_age_hours` | number | Hours since data was last updated |
-| `confidence` | string | "high" / "medium" / "low" based on data completeness |
-| `missing_inputs` | array | List of metrics that were unavailable |
-| `frameworks_cited` | array | Scientific frameworks applied in reasoning |
-| `recommendation_count` | number | Number of actionable recommendations provided |
+| Field                   | Type     | Description                                           |
+|-------------------------|----------|-------------------------------------------------------|
+| `protocol_version`      | string   | Section 11 version being followed                     |
+| `checklist_passed`      | array    | List of checklist items (1–10) that passed validation |
+| `checklist_failed`      | array    | List of checklist items that failed, with reasons     |
+| `data_timestamp`        | ISO 8601 | Timestamp of the data being referenced                |
+| `data_age_hours`        | number   | Hours since data was last updated                     |
+| `athlete_timezone`      | string   | Athlete's local timezone (e.g., "UTC+1")              |
+| `utc_aligned`           | boolean  | Whether dataset timestamps align with UTC             |
+| `system_offset_minutes` | number   | Offset between system and data clocks                 |
+| `timestamp_valid`       | boolean  | Whether timestamp passed validation                   |
+| `confidence`            | string   | "high" / "medium" / "low" based on data completeness  |
+| `missing_inputs`        | array    | List of metrics that were unavailable                 |
+| `frameworks_cited`      | array    | Scientific frameworks applied in reasoning            |
+| `recommendation_count`  | number   | Number of actionable recommendations provided         |
+
+---
+
+### Plan Metadata Schema (Section 11 B Reference)
+
+| Field                 | Type    | Description                                                |
+|-----------------------|---------|------------------------------------------------------------|
+| `plan_version`        | string  | Version identifier for the plan                            |
+| `phase`               | string  | Current macro-phase (Base/Build/Peak/Taper/Recovery)       |
+| `week`                | number  | Week number within current phase                           |
+| `load_target_TSS`     | number  | Target weekly TSS                                          |
+| `volume_hours`        | number  | Target weekly training hours                               |
+| `polarization_ratio`  | number  | Target polarization (≈ 0.8)                                |
+| `progression_vector`  | string  | Active progression type (duration/intensity/environmental) |
+| `load_variance`       | boolean | Whether volume exceeds ±10% baseline                       |
+| `validation_protocol` | string  | Framework version (e.g., "URF_v5.1")                       |
+| `confidence`          | string  | "high" / "medium" / "low"                                  |
+| `override`            | boolean | Human override flag (requires athlete confirmation)        |
+| `error`               | string  | Rejection reason if validation failed                      |
+
+---
+
+End of Section 11 C. AI Validation Protocol
 
 ---
 
@@ -565,5 +683,6 @@ It preserves deterministic reasoning, reproducible metrics, and transparent audi
 
 ---
 
-End of Section 11 — AI Coach Guidance Protocol
+End of Section 11
 
+---

@@ -337,14 +337,14 @@ AI systems must only consider caloric-reduction or weight-optimization phases du
 ### TSB Interpretation
 
 **General Guidance:**
-- TSB −10 to −30: **Often normal** — reflects training load exceeding recent fitness baseline
+- TSB −10 to −30: **Typically normal** — reflects training load exceeding recent baseline
 - TSB < −30: Monitor closely; check for compounding fatigue signals
-- TSB > 0: Indicates recovery surplus or reduced training load
+- TSB > +10: Extended recovery surplus; may indicate under-training or planned taper
 
-**Context matters.** Negative TSB is expected when:
-- Training consistently (base/build phases)
+**Negative TSB is expected when:**
+- Training consistently (any phase)
 - Returning from off-season, illness, or holiday
-- Intentionally increasing load
+- Intentionally building load
 
 **Recovery recommendations based on TSB alone are NOT warranted** unless accompanied by:
 - HRV ↓ > 20%

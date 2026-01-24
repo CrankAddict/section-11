@@ -1,10 +1,11 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.1  
-**Last Updated:** 2026-01-22  
+**Protocol Version:** 11.2  
+**Last Updated:** 2026-01-24  
 **License:** [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
 
 ### Changelog
+- v11.2: Formalized session field list in response structure
 - Reordered 11 B/11 C for logical flow (Construction → Validation)
 - Introduced modular split (11A: AI Guidance, 11B: Training Plan, 11C: Validation Protocol)
 - Unified terminology (Fatigue Index Ratio, Deterministic Tolerance ±3 W / ±1 %)

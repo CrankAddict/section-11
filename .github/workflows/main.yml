@@ -1,17 +1,24 @@
 name: Update archive index
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "archive/*.json"
+      - "scripts/build_archive_index.py"
+      - ".github/workflows/main.yml"
+
+permissions:
+  contents: write
 
 jobs:
   build-index:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5

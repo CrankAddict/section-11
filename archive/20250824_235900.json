@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-08-24",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.992288Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 42.266544,
+    "icu_fatigue": 34.20953,
+    "icu_resting_hr": 49.0,
+    "icu_pm_cp": 207.0,
+    "icu_pm_w_prime": 17895.0,
+    "icu_pm_p_max": 276.0,
+    "icu_eftp": 279.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151037",
+      "start_date_local": "2025-08-24T16:36:44",
+      "name": "Winterthur - Threshold Run - AI Endurance",
+      "type": "Run",
+      "moving_time": 4532,
+      "distance": 13375.75,
+      "total_elevation_gain": 320.0,
+      "average_heartrate": 150,
+      "max_heartrate": 182,
+      "icu_average_watts": 199.0,
+      "icu_normalized_watts": 207.0,
+      "icu_training_load": 83,
+      "icu_rpe": 3.0,
+      "pace": 2.9514012,
+      "icu_weight": 60.9,
+      "external_id": 20164384599,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

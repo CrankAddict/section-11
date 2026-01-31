@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-06-17",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.955872Z",
+    "activity_count": 2
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 25.520922,
+    "icu_fatigue": 35.581493,
+    "icu_resting_hr": 54.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": null,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105155348",
+      "start_date_local": "2025-06-17T08:50:49",
+      "name": "Winterthur Radfahren",
+      "type": "Ride",
+      "moving_time": 818,
+      "distance": 5202.61,
+      "total_elevation_gain": 49.0,
+      "average_heartrate": 118,
+      "max_heartrate": 143,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 6,
+      "icu_rpe": 1.0,
+      "pace": 6.360159,
+      "icu_weight": 60.8,
+      "external_id": 19456964991,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 1
+    },
+    {
+      "id": "i105155345",
+      "start_date_local": "2025-06-17T14:40:26",
+      "name": "Lindau Radfahren",
+      "type": "Ride",
+      "moving_time": 935,
+      "distance": 5789.05,
+      "total_elevation_gain": 43.0,
+      "average_heartrate": 130,
+      "max_heartrate": 155,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 9,
+      "icu_rpe": 2.0,
+      "pace": 6.1914973,
+      "icu_weight": 60.8,
+      "external_id": 19459768796,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 1
+    }
+  ]
+}

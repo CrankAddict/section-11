@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-06-19",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.956992Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 26.828123,
+    "icu_fatigue": 40.84963,
+    "icu_resting_hr": 50.0,
+    "icu_pm_cp": 262.0,
+    "icu_pm_w_prime": 21667.0,
+    "icu_pm_p_max": 394.0,
+    "icu_eftp": 267.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105154057",
+      "start_date_local": "2025-06-19T11:29:22",
+      "name": "Winterthur - Intervall 5x800m",
+      "type": "Run",
+      "moving_time": 3367,
+      "distance": 9568.11,
+      "total_elevation_gain": 226.0,
+      "average_heartrate": 154,
+      "max_heartrate": 182,
+      "icu_average_watts": 244.0,
+      "icu_normalized_watts": 272.0,
+      "icu_training_load": 106,
+      "icu_rpe": 4.0,
+      "pace": 2.8417315,
+      "icu_weight": 60.8,
+      "external_id": 19479685371,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

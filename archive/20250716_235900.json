@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-07-16",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.972073Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 41.548412,
+    "icu_fatigue": 63.14776,
+    "icu_resting_hr": 52.0,
+    "icu_pm_cp": 246.0,
+    "icu_pm_w_prime": 20893.0,
+    "icu_pm_p_max": 433.0,
+    "icu_eftp": 271.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105153696",
+      "start_date_local": "2025-07-16T09:28:57",
+      "name": "Potsdam Laufen",
+      "type": "Run",
+      "moving_time": 3994,
+      "distance": 11237.3,
+      "total_elevation_gain": 126.0,
+      "average_heartrate": 146,
+      "max_heartrate": 182,
+      "icu_average_watts": 245.0,
+      "icu_normalized_watts": 262.0,
+      "icu_training_load": 117,
+      "icu_rpe": 2.0,
+      "pace": 2.8135452,
+      "icu_weight": 62.3,
+      "external_id": 19748852691,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

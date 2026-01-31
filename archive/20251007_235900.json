@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-10-07",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.005897Z",
+    "activity_count": 2
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 27.503447,
+    "icu_fatigue": 17.414608,
+    "icu_resting_hr": 52.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": null,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151357",
+      "start_date_local": "2025-10-07T11:26:20",
+      "name": "Pontresina Mountainbiken",
+      "type": "MountainBikeRide",
+      "moving_time": 1531,
+      "distance": 7767.39,
+      "total_elevation_gain": 87.0,
+      "average_heartrate": 124,
+      "max_heartrate": 154,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 13,
+      "icu_rpe": 1.0,
+      "pace": 5.0734096,
+      "icu_weight": 62.5,
+      "external_id": 20614512288,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    },
+    {
+      "id": "i105151351",
+      "start_date_local": "2025-10-07T13:38:51",
+      "name": "Poschiavo Mountainbiken",
+      "type": "MountainBikeRide",
+      "moving_time": 3320,
+      "distance": 11953.61,
+      "total_elevation_gain": 106.0,
+      "average_heartrate": 114,
+      "max_heartrate": 153,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 22,
+      "icu_rpe": 1.0,
+      "pace": 3.600485,
+      "icu_weight": 62.5,
+      "external_id": 20615598844,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

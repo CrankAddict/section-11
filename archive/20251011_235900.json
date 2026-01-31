@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-10-11",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.009558Z",
+    "activity_count": 2
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 29.75975,
+    "icu_fatigue": 33.375156,
+    "icu_resting_hr": 56.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": null,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151332",
+      "start_date_local": "2025-10-11T11:23:31",
+      "name": "Silvaplana Mountainbiken",
+      "type": "MountainBikeRide",
+      "moving_time": 8107,
+      "distance": 30385.5,
+      "total_elevation_gain": 459.0,
+      "average_heartrate": 115,
+      "max_heartrate": 175,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 64,
+      "icu_rpe": null,
+      "pace": 3.7480571,
+      "icu_weight": 62.5,
+      "external_id": 20657543004,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    },
+    {
+      "id": "i105150913",
+      "start_date_local": "2025-10-11T17:14:30",
+      "name": "Celerina/Schlarigna Mountainbiken",
+      "type": "MountainBikeRide",
+      "moving_time": 2672,
+      "distance": 9328.23,
+      "total_elevation_gain": 184.0,
+      "average_heartrate": 116,
+      "max_heartrate": 168,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 20,
+      "icu_rpe": 1.0,
+      "pace": 3.4911041,
+      "icu_weight": 62.5,
+      "external_id": 20658210272,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

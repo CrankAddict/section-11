@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-11-14",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.031681Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 29.159838,
+    "icu_fatigue": 28.836761,
+    "icu_resting_hr": 55.0,
+    "icu_pm_cp": 194.0,
+    "icu_pm_w_prime": 18952.0,
+    "icu_pm_p_max": 248.0,
+    "icu_eftp": 264.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i106885757",
+      "start_date_local": "2025-11-14T12:50:15",
+      "name": "Steady Run",
+      "type": "Run",
+      "moving_time": 3806,
+      "distance": 11045.56,
+      "total_elevation_gain": 282.0,
+      "average_heartrate": 152,
+      "max_heartrate": 167,
+      "icu_average_watts": 198.0,
+      "icu_normalized_watts": 199.0,
+      "icu_training_load": 64,
+      "icu_rpe": 2.0,
+      "pace": 2.902144,
+      "icu_weight": 61.4,
+      "external_id": 20986337270,
+      "file_type": "fit",
+      "compliance": 96.969696,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

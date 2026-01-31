@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-08-22",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.991438Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 42.279835,
+    "icu_fatigue": 30.819818,
+    "icu_resting_hr": 51.0,
+    "icu_pm_cp": 177.0,
+    "icu_pm_w_prime": 14242.0,
+    "icu_pm_p_max": 253.0,
+    "icu_eftp": 279.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151059",
+      "start_date_local": "2025-08-22T17:21:58",
+      "name": "Winterthur - Endurance Run - AI Endurance",
+      "type": "Run",
+      "moving_time": 4207,
+      "distance": 11022.91,
+      "total_elevation_gain": 340.0,
+      "average_heartrate": 142,
+      "max_heartrate": 152,
+      "icu_average_watts": 180.0,
+      "icu_normalized_watts": 181.0,
+      "icu_training_load": 59,
+      "icu_rpe": 2.0,
+      "pace": 2.6201355,
+      "icu_weight": 59.6,
+      "external_id": 20143196837,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

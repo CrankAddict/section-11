@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2026-01-18",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.046414Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 13.629493,
+    "icu_fatigue": 12.11057,
+    "icu_resting_hr": 50.0,
+    "icu_pm_cp": 179.0,
+    "icu_pm_w_prime": 14095.0,
+    "icu_pm_p_max": 222.0,
+    "icu_eftp": 249.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i118827527",
+      "start_date_local": "2026-01-18T16:22:42",
+      "name": "Easy Long Light",
+      "type": "Run",
+      "moving_time": 2402,
+      "distance": 6656.99,
+      "total_elevation_gain": 138.0,
+      "average_heartrate": 154,
+      "max_heartrate": 163,
+      "icu_average_watts": 183.0,
+      "icu_normalized_watts": 183.0,
+      "icu_training_load": 34,
+      "icu_rpe": 2.0,
+      "pace": 2.7714365,
+      "icu_weight": 61.8,
+      "external_id": 21588950107,
+      "file_type": "fit",
+      "compliance": 106.25,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

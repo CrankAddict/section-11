@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-10-05",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.004102Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 26.94507,
+    "icu_fatigue": 10.370383,
+    "icu_resting_hr": 50.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": null,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151365",
+      "start_date_local": "2025-10-05T11:42:39",
+      "name": "Pontresina Wandern",
+      "type": "Hike",
+      "moving_time": 4301,
+      "distance": 4809.99,
+      "total_elevation_gain": 496.0,
+      "average_heartrate": 101,
+      "max_heartrate": 144,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 26,
+      "icu_rpe": null,
+      "pace": 1.1183423,
+      "icu_weight": 62.5,
+      "external_id": 20596438328,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

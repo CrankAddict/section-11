@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-11-18",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.033672Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 29.88582,
+    "icu_fatigue": 32.744495,
+    "icu_resting_hr": 54.0,
+    "icu_pm_cp": 190.0,
+    "icu_pm_w_prime": 13386.0,
+    "icu_pm_p_max": 317.0,
+    "icu_eftp": 264.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i107603381",
+      "start_date_local": "2025-11-18T19:05:44",
+      "name": "Easy Run + Strides",
+      "type": "Run",
+      "moving_time": 3183,
+      "distance": 9182.02,
+      "total_elevation_gain": 240.0,
+      "average_heartrate": 154,
+      "max_heartrate": 171,
+      "icu_average_watts": 193.0,
+      "icu_normalized_watts": 194.0,
+      "icu_training_load": 50,
+      "icu_rpe": 2.0,
+      "pace": 2.884706,
+      "icu_weight": 62.0,
+      "external_id": 21026632133,
+      "file_type": "fit",
+      "compliance": 106.38298,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

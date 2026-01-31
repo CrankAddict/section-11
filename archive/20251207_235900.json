@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-12-07",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.039780Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 23.975235,
+    "icu_fatigue": 18.253534,
+    "icu_resting_hr": 55.0,
+    "icu_pm_cp": 183.0,
+    "icu_pm_w_prime": 13847.0,
+    "icu_pm_p_max": 212.0,
+    "icu_eftp": 260.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i110637683",
+      "start_date_local": "2025-12-07T13:16:36",
+      "name": "Steady Re-Entry - TFL",
+      "type": "Run",
+      "moving_time": 3003,
+      "distance": 8236.23,
+      "total_elevation_gain": 206.0,
+      "average_heartrate": 152,
+      "max_heartrate": 163,
+      "icu_average_watts": 183.0,
+      "icu_normalized_watts": 184.0,
+      "icu_training_load": 43,
+      "icu_rpe": 1.0,
+      "pace": 2.7426674,
+      "icu_weight": 61.5,
+      "external_id": 21193244294,
+      "file_type": "fit",
+      "compliance": 97.72727,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-08-08",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.985413Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 48.239784,
+    "icu_fatigue": 56.71311,
+    "icu_resting_hr": 46.0,
+    "icu_pm_cp": 193.0,
+    "icu_pm_w_prime": 19016.0,
+    "icu_pm_p_max": 290.0,
+    "icu_eftp": 283.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105153339",
+      "start_date_local": "2025-08-08T10:59:45",
+      "name": "Glarus Laufen",
+      "type": "Run",
+      "moving_time": 5333,
+      "distance": 12316.08,
+      "total_elevation_gain": 1198.0,
+      "average_heartrate": 128,
+      "max_heartrate": 151,
+      "icu_average_watts": 193.0,
+      "icu_normalized_watts": 202.0,
+      "icu_training_load": 93,
+      "icu_rpe": 2.0,
+      "pace": 2.3094094,
+      "icu_weight": 60.8,
+      "external_id": 19990209165,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

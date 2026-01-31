@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-10-24",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.013247Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 28.622849,
+    "icu_fatigue": 29.72204,
+    "icu_resting_hr": 51.0,
+    "icu_pm_cp": 207.0,
+    "icu_pm_w_prime": 17886.0,
+    "icu_pm_p_max": 267.0,
+    "icu_eftp": 266.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151230",
+      "start_date_local": "2025-10-24T14:55:06",
+      "name": "Winterthur - Tempo Intervals - verlängert",
+      "type": "Run",
+      "moving_time": 4104,
+      "distance": 12206.72,
+      "total_elevation_gain": 278.0,
+      "average_heartrate": 161,
+      "max_heartrate": 184,
+      "icu_average_watts": 201.0,
+      "icu_normalized_watts": 209.0,
+      "icu_training_load": 77,
+      "icu_rpe": 5.0,
+      "pace": 2.9743469,
+      "icu_weight": 61.6,
+      "external_id": 20784103976,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

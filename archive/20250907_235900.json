@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-09-07",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.997461Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 39.142563,
+    "icu_fatigue": 34.449806,
+    "icu_resting_hr": 51.0,
+    "icu_pm_cp": 182.0,
+    "icu_pm_w_prime": 13912.0,
+    "icu_pm_p_max": 360.0,
+    "icu_eftp": 275.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151540",
+      "start_date_local": "2025-09-07T15:41:38",
+      "name": "Winterthur - Anaerobic Run - AI Endurance",
+      "type": "Run",
+      "moving_time": 3425,
+      "distance": 9092.48,
+      "total_elevation_gain": 222.0,
+      "average_heartrate": 147,
+      "max_heartrate": 179,
+      "icu_average_watts": 181.0,
+      "icu_normalized_watts": 190.0,
+      "icu_training_load": 53,
+      "icu_rpe": 3.0,
+      "pace": 2.654739,
+      "icu_weight": 61.2,
+      "external_id": 20311027868,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

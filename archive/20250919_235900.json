@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-09-19",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.001381Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 33.432415,
+    "icu_fatigue": 19.687199,
+    "icu_resting_hr": 51.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": 272.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105150968",
+      "start_date_local": "2025-09-19T12:52:47",
+      "name": "Winterthur Laufen",
+      "type": "Run",
+      "moving_time": 1173,
+      "distance": 3195.48,
+      "total_elevation_gain": 96.0,
+      "average_heartrate": 139,
+      "max_heartrate": 171,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 22,
+      "icu_rpe": 1.0,
+      "pace": 2.7241943,
+      "icu_weight": 62.5,
+      "external_id": 20433882738,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

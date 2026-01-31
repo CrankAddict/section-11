@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-12-09",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.040545Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 23.519106,
+    "icu_fatigue": 17.444536,
+    "icu_resting_hr": 55.0,
+    "icu_pm_cp": 173.0,
+    "icu_pm_w_prime": 14510.0,
+    "icu_pm_p_max": 205.0,
+    "icu_eftp": 259.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i111067691",
+      "start_date_local": "2025-12-09T19:05:37",
+      "name": "Easy Run - TFL",
+      "type": "Run",
+      "moving_time": 2444,
+      "distance": 6544.61,
+      "total_elevation_gain": 150.0,
+      "average_heartrate": 144,
+      "max_heartrate": 154,
+      "icu_average_watts": 119.0,
+      "icu_normalized_watts": 164.0,
+      "icu_training_load": 28,
+      "icu_rpe": 2.0,
+      "pace": 2.6778274,
+      "icu_weight": 61.5,
+      "external_id": 21213609653,
+      "file_type": "fit",
+      "compliance": 90.32258,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

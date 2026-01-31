@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-10-06",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.005089Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 27.322815,
+    "icu_fatigue": 14.714107,
+    "icu_resting_hr": 52.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": null,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105150927",
+      "start_date_local": "2025-10-06T11:58:47",
+      "name": "Poschiavo Wandern",
+      "type": "Hike",
+      "moving_time": 9522,
+      "distance": 11482.05,
+      "total_elevation_gain": 530.0,
+      "average_heartrate": 102,
+      "max_heartrate": 148,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 43,
+      "icu_rpe": null,
+      "pace": 1.2058443,
+      "icu_weight": 62.5,
+      "external_id": 20606275320,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

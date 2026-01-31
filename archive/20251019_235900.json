@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-10-19",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.011813Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 29.238373,
+    "icu_fatigue": 32.8665,
+    "icu_resting_hr": 55.0,
+    "icu_pm_cp": 190.0,
+    "icu_pm_w_prime": 13386.0,
+    "icu_pm_p_max": 275.0,
+    "icu_eftp": 266.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151269",
+      "start_date_local": "2025-10-19T10:52:58",
+      "name": "Winterthur - Long Run",
+      "type": "Run",
+      "moving_time": 5870,
+      "distance": 16672.4,
+      "total_elevation_gain": 451.0,
+      "average_heartrate": 153,
+      "max_heartrate": 167,
+      "icu_average_watts": 194.0,
+      "icu_normalized_watts": 194.0,
+      "icu_training_load": 94,
+      "icu_rpe": 2.0,
+      "pace": 2.8402727,
+      "icu_weight": 62.5,
+      "external_id": 20734733111,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

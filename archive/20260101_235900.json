@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2026-01-01",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.042077Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 14.722921,
+    "icu_fatigue": 4.10608,
+    "icu_resting_hr": 61.0,
+    "icu_pm_cp": 167.0,
+    "icu_pm_w_prime": 14892.0,
+    "icu_pm_p_max": 224.0,
+    "icu_eftp": 253.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i115041600",
+      "start_date_local": "2026-01-01T14:06:38",
+      "name": "Restart Easy",
+      "type": "Run",
+      "moving_time": 1854,
+      "distance": 4804.98,
+      "total_elevation_gain": 100.0,
+      "average_heartrate": 152,
+      "max_heartrate": 165,
+      "icu_average_watts": 175.0,
+      "icu_normalized_watts": 175.0,
+      "icu_training_load": 24,
+      "icu_rpe": 2.0,
+      "pace": 2.591683,
+      "icu_weight": 62.3,
+      "external_id": 21410955444,
+      "file_type": "fit",
+      "compliance": 109.09091,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

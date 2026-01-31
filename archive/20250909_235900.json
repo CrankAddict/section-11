@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-09-09",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.998485Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 38.922237,
+    "icu_fatigue": 34.940548,
+    "icu_resting_hr": 51.0,
+    "icu_pm_cp": 210.0,
+    "icu_pm_w_prime": 17725.0,
+    "icu_pm_p_max": 254.0,
+    "icu_eftp": 274.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151519",
+      "start_date_local": "2025-09-09T18:35:31",
+      "name": "Winterthur - Tempo Run - AI Endurance",
+      "type": "Run",
+      "moving_time": 4383,
+      "distance": 12101.17,
+      "total_elevation_gain": 300.0,
+      "average_heartrate": 148,
+      "max_heartrate": 172,
+      "icu_average_watts": 185.0,
+      "icu_normalized_watts": 191.0,
+      "icu_training_load": 68,
+      "icu_rpe": 3.0,
+      "pace": 2.7609332,
+      "icu_weight": 62.0,
+      "external_id": 20333943046,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

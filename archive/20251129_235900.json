@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-11-29",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.037452Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 25.84091,
+    "icu_fatigue": 18.883493,
+    "icu_resting_hr": 50.0,
+    "icu_pm_cp": 160.0,
+    "icu_pm_w_prime": 14423.0,
+    "icu_pm_p_max": 212.0,
+    "icu_eftp": 262.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i109283545",
+      "start_date_local": "2025-11-29T15:34:30",
+      "name": "Recovery Run - TFL Protection",
+      "type": "Run",
+      "moving_time": 2041,
+      "distance": 5117.96,
+      "total_elevation_gain": 96.0,
+      "average_heartrate": 130,
+      "max_heartrate": 139,
+      "icu_average_watts": 167.0,
+      "icu_normalized_watts": 167.0,
+      "icu_training_load": 24,
+      "icu_rpe": 1.0,
+      "pace": 2.5075748,
+      "icu_weight": 61.2,
+      "external_id": 21123328705,
+      "file_type": "fit",
+      "compliance": 100.0,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

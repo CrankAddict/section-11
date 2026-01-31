@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-12-11",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.041226Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 23.342999,
+    "icu_fatigue": 18.300936,
+    "icu_resting_hr": 55.0,
+    "icu_pm_cp": 183.0,
+    "icu_pm_w_prime": 13847.0,
+    "icu_pm_p_max": 224.0,
+    "icu_eftp": 259.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i111428488",
+      "start_date_local": "2025-12-11T16:31:41",
+      "name": "Steady Run - TFL",
+      "type": "Run",
+      "moving_time": 2746,
+      "distance": 7466.52,
+      "total_elevation_gain": 178.0,
+      "average_heartrate": 144,
+      "max_heartrate": 165,
+      "icu_average_watts": 181.0,
+      "icu_normalized_watts": 184.0,
+      "icu_training_load": 39,
+      "icu_rpe": 2.0,
+      "pace": 2.7190533,
+      "icu_weight": 61.5,
+      "external_id": 21230467959,
+      "file_type": "fit",
+      "compliance": 108.333336,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

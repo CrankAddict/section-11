@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-09-28",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.003085Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 31.109158,
+    "icu_fatigue": 18.781176,
+    "icu_resting_hr": 50.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": null,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151371",
+      "start_date_local": "2025-09-28T13:50:14",
+      "name": "Winterthur Gravel/Offroad-Radfahren",
+      "type": "GravelRide",
+      "moving_time": 6181,
+      "distance": 27707.89,
+      "total_elevation_gain": 324.0,
+      "average_heartrate": 123,
+      "max_heartrate": 170,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 53,
+      "icu_rpe": 1.0,
+      "pace": 4.482752,
+      "icu_weight": 62.3,
+      "external_id": 20526777429,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

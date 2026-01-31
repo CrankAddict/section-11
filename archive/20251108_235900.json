@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-11-08",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.029844Z",
+    "activity_count": 2
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 30.73828,
+    "icu_fatigue": 38.47509,
+    "icu_resting_hr": 51.0,
+    "icu_pm_cp": 212.0,
+    "icu_pm_w_prime": 18004.0,
+    "icu_pm_p_max": 254.0,
+    "icu_eftp": 266.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105838156",
+      "start_date_local": "2025-11-08T11:26:01",
+      "name": "Winterthur - Single Run CP Estimation - RPE",
+      "type": "Run",
+      "moving_time": 1025,
+      "distance": 3141.26,
+      "total_elevation_gain": 98.0,
+      "average_heartrate": 153,
+      "max_heartrate": 171,
+      "icu_average_watts": 204.0,
+      "icu_normalized_watts": 206.0,
+      "icu_training_load": 19,
+      "icu_rpe": 2.0,
+      "pace": 3.0646439,
+      "icu_weight": 61.4,
+      "external_id": 20926818393,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    },
+    {
+      "id": "i105855841",
+      "start_date_local": "2025-11-08T11:45:53",
+      "name": "Winterthur - Long Run Fast Finish",
+      "type": "Run",
+      "moving_time": 6910,
+      "distance": 21119.14,
+      "total_elevation_gain": 487.0,
+      "average_heartrate": 160,
+      "max_heartrate": 181,
+      "icu_average_watts": 203.0,
+      "icu_normalized_watts": 204.0,
+      "icu_training_load": 123,
+      "icu_rpe": 3.0,
+      "pace": 3.0563157,
+      "icu_weight": 61.4,
+      "external_id": 20928148917,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

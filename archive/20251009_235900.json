@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-10-09",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.007850Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 28.584206,
+    "icu_fatigue": 26.00037,
+    "icu_resting_hr": 55.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": 267.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105151340",
+      "start_date_local": "2025-10-09T13:42:49",
+      "name": "Silvaplana Laufen",
+      "type": "Run",
+      "moving_time": 4858,
+      "distance": 11320.19,
+      "total_elevation_gain": 350.0,
+      "average_heartrate": 140,
+      "max_heartrate": 187,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 71,
+      "icu_rpe": 1.0,
+      "pace": 2.3302162,
+      "icu_weight": 62.5,
+      "external_id": 20636700757,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

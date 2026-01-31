@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2026-01-06",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.043502Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 14.590129,
+    "icu_fatigue": 9.305237,
+    "icu_resting_hr": 55.0,
+    "icu_pm_cp": 174.0,
+    "icu_pm_w_prime": 14442.0,
+    "icu_pm_p_max": 204.0,
+    "icu_eftp": 252.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i116252623",
+      "start_date_local": "2026-01-06T19:12:02",
+      "name": "Easy Stabil",
+      "type": "Run",
+      "moving_time": 2424,
+      "distance": 6475.4,
+      "total_elevation_gain": 152.0,
+      "average_heartrate": 152,
+      "max_heartrate": 163,
+      "icu_average_watts": 178.0,
+      "icu_normalized_watts": 178.0,
+      "icu_training_load": 32,
+      "icu_rpe": 2.0,
+      "pace": 2.6713696,
+      "icu_weight": 62.7,
+      "external_id": 21464315122,
+      "file_type": "fit",
+      "compliance": 100.0,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

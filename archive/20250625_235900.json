@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-06-25",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.960527Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 30.06734,
+    "icu_fatigue": 47.296223,
+    "icu_resting_hr": 54.0,
+    "icu_pm_cp": 257.0,
+    "icu_pm_w_prime": 21062.0,
+    "icu_pm_p_max": 427.0,
+    "icu_eftp": 267.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105153980",
+      "start_date_local": "2025-06-25T19:15:20",
+      "name": "Winterthur - Norwegisch 4x4",
+      "type": "Run",
+      "moving_time": 3148,
+      "distance": 7940.9,
+      "total_elevation_gain": 242.0,
+      "average_heartrate": 151,
+      "max_heartrate": 182,
+      "icu_average_watts": 230.0,
+      "icu_normalized_watts": 263.0,
+      "icu_training_load": 93,
+      "icu_rpe": 4.0,
+      "pace": 2.5225222,
+      "icu_weight": 62.0,
+      "external_id": 19543674883,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

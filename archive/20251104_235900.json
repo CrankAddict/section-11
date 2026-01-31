@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-11-04",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:56.017604Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 30.134811,
+    "icu_fatigue": 34.65756,
+    "icu_resting_hr": 51.0,
+    "icu_pm_cp": 191.0,
+    "icu_pm_w_prime": 13570.0,
+    "icu_pm_p_max": 342.0,
+    "icu_eftp": 266.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105315510",
+      "start_date_local": "2025-11-04T18:45:54",
+      "name": "Winterthur - Easy + Strides",
+      "type": "Run",
+      "moving_time": 3076,
+      "distance": 8665.21,
+      "total_elevation_gain": 232.0,
+      "average_heartrate": 147,
+      "max_heartrate": 176,
+      "icu_average_watts": 190.0,
+      "icu_normalized_watts": 196.0,
+      "icu_training_load": 50,
+      "icu_rpe": 2.0,
+      "pace": 2.8170383,
+      "icu_weight": 61.6,
+      "external_id": 20892269355,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

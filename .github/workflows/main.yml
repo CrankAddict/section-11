@@ -1,0 +1,30 @@
+name: Update archive index
+
+on:
+  push:
+    paths:
+      - "archive/*.json"
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build archive index
+        run: python scripts/build_archive_index.py
+
+      - name: Commit index.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add archive/index.json
+          git commit -m "Update archive index" || echo "No changes"
+          git push

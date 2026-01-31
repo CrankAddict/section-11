@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2024-11-17",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.854382Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 12.995299,
+    "icu_fatigue": 41.685566,
+    "icu_resting_hr": 51.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": null,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105155098",
+      "start_date_local": "2024-11-17T12:08:49",
+      "name": "Winterthur - Quality Session",
+      "type": "Run",
+      "moving_time": 5852,
+      "distance": 16158.67,
+      "total_elevation_gain": 365.0,
+      "average_heartrate": 143,
+      "max_heartrate": 157,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 109,
+      "icu_rpe": null,
+      "pace": 2.761222,
+      "icu_weight": 60.2,
+      "external_id": 17559063386,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2024-12-01",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.860373Z",
+    "activity_count": 2
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 18.555029,
+    "icu_fatigue": 37.988968,
+    "icu_resting_hr": 54.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": null,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105155011",
+      "start_date_local": "2024-12-01T10:30:52",
+      "name": "Winterthur - 3 km race",
+      "type": "Run",
+      "moving_time": 3657,
+      "distance": 9449.51,
+      "total_elevation_gain": 168.0,
+      "average_heartrate": 127,
+      "max_heartrate": 152,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 60,
+      "icu_rpe": 3.0,
+      "pace": 2.5839512,
+      "icu_weight": 60.4,
+      "external_id": 17662329615,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    },
+    {
+      "id": "i105155010",
+      "start_date_local": "2024-12-01T14:16:44",
+      "name": "Winterthur Gehen",
+      "type": "Walk",
+      "moving_time": 1722,
+      "distance": 2002.79,
+      "total_elevation_gain": 80.0,
+      "average_heartrate": 84,
+      "max_heartrate": 118,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 3,
+      "icu_rpe": null,
+      "pace": 1.1630604,
+      "icu_weight": 60.4,
+      "external_id": 17664714178,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

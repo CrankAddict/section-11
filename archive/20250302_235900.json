@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-03-02",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.904568Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 26.537811,
+    "icu_fatigue": 29.913055,
+    "icu_resting_hr": 57.0,
+    "icu_pm_cp": 145.0,
+    "icu_pm_w_prime": 11013.0,
+    "icu_pm_p_max": 189.0,
+    "icu_eftp": 220.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105155516",
+      "start_date_local": "2025-03-02T15:03:41",
+      "name": "Pfäffikon - Quality Session",
+      "type": "Run",
+      "moving_time": 4239,
+      "distance": 8577.45,
+      "total_elevation_gain": 98.0,
+      "average_heartrate": 122,
+      "max_heartrate": 137,
+      "icu_average_watts": 142.0,
+      "icu_normalized_watts": 143.0,
+      "icu_training_load": 36,
+      "icu_rpe": 1.0,
+      "pace": 2.0234609,
+      "icu_weight": 60.5,
+      "external_id": 18419365556,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

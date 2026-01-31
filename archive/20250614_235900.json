@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2025-06-14",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.954140Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 25.378193,
+    "icu_fatigue": 39.685703,
+    "icu_resting_hr": 54.0,
+    "icu_pm_cp": 213.0,
+    "icu_pm_w_prime": 18115.0,
+    "icu_pm_p_max": 325.0,
+    "icu_eftp": 250.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105154099",
+      "start_date_local": "2025-06-14T17:46:44",
+      "name": "Winterthur - Long  Run Watt-McM kurz",
+      "type": "Run",
+      "moving_time": 3954,
+      "distance": 8627.82,
+      "total_elevation_gain": 336.0,
+      "average_heartrate": 159,
+      "max_heartrate": 180,
+      "icu_average_watts": 198.0,
+      "icu_normalized_watts": 212.0,
+      "icu_training_load": 76,
+      "icu_rpe": 4.0,
+      "pace": 2.1820486,
+      "icu_weight": 60.8,
+      "external_id": 19432404487,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

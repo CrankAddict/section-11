@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "snapshot_date_local": "2024-12-10",
+    "snapshot_time_local": "23:59:00",
+    "source": "intervals.icu activities export csv",
+    "generated_utc": "2026-01-31T12:14:55.863332Z",
+    "activity_count": 1
+  },
+  "state_from_last_activity": {
+    "icu_fitness": 20.793837,
+    "icu_fatigue": 34.670097,
+    "icu_resting_hr": 58.0,
+    "icu_pm_cp": null,
+    "icu_pm_w_prime": null,
+    "icu_pm_p_max": null,
+    "icu_eftp": 199.0,
+    "lthr": 176.0,
+    "hr_max": 194.0
+  },
+  "activities": [
+    {
+      "id": "i105154958",
+      "start_date_local": "2024-12-10T18:09:00",
+      "name": "Winterthur - Easy Run",
+      "type": "Run",
+      "moving_time": 4213,
+      "distance": 11018.03,
+      "total_elevation_gain": 266.0,
+      "average_heartrate": 137,
+      "max_heartrate": 146,
+      "icu_average_watts": null,
+      "icu_normalized_watts": null,
+      "icu_training_load": 71,
+      "icu_rpe": 2.0,
+      "pace": 2.6152458,
+      "icu_weight": 59.9,
+      "external_id": 17731588429,
+      "file_type": "fit",
+      "compliance": null,
+      "race": 0,
+      "trainer": null,
+      "commute": 0
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "READ_THIS_FIRST": {
+    "instruction_for_ai": "DO NOT calculate totals from individual activities. Use the pre-calculated values in 'summary' and 'weekly_summary' sections below. These are already computed accurately from the API data.",
+    "data_period": "Last 7 days (including today)",
+    "quick_stats": {
+      "total_training_hours": 0.67,
+      "total_activities": 1,
+      "total_tss": 34
+    }
+  },
+  "metadata": {
+    "athlete_id": "REDACTED",
+    "last_updated": "2026-01-31T09:22:52.512395",
+    "data_range_days": 7,
+    "version": "1.1.0-section11"
+  },
+  "ai_contract": {
+    "athlete": {
+      "dob_year": 1974,
+      "height_cm": 165,
+      "timezone": "CET",
+      "diet": "vegetarian",
+      "runner_type": "kombi-endurance-monster"
+    },
+    "physiology": {
+      "resting_hr_baseline": 54,
+      "hrv_baseline_rmssd_low": 37,
+      "hrv_baseline_rmssd_high": 46,
+      "run_cp_w": 266,
+      "run_lthr_bpm": 189
+    },
+    "rules": {
+      "warmup_cooldown_power_cap_w": 200
+    },
+    "readiness_today": {
+      "date": "2026-01-31",
+      "sleep_hours": null,
+      "sleep_quality": null,
+      "hrv_rmssd": null,
+      "resting_hr": null
+    }
+  },
+  "summary": {
+    "period_description": "Last 7 days of training (including today)",
+    "total_duration_decimal_hours": 0.67,
+    "total_activities": 1,
+    "by_activity_type": {
+      "Run": {
+        "duration_decimal_hours": 0.67,
+        "count": 1,
+        "tss": 34,
+        "distance_km": 6.5
+      }
+    }
+  },
+  "current_status": {
+    "fitness": {
+      "ctl": 13.998439,
+      "atl": 16.119654,
+      "tsb": -2.12,
+      "ramp_rate": 0.054538727
+    },
+    "thresholds": {
+      "run_cp_w": 266,
+      "run_lthr_bpm": 189,
+      "bike_ftp_w": 250,
+      "max_hr_bpm": 194
+    },
+    "current_metrics": {
+      "weight_kg": 61.5,
+      "resting_hr": 50,
+      "hrv_rmssd": 39.0
+    }
+  },
+  "recent_activities": [
+    {
+      "id": "activity_1",
+      "date": "2026-01-27T19:27:19",
+      "type": "Run",
+      "name": "Training Session",
+      "duration_hours": 0.67,
+      "distance_km": 6.45,
+      "tss": 34,
+      "intensity_factor": 0.708,
+      "avg_power": 181,
+      "normalized_power": 182,
+      "avg_hr": 149,
+      "max_hr": 164,
+      "avg_cadence": 88.78,
+      "variability_index": 1.0055,
+      "decoupling": 1.99,
+      "elevation_m": 148,
+      "feel": 3,
+      "rpe": 2
+    }
+  ],
+  "planned_workouts": [
+    {
+      "date": "2026-01-31",
+      "name": "Planned Workout",
+      "segments": [
+        {
+          "type": "warmup",
+          "duration_min": 10,
+          "target_power_low": 155,
+          "target_power_high": 170
+        },
+        {
+          "type": "steady",
+          "duration_min": 30,
+          "target_power_low": 180,
+          "target_power_high": 195
+        },
+        {
+          "type": "cooldown",
+          "duration_min": 5,
+          "target_power_low": 150,
+          "target_power_high": 165
+        }
+      ],
+      "planned_tss": 37
+    }
+  ],
+  "weekly_summary": {
+    "total_training_hours": 0.67,
+    "total_tss": 34,
+    "activities_count": 1,
+    "avg_hrv": 36.3,
+    "avg_resting_hr": 52.9
+  }
+}

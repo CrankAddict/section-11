@@ -1,0 +1,165 @@
+name: Auto-Sync Intervals.icu Data
+
+on:
+  schedule:
+    # Run every 15 minutes (good balance of frequency and API limits)
+    - cron: '*/15 * * * *'
+    # For every 15 minutes, use: '*/15 * * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests
+      
+      - name: Verify sync.py exists
+        run: |
+          if [ ! -f sync.py ]; then
+            echo "❌ ERROR: sync.py not found in repository!"
+            echo "Files in current directory:"
+            ls -la
+            exit 1
+          fi
+          echo "✅ sync.py found"
+          echo "File size: $(wc -c < sync.py) bytes"
+      
+      - name: Verify secrets are set
+        run: |
+          if [ -z "${{ secrets.ATHLETE_ID }}" ]; then
+            echo "❌ ERROR: ATHLETE_ID secret not set!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.INTERVALS_KEY }}" ]; then
+            echo "❌ ERROR: INTERVALS_KEY secret not set!"
+            exit 1
+          fi
+          echo "✅ All secrets configured"
+      
+      - name: Run sync
+        env:
+          ATHLETE_ID: ${{ secrets.ATHLETE_ID }}
+          INTERVALS_KEY: ${{ secrets.INTERVALS_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          echo "🔍 Debug info:"
+          echo "  Python version: $(python --version)"
+          echo "  Working directory: $(pwd)"
+          echo "  ATHLETE_ID: ${ATHLETE_ID:0:5}..."
+          echo "  GITHUB_REPO: $GITHUB_REPO"
+          echo ""
+          echo "🚀 Running sync script..."
+          python sync.py \
+            --athlete-id "$ATHLETE_ID" \
+            --intervals-key "$INTERVALS_KEY" \
+            --github-token "$GITHUB_TOKEN" \
+            --github-repo "$GITHUB_REPO" \
+            --days 7 || {
+              echo "❌ Sync script failed with exit code $?"
+              exit 1
+            }
+      
+      - name: Verify latest.json was created/updated
+        run: |
+          if [ -f latest.json ]; then
+            echo "✅ latest.json exists"
+            echo "File size: $(wc -c < latest.json) bytes"
+            echo "Last modified: $(stat -c %y latest.json 2>/dev/null || stat -f %Sm latest.json)"
+          else
+            echo "⚠️ latest.json not found - might be no changes detected"
+          fi
+      
+      - name: Archive latest.json with timestamp
+        if: success()
+        run: |
+          # Create archive directory if it doesn't exist
+          mkdir -p archive
+          
+          # Get timestamp
+          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
+          
+          # Copy latest.json to archive if it exists
+          if [ -f latest.json ]; then
+            cp latest.json "archive/${TIMESTAMP}.json"
+            echo "✅ Archived to archive/${TIMESTAMP}.json"
+            
+            # Configure git
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            
+            # Pull any changes from the sync step
+            git pull --rebase origin main
+            
+            # Add and commit the archive file
+            git add archive/
+            
+            # Only commit if there are changes
+            if ! git diff --staged --quiet; then
+              git commit -m "Archive training data snapshot - $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+              git push
+              echo "✅ Archive committed and pushed"
+            else
+              echo "⏭️  No new archive to commit"
+            fi
+          else
+            echo "⚠️ Skipping archive - no latest.json to archive"
+          fi
+      
+      - name: Update README with last sync time
+        if: success()
+        run: |
+          SYNC_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          if [ -f README.md ]; then
+            echo "Current README content (first 5 lines):"
+            head -5 README.md
+            
+            if grep -q "Last successful sync:" README.md; then
+              echo "Found existing timestamp line, updating..."
+              sed -i "s/\*\*Last successful sync:\*\*.*/\*\*Last successful sync:\*\* ${SYNC_TIME}/" README.md
+            else
+              echo "No timestamp found, adding new line..."
+              sed -i "/badge.svg)/a\\\n\*\*Last successful sync:\*\* ${SYNC_TIME}\n" README.md
+            fi
+            
+            echo "Updated README content (first 5 lines):"
+            head -5 README.md
+            
+            if ! git diff --quiet README.md; then
+              git add README.md
+              git commit -m "Update last sync timestamp: ${SYNC_TIME}"
+              git push
+              echo "✅ README updated with sync time: ${SYNC_TIME}"
+            else
+              echo "⚠️ No changes detected in README"
+            fi
+          fi
+      
+      - name: Show result
+        run: |
+          echo "✅ Sync completed successfully!"
+          echo "📊 View data: https://raw.githubusercontent.com/${{ github.repository }}/main/latest.json"
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::⚠️ Sync failed! Check the logs above for details."
+          echo "Common issues:"
+          echo "  - Check ATHLETE_ID and INTERVALS_KEY secrets"
+          echo "  - Verify Intervals.icu API is accessible"
+          echo "  - Check GitHub token permissions"

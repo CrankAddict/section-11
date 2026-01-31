@@ -35,12 +35,12 @@
       "tsb": -2.12,
       "ramp_rate": 0.054538727
     },
-    "thresholds": {
-      "ftp": 250,
-      "ftp_indoor": null,
-      "lthr": 176,
-      "max_hr": 194
-    },
+"thresholds": {
+  "run_cp_w": 266,
+  "run_lthr_bpm": 189,
+  "bike_ftp_w": 250,
+  "max_hr_bpm": 194
+},
     "current_metrics": {
       "weight_kg": 61.5,
       "resting_hr": 51,

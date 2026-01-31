@@ -12,6 +12,7 @@ import argparse
 from datetime import datetime, timedelta
 from typing import Dict, List
 import base64
+import math
 
 
 class IntervalsSync:
@@ -65,15 +66,29 @@ class IntervalsSync:
         print("Fetching wellness data...")
         wellness = self._intervals_get("wellness", {"oldest": oldest, "newest": newest})
         
-        print("Fetching today's fitness metrics...")
+        print("Fetching actual fitness metrics (yesterday + decay)...")
         try:
-            today_wellness = self._intervals_get("wellness", {"oldest": today, "newest": today})
-            today_data = today_wellness[0] if today_wellness else {}
+            yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+            yesterday_wellness = self._intervals_get("wellness", {"oldest": yesterday, "newest": yesterday})
+            yesterday_data = yesterday_wellness[0] if yesterday_wellness else {}
+            
+            # PMC decay constants
+            ctl_decay = math.exp(-1/42)  # ~0.9765
+            atl_decay = math.exp(-1/7)   # ~0.8668
+            
+            # Calculate actual current values (after overnight decay, before any workout today)
+            yesterday_ctl = yesterday_data.get("ctl")
+            yesterday_atl = yesterday_data.get("atl")
+            yesterday_ramp = yesterday_data.get("rampRate")
+            
+            ctl = round(yesterday_ctl * ctl_decay, 2) if yesterday_ctl else None
+            atl = round(yesterday_atl * atl_decay, 2) if yesterday_atl else None
+            ramp_rate = round(yesterday_ramp * ctl_decay, 2) if yesterday_ramp else None
         except:
-            today_data = {}
+            ctl = None
+            atl = None
+            ramp_rate = None
         
-        ctl = today_data.get("ctl")
-        atl = today_data.get("atl")
         tsb = round(ctl - atl, 2) if (ctl is not None and atl is not None) else None
         
         latest_wellness = wellness[-1] if wellness else {}
@@ -104,7 +119,7 @@ class IntervalsSync:
                     "ctl": ctl,
                     "atl": atl,
                     "tsb": tsb,
-                    "ramp_rate": today_data.get("rampRate")
+                    "ramp_rate": ramp_rate
                 },
                 "thresholds": {
                     "ftp": cycling_settings.get("ftp") if cycling_settings else None,

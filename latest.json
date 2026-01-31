@@ -3,37 +3,37 @@
     "instruction_for_ai": "DO NOT calculate totals from individual activities. Use the pre-calculated values in 'summary' and 'weekly_summary' sections below. These are already computed accurately from the API data.",
     "data_period": "Last 7 days (including today)",
     "quick_stats": {
-      "total_training_hours": 0.67,
-      "total_activities": 1,
-      "total_tss": 34
+      "total_training_hours": 1.29,
+      "total_activities": 2,
+      "total_tss": 67
     }
   },
   "metadata": {
     "athlete_id": "REDACTED",
-    "last_updated": "2026-01-31T14:53:54.067419",
+    "last_updated": "2026-01-31T15:28:52.706918",
     "data_range_days": 7,
     "version": "1.0.0"
   },
   "summary": {
     "period_description": "Last 7 days of training (including today)",
     "note": "Duration calculated from API moving_time field. Minor differences (<30s) from Intervals.icu dashboard are normal due to rounding.",
-    "total_duration_decimal_hours": 0.67,
-    "total_activities": 1,
+    "total_duration_decimal_hours": 1.29,
+    "total_activities": 2,
     "by_activity_type": {
       "Run": {
-        "duration_decimal_hours": 0.67,
-        "count": 1,
-        "tss": 34,
-        "distance_km": 6.5
+        "duration_decimal_hours": 1.29,
+        "count": 2,
+        "tss": 67,
+        "distance_km": 12.7
       }
     }
   },
   "current_status": {
     "fitness": {
-      "ctl": 13.998439,
-      "atl": 16.119654,
-      "tsb": -2.12,
-      "ramp_rate": 0.054538727
+      "ctl": 13.306983,
+      "atl": 12.58675,
+      "tsb": 0.72,
+      "ramp_rate": -0.6369171
     },
     "thresholds": {
       "ftp": 250,
@@ -50,6 +50,53 @@
   "recent_activities": [
     {
       "id": "activity_1",
+      "date": "2026-01-31T15:49:03",
+      "type": "Run",
+      "name": "Training Session",
+      "duration_hours": 0.63,
+      "distance_km": 6.26,
+      "tss": 33,
+      "intensity_factor": 72.76265,
+      "avg_power": 186,
+      "normalized_power": 187,
+      "avg_hr": 148,
+      "max_hr": 165,
+      "avg_cadence": 87.08954,
+      "avg_speed": 10.0,
+      "max_speed": 12.0,
+      "avg_pace": null,
+      "avg_temp": 3.173595,
+      "weather": null,
+      "humidity": null,
+      "wind_speed": 0.86397916,
+      "work_kj": 420.2,
+      "calories": 365,
+      "carbs_used": null,
+      "carbs_ingested": null,
+      "variability_index": 1.0053763,
+      "decoupling": 7.928365,
+      "elevation_m": 132.0,
+      "feel": 3,
+      "rpe": 2,
+      "zone_distribution": {
+        "hr_zones": {
+          "z1_time": 695,
+          "z2_time": 1070,
+          "z3_time": 491,
+          "z4_time": 0,
+          "z5_time": 0
+        },
+        "power_zones": {
+          "z1_time": 1390,
+          "z2_time": 798,
+          "z3_time": 64,
+          "z4_time": 4,
+          "z5_time": 0
+        }
+      }
+    },
+    {
+      "id": "activity_2",
       "date": "2026-01-27T19:27:19",
       "type": "Run",
       "name": "Training Session",
@@ -201,9 +248,9 @@
     }
   ],
   "weekly_summary": {
-    "total_training_hours": 0.67,
-    "total_tss": 34,
-    "activities_count": 1,
+    "total_training_hours": 1.29,
+    "total_tss": 67,
+    "activities_count": 2,
     "avg_hrv": 36.3,
     "avg_resting_hr": 52.9
   }

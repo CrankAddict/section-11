@@ -79,5 +79,4 @@ After each heartbeat:
 
 - Randomized timing prevents predictable patterns
 - Weather silence when conditions are bad reduces noise
-- Sports science findings require explicit athlete approval before adoption
 - Background analysis window should fall between training weeks to avoid mid-week disruption

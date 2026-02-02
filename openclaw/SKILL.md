@@ -21,7 +21,7 @@ On first use:
    - See: https://github.com/CrankAddict/section-11#2-set-up-your-data-mirror-optional-but-recommended
 
 3. **Configure heartbeat settings**
-   - Fetch template from: https://raw.githubusercontent.com/CrankAddict/section-11/main/HEARTBEAT_TEMPLATE.md
+   - Fetch template from: https://raw.githubusercontent.com/CrankAddict/section-11/refs/heads/main/openclaw/HEARTBEAT_TEMPLATE.md
    - Ask athlete for their specific values:
      - Location for weather checks (city/area)
      - Timezone

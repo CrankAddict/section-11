@@ -8,7 +8,7 @@ Copy this file to your workspace as `HEARTBEAT.md` and fill in the bracketed val
 
 | Setting | Value |
 |---------|-------|
-| Location | [CITY/AREA, e.g., "Aalborg Øst"] |
+| Location | [CITY/AREA, e.g., "Klampenborg"] |
 | Timezone | [TIMEZONE, e.g., "Europe/Copenhagen"] |
 | Notification hours | [START]-[END], e.g., 09:00-22:30 |
 | Notification channel | [CHANNEL, e.g., "telegram"] |

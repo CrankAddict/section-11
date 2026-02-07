@@ -1,10 +1,11 @@
 # Section 11 — AI Coach Protocol
 
 **Protocol Version:** 11.2  
-**Last Updated:** 2026-01-24  
+**Last Updated:** 2026-02-07  
 **License:** [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
 
 ### Changelog
+- v11.2: Added Output Format Guidelines with pre/post-workout report structure and brevity rule
 - v11.2: Formalized session field list in response structure
 - Reordered 11 B/11 C for logical flow (Construction → Validation)
 - Introduced modular split (11A: AI Guidance, 11B: Training Plan, 11C: Validation Protocol)
@@ -556,6 +557,33 @@ The dossier’s performance-objective tables define the **authoritative phase st
 
 ---
 
+### Output Format Guidelines
+
+AI systems should structure athlete reports consistently.  
+See `/examples/reports/` for annotated templates and examples.
+
+**Pre-Workout Reports must include:**
+- Weather and coach note (if athlete location is available)
+- Readiness assessment (HRV, RHR, Sleep vs baselines)
+- Load context (TSB, ACWR, Load/Recovery, Monotony if > 2.3)
+- Today's planned workout with duration and targets (or rest day + next session preview)
+- Go/Modify/Skip recommendation with rationale
+
+See `PRE_WORKOUT_TEMPLATE.md` for conditional fields and readiness decision logic.
+
+**Post-Workout Reports must include:**
+- One-line session summary
+- Completed session metrics (power, HR, zones, decoupling, VI, TSS vs planned)
+- Plan compliance assessment
+- Weekly running totals (polarization, CTL, ATL, TSB, ACWR, hours, TSS)
+- Overall coach note (2-4 sentences: compliance, key quality observations, load context, recovery note)
+
+See `POST_WORKOUT_TEMPLATE.md` for field reference and rounding conventions.
+
+**Brevity Rule:** Brief when metrics are normal. Detailed when thresholds are breached or athlete asks "why."
+
+---
+
 End of Section 11 A. AI Coach Protocol
 
 ---
@@ -660,7 +688,7 @@ This subsection defines the formal self-validation and audit metadata structure 
   "validation_metadata": {
     "data_source_fetched": true,
     "json_fetch_status": "success",
-    "protocol_version": "11.1",
+    "protocol_version": "11.2",
     "checklist_passed": [1, 2, 3, 4, 5, 6, "6b", 7, 8, 9, 10],
     "checklist_failed": [],
     "data_timestamp": "2026-01-13T22:32:05Z",

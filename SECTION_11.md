@@ -5,9 +5,26 @@
 **License:** [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
 
 ### Changelog
-- v11.2: Added Output Format Guidelines with pre/post-workout report structure and brevity rule
-- v11.2: Formalized session field list in response structure
+
+**v11.2 — Metrics & Validation Extension:**
+- Added Phase Detection Criteria with deterministic trigger conditions
+- Extended Validated Endurance Ranges (Stress Tolerance, Load-Recovery Ratio, Grey Zone %, Consistency Index)
+- Added Load Management Metrics with explicit hierarchy (primary → secondary → tertiary)
+- Added Zone Distribution Metrics per Seiler's research (Grey Zone Percentage, Quality Intensity Percentage, Hard Days per Week, time-based vs session-based guidance)
+- Added Periodisation Metrics (Specificity Volume Ratio, Benchmark Index with seasonal context)
+- Added Durability Sub-Metrics (Endurance Decay, Z2 Stability) for DI diagnostics
+- Added W′ Balance metrics with data source and confidence requirements
+- Added Plan Adherence Monitoring for prescription compliance validation
+- Extended Validation Metadata Schema (phase, seasonal, compliance, hierarchy, zone distribution, load-recovery fields)
+- Clarified metric evaluation hierarchy (Tier 1 → Tier 2 → Tier 3)
+- Added Dossier Architecture Note (Section 11 as self-contained protocol)
+
+**v11.2 — Output & Structure:**
+- Added Output Format Guidelines with pre/post-workout report structure and brevity rule
+- Formalized session field list in response structure
 - Reordered 11 B/11 C for logical flow (Construction → Validation)
+
+**v11.0 — Foundation:**
 - Introduced modular split (11A: AI Guidance, 11B: Training Plan, 11C: Validation Protocol)
 - Unified terminology (Fatigue Index Ratio, Deterministic Tolerance ±3 W / ±1 %)
 - Confirmed alignment with URF v5.1, RPS Durability, and Intervals.icu v17 frameworks
@@ -19,6 +36,28 @@
 This protocol defines how AI-based coaching systems should reason, query, and provide guidance within an athlete's endurance training ecosystem — ensuring alignment with scientific principles, dossier-defined parameters, and long-term objectives.
 
 It enables AI systems to interpret, update, and guide an athlete's plan even without automated API access, maintaining evidence-based and deterministic logic.
+
+---
+
+### Dossier Architecture Note
+
+Section 11 operates as a **self-contained AI protocol**. All metric definitions, validation ranges, evaluation hierarchies, and decision logic are defined within this document. The athlete's training dossier (DOSSIER.md) is a separate document containing athlete-specific data, goals, and configuration.
+
+| Content Type | Location | Rationale |
+|-------------|----------|-----------|
+| Phase Detection Triggers | Section 11 (11A) | AI-specific classification logic |
+| Validated Endurance Ranges | Section 11 (11A, subsection 7) | Audit thresholds within AI protocol |
+| Load Management Metrics | Section 11 (11A, subsection 9) | AI decision logic |
+| Periodisation Metrics | Section 11 (11A, subsection 9) | AI coaching logic |
+| Durability Sub-Metrics | Section 11 (11A, subsection 9) | AI diagnostic logic |
+| W′ Balance Metrics | Section 11 (11A, subsection 9) | AI optional metrics |
+| Plan Adherence Monitoring | Section 11 (11A) | AI compliance tracking |
+| Specificity Volume Tracking | Section 11 (11A) | AI event-prep logic |
+| Benchmark Index | Section 11 (11A, FTP Governance) | AI longitudinal tracking |
+| Zone Distribution Metrics | Section 11 (11A, subsection 9) | AI intensity monitoring |
+| Validation Metadata | Section 11 (11C) | AI audit schema |
+
+AI systems should reference the athlete dossier for athlete-specific values (FTP, zones, goals, schedule) and this protocol for all coaching logic, thresholds, and decision rules.
 
 ---
 
@@ -60,9 +99,9 @@ All AI analyses, interpretations, and recommendations must be grounded in valida
 
 | **Framework / Source**                                      | **Application Area**                                                                                                          |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-|   Seiler’s 80/20 Polarized Training                         | Aerobic durability, balance of high/low intensity, and load control      				                      |
-|   San Millán’s Zone 2 Model                                 | Mitochondrial efficiency and metabolic health                          					                      |
-|   Friel’s Age-Adjusted Microcycle Model                     | Sustainable progression and fatigue management                         					                      |
+|   Seiler’s 80/20 Polarized Training                         | Aerobic durability, balance of high/low intensity, and load control      				                                      |
+|   San Millán’s Zone 2 Model                                 | Mitochondrial efficiency and metabolic health                          					                                      |
+|   Friel’s Age-Adjusted Microcycle Model                     | Sustainable progression and fatigue management                         					                                      |
 |   Banister’s TRIMP Impulse–Response Model                   | Load quantification and performance adaptation tracking                                                                       |
 |   Foster’s Monotony & Strain Indices                        | Overuse detection and load variation optimization                                                                             |
 |   Issurin’s Block Periodization Model (2008)                | Structured progression using accumulation → realization → taper blocks                                                        |
@@ -102,6 +141,26 @@ Each week's data (TSS, CTL, ATL, TSB, RI) is analyzed for trend and slope:
 
 This produces a rolling phase block structure that adapts dynamically, ensuring progression and recovery follow real-world readiness rather than fixed calendar blocks.
 The system continuously reflects the athlete’s true state — evolving naturally through accumulation, stabilization, and adaptation phases.
+
+---
+
+### Phase Detection Criteria
+
+To ensure deterministic phase classification, AI systems must evaluate the following trigger conditions when identifying the current training phase:
+
+| **Phase** | **Primary Triggers** | **Supporting Indicators** |
+|-----------|---------------------|---------------------------|
+| Base | CTL rising steadily, ACWR 0.8–1.0, Quality Intensity <15% (by time) or ≤1 hard day/week | Polarisation index ≥0.85, RI ≥0.8, Grey Zone <5% |
+| Build | ACWR 1.0–1.3, Quality Intensity 15–25% (by time) or 2 hard days/week | CTL slope positive, TSB neutral to slightly negative, Grey Zone <8% |
+| Peak | CTL plateau or slight decline, interval intensity at maximum | Specificity Score ≥0.85, TSB trending positive, 2–3 hard days/week |
+| Overreached | ACWR >1.3 OR Strain >3500 OR RI <0.6 for ≥3 days | HRV ↓>15%, Feel ≥4, Monotony >2.5 |
+| Taper | CTL declining 5–15%, TSB rising toward positive | Volume reduction 30–50%, intensity maintained, 1–2 hard days/week |
+| Recovery | TSB >+10, weekly load <50% of 4-week average | RI ≥0.85, HRV stable or improving, 0 hard days |
+
+**Phase Transition Rules:**
+- Phase changes require ≥3 consecutive days of trigger conditions being met
+- Overreached state triggers immediate phase reassessment regardless of planned block
+- AI must cite specific trigger values when declaring phase transitions
 
 ---
 
@@ -146,6 +205,49 @@ If the AI does not have a current value, it must request it from the user explic
 - FTP tests are optional — one or two per year may be performed for validation or benchmarking
 - AI systems must not infer or overwrite FTP unless validated by modeled data or explicit athlete confirmation
 
+**Benchmark Index (Longitudinal FTP Validation):**
+
+To track FTP progression without requiring discrete tests, AI systems may compute:
+
+```
+Benchmark Index = (FTP_current ÷ FTP_prior) − 1
+```
+
+Where:
+- `FTP_current` = Current modeled FTP from Intervals.icu
+- `FTP_prior` = FTP value from 8–12 weeks prior (captures 1–1.5 training cycles)
+
+**Interpretation:**
+| **Benchmark Index** | **Status**  | **Recommended Action**                                      |
+|---------------------|------------ |-------------------------------------------------------------|
+| +2% to +5%          | Progressive | Continue current programming                                |
+| 0% to +2%           | Maintenance | Acceptable if in recovery or maintenance phase              |
+| −2% to 0%           | Plateau     | Review training stimulus and recovery                       |
+| < −2%               | Regression  | Investigate recovery, illness, overtraining, or life stress |
+
+**⚠️ Seasonal Context Adjustment:**
+
+Benchmark Index interpretation must account for seasonal training phases. Expected FTP fluctuations vary across the annual cycle:
+
+| **Season / Phase**           | **Expected Benchmark Index** | **Notes**                                           |
+|------------------------------|------------------------------|-----------------------------------------------------|
+| Off-season (post-goal event) | −5% to −2%                   | Expected regression during recovery; not concerning |
+| Early Base (winter)          | −2% to +1%                   | Maintenance or slow rebuild; normal                 |
+| Late Base / Build (spring)   | +2% to +5%                   | Progressive gains expected                          |
+| Peak / Race Season (summer)  | +1% to +3%                   | Gains taper as fitness plateaus near peak           |
+| Transition (autumn)          | −3% to 0%                    | Controlled detraining; expected                     |
+
+**Interpretation Rules:**
+- A −3% Benchmark Index in January (post off-season) is **normal** and should not trigger alarm
+- A −3% Benchmark Index in July (mid-season) **warrants investigation**
+- AI systems should cross-reference current phase (from Phase Detection Criteria) before flagging regression
+- If Benchmark Index is negative but within seasonal expectations, note as "expected seasonal variance" rather than "regression"
+
+**Governance Rules:**
+- Benchmark Index should be evaluated no more frequently than every 4 weeks
+- Negative trends persisting >8 weeks *outside expected seasonal context* warrant programme review
+- AI must not use Benchmark Index to override athlete-confirmed FTP values
+
 **Computational Consistency:**
 - All computations must maintain deterministic consistency
 - Variance across total or aggregated metrics must not exceed ±1% across datasets
@@ -172,6 +274,31 @@ Before providing recommendations, AI systems must verify:
 | 8  | Recommendation Auditability      | Cite specific data points used. Include reasoning chain. State confidence: "High" (all data) / "Medium" (1–2 gaps) / "Low" (>2 gaps).                  |
 | 9  | Rolling Phase Alignment          | Identify current phase from TSB trend and ramp rate. Recommendations must align with phase logic. Flag contradictions.                                 |
 | 10 | Protocol Version & Framework Citations | State Section 11 version. Cite frameworks when applying logic (e.g., "Per Seiler 80/20 model..."). Include framework version (e.g., “URF v5.1”)  |                                        
+
+---
+
+
+### Plan Adherence Monitoring
+
+AI systems should track prescription compliance to validate coaching effectiveness:
+
+**Consistency Index Calculation:**
+```
+Consistency Index = Sessions Completed ÷ Sessions Planned (rolling 7-day window)
+```
+
+**Compliance Thresholds:**
+| **Consistency Index** | **Status**    | **AI Response**                                           |
+|-----------------------|---------------|-----------------------------------------------------------|
+| ≥0.9                  | Compliant     | Continue current prescription                             |
+| 0.7–0.89              | Partial       | Flag missed sessions; assess barriers                     |
+| <0.7                  | Non-compliant | Review prescription feasibility; adjust load or frequency |
+
+**Validation Rules:**
+- Planned sessions are defined by the athlete's calendar or AI-prescribed plan
+- Rest days count as "completed" if no workout was prescribed
+- Partial session completion (e.g., cut short) counts as 0.5 for calculation purposes
+- AI must not penalise recovery adjustments made in response to readiness signals
 
 ---
 
@@ -241,31 +368,40 @@ AI systems must adopt a professional coach tone — concise, precise, and data-d
 
 When uncertain, the AI must ask, not assume.
 
-**Response Structure (routine workout reviews):**
-1. Opening summary (1–3 sentences): What was completed, overall assessment
-2. Session details (!important: Bulleted list, one per activity):
+**Post-Workout Report Structure:**
+
+Reports use a structured line-by-line format per session, not bullet-point summaries. Each report follows this flow:
+
+1. **Data timestamp:** `Data (last_updated UTC: [timestamp])`
+2. **One-line summary:** What was completed, key observation
+3. **Session block(s)** (one per activity, line-by-line):
    - Activity type & name
    - Start time
-   - Duration
+   - Duration (actual vs planned)
+   - Distance (cycling/running only)
    - Power: Avg / NP
+   - Power zones (% breakdown)
+   - Grey Zone (Z3): X%
+   - Quality (Z4+): X%
    - HR: Avg / Max
-   - TSS
+   - HR zones (% breakdown)
    - Cadence (avg)
-   - Decoupling %
-   - Zone distribution (summary)
-   - Energy (kJ)
-   - Carbs (g)
-   - Execution note
-   - Recovery impact (if notable)
-   Omit fields only if data unavailable.
-3. Training load context: Weekly totals (hours, TSS), TSB, relevant trends
-4. Interpretation (1–2 sentences): Compliance confirmation, status
-5. Next-action prompt only if relevant
+   - Decoupling (with assessment label)
+   - Variability Index (with assessment label)
+   - Calories (kcal)
+   - Carbs used (g)
+   - TSS (actual vs planned)
+   Omit fields only if data unavailable for that activity type.
+4. **Weekly totals block:** Polarization, TSB, CTL, ATL, Ramp rate, ACWR, Hours, TSS
+5. **Overall:** Coach note (2–4 sentences — compliance, key quality observations, load context, recovery note if applicable)
+
+See **Output Format Guidelines** for full field reference, assessment labels, and report templates.
 
 **Do NOT:**
 - Use single-paragraph responses for workout reviews
+- Use bullet-point lists for session data (use structured line-by-line format)
 - Ask follow-up questions when data is complete and metrics are good
-- Omit training load context (TSB, weekly totals)
+- Omit weekly totals (polarization, TSB, CTL, ATL, ACWR, hours, TSS)
 - Cite "per Section 11" or "according to the protocol"
 
 Elaborate only when thresholds are breached or athlete requests deeper analysis.
@@ -294,17 +430,33 @@ If figures appear inconsistent or incomplete, request confirmation before procee
 When validating datasets, cross-check computed fatigue and load ratios against validated endurance ranges:
 **Validated Endurance Ranges:**
 
-| **Metric**                  | **Valid Range**                               | **Notes**                                         |
-|-----------------------------|-----------------------------------------------|---------------------------------------------------|
-| ACWR                        | 0.8–1.3                                       | Acute:Chronic Workload Ratio                      |
-| Monotony                    | < 2.5                                         | Load variation                                    |
-| Strain                      | < 3500                                        | Cumulative stress                                 |
-| Recovery Index (RI)         | ≥ 0.8 good / 0.6–0.79 moderate / < 0.6 deload | Readiness indicator                               |
-| Fatigue Trend               | −0.2 to +0.2                                  | ΔATL − ΔCTL (stable range)                        |
-| Polarisation Ratio          | 0.75–0.9                                      | ~80/20 distribution                               |
-| Durability Index (DI)       | ≥ 0.9                                         | Avg Power last hour ÷ first hour                  |
-| Adaptive Action Score (AAS) | ≥ 0.75 maintain / < 0.7 deload                | Block-level transition                            |
-| Load Ratio                  | < 3500                                        | Monotony × Mean Load — cumulative stress indicator|
+| **Metric**                   | **Valid Range**                                    | **Notes**                                                           |
+|------------------------------|----------------------------------------------------|---------------------------------------------------------------------|
+| ACWR                         | 0.8–1.3                                            | Acute:Chronic Workload Ratio                                        |
+| Monotony                     | < 2.5                                              | Load variation                                                      |
+| Strain                       | < 3500                                             | Cumulative stress                                                   |
+| Recovery Index (RI)          | ≥ 0.8 good / 0.6–0.79 moderate / < 0.6 deload      | Readiness indicator                                                 |
+| Fatigue Trend                | −0.2 to +0.2                                       | ΔATL − ΔCTL (stable range)                                          |
+| Polarisation Ratio           | 0.75–0.9                                           | ~80/20 distribution                                                 |
+| Durability Index (DI)        | ≥ 0.9                                              | Avg Power last hour ÷ first hour                                    |
+| Adaptive Action Score (AAS)  | ≥ 0.75 maintain / < 0.7 deload                     | Block-level transition                                              |
+| Load Ratio                   | < 3500                                             | Monotony × Mean Load — cumulative stress indicator                  |
+| Stress Tolerance             | 3–6 sustainable / <3 low buffer / >6 high capacity | (Strain ÷ Monotony) ÷ 100 — load absorption capacity                |
+| Load-Recovery Ratio          | <2.5 normal / ≥2.5 alert                           | 7-day Load ÷ RI — **secondary** overreach detector (see note below) |
+| Grey Zone Percentage         | <5% normal / >8% elevated                          | Grey zone time as % of total — prevents tempo creep                 |
+| Quality Intensity Percentage | See intensity distribution guidance                | Quality intensity (threshold+) as % of total                        |
+| Hard Days per Week           | 2–3 typical / 1 (base/recovery) / 0 (deload)       | For high-volume athletes (10+ hrs/week)                             |
+| Consistency Index            | ≥0.9 consistent / <0.8 non-compliant               | Sessions Completed ÷ Sessions Planned                               |
+
+**⚠️ Load-Recovery Ratio Hierarchy Note:**  
+Load-Recovery Ratio is a **secondary** overreach detector. It should only be evaluated *after* Recovery Index (RI) has been validated as the primary readiness marker. The decision hierarchy is:
+
+1. **Primary:** Recovery Index (RI) — physiological readiness
+2. **Secondary:** Load-Recovery Ratio — load vs. recovery capacity
+3. **Tertiary:** Subjective markers (Feel, RPE) — athlete-reported state
+
+If RI indicates good readiness (≥0.8) but Load-Recovery Ratio is elevated (≥2.5), flag for monitoring but do not auto-trigger deload unless RI also declines.
+
 
 If any values breach limits, shift guidance toward load modulation or recovery emphasis.
 
@@ -386,6 +538,44 @@ In addition to recovery-based deload conditions, AI systems must detect readines
 | ACWR                  | Within 0.8–1.3                          |
 | Monotony              | < 2.5                                   |
 | Feel                  | ≤ 3/5 (no systemic fatigue)             |
+
+---
+
+### Event-Specific Volume Tracking (Peak Phase Only)
+
+During peak and pre-competition phases, AI systems should validate event-specific volume allocation using the Specificity Volume Ratio:
+
+**Specificity Volume Ratio Calculation:**
+```
+Specificity Volume Ratio = Race-specific Training Hours ÷ Total Training Hours (rolling 14–21 days)
+```
+
+**Race-Specific Definition by Event Type:**
+
+The definition of "race-specific" training varies by event type. AI systems should reference **Section 3 (Training Schedule & Framework)** for athlete-specific event definitions, or apply the following defaults:
+
+| **Event Type**           | **Race-Specific Definition**                             | **Duration Tolerance**    | **Rationale**                                                           |
+|--------------------------|----------------------------------------------------------|---------------------------|-------------------------------------------------------------------------|
+| Gran Fondo / Randonneur  | Sessions matching target event duration and pacing       | ±15%                      | Duration-critical; pacing and fueling are primary limiters              |
+| Road Race (mass start)   | Sessions with race-specific power variability and surges | ±20%                      | Tactical demands vary; power profile more important than exact duration |
+| Time Trial               | Sessions at target TT intensity and duration             | ±10%                      | Highly duration- and intensity-specific                                 |
+| Criterium / Track        | High-intensity intervals matching race power demands     | N/A (power-profile based) | Duration less relevant; power repeatability is key                      |
+| Ultra-Endurance (200km+) | Long rides ≥70% of event duration at target pacing       | ±10%                      | Duration, pacing, and fueling are critical                              |
+| Hill Climb               | Efforts matching target climb duration and gradient      | ±15%                      | Power-to-weight at specific duration                                    |
+
+**Volume Allocation Targets:**
+| **Phase** | **Specificity Volume Ratio** | **Specificity Score (existing)** |
+|-----------|------------------------------|----------------------------------|
+| Base      | 0.2–0.4                      | N/A (general fitness focus)      |
+| Build     | 0.4–0.6                      | ≥0.70                            |
+| Peak      | 0.7–0.9                      | ≥0.85                            |
+
+**AI Response Logic:**
+- If Specificity Volume Ratio <0.5 within 3 weeks of goal event → Flag insufficient event-specific volume
+- If Specificity Score ≥0.85 but Specificity Volume Ratio <0.6 → Quality good but volume insufficient; increase race-specific session frequency
+- If Specificity Volume Ratio >0.9 for >2 weeks → Risk of monotony; validate variety while maintaining specificity
+
+**Note:** For events not listed above, AI should prompt athlete to define race-specific criteria or reference Section 3 event profile.
 
 ---
 
@@ -516,6 +706,249 @@ Any training modification requires reconfirming **HRV**, **RHR**, and **subjecti
 
 ---
 
+#### Load Management Metrics
+
+| **Metric**          | **Formula / Method**                    | **Target Range** | **Purpose / Interpretation**                             |
+|---------------------|-----------------------------------------|------------------|----------------------------------------------------------|
+| Stress Tolerance    | `(Strain ÷ Monotony) ÷ 100`             | 3–6              | Quantifies capacity to absorb additional training load   |
+| Load-Recovery Ratio | `7-day Load ÷ Recovery Index`           | <2.5             | **Secondary** overreach detector; complements RI and FIR |
+| Consistency Index   | `Sessions Completed ÷ Sessions Planned` | ≥0.9             | Validates plan adherence and prescription compliance     |
+
+**Interpretation Logic:**
+- Stress Tolerance <3 → Limited buffer for load increases; prioritize recovery
+- Stress Tolerance >6 → High absorption capacity; may tolerate progressive overload
+- Load-Recovery Ratio ≥2.5 → Load outpacing recovery capacity; reduce volume or intensity
+
+**⚠️ Metric Hierarchy:**  
+These metrics are **secondary** to the primary readiness markers defined in Section 8 (Readiness & Recovery Thresholds). AI systems must evaluate in this order:
+
+1. **Primary readiness:** RI, HRV, RHR, Feel
+2. **Secondary load metrics:** Stress Tolerance, Load-Recovery Ratio, Consistency Index
+3. **Tertiary diagnostics:** Zone Distribution Metrics, Durability Sub-Metrics
+
+Do not override primary readiness signals with secondary load metrics.
+
+---
+
+#### Zone Distribution Metrics (Seiler's Polarized Model)
+
+In addition to the polarisation ratios defined above in Zone Distribution & Polarisation Metrics, the following diagnostic metrics provide granular intensity distribution analysis aligned with Seiler's research.
+
+**Critical Context:** Seiler's research shows that intensity distribution appears different depending on measurement method:
+- **By session count:** ~80% easy sessions, ~20% hard sessions (polarized appearance)
+- **By time in zone:** ~90%+ easy time, <10% hard time (pyramidal appearance)
+
+Both measurements are valid but serve different purposes. For **high-volume athletes** (10+ hours/week), **session count or hard days per week** is often more practical than time-in-zone percentage.
+
+| **Metric**                       | **Formula / Method**                    | **Purpose**                                               |
+|----------------------------------|-----------------------------------------|-----------------------------------------------------------|
+| **Grey Zone Percentage**         | `Z3 Time ÷ Total Time × 100`            | Grey zone (tempo) monitoring — **minimize this**          |
+| **Quality Intensity Percentage** | `(Z4+Z5+Z6+Z7) Time ÷ Total Time × 100` | Quality intensity — hard work above threshold             |
+| **Polarisation Index**           | `(Z1+Z2) Time ÷ Total Time`             | Easy time ratio — validates 80/20 distribution by time    |
+| **Hard Days per Week**           | Count of days with Z4+ work             | Session-based intensity tracking for high-volume athletes |
+
+**Zone Classification (7-Zone to Seiler 3-Zone Mapping):**
+
+| 7-Zone Model | Seiler Zone | Classification | Notes                                                     |
+|--------------|-------------|----------------|-----------------------------------------------------------|
+| Z1–Z2        | Zone 1      | Easy           | Below LT1/VT1 (<2mM lactate)                              |
+| Z3           | Zone 2      | Grey Zone      | Between LT1 and LT2 — "too much pain for too little gain" |
+| Z4–Z7        | Zone 3      | Hard/Quality   | Above LT2/VT2 (>4mM lactate)                              |
+
+**Intensity Distribution Targets:**
+
+For athletes training **<10 hours/week** (time-based targets more practical):
+
+| **Phase** | **Grey Zone % Target** | **Quality Intensity % Target** | **Polarisation Index** |
+|-----------|------------------------|--------------------------------|------------------------|
+| Base      | <5%                    | 10–15%                         | ≥0.85                  |
+| Build     | <8%                    | 15–20%                         | ≥0.80                  |
+| Peak      | <10%                   | 20–25%                         | ≥0.75                  |
+| Recovery  | <3%                    | <5%                            | ≥0.95                  |
+
+For athletes training **≥10 hours/week** (session-based targets more practical):
+
+| **Phase** | **Grey Zone % Target** | **Hard Days/Week** | **Easy Days/Week** | **Rest Days** |
+|-----------|------------------------|--------------------|--------------------|---------------|
+| Base      | <5%                    | 1                  | 5–6                | 1             |
+| Build     | <8%                    | 2                  | 4                  | 1             |
+| Peak      | <10%                   | 2–3                | 3–4                | 1             |
+| Recovery  | <3%                    | 0                  | 3–4                | 2–3           |
+
+**Why Session Count Matters for High-Volume Athletes:**
+
+When training 15+ hours per week, a 2-hour interval session might only contribute 5–7% of total weekly time in Z4+, despite being a full "hard day." By time-in-zone metrics, this looks insufficient. By session count, 2 hard days out of 6–7 training days (~30%) is appropriate for a build phase.
+
+**Reference:** Seiler's research on elite cross-country skiers showed 77% of training sessions were easy and 23% were hard, while by time 91% was in zones 1–2 and only 9% in zones 3–5.
+
+**AI Response Logic:**
+- Grey Zone Percentage >8% for ≥2 consecutive weeks → Flag tempo creep; recommend restructuring
+- Quality Intensity Percentage <10% AND Hard Days <2/week during build phase → Flag insufficient intensity stimulus
+- Hard Days >3/week for ≥2 consecutive weeks → Flag overintensity risk; check RI and ACWR
+
+**Example Valid Training Week (Build Phase, 15 hours total):**
+- Monday: Rest + cross-training (walk, ski erg)
+- Tuesday: Z2 endurance (2.5 hours)
+- Wednesday: **Hard day** — VO2max intervals (1.5 hours, includes Z4+ work)
+- Thursday: Z1–Z2 recovery/endurance (2 hours)
+- Friday: Z2 endurance (2.5 hours)
+- Saturday: **Hard day** — Threshold intervals (2 hours, includes Z4+ work)
+- Sunday: Z2 long ride (4.5 hours)
+
+This yields: ~3% Quality Intensity % by time, but 2 hard days (29% of training days) — both are correct measurements.
+
+---
+
+#### Grey Zone Percentage — Grey Zone Monitoring
+
+To prevent unintended accumulation of tempo/threshold-adjacent intensity during base or recovery phases, monitor:
+
+```
+Grey Zone Percentage = Z3 Time ÷ Total Training Time × 100
+```
+
+**Phase-Appropriate Targets:**
+| **Phase** | **Grey Zone % Target** | **Alert Threshold** |
+|-----------|------------------------|---------------------|
+| Base      | <5%                    | >8%                 |
+| Build     | <8%                    | >12%                |
+| Peak      | <10%                   | >15%                |
+| Recovery  | <3%                    | >5%                 |
+
+**AI Response Logic:**
+- Grey Zone Percentage exceeding alert threshold for ≥2 consecutive weeks → Flag tempo creep
+- During base phase, elevated Grey Zone % often indicates insufficient Z1 volume or unstructured "junk miles"
+- AI must recommend session restructuring to restore polarisation balance
+
+**Why Z3 is the "Grey Zone":**
+
+Per Seiler's research, training between the aerobic and anaerobic thresholds (tempo/sweetspot) generates:
+- More fatigue than Z1–Z2 work
+- Less adaptation stimulus than Z4+ work
+- "Too much pain for too little gain"
+
+Elite athletes consistently minimize Z3 exposure, favouring clear polarisation between easy (Z1–Z2) and hard (Z4+) sessions.
+
+---
+
+#### Periodisation & Progression Metrics
+
+| **Metric**               | **Formula / Method**                | **Target Range** | **Purpose / Interpretation**                                                           |
+|--------------------------|-------------------------------------|------------------|----------------------------------------------------------------------------------------|
+| Specificity Volume Ratio | `Race-specific Hours ÷ Total Hours` | 0.7–0.9 (peak)   | Complements Specificity Score by tracking volume allocation toward event-specific work |
+| Benchmark Index          | `(FTP_current ÷ FTP_prior) − 1`     | +2–5%            | Tracks longitudinal FTP progression without requiring formal tests                     |
+
+**Interpretation Logic:**
+- Specificity Volume Ratio <0.5 during peak phase → Insufficient race-specific volume (cross-check with Specificity Score for quality alignment)
+- Benchmark Index negative over 8+ weeks → Investigate recovery, nutrition, or programming
+
+**Note:** Specificity Volume Ratio measures *how much* training time is event-specific, while the existing Specificity Score measures *how well* sessions match target event demands. Both should trend upward during peak phases.
+
+---
+
+#### Durability Sub-Metrics
+
+When Durability Index (DI) drops below 0.95, the following diagnostic metrics help identify the specific durability limitation:
+
+| **Metric**      | **Formula / Method**                                           | **Target Range** | **Purpose / Interpretation**                     |
+|-----------------|----------------------------------------------------------------|------------------|--------------------------------------------------|
+| Endurance Decay | `(Avg Power Hour 1 − Avg Power Final Hour) ÷ Avg Power Hour 1` | <0.05            | Quantifies power degradation over long sessions  |
+| Z2 Stability    | `SD(Z2 Power) ÷ Mean(Z2 Power)` across sessions                | <0.04            | Measures consistency of aerobic pacing execution |
+
+**Diagnostic Logic:**
+- High Endurance Decay + Normal HR–Power Decoupling → Muscular fatigue; consider fueling or pacing strategy
+- Normal Endurance Decay + High HR–Power Decoupling → Cardiovascular drift; assess hydration, heat, or aerobic base fitness
+- High Z2 Stability variance → Inconsistent pacing execution; review session targeting
+
+**Note:** HR–Power Decoupling (existing metric) serves as the cardiac drift diagnostic. Do not duplicate with separate "Aerobic Decay" metric.
+
+---
+
+#### W′ Balance Metrics *(When Interval Data Available)*
+
+If workout files include W′ balance data (from Intervals.icu or WKO), the following metrics provide anaerobic capacity insights:
+
+| **Metric**             | **Definition**                                        | **Interpretation**                               |
+|------------------------|-------------------------------------------------------|--------------------------------------------------|
+| Mean W′ Depletion      | Average % of W′ reserve expended per interval session | Higher values indicate greater anaerobic demand  |
+| W′ Recovery Rate       | Time to recover 50% of W′ between intervals           | Slower recovery may indicate accumulated fatigue |
+| Anaerobic Contribution | % of session TSS derived from W′ expenditure          | Validates interval prescription alignment        |
+
+**Data Source & Requirements:**
+- Intervals.icu automatically calculates CP (Critical Power) and W′ from your power curve data
+- **However**, accurate modeling requires sufficient maximal efforts across multiple durations (typically 3–20 minutes) within the past 90 days
+- If power curve data is sparse or lacks recent maximal efforts, CP/W′ estimates may be unreliable
+- AI systems should verify `power_curve_quality` or equivalent confidence indicator before applying W′ metrics
+- If CP/W′ data is unavailable or low-confidence, skip W′ metrics and rely on standard TSS-based load analysis
+
+**Usage Notes:**
+- These metrics are most relevant for VO₂max, threshold, and anaerobic interval sessions
+- Do not apply to Z1–Z2 endurance sessions
+- W′ metrics are **Tier 3 (tertiary)** — use for diagnostics, not primary load decisions
+
+---
+
+#### Metric Evaluation Hierarchy
+
+To ensure AI systems evaluate metrics in the correct order:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  TIER 1: PRIMARY READINESS (Evaluate First)                 │
+│  ─────────────────────────────────────────                  │
+│  • Recovery Index (RI)                                      │
+│  • HRV (vs baseline)                                        │
+│  • RHR (vs baseline)                                        │
+│  • Feel / RPE (subjective)                                  │
+│                                                             │
+│  → These determine GO / NO-GO for training                  │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  TIER 2: SECONDARY LOAD METRICS (Evaluate Second)           │
+│  ─────────────────────────────────────────────              │
+│  • Stress Tolerance                                         │
+│  • Load-Recovery Ratio                                      │
+│  • Consistency Index                                        │
+│  • ACWR, Monotony, Strain                                   │
+│                                                             │
+│  → These refine load prescription within readiness limits   │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  TIER 3: TERTIARY DIAGNOSTICS (Evaluate When Flagged)       │
+│  ─────────────────────────────────────────────              │
+│  • Grey Zone Percentage (grey zone monitoring)              │
+│  • Quality Intensity Percentage / Hard Days                 │
+│  • Polarisation Index                                       │
+│  • Durability Sub-Metrics (Endurance Decay, Z2 Stability)   │
+│  • Specificity Volume Ratio                                 │
+│  • Benchmark Index (with seasonal context)                  │
+│  • W′ Balance Metrics (when available and high-confidence)  │
+│                                                             │
+│  → These diagnose specific issues when primary/secondary    │
+│    metrics indicate a problem                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Critical Rule:** Secondary metrics (Tier 2) must never override primary readiness signals (Tier 1). If RI ≥ 0.8 but Load-Recovery Ratio ≥ 2.5, flag for monitoring but do not auto-trigger deload.
+
+---
+
+#### Relationship to Existing Metrics
+
+| New Metric                   | Existing Metric           | Relationship                                                                                                                         |
+|------------------------------|---------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| Load-Recovery Ratio          | Recovery Index (RI)       | **Hierarchical.** RI is primary readiness. Load-Recovery Ratio is secondary load-vs-recovery check.                                  |
+| Load-Recovery Ratio          | Fatigue Index Ratio (FIR) | **Different purpose.** FIR measures power sustainability (20min vs 60min). Load-Recovery Ratio measures load vs recovery capacity.   |
+| Specificity Volume Ratio     | Specificity Score         | **Complementary.** Volume Ratio tracks *how much* time is event-specific. Score tracks *how well* sessions match event demands.      |
+| Endurance Decay              | Durability Index (DI)     | **Diagnostic breakdown.** DI is the primary metric. Endurance Decay provides detail when DI <0.95.                                   |
+| Grey Zone Percentage         | Polarisation Index        | **Complementary.** Polarisation Index validates 80/20 by easy time. Grey Zone Percentage specifically flags grey zone creep.         |
+| Quality Intensity Percentage | Polarisation Index        | **Complementary.** Quality Intensity Percentage tracks quality intensity. For high-volume athletes, Hard Days per Week is preferred. |
+| Stress Tolerance             | Strain                    | **Derived from.** Stress Tolerance = (Strain ÷ Monotony) ÷ 100, providing absorption capacity context.                               |
+
+---
+
 ### Update & Version Guidance
 
 The dossier (DOSSIER.md) and SECTION_11.md is the **single source of truth** for all thresholds, metrics, and structural logic.  
@@ -560,7 +993,7 @@ The dossier’s performance-objective tables define the **authoritative phase st
 ### Output Format Guidelines
 
 AI systems should structure athlete reports consistently.  
-See `/examples/reports/` for annotated templates and examples.
+See https://github.com/CrankAddict/section-11/tree/main/examples/reports for annotated templates and examples.
 
 **Pre-Workout Reports must include:**
 - Weather and coach note (if athlete location is available)
@@ -569,7 +1002,7 @@ See `/examples/reports/` for annotated templates and examples.
 - Today's planned workout with duration and targets (or rest day + next session preview)
 - Go/Modify/Skip recommendation with rationale
 
-See `PRE_WORKOUT_TEMPLATE.md` for conditional fields and readiness decision logic.
+See `PRE_WORKOUT_TEMPLATE.md` in the examples directory for conditional fields and readiness decision logic.
 
 **Post-Workout Reports must include:**
 - One-line session summary
@@ -578,7 +1011,7 @@ See `PRE_WORKOUT_TEMPLATE.md` for conditional fields and readiness decision logi
 - Weekly running totals (polarization, CTL, ATL, TSB, ACWR, hours, TSS)
 - Overall coach note (2-4 sentences: compliance, key quality observations, load context, recovery note)
 
-See `POST_WORKOUT_TEMPLATE.md` for field reference and rounding conventions.
+See `POST_WORKOUT_TEMPLATE.md` in the examples directory for field reference and rounding conventions.
 
 **Brevity Rule:** Brief when metrics are normal. Detailed when thresholds are breached or athlete asks "why."
 
@@ -700,30 +1133,64 @@ This subsection defines the formal self-validation and audit metadata structure 
     "confidence": "high",
     "missing_inputs": [],
     "frameworks_cited": ["Seiler 80/20", "Gabbett ACWR"],
-    "recommendation_count": 3
+    "recommendation_count": 3,
+    "phase_detected": "Build",
+    "phase_triggers_met": ["ACWR 1.12", "Hard days 2/week", "CTL slope +0.8"],
+    "seasonal_context": "Late Base / Build",
+    "consistency_index": 0.92,
+    "stress_tolerance": 4.2,
+    "grey_zone_percentage": 3.2,
+    "quality_intensity_percentage": 2.7,
+    "hard_days_this_week": 2,
+    "polarisation_index": 0.97,
+    "specificity_volume_ratio": 0.58,
+    "load_recovery_ratio": 1.8,
+    "primary_readiness_status": "RI 0.84 — Good",
+    "secondary_load_status": "Load-Recovery Ratio 1.8 — Normal",
+    "benchmark_index": 0.03,
+    "benchmark_seasonal_expected": true,
+    "w_prime_data_available": true,
+    "w_prime_confidence": "high"
   }
 }
 ```
 
 ### Field Definitions
 
-| Field                   | Type     | Description                                                                         |
-|-------------------------|----------|-------------------------------------------------------------------------------------|
-| `data_source_fetched`   | boolean  | Whether JSON was successfully fetched from mirror URL                               |
-| `json_fetch_status`     | string   | "success" / "failed" / "unavailable" — stop and request manual input if not success |
-| `protocol_version`      | string   | Section 11 version being followed                                                   |
-| `checklist_passed`      | array    | List of checklist items (1–10) that passed validation                               |
-| `checklist_failed`      | array    | List of checklist items that failed, with reasons                                   |
-| `data_timestamp`        | ISO 8601 | Timestamp of the data being referenced                                              |
-| `data_age_hours`        | number   | Hours since data was last updated                                                   |
-| `athlete_timezone`      | string   | Athlete's local timezone (e.g., "UTC+1")                                            |
-| `utc_aligned`           | boolean  | Whether dataset timestamps align with UTC                                           |
-| `system_offset_minutes` | number   | Offset between system and data clocks                                               |
-| `timestamp_valid`       | boolean  | Whether timestamp passed validation                                                 |
-| `confidence`            | string   | "high" / "medium" / "low" based on data completeness                                |
-| `missing_inputs`        | array    | List of metrics that were unavailable                                               |
-| `frameworks_cited`      | array    | Scientific frameworks applied in reasoning                                          |
-| `recommendation_count`  | number   | Number of actionable recommendations provided                                       |
+| Field                          | Type     | Description                                                                         |
+|--------------------------------|----------|-------------------------------------------------------------------------------------|
+| `data_source_fetched`          | boolean  | Whether JSON was successfully fetched from mirror URL                               |
+| `json_fetch_status`            | string   | "success" / "failed" / "unavailable" — stop and request manual input if not success |
+| `protocol_version`             | string   | Section 11 version being followed                                                   |
+| `checklist_passed`             | array    | List of checklist items (1–10) that passed validation                               |
+| `checklist_failed`             | array    | List of checklist items that failed, with reasons                                   |
+| `data_timestamp`               | ISO 8601 | Timestamp of the data being referenced                                              |
+| `data_age_hours`               | number   | Hours since data was last updated                                                   |
+| `athlete_timezone`             | string   | Athlete's local timezone (e.g., "UTC+1")                                            |
+| `utc_aligned`                  | boolean  | Whether dataset timestamps align with UTC                                           |
+| `system_offset_minutes`        | number   | Offset between system and data clocks                                               |
+| `timestamp_valid`              | boolean  | Whether timestamp passed validation                                                 |
+| `confidence`                   | string   | "high" / "medium" / "low" based on data completeness                                |
+| `missing_inputs`               | array    | List of metrics that were unavailable                                               |
+| `frameworks_cited`             | array    | Scientific frameworks applied in reasoning                                          |
+| `recommendation_count`         | number   | Number of actionable recommendations provided                                       |
+| `phase_detected`               | string   | Current phase classification (Base/Build/Peak/Taper/Recovery/Overreached)           |
+| `phase_triggers_met`           | array    | Specific trigger conditions that determined phase classification                    |
+| `seasonal_context`             | string   | Current position in annual training cycle                                           |
+| `consistency_index`            | number   | 7-day plan adherence ratio (0–1)                                                    |
+| `stress_tolerance`             | number   | Current load absorption capacity                                                    |
+| `grey_zone_percentage`         | number   | Grey zone time as percentage — to minimize                                          |
+| `quality_intensity_percentage` | number   | Quality intensity time as percentage                                                |
+| `hard_days_this_week`          | number   | Count of days with Z4+ work (for high-volume athletes)                              |
+| `polarisation_index`           | number   | Easy time (Z1+Z2) as ratio of total                                                 |
+| `specificity_volume_ratio`     | number   | Event-specific volume ratio (0–1)                                                   |
+| `load_recovery_ratio`          | number   | 7-day load divided by RI (secondary metric)                                         |
+| `primary_readiness_status`     | string   | Summary of primary readiness marker (RI)                                            |
+| `secondary_load_status`        | string   | Summary of secondary load metric status                                             |
+| `benchmark_index`              | number   | FTP progression ratio                                                               |
+| `benchmark_seasonal_expected`  | boolean  | Whether current Benchmark Index is within seasonal expectations                     |
+| `w_prime_data_available`       | boolean  | Whether CP/W′ data is available                                                     |
+| `w_prime_confidence`           | string   | Confidence level of W′ estimates ("high" / "medium" / "low" / "unavailable")        |
 
 ---
 
@@ -769,6 +1236,8 @@ This AI integration protocol aligns with:
 - URF v5.1
 
 It preserves deterministic reasoning, reproducible metrics, and transparent auditability — ensuring all AI-based coaching adheres to the same data integrity and endurance science principles.
+
+> This protocol draws on concepts from the **Intervals.icu GPT Coaching Framework** (Clive King, revo2wheels) and the **Unified Reporting Framework v5.1**, with particular reference to stress tolerance, zone distribution indexing, and tiered audit validation approaches. Special thanks to **David Tinker** (Intervals.icu) and **Clive King** for their foundational work enabling open endurance data access and AI coaching integration.
 
 ---
 

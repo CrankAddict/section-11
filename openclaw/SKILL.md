@@ -1,6 +1,6 @@
 ---
 name: section-11
-description: Evidence-based endurance cycling coaching protocol. Use when analyzing training data, reviewing sessions, planning workouts, answering training questions, or giving cycling coaching advice. Always fetch athlete JSON data before responding to any training question.
+description: Evidence-based endurance cycling coaching protocol (v11.3). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving cycling coaching advice. Always fetch athlete JSON data before responding to any training question.
 ---
 
 # Section 11 — AI Coaching Protocol
@@ -36,6 +36,8 @@ Do not proceed with coaching until dossier, data source, and heartbeat config ar
 
 Fetch and follow: https://raw.githubusercontent.com/CrankAddict/section-11/main/SECTION_11.md
 
+**Current version:** 11.3
+
 ## Data Hierarchy
 1. JSON data (always fetch first from athlete's data URL)
 2. Protocol rules (SECTION_11.md)
@@ -45,8 +47,19 @@ Fetch and follow: https://raw.githubusercontent.com/CrankAddict/section-11/main/
 ## Required Actions
 - Fetch latest.json before any training question
 - No virtual math — use only fetched values
-- Follow Section 11 B validation checklist
-- Cite frameworks per protocol
+- Follow Section 11 C validation checklist before generating recommendations
+- Cite frameworks per protocol (checklist item #10)
+
+## Report Templates
+
+Use standardized report formats from `/examples/reports/`:
+- **Pre-workout:** Readiness assessment, Go/Modify/Skip recommendation — see `PRE_WORKOUT_TEMPLATE.md`
+- **Post-workout:** Session metrics, plan compliance, weekly totals — see `POST_WORKOUT_TEMPLATE.md`
+- **Brevity rule:** Brief when metrics are normal. Detailed when thresholds are breached or athlete asks "why."
+
+Fetch templates from:
+- https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/reports/PRE_WORKOUT_TEMPLATE.md
+- https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/reports/POST_WORKOUT_TEMPLATE.md
 
 ## Heartbeat Operation
 

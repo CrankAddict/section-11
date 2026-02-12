@@ -1,4 +1,3 @@
-
 name: Auto-Sync Intervals.icu Data
 
 on:
@@ -10,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   sync:
@@ -103,16 +103,24 @@ jobs:
             git config --local user.email "github-actions[bot]@users.noreply.github.com"
             git config --local user.name "github-actions[bot]"
             
-            # Pull any changes from the sync step (autostash handles local changes)
-            git pull --rebase --autostash origin main
-            
-            # Add and commit the archive file and FTP history
+            # Stage ALL generated files BEFORE pulling to prevent
+            # "untracked working tree files would be overwritten" errors
             git add archive/
-            # Add ftp_history.json if it exists
             if [ -f ftp_history.json ]; then
               git add ftp_history.json
-              echo "✅ Added ftp_history.json to commit"
+              echo "✅ Staged ftp_history.json"
             fi
+            if [ -f history.json ]; then
+              git add history.json
+              echo "✅ Staged history.json"
+            fi
+            if [ -f latest.json ]; then
+              git add latest.json
+              echo "✅ Staged latest.json"
+            fi
+            
+            # Now pull - autostash will safely stash staged changes
+            git pull --rebase --autostash origin main
             
             # Only commit if there are changes
             if ! git diff --staged --quiet; then

@@ -27,7 +27,8 @@ Most AI coaching today is inconsistent — the same question gets different answ
 |------|-------------|
 | [SECTION_11.md](SECTION_11.md) | Complete protocol: AI Coach Guidance (11 A), Training Plan Protocol (11 B), Validation Protocol (11 C) |
 | [DOSSIER_TEMPLATE.md](DOSSIER_TEMPLATE.md) | Blank athlete dossier template — fill in your own data |
-| [examples/](examples/) | JSON sync setup, report templates, example files |
+| [examples/](examples/) | JSON sync setup, report templates, README template, example files |
+| [changelog.json](changelog.json) | Version tracking — consumed by sync.py for update notifications |
 | [LICENSE](LICENSE) | CC BY-NC 4.0 — free for personal use, attribution required |
 
 ---
@@ -49,9 +50,10 @@ For best results, create a JSON endpoint with your current Intervals.icu data:
 
 ```
 https://raw.githubusercontent.com/[USERNAME]/[REPO]/main/latest.json
+https://raw.githubusercontent.com/[USERNAME]/[REPO]/main/history.json
 ```
 
-This allows AI coaches to access your real-time metrics (CTL, ATL, TSB, HRV, recent activities) without manual input each session.
+This allows AI coaches to access your real-time metrics (CTL, ATL, TSB, HRV, recent activities) and longitudinal training history without manual input each session.
 
 See [examples/](examples/) for setup guides.
 
@@ -66,14 +68,15 @@ You are my endurance cycling coach. Follow Section 11 protocol strictly.
 ## MANDATORY FIRST ACTIONS (every training question):
 1. Note today's date
 2. Fetch JSON: https://raw.githubusercontent.com/[you]/[repo]/main/latest.json (append ?date= with today's date to ensure fresh data)
-3. If activities don't match today's date, re-fetch before concluding no data exists
-4. Match activities to current date
-5. Then respond
+3. Fetch history: https://raw.githubusercontent.com/[you]/[repo]/main/history.json (for longitudinal context)
+4. If activities don't match today's date, re-fetch before concluding no data exists
+5. Match activities to current date
+6. Then respond
 
 Do NOT ask me for data — fetch it yourself.
 
 ## SOURCE HIERARCHY:
-1. **JSON data** — Current metrics (FETCH FIRST)
+1. **JSON data** — Current metrics from latest.json (FETCH FIRST) + longitudinal data from history.json
 2. **Section 11 protocol** (attached) — Coaching rules, thresholds, metric hierarchy
 3. **Dossier** — Athlete profile, zones, goals
 4. **Report templates** — Fetch from https://github.com/CrankAddict/section-11/tree/main/examples/reports if not attached
@@ -169,7 +172,7 @@ After configuration, test with:
 > "How was today's workout?"
 
 **Good response includes:**
-- ✅ Fetched data automatically (no asking for it)
+- ✅ Fetched both latest.json and history.json automatically (no asking for it)
 - ✅ Session summary with all fields (type, start time, duration, power, HR, TSS, cadence, decoupling, zones, carbs, energy)
 - ✅ Training load context (TSB, CTL, ATL, weekly totals)
 - ✅ Brief interpretation
@@ -329,6 +332,22 @@ The sync script pre-calculates Section 11-compliant metrics so AI doesn't need t
 
 The script maintains `ftp_history.json` to track indoor and outdoor FTP changes over time, enabling Benchmark Index calculation for long-term progression analysis.
 
+### Longitudinal History
+
+The script generates `history.json` with tiered granularity for trend analysis:
+
+| Tier | Granularity | Range |
+|------|-------------|-------|
+| `daily_90d` | Day-by-day | Last 90 days |
+| `weekly_180d` | Week-by-week | Last 180 days |
+| `monthly_1y/2y/3y` | Month-by-month | Up to 3 years |
+
+Includes period summaries, FTP timeline, and data gap detection. Provide both `latest.json` and `history.json` to your AI coach for the most complete analysis.
+
+### Update Notifications
+
+The sync script automatically checks for upstream protocol updates. When a new version of Section 11 is released, a GitHub Issue is created in your data repo with a summary of changes.
+
 ### Other Platforms
 
 Also compatible with:
@@ -417,6 +436,8 @@ This work is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/
 - [x] Dossier Template
 - [x] JSON sync automation scripts
 - [x] Report templates (pre/post workout)
+- [x] Longitudinal history generation (tiered granularity)
+- [x] Upstream update notifications via GitHub Issues
 - [ ] CustomGPT implementation
 - [ ] MCP Server integration
 

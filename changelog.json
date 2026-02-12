@@ -2,7 +2,7 @@
   "notification_id": "2026-02-12",
   "changes": [
     "SECTION_11.md - UPDATE - 2026-02-12 - v11.4: Graduated alert thresholds, monotony deload context, history.json reference, data source hierarchy, confidence scoring",
-    "sync.py - UPDATE - 2026-02-12 - v3.3.0: Alerts array, history generation, update notifications, deload context detection"
+    "sync.py - UPDATE - 2026-02-12 - v3.3.0: Alerts array, history generation, update notifications, deload context detection",
     "auto-script.json - UPDATE - 2026-02-12"
   ]
 }

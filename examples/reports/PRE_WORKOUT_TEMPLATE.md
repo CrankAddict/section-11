@@ -22,7 +22,7 @@ ATL: [XX.XX]
 ACWR: [X.XX] ([assessment])
 Ramp Rate: [X.XX]
 Load/Recovery: [X.X] (tolerance [X.X]) — [context note if near edge]
-Polarization: Z1+Z2 [XX]%, Z3 [X]%, Z4+ [X]%
+Polarization: Z1+Z2 [XX]%, Z3 [X]%, Z4+ [X]% — [Classification] (PI: [X.XX])
 Monotony: [X.X] — [note] (omit entirely if ≤2.3)
 Total hours, last 7 days: [XX.XX] hours
 Total activities, last 7 days: [XX]

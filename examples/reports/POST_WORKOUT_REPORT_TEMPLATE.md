@@ -32,6 +32,8 @@ TSS: [XXX] (planned [XXX])
 
 Weekly totals:
 Polarization: Z1+Z2 [XX]%, Z3 [X]%, Z4+ [X]% — [Classification] (PI: [X.XX])
+Durability: [X.XX]% 7d / [X.XX]% 28d ([trend])
+TID 28d: [Classification] (PI: [X.XX]) — drift: [consistent/shifting/acute_depolarization]
 TSB: [X.XX]
 CTL: [XX.XX]
 ATL: [XX.XX]
@@ -62,6 +64,8 @@ Round zone percentages to the nearest **whole number** (1%). The JSON data sourc
 | Decoupling | Sessions ≥ 1 hour | Key aerobic efficiency marker |
 | Variability Index | Cycling with power | 1.00–1.05 = steady, >1.05 = variable |
 | Carbs used | Sessions with power data | Omit if unavailable |
+| Durability (weekly) | Aggregate decoupling 7d/28d | Steady-state sessions only (VI ≤ 1.05, ≥ 90min). Trend direction matters more than absolute value |
+| TID 28d (weekly) | 28d Seiler classification + drift | Shows whether acute TID matches chronic pattern. Omit drift label when "consistent" |
 | Weekly totals | Always | Running totals through current day |
 
 ## Assessment Labels
@@ -72,3 +76,5 @@ Round zone percentages to the nearest **whole number** (1%). The JSON data sourc
 | Variability Index | ≤ 1.05 | 1.05–1.10 | > 1.10 |
 | ACWR | 0.8–1.3 | 1.3–1.5 | > 1.5 or < 0.8 |
 | Grey Zone (Z3) | < 5% (base) | 5–10% | > 10% (base phase) |
+| Durability (7d mean) | < 3% (good) | 3–5% (moderate) | > 5% (declining) |
+| TID drift | consistent | shifting | acute_depolarization |

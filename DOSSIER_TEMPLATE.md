@@ -1,6 +1,7 @@
 # Athlete Training Dossier & Performance Roadmap
 
-**Dossier Version:** v1.0  
+**Dossier Version:** v1.1  
+**Protocol Compatibility:** Section 11 v11.5+  
 **Date:** [YYYY-MM-DD]  
 **Primary Source Systems:** Intervals.icu | [Other platforms]
 

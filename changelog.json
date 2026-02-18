@@ -1,10 +1,8 @@
 {
-  "notification_id": "2026-02-17",
+  "notification_id": "2026-02-18",
   "changes": [
-    "sync.py - UPDATE - 2026-02-17 - v3.4.0: Aggregate durability (7d/28d decoupling trend), dual-timeframe TID (7d vs 28d with drift detection), capability metrics namespace",
-    "SECTION_11.md - UPDATE - 2026-02-17 - v11.5: Seiler TID classification system, aggregate durability, capability metrics, +4 evidence-based foundations",
-    "examples/reports - UPDATE - 2026-02-17 - All templates updated: durability and TID 28d at every report level",
-    "openclaw/SKILL.md - UPDATE - 2026-02-17 - Protocol version bumped to 11.5",
-    "README.md - UPDATE - 2026-02-17 - Derived metrics table, report requirements, roadmap updated for v3.4.0"
+    "sync.py - FIX - 2026-02-18 - v3.4.1: Fixed KeyError on activities with missing 'type' field, defensive .get() on all API response accesses",
+    "sync.py - IMPROVEMENT - 2026-02-18 - v3.4.1: Anonymization logic improved — only outdoor/GPS activity types are blanked, indoor/stationary activities retain original names",
+    "examples/json-auto-sync - UPDATE - 2026-02-18 - Updated latest.json and history.json examples"
   ]
 }

@@ -17,7 +17,7 @@ Current Status Summary:
 RHR: 44 bpm (baseline: 46 bpm)
 HRV: 58 ms (7d avg: 54 ms)
 Sleep Hours: 8.50 hours
-Sleep Quality: 3/5
+Sleep Quality: 3/4
 TSB: +1.85
 CTL: 72.40
 ATL: 70.55
@@ -56,7 +56,7 @@ Current Status Summary:
 RHR: 46 bpm (baseline: 46 bpm)
 HRV: 53 ms (7d avg: 54 ms)
 Sleep Hours: 7.80 hours
-Sleep Quality: 3/5
+Sleep Quality: 3/4
 TSB: -3.20
 CTL: 73.50
 ATL: 76.70
@@ -94,7 +94,7 @@ Current Status Summary:
 RHR: 44 bpm (baseline: 46 bpm)
 HRV: 61 ms (7d avg: 55 ms)
 Sleep Hours: 8.90 hours
-Sleep Quality: 4/5
+Sleep Quality: 1/4
 TSB: +0.50
 CTL: 74.20
 ATL: 73.70
@@ -113,7 +113,7 @@ Recommendation: Go
 
 Interpretation:
 Readiness: Good. HRV 61 is well above 7d average, RHR 44 below baseline, sleep excellent
-at 8.9h with 4/5 quality. TSB +0.50 = fresh after yesterday's rest.
+at 8.9h with 1/4 quality. TSB +0.50 = fresh after yesterday's rest.
 Green light for intervals — you're primed for this one. Go get it 💪
 ```
 
@@ -131,7 +131,7 @@ Current Status Summary:
 RHR: 50 bpm (baseline: 46 bpm)
 HRV: 42 ms (7d avg: 54 ms)
 Sleep Hours: 5.20 hours
-Sleep Quality: 1/5
+Sleep Quality: 4/4
 TSB: -12.80
 CTL: 74.90
 ATL: 87.70
@@ -152,7 +152,7 @@ Recommendation: Modify
 
 Interpretation:
 Readiness: Compromised. HRV 42 is 22% below 7d average, RHR spiked to 50 (+4 above baseline),
-and sleep was poor at 5.2h with 1/5 quality. Multiple amber/red signals.
+and sleep was poor at 5.2h with 4/4 quality. Multiple amber/red signals.
 Load/Recovery over threshold at 7.1, monotony elevated at 2.5, and durability declining (5.8% mean
 decoupling, up from 3.2% 28d avg) — body is absorbing a heavy week and aerobic efficiency is slipping.
 Swap threshold intervals for an easy endurance ride (Z2, 1.5h, ~50 TSS). Save the intensity

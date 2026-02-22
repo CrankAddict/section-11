@@ -15,7 +15,7 @@ Current Status Summary:
 RHR: [XX] bpm (baseline: [XX] bpm)
 HRV: [XX] ms (7d avg: [XX] ms)
 Sleep Hours: [X.XX] hours
-Sleep Quality: [X/5]
+Sleep Quality: [X/4]
 TSB: [X.XX]
 CTL: [XX.XX]
 ATL: [XX.XX]
@@ -66,7 +66,7 @@ Interpretation:
 |--------|-----|--------|------|
 | HRV | Within ±10% of 7d avg | ↓ 10-20% | ↓ >20% |
 | RHR | At or below baseline | ↑ 3-4 bpm | ↑ ≥5 bpm |
-| Sleep | ≥ 7h, quality ≥ 3/5 | 5-7h or quality 2/5 | < 5h or quality 1/5 |
+| Sleep | ≥ 7h, quality 1-2 | 5-7h or quality 3 | < 5h or quality 4 |
 | TSB | > -15 | -15 to -25 | < -25 |
 | ACWR | 0.8–1.3 | 1.3–1.5 | > 1.5 |
 | Feel | ≤ 3/5 | 4/5 | ≥ 4/5 + other flags |

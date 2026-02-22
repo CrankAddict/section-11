@@ -67,7 +67,7 @@ latest.json
 ├── current_status
 │   ├── fitness          → CTL, ATL, TSB, ramp_rate
 │   ├── thresholds       → FTP, eFTP, LTHR, W', P-max, VO2max
-│   └── current_metrics  → Weight, RHR, HRV, sleep score
+│   └── current_metrics  → Weight, RHR, HRV, sleep_quality, sleep_hours
 ├── derived_metrics      → Section 11 calculated values (see below)
 │   ├── capability       → Durability trend + TID drift (7d vs 28d)
 ├── recent_activities    → Detailed activity data with zones

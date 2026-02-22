@@ -62,7 +62,7 @@ Fitness:
 Wellness Trends:
   HRV: [XX]–[XX] ms (avg [XX], prev week [XX]) [↑/↓/→]
   RHR: [XX]–[XX] bpm (avg [XX], prev week [XX]) [↑/↓/→]
-  Sleep: [X.X]h avg, quality [X.X]/5 avg [↑/↓/→]
+  Sleep: [X.X]h avg, quality [X.X]/4 avg [↑/↓/→]
 
 Section 11 Flags: [list any triggered flags, or "None"]
 

@@ -768,13 +768,13 @@ It governs acute, session-level performance safety, ensuring localized overreach
 **Key Variables:**
 - HRV (ms): 7-day rolling baseline comparison
 - RHR (bpm): 7-day rolling baseline comparison
-- Sleep Score: Platform composite (0–100)
-- Feel (1–5): Manual subjective entry
+- Sleep Quality (1–4): Subjective quality rating (inverted scale: 1=Great, 4=Poor) — manual entry or auto-derived from device sleep score
+- Feel (1–5): Manual subjective entry (1=Strong, 2=Good, 3=Normal, 4=Poor, 5=Weak)
 
 **Decision Logic:**
 - HRV ↓ > 20% vs baseline → Active recovery / easy spin
 - RHR ↑ ≥ 5 bpm vs baseline → Fatigue / illness flag
-- Sleep Score < 60 → Reduce next-session intensity by 1 zone
+- Sleep Quality = 4 → Reduce next-session intensity by 1 zone
 - Feel ≥ 4 → Treat as low readiness; monitor for compounding fatigue  
 - Feel ≥ 4 + 1 trigger (HRV, RHR, or Sleep deviation) → Insert 1–2 days of Z1-only training
 - 1 trigger persisting ≥2 days → Insert 1–2 days of Z1-only training

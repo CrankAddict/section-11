@@ -1,255 +1,140 @@
-# Agentic — Write Planned Workouts to Intervals.icu
+# Agentic Workout Push
 
-For AI platforms with code execution (OpenClaw, Claude Code, Claude Cowork, etc.). Chat-only users cannot use this.
+Write planned workouts to an athlete's Intervals.icu calendar. For AI platforms that can execute code or trigger GitHub Actions (OpenClaw, Claude Code, Cowork, etc.). Chat-only users cannot use this.
 
-## push.py
+## Setup
 
-Validates and POSTs planned workouts to the Intervals.icu calendar using the same API credentials as `sync.py`.
+### Path 1: GitHub Actions dispatch (recommended)
 
-### Credentials
+For anyone already running auto-sync. Uses the same `ATHLETE_ID` and `INTERVALS_KEY` secrets -- zero new credential setup.
 
-Same sources as sync.py, checked in order:
+1. Copy `push.py` to your data repo root (next to `sync.py`)
+2. Copy `push-workout.yml` to `.github/workflows/push-workout.yml`
+3. Done. Your agent triggers the workflow via GitHub API dispatch.
 
-1. **CLI args:** `--athlete-id`, `--api-key`
-2. **Config file:** `.sync_config.json` (same file sync.py creates via `--setup`)
-3. **Environment:** `ATHLETE_ID`, `INTERVALS_KEY`
+**How the agent triggers it (Python):**
 
-If the athlete already uses sync.py, credentials are already set up.
+```python
+import requests, json
 
-### Single Workout (CLI)
-
-```bash
-python push.py \
-  --name "Sweet Spot 3x15" \
-  --date 2026-03-05 \
-  --type Ride \
-  --description "- 15m 55%\n\n3x\n- 15m 88-92%\n- 5m 55%\n\n- 10m 50%" \
-  --duration 85 \
-  --tss 75 \
-  --target POWER
-```
-
-### Multiple Workouts (JSON file)
-
-```bash
-python push.py --json week.json --name ignored --date ignored
-```
-
-`week.json`:
-```json
-[
-  {
-    "name": "Endurance Z2",
-    "date": "2026-03-05",
-    "type": "Ride",
-    "description": "- 10m ramp 50%-65%\n- 90m 65-75%\n- 10m ramp 65%-50%",
-    "duration_minutes": 110,
-    "tss": 70,
-    "target": "POWER"
-  },
-  {
-    "name": "VO2max 5x4",
-    "date": "2026-03-07",
-    "type": "Ride",
-    "description": "- 15m ramp 50%-75%\n\n5x\n- 4m 106-120%\n- 3m Z1\n\n- 10m 50%",
-    "duration_minutes": 60,
-    "tss": 85,
-    "target": "POWER"
-  }
+workouts = [
+    {
+        "name": "Sweet Spot 3x15",
+        "date": "2026-03-10",
+        "type": "Ride",
+        "description": "- 15m 55%\n\n3x\n- 15m 88-92%\n- 5m 55%\n\n- 10m 50%",
+        "duration_minutes": 85,
+        "tss": 75,
+        "target": "POWER"
+    }
 ]
+
+requests.post(
+    f"https://api.github.com/repos/{owner}/{repo}/actions/workflows/push-workout.yml/dispatches",
+    headers={
+        "Authorization": f"Bearer {github_token}",
+        "Accept": "application/vnd.github+json",
+    },
+    json={"ref": "main", "inputs": {"workouts": json.dumps(workouts)}}
+)
 ```
 
-### Python Import (agent calls directly)
+The agent needs a `GITHUB_TOKEN` with `actions:write` scope on the data repo. For OpenClaw, this is already available if the skill uses GitHub Actions for sync.
+
+### Path 2: Local execution (Claude Code, Cowork, json-manual users)
+
+For agents running locally with direct filesystem access.
+
+```bash
+# Single workout
+python push.py --name "Sweet Spot 3x15" --date 2026-03-10 --type Ride \
+  --description "- 15m 55%\n\n3x\n- 15m 88-92%\n- 5m 55%\n\n- 10m 50%" \
+  --duration 85 --tss 75
+
+# Batch from JSON file
+python push.py --json week.json
+```
+
+Credentials loaded from (first match wins):
+1. CLI args: `--athlete-id`, `--api-key`
+2. `.sync_config.json` in working directory (same file sync.py uses)
+3. Environment: `ATHLETE_ID`, `INTERVALS_KEY`
+
+Python import also works:
 
 ```python
 from push import IntervalsPush
-
-pusher = IntervalsPush(athlete_id="i123456", api_key="abc123...")
-
+pusher = IntervalsPush(athlete_id, api_key)
 result = pusher.push_workout({
-    "name": "Tempo 2x20",
-    "date": "2026-03-06",
+    "name": "Sweet Spot 3x15",
+    "date": "2026-03-10",
     "type": "Ride",
-    "description": "- 15m 55%\n\n2x\n- 20m 76-90%\n- 5m 55%\n\n- 10m 50%",
-    "duration_minutes": 75,
-    "tss": 80,
-    "target": "POWER",
+    "description": "- 15m 55%\n\n3x\n- 15m 88-92%\n- 5m 55%\n\n- 10m 50%",
+    "duration_minutes": 85,
+    "tss": 75,
+    "target": "POWER"
 })
-
-if result["success"]:
-    print(f"Created {result['count']} event(s)")
-else:
-    print(f"Failed: {result['error']}")
 ```
 
-### Workout Fields
+## Output
 
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `name` | Yes | string | Workout name shown on calendar |
-| `date` | Yes | string | `YYYY-MM-DD`, today or future only |
-| `type` | No | string | `Ride` (default), `Run`, `VirtualRide`, `Swim`, etc. |
-| `description` | No | string | Intervals.icu workout syntax (see below) |
-| `duration_minutes` | No | number | Planned total duration including warmup/cooldown |
-| `tss` | No | number | Planned training stress score |
-| `target` | No | string | `POWER`, `HR`, or `PACE` |
-| `category` | No | string | `WORKOUT` (default), `RACE_A`, `RACE_B`, `RACE_C`, `NOTE` |
-| `indoor` | No | boolean | Mark as indoor session |
-| `color` | No | string | Calendar color |
-| `external_id` | No | string | Your tracking ID (for upsert matching) |
-
-### Output
-
-JSON to stdout. Agent parses this to confirm or report errors.
+JSON to stdout for agent parsing:
 
 ```json
-{
-  "success": true,
-  "count": 1,
-  "events": [
-    {"id": 33375903, "name": "Sweet Spot 3x15", "date": "2026-03-05", "type": "Ride", "category": "WORKOUT"}
-  ]
-}
+{"success": true, "count": 1, "events": [{"id": 33375903, "name": "Sweet Spot 3x15", "date": "2026-03-10", "type": "Ride", "category": "WORKOUT"}]}
 ```
 
-### Validation
+On failure:
 
-push.py validates before sending:
-- Name and date required
-- Date must be today or future (no retroactive planned workouts)
-- Activity type must be valid Intervals.icu type
-- Duration capped at 12h, TSS capped at 500 (safety)
-- Description syntax checked for basic format errors
-
-If validation fails, nothing is sent. Error returned in JSON.
-
----
-
-## Intervals.icu Workout Description Syntax
-
-This is the plain-text format Intervals.icu uses for structured workouts. When you push a workout with a `description` field, Intervals.icu parses it into structured steps automatically.
-
-### Basic Step Format
-
-Every step starts with a dash:
-
+```json
+{"success": false, "error": "date 2026-02-01 is in the past - planned workouts must be today or future"}
 ```
-- [duration OR distance] [target] [optional cadence]
-```
+
+## Workout Fields
+
+| Field | Required | Type | Description |
+|-------|----------|------|-------------|
+| `name` | Yes | string | Workout name |
+| `date` | Yes | string | YYYY-MM-DD, must be today or future |
+| `type` | No | string | Activity type (default: Ride) |
+| `description` | No | string | Intervals.icu workout syntax (see below) |
+| `duration_minutes` | No | number | Planned duration (max 720) |
+| `tss` | No | number | Planned TSS (max 500) |
+| `target` | No | string | POWER, HR, or PACE |
+| `category` | No | string | WORKOUT (default), RACE_A, RACE_B, RACE_C, NOTE |
+| `indoor` | No | boolean | Mark as indoor |
+| `external_id` | No | string | For upsert deduplication |
+
+**Valid activity types:** Ride, VirtualRide, MountainBikeRide, GravelRide, EBikeRide, Run, VirtualRun, TrailRun, Swim, NordicSki, VirtualSki, Rowing, WeightTraining, Walk, Hike, Workout, Other
+
+## Intervals.icu Workout Syntax
+
+The `description` field uses Intervals.icu's native workout builder syntax. When provided, push.py sends `workout_doc: {}` which tells Intervals.icu to parse the description into structured workout steps.
+
+### Targets
+
+**Power:** `75%`, `220w`, `Z2`, `95-105%`, `MMP30s`, `MMP5m`
+**HR:** `70% HR`, `95% LTHR`, `Z2 HR`
+**Pace:** `60% Pace`, `Z2 Pace`, `5:00/km Pace`
+**Cadence:** append `90rpm` to any step
+**Ramps:** `ramp 50%-75%`
+**Freeride:** step with no target (ERG off)
 
 ### Duration
 
-| Format | Meaning |
-|---|---|
-| `5m` | 5 minutes |
-| `30s` | 30 seconds |
-| `1h` | 1 hour |
-| `1h30m` | 1 hour 30 minutes |
-| `5m30s` | 5 minutes 30 seconds |
+`5m` = 5 minutes, `30s` = 30 seconds, `1h2m30s` = 1 hour 2 min 30 sec
 
-**`m` means minutes, not meters.**
+**CRITICAL:** `m` means **minutes**, not meters. For distance use `km`, `mi`, or `mtr` (e.g., `500mtr`, `2km`, `1mi`).
 
-### Distance
+### Structure
 
-| Format | Meaning |
-|---|---|
-| `2km` | 2 kilometers |
-| `1mi` | 1 mile |
-| `500mtr` | 500 meters |
+- Steps start with `-`
+- Blank lines required around repeat blocks
+- Text before duration becomes step cue
+- Case-insensitive keywords
+- Nested repeats NOT supported
 
-### Power Targets (Cycling)
-
-| Format | Meaning |
-|---|---|
-| `75%` | 75% of FTP |
-| `88-92%` | Range: 88–92% FTP |
-| `220w` | Absolute: 220 watts |
-| `200-240w` | Absolute range |
-| `Z2` | Power zone 2 |
-| `Z3-Z4` | Zone range |
-
-### Heart Rate Targets
-
-| Format | Meaning |
-|---|---|
-| `70% HR` | 70% of max HR |
-| `75-80% HR` | Range of max HR |
-| `95% LTHR` | 95% of lactate threshold HR |
-| `Z2 HR` | HR zone 2 |
-
-### Pace Targets (Running/Rowing)
-
-| Format | Meaning |
-|---|---|
-| `60% Pace` | 60% of threshold pace |
-| `78-82% Pace` | Pace range |
-| `Z2 Pace` | Pace zone 2 |
-| `5:00/km Pace` | Absolute pace |
-
-### Cadence
-
-Append `rpm` after the target:
-
-```
-- 10m 75% 90rpm
-- 5m 88% 70-80rpm
-```
-
-### Ramps
-
-Gradual intensity change over a step:
-
-```
-- 10m ramp 50%-75%
-- 15m ramp 60%-90% 85rpm
-```
-
-### Freeride (ERG Off)
-
-```
-- 20m freeride
-```
-
-### Repeats
-
-Two forms. Always leave a blank line before and after the repeat block:
-
-**Standalone:**
-```
-3x
-- 15m 88-92%
-- 5m 55%
-```
-
-**With label:**
-```
-Main Set 3x
-- 15m 88-92%
-- 5m 55%
-```
-
-Nested repeats are **not** supported.
-
-### Text Cues
-
-Text before the first duration becomes the step cue shown to the athlete:
-
-```
-- Warmup 15m ramp 50%-65%
-- Settle in 5m 65%
-```
-
-### Complete Examples
-
-#### Endurance Ride (AE-2 template)
-
-```
-- 10m ramp 50%-65%
-- 90m 65-75%
-- 10m ramp 65%-50%
-```
-
-#### Sweet Spot 3×15 (SS-1 template)
+### Example
 
 ```
 - 15m ramp 50%-75%
@@ -261,89 +146,40 @@ Text before the first duration becomes the step cue shown to the athlete:
 - 10m 50%
 ```
 
-#### VO2max 5×4 (VO2-1 template)
+## Template Mappings
 
-```
-- 15m ramp 50%-75%
+Maps Section 11 Workout Reference template IDs to Intervals.icu description syntax. **Always use %FTP ranges, not absolute watts** -- Intervals.icu resolves % to the athlete's current FTP.
 
-5x
-- 4m 106-120%
-- 3m Z1
+| Template ID | Name | Description Syntax |
+|-------------|------|--------------------|
+| AE-1 | Recovery Spin | `- 5m ramp 40%-50%\n- 30m 50-55%\n- 5m ramp 50%-40%` |
+| AE-2 | Medium Endurance | `- 10m ramp 50%-65%\n- 90m 65-75%\n- 10m ramp 65%-50%` |
+| AE-3 | Long Endurance | `- 15m ramp 50%-65%\n- 150m 65-75%\n- 15m ramp 65%-50%` |
+| SS-1 | Sweet Spot 3x15 | `- 15m ramp 50%-75%\n\n3x\n- 15m 88-92%\n- 5m 55%\n\n- 10m 50%` |
+| SS-2 | Sweet Spot 2x20 | `- 15m ramp 50%-75%\n\n2x\n- 20m 88-92%\n- 5m 55%\n\n- 10m 50%` |
+| SS-3 | Sweet Spot 2x30 | `- 15m ramp 50%-75%\n\n2x\n- 30m 88-92%\n- 5m 55%\n\n- 10m 50%` |
+| TH-1 | Threshold 3x10 | `- 15m ramp 50%-75%\n\n3x\n- 10m 95-105%\n- 5m 55%\n\n- 10m 50%` |
+| TH-2 | Threshold 2x15 | `- 15m ramp 50%-75%\n\n2x\n- 15m 95-105%\n- 5m 55%\n\n- 10m 50%` |
+| TH-3 | Threshold 2x20 | `- 15m ramp 50%-75%\n\n2x\n- 20m 95-105%\n- 5m 55%\n\n- 10m 50%` |
+| VO2-1 | VO2max 5x4 | `- 15m ramp 50%-75%\n\n5x\n- 4m 106-120%\n- 3m Z1\n\n- 10m 50%` |
+| VO2-2 | VO2max 4x5 | `- 15m ramp 50%-75%\n\n4x\n- 5m 106-120%\n- 4m Z1\n\n- 10m 50%` |
+| VO2-3 | VO2max 6x3 | `- 15m ramp 50%-75%\n\n6x\n- 3m 106-120%\n- 3m Z1\n\n- 10m 50%` |
+| AN-1 | Anaerobic 8x30s | `- 15m ramp 50%-75%\n\n8x\n- 30s 150%\n- 4m30s Z1\n\n- 10m 50%` |
+| AN-2 | Anaerobic 10x1m | `- 15m ramp 50%-75%\n\n10x\n- 1m 130-150%\n- 3m Z1\n\n- 10m 50%` |
 
-- 10m 50%
-```
+## What NOT To Do
 
-#### Threshold 2×20 (TH-1 template)
+- **Don't use absolute watts** -- use `%FTP` ranges so workouts stay correct if FTP changes
+- **Don't use `m` for meters** -- `m` means minutes. Use `km`, `mi`, or `mtr` for distance
+- **Don't nest repeats** -- Intervals.icu doesn't support it
+- **Don't push past dates** -- validation rejects them. Planned workouts are future events
+- **Don't skip blank lines around repeat blocks** -- parsing breaks without them
+- **Don't send workout_doc with no description** -- push.py handles this automatically
 
-```
-- 15m ramp 50%-75%
+## Files
 
-2x
-- 20m 95-105%
-- 5m 55%
-
-- 10m 50%
-```
-
-#### Running Easy (HR-based)
-
-```
-- 10m Z1 HR
-- 40m Z2 HR
-- 5m Z1 HR
-```
-
-#### Running Intervals (Pace-based)
-
-```
-- 2km 70-75% Pace
-
-4x
-- 1km Z4 Pace
-- 500mtr Z1 Pace
-
-- 1km 70% Pace
-```
-
-### Mapping Section 11 Templates → Description Syntax
-
-The Workout Reference Library (`WORKOUT_REFERENCE.md`) prescribes sessions by template ID (e.g., SS-1, VO2-2). To push these to the calendar, translate the template's zone targets and structure into description syntax:
-
-| Template | Description |
-|---|---|
-| AE-1 (Short Endurance) | `- 10m ramp 50%-65%\n- 50m 65-75%\n- 10m ramp 65%-50%` |
-| AE-2 (Medium Endurance) | `- 10m ramp 50%-65%\n- 90m 65-75%\n- 10m ramp 65%-50%` |
-| AE-4 (Recovery) | `- 45m Z1` |
-| SS-1 (Sweet Spot 3×15) | `- 15m ramp 50%-75%\n\n3x\n- 15m 88-92%\n- 5m 55%\n\n- 10m 50%` |
-| SS-2 (Sweet Spot 2×20) | `- 15m ramp 50%-75%\n\n2x\n- 20m 88-92%\n- 5m 55%\n\n- 10m 50%` |
-| TH-1 (Threshold 2×20) | `- 15m ramp 50%-75%\n\n2x\n- 20m 95-105%\n- 5m 55%\n\n- 10m 50%` |
-| VO2-1 (VO2max 5×4) | `- 15m ramp 50%-75%\n\n5x\n- 4m 106-120%\n- 3m Z1\n\n- 10m 50%` |
-| VO2-2 (VO2max 3×10 short-short) | `- 15m ramp 50%-75%\n\n3x\n- 10m 106-120%\n- 5m Z1\n\n- 10m 50%` |
-
-**Important:** Use `%FTP` ranges from the template, not absolute watts. Intervals.icu resolves `%` to the athlete's current FTP. This means workouts stay correct even if FTP changes between creation and execution.
-
-### What NOT to Do
-
-- **Don't use absolute watts** unless the athlete specifically requests it. `88-92%` adapts to FTP; `250w` doesn't.
-- **Don't nest repeats.** Intervals.icu doesn't support it.
-- **Don't use `m` for meters.** It means minutes. Use `km`, `mi`, or `mtr`.
-- **Don't skip the blank line** around repeat blocks.
-- **Don't push past dates.** push.py rejects them. Planned workouts are future-only.
-- **Don't push workouts the athlete didn't ask for.** Always get confirmation before writing to their calendar.
-
----
-
-## OpenClaw / Remote Agents
-
-If the agent runs on a platform that fetches files from GitHub (like OpenClaw), it can pull push.py at runtime:
-
-```
-https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/agentic/push.py
-```
-
-The agent must have the athlete's Intervals.icu credentials available (typically from DOSSIER.md or workspace config) and network access to `intervals.icu`.
-
-## Dependencies
-
-- Python 3.6+
-- `requests` library (same as sync.py)
+| File | Goes to | Description |
+|------|---------|-------------|
+| `push.py` | Data repo root (next to sync.py) | Validates and POSTs workouts |
+| `push-workout.yml` | `.github/workflows/push-workout.yml` | GitHub Actions workflow for dispatch |
+| `README.md` | Reference only (stays in section-11) | This file |

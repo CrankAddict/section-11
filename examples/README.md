@@ -100,7 +100,8 @@ Pre-calculated values for Section 11 compliance — AI should use these, not cal
 | `quality_intensity_percentage` | Z4+ time % — target ~20% |
 | `polarisation_index` | Easy time ratio — target ~0.80 |
 | `consistency_index` | Plan adherence (completed/planned) |
-| `phase_detected` | Auto-detected: Base, Build, Peak, Recovery, Taper |
+| `phase_detected` | Auto-detected: Build, Base, Peak, Taper, Deload, Recovery, Overreached, null |
+| `phase_detection` | Full phase detection object: phase, confidence, reason_codes, basis (dual-stream), phase_duration_weeks |
 | `benchmark_indoor` / `benchmark_outdoor` | 8-week FTP progression |
 | `seiler_tid_7d` / `seiler_tid_28d` | Seiler TID classification (Polarized/Pyramidal/Threshold/HIT/Base) |
 | `capability.durability` | Aggregate decoupling 7d/28d mean + trend (improving/stable/declining) |

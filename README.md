@@ -128,7 +128,7 @@ Most major AI platforms now have native GitHub connectors that can access privat
 |----------|-----------------|---------------|---------------------|------------|
 | ChatGPT | Settings → Apps → GitHub | Yes | No (read-only) | Varies by plan and experience |
 | Claude | Settings → Integrations → GitHub | Yes | No (read-only) | All plans including Free |
-| Gemini | + → Import code / Connected Apps | Yes (link account) | No (read-only snapshot) | Requires qualifying Google Workspace edition |
+| Gemini | + → Import code / Connected Apps | Yes (link account) | No (read-only snapshot) | Account/region dependent — see Gemini docs |
 | Grok | Settings → Connected Apps | Rolling out | TBD | Plan requirements TBD |
 | Mistral | Connectors directory (MCP) | Yes | Not yet (writes supported, dispatch TBD) | All tiers including free |
 | Perplexity | App Connectors → GitHub | Yes | No (read-only) | Pro, Max, and Enterprise |

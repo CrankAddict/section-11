@@ -46,7 +46,7 @@ The data mirror automatically syncs your Intervals.icu metrics to a GitHub repos
 
 1. Go to [github.com/new](https://github.com/new)
 2. Name it something like `training-data`
-3. Set to **Private** (recommended) or Public (required for AI platform access without agent integration)
+3. Set to **Private** (recommended) — most AI platforms now have GitHub connectors that can access private repos. See the [main README](../../README.md#platform-setup) for details.
 4. Check Add a README file
 5. Click **Create repository**
 
@@ -133,8 +133,6 @@ Test by opening the URLs in your browser — you should see your training data a
 
 The sync script automatically creates and maintains `ftp_history.json` to track FTP changes over time. This enables **Benchmark Index** calculation.
 
-### File Structure
-
 ```json
 {
   "indoor": {
@@ -149,8 +147,6 @@ The sync script automatically creates and maintains `ftp_history.json` to track 
   }
 }
 ```
-
-### How It Works
 
 - Created automatically on first run of `sync.py`
 - New entries added only when FTP **changes** (not on every run)
@@ -179,7 +175,7 @@ Benchmark Index = (Current FTP - FTP 8 weeks ago) / FTP 8 weeks ago
 
 ## Usage with AI
 
-Once set up, configure your AI platform using the instructions in the main [README](../README.md#quick-start).
+Once set up, configure your AI platform using the instructions in the [main README](../../README.md#web-chat-setup).
 
 Your JSON URLs:
 ```
@@ -218,8 +214,10 @@ Provide all 3 URLs to your AI coach — `latest.json` has the current 7-day snap
 
 ### 404 error on JSON URL
 - Ensure `latest.json` exists in repo root
-- If using a private repo, normal AI chats cannot access these URLs — use an agent platform or upload files manually (see "Using Private Repos with AI Agents" below)
 - If using a public repo, verify URL format (use `main` not `master`)
+- For private repo access from AI platforms, see the [main README troubleshooting](../../README.md#troubleshooting)
+
+For general AI platform issues (data not fetching, AI fabricating metrics, connector problems), see the [main README troubleshooting guide](../../README.md#troubleshooting).
 
 ---
 
@@ -253,26 +251,6 @@ By default, the script anonymizes your data:
 Activity and event IDs are always real (opaque database keys, not PII) to enable features like coach annotations and planned-vs-actual pairing. Indoor/virtual ride names are preserved for workout identification.
 
 For additional privacy, use a **private repository** and a separate GitHub account for your data repository.
-
----
-
-## Using Private Repos with AI Agents
-
-Normal AI chats (ChatGPT Projects, Claude Projects, Gemini Gems, etc.) cannot access private GitHub repos — they need public URLs or manual file uploads.
-
-Some web chat platforms (ChatGPT, Gemini) now offer GitHub integrations that can read private repos, but availability varies by plan and account. Claude Projects still requires public URLs or manual file uploads.
-
-For consistent private repo access, use an agentic platform:
-
-**OpenClaw** — Install the GitHub skill and authenticate with `gh auth login`. Once authenticated, OpenClaw can read files from any private repo your token has access to. For limited access, use a [fine-grained personal access token](https://github.com/settings/tokens?type=beta) scoped to your data repo only.
-
-**Claude Cowork** — Clone your private repo locally and grant Cowork access to that folder. Alternatively, use the GitHub MCP connector in Cowork settings to access repos directly via a personal access token.
-
-**OpenAI Codex** — Connect your GitHub account via the ChatGPT GitHub connector at [chatgpt.com/codex](https://chatgpt.com/codex) and authorize access to your private repo during setup. The Codex CLI works locally with your existing filesystem and Git setup.
-
-**Claude Code** — Install the Claude GitHub App at [github.com/apps/claude](https://github.com/apps/claude/installations/select_target) and grant access to your private data repo. Or simply clone the repo locally and work with local files.
-
-Section 11 itself does not handle GitHub authentication — it reads files from whatever locations your environment can already access.
 
 ---
 

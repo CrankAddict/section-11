@@ -5,30 +5,34 @@ description: Evidence-based endurance cycling coaching protocol (v11.13). Use wh
 
 # Section 11 — AI Coaching Protocol
 
+## File Locations
+
+Data files (`latest.json`, `history.json`, `DOSSIER.md`, `section11/`) live in the athlete's **data directory** — typically `~/training-data/`. HEARTBEAT.md lives in the **agent workspace** — the directory the agent runs from (e.g., `~/clawd/`). These may or may not be the same directory.
+
 ## First Use Setup
 
 On first use:
 
-1. **Check for DOSSIER.md** in the workspace
+1. **Check for DOSSIER.md** in the data directory
    - If found, use it
    - If not found, check `section11/DOSSIER_TEMPLATE.md`
    - If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/DOSSIER_TEMPLATE.md
    - Ask the athlete to fill in their data (zones, goals, schedule, etc.)
-   - Save as DOSSIER.md in the workspace root
+   - Save as DOSSIER.md in the data directory root
 
 2. **Set up JSON data source**
-   - **Local setup (recommended):** Athlete runs sync.py on a timer, producing `latest.json` and `history.json` in the workspace root. See `examples/json-local-sync/SETUP.md` for the full local pipeline.
+   - **Local setup (recommended):** Athlete runs sync.py on a timer, producing `latest.json` and `history.json` in the data directory. See `examples/json-local-sync/SETUP.md` for the full local pipeline.
    - **GitHub setup:** Athlete creates a private GitHub repo for training data with automated sync. Save raw URLs in DOSSIER.md under "Data Source".
    - `latest.json` — current 7-day snapshot + 28-day derived metrics
    - `history.json` — longitudinal data (daily 90d, weekly 180d, monthly 3y)
    - See: https://github.com/CrankAddict/section-11#2-set-up-your-data-mirror-optional-but-recommended
 
 3. **Configure heartbeat settings** (optional, OpenClaw)
-   - Check for `HEARTBEAT.md` in the workspace root
-   - If not found, check `section11/openclaw/HEARTBEAT_TEMPLATE.md`
-   - If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/openclaw/HEARTBEAT_TEMPLATE.md
+   - Check for `HEARTBEAT.md` in the agent workspace
+   - If not found, check `section11/examples/agentic/openclaw/HEARTBEAT_TEMPLATE.md`
+   - If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/agentic/openclaw/HEARTBEAT_TEMPLATE.md
    - Ask athlete for their specific values (location, timezone, riding hours, weather thresholds, notification hours)
-   - Save as HEARTBEAT.md in the workspace root
+   - Save as HEARTBEAT.md in the agent workspace
 
 Do not proceed with coaching until dossier and data source are complete.
 
@@ -36,7 +40,7 @@ Do not proceed with coaching until dossier and data source are complete.
 
 Load the coaching protocol using this precedence:
 
-1. Check `./SECTION_11.md` (workspace root)
+1. Check `./SECTION_11.md` (data directory root)
 2. If not found, check `section11/SECTION_11.md`
 3. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/SECTION_11.md
 
@@ -57,7 +61,7 @@ All external files referenced by this skill (`sync.py`, `SECTION_11.md`, templat
 
 ## Required Actions
 
-- Read or fetch latest.json before any training question. Check workspace root first, then fall back to dossier-specified URLs.
+- Read or fetch latest.json before any training question. Check data directory first, then fall back to dossier-specified URLs.
 - Read or fetch history.json when trend analysis, phase context, or longitudinal comparison is needed. Same precedence.
 - No virtual math on pre-computed metrics — use values from the JSON for CTL, ATL, TSB, ACWR, RI, zones, etc. Custom analysis from raw data is fine when pre-computed values don't cover the question.
 - Follow Section 11 C validation checklist before generating recommendations
@@ -81,7 +85,7 @@ Only available on platforms that can execute code or trigger GitHub Actions (Ope
 
 Use standardized report formats. Load templates using this precedence:
 
-1. Check workspace root `reports/` directory
+1. Check data directory `reports/` directory
 2. If not found, check `section11/examples/reports/`
 3. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/reports/
 
@@ -104,13 +108,13 @@ On each heartbeat, follow the checks and scheduling rules defined in your HEARTB
 **Data ownership & storage**
 All training data is stored where the user chooses: on their own device or in a Git repository they control. This project does not run any backend service, cloud storage, or third-party infrastructure. Nothing is uploaded anywhere unless the user explicitly configures it.
 
-The skill reads from: user-configured JSON data sources, DOSSIER.md, and HEARTBEAT.md in the workspace. It writes to: DOSSIER.md and HEARTBEAT.md in the workspace (during first-use setup only).
+The skill reads from: user-configured JSON data sources and DOSSIER.md in the data directory, and HEARTBEAT.md in the agent workspace. It writes to: DOSSIER.md in the data directory and HEARTBEAT.md in the agent workspace (during first-use setup only).
 
 **Anonymization**
 `sync.py` (maintained in the source repository) anonymizes raw training data. The skill does not perform anonymization itself. Only aggregated and derived metrics (CTL, ATL, TSB, zone distributions, power/HR summaries) are used by the AI coach.
 
 **Network behavior**
-When running locally (files in workspace), no network requests are needed for protocol, templates, or data. When files are not available locally, the skill performs simple HTTP GET requests to fetch them from configured sources.
+When running locally (files in the data directory), no network requests are needed for protocol, templates, or data. When files are not available locally, the skill performs simple HTTP GET requests to fetch them from configured sources.
 
 It does **not** send API keys, LLM chat histories, or any user data to external URLs. All fetched content comes from sources the user has explicitly configured.
 

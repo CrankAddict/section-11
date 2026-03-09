@@ -371,7 +371,7 @@ The GitHub vs Local question was already answered in Step 0. If they're here, th
 
 **Local setup:**
 
-1. Create a workspace directory:
+1. Create a data directory:
    ```bash
    mkdir ~/training-data && cd ~/training-data
    ```
@@ -407,10 +407,10 @@ The GitHub vs Local question was already answered in Step 0. If they're here, th
 **Agentic platforms** (AI runs on the same machine, reads files directly):
 
 **OpenClaw:**
-1. Set workspace to `~/training-data/` (local) or install the GitHub skill (GitHub path)
-2. Install the Section 11 skill from `section11/openclaw/` (local) or from the repo's `openclaw/` folder
-3. OpenClaw can run heartbeat checks — scheduled coaching observations without the user asking
-4. Point them to: https://github.com/CrankAddict/section-11/tree/main/openclaw
+1. **Local:** OpenClaw's agent workspace (e.g., `~/clawd/`) may differ from the data directory (`~/training-data/`). If so, set the `Data Path` field in DOSSIER.md so the skill knows where to find data files. Or install the GitHub skill (GitHub path).
+2. Install the Section 11 skill from `section11/SKILL.md` (local) or from the repo root
+3. OpenClaw can run heartbeat checks — scheduled coaching observations without the user asking. HEARTBEAT.md goes in the agent workspace, not the data directory.
+4. Heartbeat template: https://github.com/CrankAddict/section-11/tree/main/examples/agentic/openclaw
 
 **Claude Code:**
 1. **Local:** `cd ~/training-data && claude` — full filesystem access, reads all files directly
@@ -434,7 +434,7 @@ The GitHub vs Local question was already answered in Step 0. If they're here, th
 For web chat users on the local path, sync.py writes to a cloud-synced folder and the AI reads via its connector. Walk them through:
 
 1. Install Google Drive for Desktop (or OneDrive/Dropbox — whichever their AI platform has a connector for)
-2. Set the workspace inside the synced folder (e.g., `~/Google Drive/My Drive/training-data/`)
+2. Set the data directory inside the synced folder (e.g., `~/Google Drive/My Drive/training-data/`)
 3. The timer's `--output` points to this folder — same setup as above, just a different path
 4. Connect the AI platform's connector to the folder:
    - **Claude:** Settings → Integrations → Google Drive
@@ -455,12 +455,12 @@ See `examples/agentic/README.md` for commands, workout syntax, and template mapp
 
 **Local project instructions:**
 
-For local setups, the AI coach reads files from the workspace instead of fetching URLs. Provide these instructions (from `examples/json-local-sync/SETUP.md`):
+For local setups, the AI coach reads files from the data directory instead of fetching URLs. Provide these instructions (from `examples/json-local-sync/SETUP.md`):
 
 ```
 ## DATA ACCESS:
-1. Read latest.json from the workspace root
-2. Read history.json from the workspace root
+1. Read latest.json from the data directory
+2. Read history.json from the data directory
 3. Read protocol from section11/SECTION_11.md
 4. Read report templates from section11/examples/reports/
 5. Read workout templates from section11/examples/workout-library/WORKOUT_REFERENCE.md
@@ -470,7 +470,7 @@ Do NOT fetch from URLs — all files are local.
 
 ## DOCUMENTS:
 - section11/SECTION_11.md — follow this protocol
-- DOSSIER.md — athlete profile (workspace root)
+- DOSSIER.md — athlete profile (data directory root)
 - section11/examples/reports/ — report templates
 - section11/examples/workout-library/WORKOUT_REFERENCE.md — session templates for planning
 ```
@@ -497,10 +497,10 @@ Tell them to open their newly configured AI coach and type:
 - Generic advice instead of data-driven → The AI isn't following the protocol. Check the instructions are pasted correctly.
 
 **If it doesn't work (local path):**
-- "I don't have access" or file not found → Check the agent's workspace is set to `~/training-data/` (or wherever they created it). Verify `latest.json` exists: `ls -la ~/training-data/latest.json`
+- "I don't have access" or file not found → Check the agent can access the data directory (`~/training-data/` or wherever they created it). On platforms like OpenClaw where the agent workspace differs, verify the `Data Path` in DOSSIER.md is set correctly. Verify `latest.json` exists: `ls -la ~/training-data/latest.json`
 - Data appears stale → Timer may not be running. Check: `launchctl list | grep section11` (macOS) or `systemctl --user status section11-sync.timer` (Linux). Check `sync.log` for errors.
-- Agent can't find SECTION_11.md → Verify `section11/` directory exists in the workspace and contains the protocol files.
-- "Missing credentials" in sync.log → `.sync_config.json` must be in the workspace root, not inside `section11/`. Re-run `--setup` from the workspace root.
+- Agent can't find SECTION_11.md → Verify `section11/` directory exists in the data directory and contains the protocol files.
+- "Missing credentials" in sync.log → `.sync_config.json` must be in the data directory root, not inside `section11/`. Re-run `--setup` from the data directory root.
 
 If the test looks good, they're done. They have an AI endurance coach.
 

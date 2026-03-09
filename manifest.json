@@ -5,7 +5,7 @@
       "hash": "4f6594d68a39571fed5b2ee68f0ecc1307e67ae11a824cf23b1ad075c794e3eb"
     },
     "DOSSIER_TEMPLATE.md": {
-      "hash": "f62f21a6b3ee1513088e3ae53fd7bc6e7046810e53509070c656cd1e61b64c44"
+      "hash": "675eeac29f6331fafd005f39675af20ba22cee3efc90bf31d394c9e4625a2017"
     },
     "LICENSE": {
       "hash": "0683b6ae3ded5701305dae4114d317d4346c175824d8db87a22d18e05a61ff77"
@@ -21,7 +21,10 @@
       "hash": "47a0b437722547662e2215a759678cccaeb91984734337bfe2392185d71976d5"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "bcca9dad3c91b0a92acc4ad892f44090b326e281c5ec1556af5ffda027cbfb94"
+      "hash": "161c0b865c6473af6d85f7a9bfb42bce1bf38050b68234a91121f40f720db409"
+    },
+    "SKILL.md": {
+      "hash": "ffb99113e95e011132d5a393403b9fe70e7545f819d23681b878e7d36bc12ba6"
     },
     "changelog.json": {
       "hash": "f646aadbe04ae579cce6bd6d437af2f1919c49d3473d03203a2a7fc7902b033c"
@@ -31,6 +34,9 @@
     },
     "examples/agentic/README.md": {
       "hash": "c5aed7fc8ac04d54c006b2f0b49e26ede7fda52e38ba134b1919fc945352dd42"
+    },
+    "examples/agentic/openclaw/HEARTBEAT_TEMPLATE.md": {
+      "hash": "f7ef373e7c697c08d69fd9c79e50a8c181975dd2713eedb7ea44ecb73cd33207"
     },
     "examples/agentic/push-workout.yml": {
       "hash": "c9e586d433e7dd6abc3d80a3daf9ca5156b02c0de7cc8011fec138f2d09701b4"
@@ -57,7 +63,7 @@
       "hash": "4bb8409294e1a34b2f1edc30e3dfbd6adda45970f2977f6e9d76ec75f9ef2ba8"
     },
     "examples/json-local-sync/SETUP.md": {
-      "hash": "6fcbb6484eca67a8ec7911f91661bf9bc5d39aad3ba6a9aea2efeeaa35cbfa56"
+      "hash": "817cf1a06cc83db0b19d47da100ee2548e6a6517150a9267cc1ce7ce95eb9c02"
     },
     "examples/json-manual/SETUP.md": {
       "hash": "ae75d174bf7756898fd0a803d4ecb90ffc86aaa4099fad26a8130e18c3b440d9"
@@ -93,19 +99,13 @@
       "hash": "ca3eb9d84ad1ab13cc0a1cbdbebcd0e0c3ad7758c2fc6a51489f2f38961ed361"
     },
     "examples/sync.py": {
-      "hash": "2cb06534ea5454ee9a1cf36a59b72c85c977a8dd65800fe3394ec1bc7cbf78c6"
+      "hash": "76632a121158bcb7681607784ba05fbbd1f896757a9c82bb680c518bb01339fd"
     },
     "examples/workout-library/README.md": {
       "hash": "f22d96050da8a601aac627ddb44b717f31daa9adc88b1cedf3f56a0b87dec6f4"
     },
     "examples/workout-library/WORKOUT_REFERENCE.md": {
       "hash": "1649665af7f7060596e3b90a94237fb09da1fc57e82d4f3187a50e42d6ca1b09"
-    },
-    "openclaw/HEARTBEAT_TEMPLATE.md": {
-      "hash": "04f7989f2471943f633c56eed6aabf054526911b6cc24487564788f78175662f"
-    },
-    "openclaw/SKILL.md": {
-      "hash": "277b04c45a61062760b2b9823295b2b3ce4ab1c09da39ff008f16eed375d5ac3"
     }
   }
 }

@@ -1,6 +1,6 @@
 # Heartbeat Configuration Template
 
-Copy this file to your workspace as `HEARTBEAT.md` and fill in the bracketed values.
+Copy this file to your agent workspace as `HEARTBEAT.md` and fill in the bracketed values.
 
 ---
 

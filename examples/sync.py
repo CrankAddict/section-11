@@ -4016,13 +4016,9 @@ class IntervalsSync:
             "Accept": "application/vnd.github+json"
         }
         
-        # Try manifest.json first, fall back to changelog.json
-        manifest = _fetch_upstream_manifest()
-        
-        if manifest and manifest.get("files"):
-            self._check_updates_via_manifest(manifest, headers)
-        else:
-            self._check_updates_via_changelog(headers)
+        # GitHub Issues use changelog.json for human-readable release notes
+        # (manifest.json is for local --update only)
+        self._check_updates_via_changelog(headers)
     
     def _check_updates_via_manifest(self, manifest, headers):
         """Create a GitHub Issue if manifest file hashes have changed."""
@@ -5561,7 +5557,7 @@ def do_update():
     # Guard: section11/ must exist
     if not target_dir.exists():
         print("Section 11: section11/ not found in this directory")
-        print("   Run --init first to set up the local workspace")
+        print("   Run --init first to set up the local data directory")
         return
     
     # Fetch manifest.json from upstream

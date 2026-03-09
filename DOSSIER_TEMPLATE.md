@@ -322,9 +322,12 @@ This document serves as a reference template for endurance athletes using the de
 
 **— OR (local setup) —**
 
-**Path:** `latest.json` (workspace root, alongside this dossier)
+**Path:** `latest.json` (data directory root, alongside this dossier)
 
-**History:** `history.json` (workspace root)
+**History:** `history.json` (data directory root)
+
+**Data Path (optional):** `[/path/to/training-data/]`
+Only needed if the AI agent's working directory is different from where data files live (e.g., OpenClaw workspace is `~/clawd/` but data is in `~/training-data/`). Leave blank if they are the same directory.
 
 For local setups where sync.py runs on the same machine as the AI agent, files are read directly from the filesystem — no URLs needed. See `examples/json-local-sync/SETUP.md` for the complete local pipeline.
 

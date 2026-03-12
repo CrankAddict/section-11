@@ -15,6 +15,7 @@ On first use:
 
 1. **Check for DOSSIER.md** in the data directory
    - If found, use it
+   - If not found, check connected repo (if GitHub connector is available)
    - If not found, check `section11/DOSSIER_TEMPLATE.md`
    - If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/DOSSIER_TEMPLATE.md
    - Ask the athlete to fill in their data (zones, goals, schedule, etc.)
@@ -22,7 +23,8 @@ On first use:
 
 2. **Set up JSON data source**
    - **Local setup (recommended):** Athlete runs sync.py on a timer, producing `latest.json` and `history.json` in the data directory. See `examples/json-local-sync/SETUP.md` for the full local pipeline.
-   - **GitHub setup:** Athlete creates a private GitHub repo for training data with automated sync. Save raw URLs in DOSSIER.md under "Data Source".
+   - **GitHub connector:** If the platform has a GitHub connector (Claude, ChatGPT, Gemini, Mistral, etc.), the athlete connects their private data repo directly. The AI reads files through the connector — no URLs needed. If the athlete also commits `DOSSIER.md` and `SECTION_11.md` to the data repo, the connector provides everything in one connection.
+   - **GitHub URL fetch:** Athlete creates a private or public GitHub repo for training data with automated sync. Save raw URLs in DOSSIER.md under "Data Source".
    - `latest.json` — current 7-day snapshot + 28-day derived metrics
    - `history.json` — longitudinal data (daily 90d, weekly 180d, monthly 3y)
    - See: https://github.com/CrankAddict/section-11#2-set-up-your-data-mirror-optional-but-recommended
@@ -42,7 +44,8 @@ Load the coaching protocol using this precedence:
 
 1. Check `./SECTION_11.md` (data directory root)
 2. If not found, check `section11/SECTION_11.md`
-3. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/SECTION_11.md
+3. If not found, check connected repo (if GitHub connector is available)
+4. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/SECTION_11.md
 
 If both root and `section11/` copies exist, prefer the root copy.
 
@@ -61,8 +64,9 @@ All external files referenced by this skill (`sync.py`, `SECTION_11.md`, templat
 
 ## Required Actions
 
-- Read or fetch latest.json before any training question. Check data directory first, then fall back to dossier-specified URLs.
+- Read or fetch latest.json before any training question. Check data directory first, then connected repo (if GitHub connector is available), then fall back to dossier-specified URLs.
 - Read or fetch history.json when trend analysis, phase context, or longitudinal comparison is needed. Same precedence.
+- For all files (JSON data, protocol, dossier, templates): data directory → connected repo → uploaded/attached files → URL fetch.
 - No virtual math on pre-computed metrics — use values from the JSON for CTL, ATL, TSB, ACWR, RI, zones, etc. Custom analysis from raw data is fine when pre-computed values don't cover the question.
 - Follow Section 11 C validation checklist before generating recommendations
 - Cite frameworks per protocol (checklist item #10)
@@ -79,7 +83,7 @@ If `push.py` is available (`section11/examples/agentic/push.py` or in the data r
 
 All write operations default to preview mode — nothing is written without `--confirm`. Execution via local CLI or GitHub Actions dispatch. See `examples/agentic/README.md` for full usage, workout syntax, and template ID mappings.
 
-Only available on platforms that can execute code or trigger GitHub Actions (OpenClaw, Claude Code, Cowork, etc.). Web chat users cannot use this.
+Only available on platforms that can execute code or trigger GitHub Actions (OpenClaw, Claude Code, Cowork, etc.). Web chat users cannot use this. GitHub connectors are read-only — they provide data access but cannot trigger Actions or execute push.py.
 
 ## Report Templates
 
@@ -87,7 +91,8 @@ Use standardized report formats. Load templates using this precedence:
 
 1. Check data directory `reports/` directory
 2. If not found, check `section11/examples/reports/`
-3. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/reports/
+3. If not found, check connected repo (if GitHub connector is available)
+4. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/reports/
 
 Templates:
 - **Pre-workout:** Readiness assessment, Go/Modify/Skip recommendation — `PRE_WORKOUT_REPORT_TEMPLATE.md`

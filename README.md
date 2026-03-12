@@ -68,14 +68,14 @@ Choose your path:
 - **[Web Chat Platforms](#web-chat-setup)** — ChatGPT Projects, Claude Projects, Gemini Gems, Grok, Mistral Le Chat
 - **[Agentic Platforms](#agentic-setup)** — OpenClaw, Claude Code, Claude Cowork, ChatGPT Codex, Gemini CLI (code execution, push workouts to calendar)
 
-### 4. Upload Files
+### 4. Make Files Available to Your AI
 
-Upload these files to your AI platform's knowledge base:
+Your AI needs access to `SECTION_11.md` (the protocol) and `DOSSIER.md` (your profile). How depends on your setup:
 
-| File | Purpose |
-|------|---------|
-| `SECTION_11.md` | The coaching protocol (required) |
-| `DOSSIER.md` | Your athlete profile (required) |
+- **GitHub connector:** If these files are in your connected repo, the AI reads them directly — no upload needed. If only `DOSSIER.md` is in your data repo, upload `SECTION_11.md` separately (or connect the CrankAddict/section-11 repo too).
+- **Cloud connector (Google Drive, OneDrive, etc.):** If these files are in your synced folder, the AI reads them through the connector — no upload needed.
+- **Local/agentic:** The AI reads directly from the filesystem — no upload needed.
+- **URL fetch (no connector):** Upload both files to your AI platform's knowledge base manually.
 
 ---
 
@@ -93,6 +93,9 @@ Add these instructions to your AI Project/Space settings:
 You are my endurance coach. Follow Section 11 protocol strictly.
 
 ## DATA ACCESS:
+If this repo is connected via GitHub connector, read latest.json and history.json directly from the connected repo — skip all URL fetch steps below.
+
+Otherwise:
 1. Note today's date
 2. Fetch: https://raw.githubusercontent.com/[you]/[repo]/main/latest.json (append ?date= with today's date to ensure fresh data)
 3. Fetch: https://raw.githubusercontent.com/[you]/[repo]/main/history.json (append ?date= with today's date to ensure fresh data)
@@ -107,16 +110,16 @@ Do NOT ask me for data — fetch it yourself.
 - Metric hierarchy: Tier 1 (RI, HRV, RHR, Feel) → Tier 2 (ACWR, Monotony) → Tier 3 (diagnostics)
 - No citations, source markers, or parenthetical references — raw data and analysis only
 - Brief when metrics are normal. Detailed when thresholds are breached or I ask "why"
-- Fetch report templates from https://github.com/CrankAddict/section-11/tree/main/examples/reports if not attached
+- Fetch report templates from https://github.com/CrankAddict/section-11/tree/main/examples/reports if not attached or available in connected repo
 
-## DOCUMENTS ATTACHED:
-- SECTION_11.md — AI coaching protocol
-- DOSSIER.md — Profile, zones, goals
+## DOCUMENTS:
+- SECTION_11.md — AI coaching protocol (attached, in connected repo, or fetch from CrankAddict/section-11)
+- DOSSIER.md — Profile, zones, goals (attached or in connected data repo)
 ```
 
-**Replace `[you]/[repo]` with your GitHub data mirror path.**
+**If using URL fetch:** Replace `[you]/[repo]` with your GitHub data mirror path.
 
-> **Note:** If you're using a platform with a GitHub connector (most platforms now support this), you can skip the fetch URLs and let the connector access your repo directly. The AI will read `latest.json` and `history.json` from your connected repository.
+**If using GitHub connector:** The AI reads files directly from the connected repo — no URL editing needed. If you committed `DOSSIER.md` to your data repo, the connector provides your data and dossier in one connection. `SECTION_11.md` can be uploaded separately or accessed via a second connector to the CrankAddict/section-11 repo.
 
 ### Platform Setup
 
@@ -137,8 +140,8 @@ Most major AI platforms now have native GitHub connectors that can access privat
 
 1. Create a Project
 2. Add instructions to Project settings
-3. Upload SECTION_11.md and DOSSIER.md to "Project Files"
-4. **GitHub connector:** Settings → Apps → GitHub → Connect → authorize repos. Once connected, ChatGPT can read your private data repo directly.
+3. **GitHub connector:** Settings → Apps → GitHub → Connect → authorize repos. Once connected, ChatGPT reads your private data repo directly — and any files in it (including `DOSSIER.md` if you committed it).
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Files". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too).
 
 #### ChatGPT (CustomGPT)
 
@@ -151,16 +154,16 @@ Most major AI platforms now have native GitHub connectors that can access privat
 
 1. Create a Project
 2. Add instructions to "Project Instructions"
-3. Upload SECTION_11.md and DOSSIER.md to "Project Knowledge"
-4. **GitHub connector:** Click "+" in Project Knowledge → search/paste your repo URL → select files. Or connect via Settings → Integrations → GitHub. Available on all plans including Free.
+3. **GitHub connector:** Click "+" in Project Knowledge → search/paste your repo URL → select files. Or connect via Settings → Integrations → GitHub. Available on all plans including Free.
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Knowledge". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too).
 5. Enable "Web search" in settings if using URL-based fetch instead of the connector
 
 #### Gemini (Gems)
 
 1. Create Gem
-2. Paste instructions + Section 11 content in instructions field
-3. Upload dossier or paste contents
-4. **GitHub connector:** In Gemini web chat, click **+** → **Import code**, paste the repo URL, and authorize. This also works for Gems. For private repos, authorize your GitHub account when prompted.
+2. Paste instructions in instructions field
+3. **GitHub connector:** Click **+** → **Import code**, paste the repo URL, and authorize. This also works for Gems. For private repos, authorize your GitHub account when prompted.
+4. **No connector?** Paste Section 11 content into the instructions field and upload dossier separately. If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately.
 
 > **Note:** Not all Google accounts have the same access. Gemini's capabilities vary by account type, Workspace edition, and region. If Gemini can't access your repo, see [Troubleshooting](#troubleshooting).
 
@@ -168,20 +171,22 @@ Most major AI platforms now have native GitHub connectors that can access privat
 
 1. Create Project
 2. Add instructions to Project configuration
-3. Upload files to "Sources"
-4. **GitHub connector:** Settings → Connected Apps → GitHub → Connect. Rolling out — availability may vary by plan.
+3. **GitHub connector:** Settings → Connected Apps → GitHub → Connect. Rolling out — availability may vary by plan.
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Sources". If using the connector but some files aren't in your data repo, upload those separately.
 
 #### Mistral (Le Chat)
 
 1. Create New Project
-2. Add instructions and upload files
+2. Add instructions
 3. **GitHub connector:** Open side panel → Intelligence → Connectors → find GitHub in the directory → Connect and authorize. Available on all tiers including free.
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md during project creation. If using the connector but some files aren't in your connected repo, upload those separately.
 
 #### Perplexity
 
 1. Create a Space (or use standard chat)
-2. Add instructions and upload files
-3. **GitHub connector:** Available on Pro, Max, and Enterprise plans via App Connectors. Free users should use URL-based fetch (requires public repo) or upload files manually.
+2. Add instructions
+3. **GitHub connector:** Available on Pro, Max, and Enterprise plans via App Connectors.
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md to the Space. Free users without connector access should use URL-based fetch (requires public repo) or upload files manually.
 
 ---
 

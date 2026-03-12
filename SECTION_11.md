@@ -121,9 +121,13 @@ If the AI instance does not retain prior context (e.g., new chat or session), it
 
 #### Data Mirror Integration
 
-If the AI or LLM system is not directly or indirectly connected to the Intervals.icu API, it may reference an athlete-provided public data mirror.
+If the AI or LLM system is not directly or indirectly connected to the Intervals.icu API, it may reference an athlete-provided data mirror. There are three access methods — use the first available:
 
-**Example endpoint format:**
+1. **Local files** — data directory on the same filesystem (agentic platforms)
+2. **GitHub connector** — the athlete's data repo connected via the platform's native GitHub integration. The AI reads `latest.json`, `history.json`, and any other committed files (e.g., `DOSSIER.md`, `SECTION_11.md`) directly through the connector. No URLs needed. Connectors are read-only — they cannot trigger GitHub Actions or execute scripts.
+3. **URL fetch** — raw GitHub URLs as defined in the athlete dossier
+
+**Example endpoint format (URL fetch):**
 ```
 https://raw.githubusercontent.com/[username]/[repo]/main/latest.json
 ```
@@ -138,11 +142,11 @@ https://github.com/[username]/[repo]/tree/main/archive
 https://raw.githubusercontent.com/[username]/[repo]/main/history.json
 ```
 
-> **Note:** The actual URLs for your data mirror are defined in your athlete dossier. The AI must fetch from the dossier-specified endpoint.
+> **Note:** The actual URLs for your data mirror are defined in your athlete dossier. When using URL fetch, the AI must fetch from the dossier-specified endpoint. When using a GitHub connector, the AI reads directly from the connected repo.
 
 This file represents a synchronized snapshot of current Intervals.icu metrics and activity summaries, structured for deterministic AI parsing and audit compliance.
 
-The JSON endpoint is considered a **Tier-1 verified mirror** of Intervals.icu and inherits its trust priority in the Data Integrity Hierarchy. All metric sourcing and computation must reference it deterministically, without modification or estimation.
+The JSON data — whether accessed via local files, GitHub connector, or URL fetch — is considered a **Tier-1 verified mirror** of Intervals.icu and inherits its trust priority in the Data Integrity Hierarchy. All metric sourcing and computation must reference it deterministically, without modification or estimation.
 
 If the data appears stale or outdated, the AI must explicitly request a data refresh before providing recommendations or generating analyses.
 
@@ -517,7 +521,7 @@ Before providing recommendations, AI systems must verify:
 
 | #  | **Check**                        | **Deterministic Rules/Requirement**.                                                                                                                   |
 |----|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0  | **Data Source Fetch**            | Fetch JSON from mirror URL FIRST. If fetch fails or data unavailable, STOP and request manual data input.                                              |
+| 0  | **Data Source Fetch**            | Load JSON from data source FIRST (local files → GitHub connector → URL fetch). If all methods fail or data unavailable, STOP and request manual data input.                                              |
 | 1  | FTP Source Verification          | Confirm FTP/LT2 is explicitly athlete-provided or from API/JSON mirror via sport-family lookup (`thresholds.sports[family]`). Do not infer, recalculate, or cross-apply thresholds across sport families. |
 | 2  | Data Consistency Check           | Verify weekly training hours and load totals match the “READ_THIS_FIRST → quick_stats” dataset. Confirm totals within ±1% tolerance of logged data     |             
 | 3  | No Virtual Math Policy           | Ensure all computed metrics originate from raw or mirrored data. No interpolation, smoothing, or estimation permitted.                                 |
@@ -730,7 +734,7 @@ If any values breach limits, shift guidance toward load modulation or recovery e
 If multiple data sources conflict:
 
 1. **Intervals.icu API** → Primary source for power, HRV, CTL/ATL, readiness metrics
-2. **Intervals.icu JSON Mirror** → Verified Tier-1 mirror source (read-only reference)
+2. **Intervals.icu JSON Mirror** → Verified Tier-1 mirror source (local files, GitHub connector, or URL fetch — all carry the same trust level)
 3. **Garmin Connect** → Backup for HR, sleep, RHR
 4. **Athlete-provided data** → Valid if recent (<7 days) and stated explicitly
 5. **Dossier Baselines** → Fallback reference
@@ -1738,7 +1742,7 @@ This subsection defines the formal self-validation and audit metadata structure 
 
 | Field                          | Type     | Description                                                                         |
 |--------------------------------|----------|-------------------------------------------------------------------------------------|
-| `data_source_fetched`          | boolean  | Whether JSON was successfully fetched from mirror URL                               |
+| `data_source_fetched`          | boolean  | Whether JSON was successfully loaded from data source (local files, connector, or URL) |
 | `json_fetch_status`            | string   | "success" / "failed" / "unavailable" — stop and request manual input if not success |
 | `protocol_version`             | string   | Section 11 version being followed                                                   |
 | `checklist_passed`             | array    | List of checklist items (1–10) that passed validation                               |
@@ -1809,7 +1813,7 @@ This subsection defines the formal self-validation and audit metadata structure 
 
 | Field                 | Type    | Description                                                                         |
 |-----------------------|---------|-------------------------------------------------------------------------------------|
-| `data_source_fetched` | boolean | Whether JSON was successfully fetched from mirror URL                               |
+| `data_source_fetched` | boolean | Whether JSON was successfully loaded from data source (local files, connector, or URL) |
 | `json_fetch_status`   | string  | "success" / "failed" / "unavailable" — stop and request manual input if not success |
 | `plan_version`        | string  | Version identifier for the plan                                                     |
 | `phase`               | string  | Current macro-phase (Base/Build/Peak/Taper/Recovery)                                |

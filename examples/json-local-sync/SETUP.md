@@ -191,6 +191,8 @@ If your AI coach is a web or phone app (Claude, ChatGPT, Gemini, etc.) rather th
 
 Your AI coach now reads fresh data every time you open a chat — no URLs, no GitHub, no manual uploads.
 
+> **Tip:** If your data directory already contains `DOSSIER.md` and `section11/` (from `--init`), the cloud connector gives the AI access to your data, dossier, and protocol files — all in one connection. No need to manually upload `SECTION_11.md` or `DOSSIER.md` to your AI project.
+
 ### Many ways to do this
 
 Google Drive is just one example. The principle is: **sync.py writes files → something syncs them to the cloud → the AI reads via a connector.** A few other setups that work:

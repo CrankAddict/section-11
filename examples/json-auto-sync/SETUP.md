@@ -179,14 +179,16 @@ Benchmark Index = (Current FTP - FTP 8 weeks ago) / FTP 8 weeks ago
 
 Once set up, configure your AI platform using the instructions in the [main README](../../README.md#web-chat-setup).
 
-Your JSON URLs:
+**GitHub connector users:** If your AI platform has a GitHub connector, connect your data repo directly — the AI reads `latest.json`, `history.json`, and any other committed files through the connector. No URLs needed. If you commit `DOSSIER.md` and `SECTION_11.md` to the repo, the connector provides everything in one connection.
+
+**URL fetch users:** Provide these URLs to your AI coach:
 ```
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/latest.json
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/history.json
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/ftp_history.json
 ```
 
-Provide all 3 URLs to your AI coach — `latest.json` has the current 7-day snapshot and `history.json` provides longitudinal context for trend analysis.
+`latest.json` has the current 7-day snapshot and `history.json` provides longitudinal context for trend analysis.
 
 ---
 

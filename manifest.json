@@ -5,16 +5,16 @@
       "hash": "4f6594d68a39571fed5b2ee68f0ecc1307e67ae11a824cf23b1ad075c794e3eb"
     },
     "DOSSIER_TEMPLATE.md": {
-      "hash": "675eeac29f6331fafd005f39675af20ba22cee3efc90bf31d394c9e4625a2017"
+      "hash": "fe56f6016abc9f2defb98a83a060aa0555892bea2daca2862ae54201ce48c98a"
     },
     "LICENSE": {
       "hash": "0683b6ae3ded5701305dae4114d317d4346c175824d8db87a22d18e05a61ff77"
     },
     "README.md": {
-      "hash": "2dabc50aaa4623273780f8170bb005697da3e1e9602a2e25ca19905be8ba8cf2"
+      "hash": "5c1548db5e2dee9259e612f4192c5fd92f8e20d469d1be7e48b0cc70a744280d"
     },
     "SECTION_11.md": {
-      "hash": "19301e86897a9052001c07c3210ba866e4153430f8bfe3a98fab2ad7e1e25656",
+      "hash": "b1d95f2b92e1babc31b3d2bec8b40f505d478f3af35d4e68621599bbe4ddcb64",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
@@ -24,7 +24,7 @@
       "hash": "161c0b865c6473af6d85f7a9bfb42bce1bf38050b68234a91121f40f720db409"
     },
     "SKILL.md": {
-      "hash": "ffb99113e95e011132d5a393403b9fe70e7545f819d23681b878e7d36bc12ba6"
+      "hash": "3a5d3efd623c1f1ee81054d52b93d23d1b27d12785c093ded470587f4ea3aac8"
     },
     "changelog.json": {
       "hash": "186776eac1d007287c2eff4c8ba7070d17b22acace4670e2cd5cc8698613faf9"
@@ -48,7 +48,7 @@
       "hash": "45d09cb1d63d0ed450b603a94ec3ae56ad1013fd7c7676d45ff90ebc4b0e81f0"
     },
     "examples/json-auto-sync/SETUP.md": {
-      "hash": "29795b7bfacae1e3071b26382637f79383243f6990044a698b83fdd776f58675"
+      "hash": "7d8c4d82f14872ac3d013a8d3513a4b486cf1cb14f8612a16374da75078da889"
     },
     "examples/json-auto-sync/auto-sync.yml": {
       "hash": "fd13a0ed2e2f609310b951c10513bc5e9bfbba5847e52c651d1f7ce0339ed443"
@@ -63,7 +63,7 @@
       "hash": "4bb8409294e1a34b2f1edc30e3dfbd6adda45970f2977f6e9d76ec75f9ef2ba8"
     },
     "examples/json-local-sync/SETUP.md": {
-      "hash": "817cf1a06cc83db0b19d47da100ee2548e6a6517150a9267cc1ce7ce95eb9c02"
+      "hash": "ce1bc5dbc89f95cbeda6520e4246fd8a34e00be1626665048ccaa84c71f2ab3d"
     },
     "examples/json-manual/SETUP.md": {
       "hash": "ae75d174bf7756898fd0a803d4ecb90ffc86aaa4099fad26a8130e18c3b440d9"

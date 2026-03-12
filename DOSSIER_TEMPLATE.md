@@ -320,6 +320,12 @@ This document serves as a reference template for endurance athletes using the de
 
 **Archive:** `https://github.com/[username]/[repo]/tree/main/archive`
 
+**— OR (GitHub connector) —**
+
+**Repo:** `[username]/[repo]` (connected via platform's GitHub integration — AI reads files directly, no URLs needed)
+
+> **Tip:** If you commit `DOSSIER.md` to your data repo alongside `latest.json` and `history.json`, connecting the repo gives the AI both your data and your profile in one connection. The only remaining piece is `SECTION_11.md`, which the AI can fetch from the public CrankAddict/section-11 repo or a second connector.
+
 **— OR (local setup) —**
 
 **Path:** `latest.json` (data directory root, alongside this dossier)

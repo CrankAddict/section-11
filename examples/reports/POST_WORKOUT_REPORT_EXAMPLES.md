@@ -59,6 +59,8 @@ TSS: 410
 Interpretation:
 Both sessions compliant with plan. Bike decoupling 2.14% over 2h30m shows solid aerobic control.
 Rowing stayed in Z1-Z2 as prescribed. Load tracking well — TSB manageable heading into Thursday.
+
+Tomorrow: Threshold 1h30m — 3×12m @260W
 ```
 
 ---

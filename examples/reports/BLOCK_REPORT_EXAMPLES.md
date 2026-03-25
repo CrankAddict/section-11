@@ -11,6 +11,11 @@
 Block 2 Report (13 Jan – 09 Feb 2026)
 Weeks in block: 4
 Phase: Threshold Development
+Phase Timeline:
+  Wk 1: Build (confidence: high)
+  Wk 2: Build (confidence: high)
+  Wk 3: Build (confidence: high)
+  Wk 4: Build (confidence: high)
 
 Volume Progression:
   Wk 1: 13.8h / 498 TSS | CTL 74.5
@@ -38,6 +43,23 @@ Key Performance Markers:
   Long ride decoupling trend: 4.8% → 2.1% ↑ improving
   Best 20-min power: 278W (week 3)
   Best 5-min power: 318W (week 3)
+  Power curve rotation: +0.6 (sprint-biased)
+  Strongest adaptation: 5min (+4.2%)
+  HR curve rotation: -0.3 (endurance-biased)
+  HR context: Stable HRV/RHR — lower sustained HR at endurance durations = aerobic efficiency gain
+
+Sustainability Ceilings:
+  Coverage: 7/7 anchors observed (100%) — cycling
+  5min: 326W (4.35 W/kg) — observed_indoor | Coggan 330W | CP model 335W | divergence -2.7%
+  10min: 301W (4.01 W/kg) — observed_indoor | Coggan 303W | CP model 301W | divergence 0.0%
+  20min: 281W (3.75 W/kg) — observed_indoor | Coggan 289W | CP model 285W | divergence -1.4%
+  30min: 270W (3.60 W/kg) — observed_indoor | Coggan 275W | CP model 280W | divergence -3.6%
+  60min: 256W (3.41 W/kg) — observed_indoor | Coggan 256W | CP model 274W | divergence -6.6%
+  90min: 247W (3.29 W/kg) — observed_indoor | Coggan 248W | CP model 272W | divergence -9.2%
+  120min: 241W (3.21 W/kg) — observed_indoor | Coggan 242W | CP model 271W | divergence -11.1%
+  FTP used: 275W | W′: 20000J | FTP staleness: 14 days
+  Model trust: CP/W′ primary ≤20min, Coggan reference ≥60min
+  Block-over-block: Ceilings rose at 5min (+3.8%) and 20min (+2.4%), consistent with threshold focus. Coverage maintained at 100%. Model divergence stable — inputs current.
 
 Polarization (block average):
   Z1+Z2: 85%
@@ -64,6 +86,13 @@ Efficiency Factor by Week:
   Wk 2: mean(4) EF 1.45
   Wk 3: mean(4) EF 1.48
   Wk 4: mean(2) EF 1.50
+  Block trend: improving
+
+HRRc by Week (block total: 6 qualifying sessions):
+  Wk 1: mean(1) 32 bpm
+  Wk 2: mean(2) 36 bpm
+  Wk 3: mean(2) 40 bpm
+  Wk 4: mean(1) 38 bpm
   Block trend: improving
 
 Wellness (block avg vs previous block):
@@ -123,6 +152,12 @@ Next Block Plan:
 Block 3 Report (10 Feb – 16 Mar 2026)
 Weeks in block: 5
 Phase: Aerobic Base (extended)
+Phase Timeline:
+  Wk 1: Build (confidence: high)
+  Wk 2: Build (confidence: high)
+  Wk 3: Build (confidence: medium)
+  Wk 4: Recovery (confidence: high)
+  Wk 5: Base (confidence: medium)
 
 Volume Progression:
   Wk 1: 14.8h / 510 TSS | CTL 80.1
@@ -157,6 +192,19 @@ Key Performance Markers:
   Long ride decoupling trend: 2.1% → 3.8% → slightly regressed
   Best 20-min power: 272W (week 2)
   Best 5-min power: 308W (week 2)
+  Power curve rotation: -1.2 (endurance-biased)
+  Strongest adaptation: 20min (-5.1%) — regression across all anchors post-illness
+  HR curve rotation: +0.6 (intensity-biased)
+  HR context: HRV declining 11%, RHR elevated — rising HR reflects fatigue, not fitness
+
+Sustainability Ceilings:
+  Coverage: 3/7 anchors observed (43%) — cycling ⚠️ heavily model-dependent
+  5min: 312W (4.16 W/kg) — observed_indoor | Coggan 330W | CP model 335W | divergence -6.9%
+  20min: 268W (3.57 W/kg) — observed_indoor | Coggan 289W | CP model 285W | divergence -6.0%
+  60min: 244W (3.25 W/kg) — observed_indoor | Coggan 256W | CP model 274W | divergence -10.9%
+  FTP used: 275W | W′: 20000J | FTP staleness: 38 days
+  Model trust: CP/W′ primary ≤20min, Coggan reference ≥60min
+  Block-over-block: Ceilings dropped across all observed anchors (5min -4.3%, 20min -4.6%, 60min -4.7%). Coverage fell from 100% to 43% — missing durations due to no sprint or long efforts during illness weeks. Model divergence widened — FTP staleness 38 days means model inputs may be stale; defer ceiling interpretation until FTP retested.
 
 Polarization (block average):
   Z1+Z2: 89%
@@ -186,6 +234,14 @@ Efficiency Factor by Week:
   Wk 3: mean(2) EF 1.39 ⚠️
   Wk 4: mean(0) EF N/A (illness)
   Wk 5: mean(2) EF 1.41
+  Block trend: declining (illness-driven)
+
+HRRc by Week (block total: 4 qualifying sessions):
+  Wk 1: mean(1) 35 bpm
+  Wk 2: mean(2) 34 bpm
+  Wk 3: mean(1) 24 bpm ⚠️
+  Wk 4: — no data (illness)
+  Wk 5: — no data
   Block trend: declining (illness-driven)
 
 Wellness (block avg vs previous block):

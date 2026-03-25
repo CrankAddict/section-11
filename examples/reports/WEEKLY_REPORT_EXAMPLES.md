@@ -58,6 +58,14 @@ HRRc:
   7d mean(2): 38 bpm | 28d mean(6): 36 bpm
   Trend: stable
 
+Power Curve Delta (28d vs prior 28d):
+  Rotation: +0.4 (sprint-biased)
+  Notable shifts: 5min +3.1%, 20min +2.4%
+
+HR Curve Delta (28d vs prior 28d):
+  Rotation: -0.2 (endurance-biased)
+  No significant shifts
+
 Fitness:
   CTL: 78.2 → 80.6 (Δ +2.4)
   ATL: 82.1 → 85.3
@@ -97,7 +105,8 @@ modifying Thursday's session.
 ```
 Week 3 Summary (03 Feb – 09 Feb 2026)
 Block: Aerobic Base — Week 3/5
-Phase: Base
+Phase: Base — week 7 (confidence: high)
+  Basis: Sustained endurance focus, no intensity progression
 
 Compliance: 5/7 sessions completed (1 modified, 1 missed)
 Planned TSS: 480 | Actual TSS: 392 (82%)
@@ -136,6 +145,15 @@ Efficiency Factor (steady-state cycling, VI ≤ 1.05, ≥ 20min):
 
 HRRc:
   22 bpm 28d mean(3) — 7d: no data
+
+Power Curve Delta (28d vs prior 28d):
+  Rotation: -0.8 (endurance-biased)
+  Notable shifts: 5min -3.4%, 1min -2.8%
+
+HR Curve Delta (28d vs prior 28d):
+  Rotation: +0.5 (intensity-biased)
+  Notable shifts: 5min +3.1%, 20min +2.6%
+  Cross-reference: HRV declining, RHR elevated — rising HR likely fatigue, not fitness
 
 Fitness:
   CTL: 72.4 → 71.1 (Δ -1.3)

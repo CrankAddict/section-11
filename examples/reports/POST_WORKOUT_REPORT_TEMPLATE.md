@@ -54,7 +54,8 @@ TSS: [XXX]
 Interpretation:
 [2-4 sentences: compliance check, key quality metrics, load context, recovery note if applicable.]
 
-Tomorrow: [WorkoutType] [Duration] — [structure/targets]
+Tomorrow: [WorkoutType] [Duration] — [main set condensed, e.g., "3×12m @260W"]
+[Use workout_summary as source. Condense to main set — omit warmup/cooldown/recovery steps. If workout_summary is null, use description_preview.]
 [Omit if no planned session tomorrow]
 ```
 

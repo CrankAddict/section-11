@@ -34,7 +34,8 @@ Total activities, last 7 days: [XX]
 Total TSS, last 7 days: [XXX]
 
 Planned Workouts for Today (Planned TSS: [XXX]):
-[WorkoutType] [Duration] — [structure/targets]
+[WorkoutType] [Duration] — [main set condensed, e.g., "3×12m @260W"]
+[Use workout_summary as source. Condense to main set — omit warmup/cooldown/recovery steps. If workout_summary is null, use description_preview.]
 
 [If rest day: "Rest day — no sessions scheduled."]
 [If rest day: "Next session: [Day] — [workout preview]"]

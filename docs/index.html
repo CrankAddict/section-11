@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Section 11 — Training Data Helper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f12;
+    --surface: #13161b;
+    --surface2: #1a1e25;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --accent: #3b82f6;
+    --accent-dim: rgba(59,130,246,0.15);
+    --accent2: #10b981;
+    --accent2-dim: rgba(16,185,129,0.12);
+    --warn: #f59e0b;
+    --warn-dim: rgba(245,158,11,0.12);
+    --danger: #ef4444;
+    --danger-dim: rgba(239,68,68,0.12);
+    --radius: 10px;
+    --mono: 'Geist Mono', monospace;
+    --sans: 'Instrument Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Layout ── */
+  .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+
+  nav {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 0;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .nav-logo {
+    padding: 0 24px 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .nav-logo .logo-mark {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .nav-logo h1 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .nav-logo p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 24px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13.5px;
+    font-weight: 500;
+    transition: color 0.15s, background 0.15s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+
+  .nav-item.active {
+    color: var(--text);
+    background: var(--accent-dim);
+    border-right: 2px solid var(--accent);
+  }
+
+  .nav-item .icon { font-size: 15px; width: 18px; text-align: center; }
+
+  .nav-section {
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 16px 24px 6px;
+  }
+
+  .nav-spacer { flex: 1; }
+
+  .nav-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .config-status {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--danger);
+    flex-shrink: 0;
+  }
+
+  .status-dot.ok { background: var(--accent2); }
+
+  /* ── Main ── */
+  main { padding: 36px 48px; max-width: 820px; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 32px; }
+
+  .page-header h2 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .page-header p { color: var(--muted); font-size: 14px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Form ── */
+  .field { margin-bottom: 20px; }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .field-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  input[type="text"], input[type="url"], input[type="password"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 9px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input[type="text"]:focus,
+  input[type="url"]:focus,
+  input[type="password"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  }
+
+  input[type="text"]::placeholder,
+  input[type="url"]::placeholder,
+  input[type="password"]::placeholder { color: #3d4452; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .toggle-row label { margin-bottom: 0; font-size: 13px; }
+
+  input[type="checkbox"] {
+    appearance: none;
+    width: 16px; height: 16px;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px; top: 2px;
+    width: 6px; height: 9px;
+    border: 2px solid white;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border-radius: 7px;
+    font-size: 13.5px;
+    font-weight: 500;
+    font-family: var(--sans);
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { opacity: 0.88; }
+
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border2);
+  }
+
+  .btn-ghost:hover { border-color: var(--border2); opacity: 0.8; }
+
+  .btn-danger { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239,68,68,0.25); }
+  .btn-danger:hover { opacity: 0.8; }
+
+  .btn-success { background: var(--accent2-dim); color: var(--accent2); border: 1px solid rgba(16,185,129,0.25); }
+  .btn-success:hover { opacity: 0.8; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+
+  /* ── Action cards ── */
+  .action-grid { display: grid; gap: 12px; }
+
+  .action-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+  }
+
+  .action-card:hover { border-color: var(--border2); background: var(--surface2); }
+  .action-card.primary-action { border-color: rgba(59,130,246,0.3); }
+  .action-card.primary-action:hover { border-color: rgba(59,130,246,0.6); }
+
+  .action-icon {
+    font-size: 22px;
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .icon-blue { background: var(--accent-dim); }
+  .icon-green { background: var(--accent2-dim); }
+  .icon-amber { background: var(--warn-dim); }
+  .icon-muted { background: var(--surface2); }
+
+  .action-body h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 3px; }
+  .action-body p { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+
+  .action-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  /* ── Log / status ── */
+  .log-area {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    min-height: 80px;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .log-area.visible { display: block; }
+
+  .log-line { color: var(--muted); }
+  .log-line.ok { color: var(--accent2); }
+  .log-line.err { color: var(--danger); }
+  .log-line.info { color: var(--accent); }
+  .log-line.warn { color: var(--warn); }
+
+  /* ── Progress ── */
+  .progress-wrap {
+    margin-top: 14px;
+    display: none;
+  }
+
+  .progress-wrap.visible { display: block; }
+
+  .progress-bar-bg {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  .progress-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-top: 6px;
+  }
+
+  /* ── Alert ── */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 7px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+    line-height: 1.5;
+  }
+
+  .alert.visible { display: block; }
+  .alert-info { background: var(--accent-dim); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); }
+  .alert-warn { background: var(--warn-dim); color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
+  .alert-danger { background: var(--danger-dim); color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
+  .alert-ok { background: var(--accent2-dim); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
+
+  /* ── Password modal ── */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(3px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-backdrop.visible { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    padding: 28px;
+    width: 360px;
+    max-width: 90vw;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+
+  .modal h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .modal p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  .modal .field { margin-bottom: 16px; }
+
+  .pw-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .pw-input-wrap input {
+    padding-right: 38px;
+  }
+
+  .pw-toggle {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 14px;
+    padding: 2px;
+    line-height: 1;
+  }
+
+  .pw-toggle:hover { color: var(--text); }
+
+  .modal .btn-row { margin-top: 4px; }
+
+  .modal-alert {
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    display: none;
+  }
+
+  .modal-alert.visible { display: block; }
+
+  /* ── Settings export/import ── */
+  .file-drop {
+    border: 1.5px dashed var(--border2);
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .file-drop:hover { border-color: var(--accent); background: var(--accent-dim); }
+
+  .separator {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  /* ── AI link ── */
+  .ai-link-box {
+    background: var(--accent2-dim);
+    border: 1px solid rgba(16,185,129,0.2);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    display: none;
+  }
+
+  .ai-link-box.visible { display: flex; }
+
+  .ai-link-box .ai-label { font-size: 12px; color: var(--accent2); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px; }
+  .ai-link-box .ai-name { font-size: 15px; font-weight: 500; }
+
+  .ai-link-box a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent2);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .ai-link-box a:hover { opacity: 0.85; }
+
+  /* ── Tag ── */
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    margin-left: 4px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    nav { position: static; height: auto; flex-direction: row; flex-wrap: wrap; padding: 16px; gap: 4px; }
+    .nav-logo { border-bottom: none; padding: 0; margin: 0; width: 100%; }
+    .nav-section { display: none; }
+    .nav-footer { display: none; }
+    main { padding: 24px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <nav>
+    <div class="nav-logo">
+      <div class="logo-mark">Section 11</div>
+      <h1>Training Data</h1>
+      <p>AI Coaching Protocol</p>
+    </div>
+
+    <span class="nav-section">Main</span>
+    <button class="nav-item active" onclick="showPage('actions')">
+      <span class="icon">⚡</span> Actions
+    </button>
+    <button class="nav-item" onclick="showPage('settings')">
+      <span class="icon">⚙</span> Settings
+    </button>
+
+    <div class="nav-spacer"></div>
+
+    <div class="nav-footer">
+      <div class="config-status" id="nav-status">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Not configured</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main ── -->
+  <main>
+
+    <!-- ACTIONS PAGE -->
+    <div class="page active" id="page-actions">
+      <div class="page-header">
+        <h2>Actions</h2>
+        <p>Trigger GitHub workflows and download your training data files.</p>
+      </div>
+
+      <!-- AI tool link -->
+      <div class="ai-link-box" id="ai-link-box">
+        <div>
+          <div class="ai-label">Your AI tool</div>
+          <div class="ai-name" id="ai-link-name">—</div>
+        </div>
+        <a href="#" id="ai-link-href" target="_blank">Open ↗</a>
+      </div>
+
+      <!-- Config warning -->
+      <div class="alert alert-warn" id="config-warn">
+        ⚠ Configuration incomplete. Go to <strong>Settings</strong> and fill in your GitHub repository and at least one token before running actions.
+      </div>
+
+      <!-- Log -->
+      <div class="log-area" id="log-area"></div>
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
+        <div class="progress-label" id="progress-label">Waiting…</div>
+      </div>
+
+      <div style="margin-top: 20px;">
+        <div class="action-grid">
+          <div class="action-card primary-action" onclick="runAction('sync_download')">
+            <div class="action-badge">recommended</div>
+            <div class="action-icon icon-blue">🔄</div>
+            <div class="action-body">
+              <h3>Sync + Download all</h3>
+              <p>Triggers the GitHub workflow to sync data, waits for completion, then downloads both <code>latest.json</code> and <code>history.json</code> as a ZIP.</p>
+            </div>
+          </div>
+
+          <div class="action-card" onclick="runAction('sync_download_latest')">
+            <div class="action-icon icon-green">⚡</div>
+            <div class="action-body">
+              <h3>Sync + Download latest</h3>
+              <p>Syncs via workflow and downloads only <code>latest.json</code> — faster when you only need recent sessions.</p>
+            </div>
+          </div>
+
+          <div class="action-card" onclick="runAction('sync')">
+            <div class="action-icon icon-amber">🔁</div>
+            <div class="action-body">
+              <h3>Sync only</h3>
+              <p>Triggers the workflow without downloading anything. Useful to pre-warm the data before a delayed download.</p>
+            </div>
+          </div>
+
+          <div class="action-card" onclick="runAction('download_all')">
+            <div class="action-icon icon-muted">⬇</div>
+            <div class="action-body">
+              <h3>Download all (no sync)</h3>
+              <p>Immediately downloads the current <code>latest.json</code> and <code>history.json</code> as a ZIP without triggering a workflow run.</p>
+            </div>
+          </div>
+
+          <div class="action-card" onclick="runAction('download_latest')">
+            <div class="action-icon icon-muted">📄</div>
+            <div class="action-body">
+              <h3>Download latest only (no sync)</h3>
+              <p>Downloads only <code>latest.json</code> directly from the repo — no workflow triggered, no ZIP.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <h2>Settings</h2>
+        <p>All values are stored in your browser's local storage and never sent anywhere except GitHub's API.</p>
+      </div>
+
+      <!-- GitHub repo -->
+      <div class="card">
+        <div class="card-title">📦 GitHub repository</div>
+
+        <div class="field">
+          <label>Repository <span class="tag">required</span></label>
+          <div class="field-desc">
+            The <code>owner/repo</code> slug for your private Section 11 repo. Example: <code>yourname/section-11</code><br>
+            This is where your training JSON files live and where the sync workflow runs.
+          </div>
+          <input type="text" id="cfg-repo" placeholder="yourname/section-11">
+        </div>
+      </div>
+
+      <!-- GitHub tokens -->
+      <div class="card">
+        <div class="card-title">🔑 GitHub tokens</div>
+
+        <div class="alert alert-info visible" style="margin-bottom:18px;">
+          You can use the same token for both roles, or separate tokens with minimal permissions. Tokens are stored only in local storage — never transmitted to any server other than GitHub.
+        </div>
+
+        <div class="field">
+          <label>Token — download content <span class="tag">required</span></label>
+          <div class="field-desc">
+            Used to fetch raw files from your private repo (<code>latest.json</code>, <code>history.json</code>).<br>
+            Minimum scopes: <code>repo</code> (or <code>contents: read</code> for fine-grained tokens).
+          </div>
+          <input type="password" id="cfg-token-dl" placeholder="github_pat_…">
+        </div>
+
+        <div class="toggle-row">
+          <input type="checkbox" id="cfg-same-token" onchange="toggleSameToken()">
+          <label for="cfg-same-token">Use the same token for both download and workflow trigger</label>
+        </div>
+
+        <div class="field" id="field-gh-token">
+          <label>Token — trigger workflow <span class="tag">required</span></label>
+          <div class="field-desc">
+            Used to call <code>POST /repos/{owner}/{repo}/actions/workflows/sync.yml/dispatches</code> to start the sync.<br>
+            Minimum scopes: <code>repo</code> or fine-grained <code>actions: write</code>.
+          </div>
+          <input type="password" id="cfg-token-wf" placeholder="github_pat_…">
+        </div>
+      </div>
+
+      <!-- Workflow -->
+      <div class="card">
+        <div class="card-title">⚙ Workflow</div>
+
+        <div class="field">
+          <label>Workflow file name <span class="tag">optional</span></label>
+          <div class="field-desc">
+            The filename of your GitHub Actions workflow. Defaults to <code>sync.yml</code>. Only change this if your workflow file has a different name.
+          </div>
+          <input type="text" id="cfg-workflow" placeholder="sync.yml">
+        </div>
+
+        <div class="field">
+          <label>Branch <span class="tag">optional</span></label>
+          <div class="field-desc">
+            The branch to dispatch the workflow against. Defaults to <code>main</code>.
+          </div>
+          <input type="text" id="cfg-branch" placeholder="main">
+        </div>
+      </div>
+
+      <!-- AI tool -->
+      <div class="card">
+        <div class="card-title">🤖 AI tool</div>
+
+        <div class="field">
+          <label>AI chat URL <span class="tag">optional</span></label>
+          <div class="field-desc">
+            The URL of your preferred AI chat tool. When set, a shortcut link will appear on the Actions page so you can jump directly there after downloading your training files.<br>
+            Example: <code>https://claude.ai/new</code> or <code>https://chat.openai.com</code>
+          </div>
+          <input type="url" id="cfg-ai-url" placeholder="https://claude.ai/new">
+        </div>
+
+        <div class="field">
+          <label>Label <span class="tag">optional</span></label>
+          <div class="field-desc">A friendly name for the link, e.g. "Claude" or "ChatGPT".</div>
+          <input type="text" id="cfg-ai-label" placeholder="Claude">
+        </div>
+      </div>
+
+      <!-- Save/Load -->
+      <div class="card">
+        <div class="card-title">💾 Export / Import settings</div>
+
+        <p style="font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.6;">
+          Export your settings encrypted with a password of your choice — uses AES-256-GCM via the browser's built-in Web Crypto API. No library, nothing leaves your device. Store the file anywhere; only the password unlocks it.
+        </p>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="openModal('export')">🔒 Export encrypted</button>
+          <button class="btn btn-ghost" onclick="openModal('export-plain')">⬇ Export plain JSON</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('import-file').click()">⬆ Import file</button>
+          <input type="file" id="import-file" accept=".json,.enc" style="display:none" onchange="importSettings(event)">
+        </div>
+
+        <hr class="separator">
+
+        <div class="file-drop" id="file-drop" onclick="document.getElementById('import-file').click()">
+          Drop a <code>.json</code> or <code>.enc.json</code> file here — encrypted files will ask for password
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top: 8px;">
+        <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
+        <button class="btn btn-danger" onclick="clearSettings()">Clear all</button>
+      </div>
+
+      <div class="alert" id="settings-alert" style="margin-top:16px;"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Password modal ── -->
+<div class="modal-backdrop" id="pw-modal">
+  <div class="modal">
+    <h3 id="modal-title">Export encrypted</h3>
+    <p id="modal-desc">Choose a password to encrypt your settings file. You will need it to import the file later.</p>
+
+    <div class="modal-alert alert-danger" id="modal-alert"></div>
+
+    <div class="field">
+      <label id="modal-pw-label">Password</label>
+      <div class="pw-input-wrap">
+        <input type="password" id="modal-pw" placeholder="Enter password…" onkeydown="modalKeydown(event)">
+        <button class="pw-toggle" onclick="togglePwVis('modal-pw', this)" tabindex="-1">👁</button>
+      </div>
+    </div>
+
+    <div class="field" id="modal-confirm-wrap">
+      <label>Confirm password</label>
+      <div class="pw-input-wrap">
+        <input type="password" id="modal-pw2" placeholder="Repeat password…" onkeydown="modalKeydown(event)">
+        <button class="pw-toggle" onclick="togglePwVis('modal-pw2', this)" tabindex="-1">👁</button>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="modal-confirm-btn" onclick="modalConfirm()">Export</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 's11_config';
+let cfg = {};
+
+/* ── Storage ── */
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) cfg = JSON.parse(raw);
+  } catch(e) {}
+}
+
+function saveToStorage() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+}
+
+/* ── Navigation ── */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.trim().toLowerCase().includes(id === 'actions' ? 'action' : id)) n.classList.add('active');
+  });
+  if (id === 'actions') renderActionPage();
+  if (id === 'settings') renderSettingsPage();
+}
+
+/* ── Config validation ── */
+function isConfigured() {
+  return cfg.repo && cfg.tokenDl;
+}
+
+/* ── Render actions page ── */
+function renderActionPage() {
+  const warn = document.getElementById('config-warn');
+  warn.classList.toggle('visible', !isConfigured());
+
+  const box = document.getElementById('ai-link-box');
+  if (cfg.aiUrl) {
+    box.classList.add('visible');
+    document.getElementById('ai-link-href').href = cfg.aiUrl;
+    document.getElementById('ai-link-name').textContent = cfg.aiLabel || cfg.aiUrl;
+  } else {
+    box.classList.remove('visible');
+  }
+}
+
+/* ── Render settings page ── */
+function renderSettingsPage() {
+  document.getElementById('cfg-repo').value = cfg.repo || '';
+  document.getElementById('cfg-token-dl').value = cfg.tokenDl || '';
+  document.getElementById('cfg-token-wf').value = cfg.tokenWf || '';
+  document.getElementById('cfg-workflow').value = cfg.workflow || '';
+  document.getElementById('cfg-branch').value = cfg.branch || '';
+  document.getElementById('cfg-ai-url').value = cfg.aiUrl || '';
+  document.getElementById('cfg-ai-label').value = cfg.aiLabel || '';
+
+  const sameToken = cfg.sameToken || false;
+  document.getElementById('cfg-same-token').checked = sameToken;
+  document.getElementById('field-gh-token').style.display = sameToken ? 'none' : 'block';
+}
+
+function toggleSameToken() {
+  const same = document.getElementById('cfg-same-token').checked;
+  document.getElementById('field-gh-token').style.display = same ? 'none' : 'block';
+}
+
+/* ── Save settings ── */
+function saveSettings() {
+  const sameToken = document.getElementById('cfg-same-token').checked;
+  cfg = {
+    repo: document.getElementById('cfg-repo').value.trim(),
+    tokenDl: document.getElementById('cfg-token-dl').value.trim(),
+    tokenWf: sameToken
+      ? document.getElementById('cfg-token-dl').value.trim()
+      : document.getElementById('cfg-token-wf').value.trim(),
+    sameToken,
+    workflow: document.getElementById('cfg-workflow').value.trim() || 'sync.yml',
+    branch: document.getElementById('cfg-branch').value.trim() || 'main',
+    aiUrl: document.getElementById('cfg-ai-url').value.trim(),
+    aiLabel: document.getElementById('cfg-ai-label').value.trim(),
+  };
+  saveToStorage();
+  updateNavStatus();
+  showAlert('settings-alert', 'ok', '✓ Settings saved to local storage.');
+}
+
+function clearSettings() {
+  if (!confirm('Clear all settings from local storage?')) return;
+  cfg = {};
+  localStorage.removeItem(STORAGE_KEY);
+  renderSettingsPage();
+  updateNavStatus();
+  showAlert('settings-alert', 'warn', 'Settings cleared.');
+}
+
+/* ── Crypto helpers (AES-256-GCM + PBKDF2) ── */
+const ENC_MARKER = '__s11enc__';
+
+async function deriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
+    base,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptSettings(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(password, salt);
+  const plain = new TextEncoder().encode(JSON.stringify(cfg));
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plain);
+  const payload = {
+    [ENC_MARKER]: true,
+    v: 1,
+    salt: b64(salt),
+    iv:   b64(iv),
+    data: b64(new Uint8Array(cipher)),
+  };
+  return JSON.stringify(payload, null, 2);
+}
+
+async function decryptSettings(text, password) {
+  const payload = JSON.parse(text);
+  if (!payload[ENC_MARKER]) throw new Error('not_encrypted');
+  const salt  = ub64(payload.salt);
+  const iv    = ub64(payload.iv);
+  const data  = ub64(payload.data);
+  const key   = await deriveKey(password, salt);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function b64(buf) {
+  return btoa(String.fromCharCode(...buf));
+}
+
+function ub64(str) {
+  return Uint8Array.from(atob(str), c => c.charCodeAt(0));
+}
+
+function isEncrypted(text) {
+  try { return JSON.parse(text)[ENC_MARKER] === true; } catch { return false; }
+}
+
+/* ── Password modal ── */
+let _modalMode = 'export'; // 'export' | 'export-plain' | 'import'
+let _pendingImportText = null;
+
+function openModal(mode) {
+  _modalMode = mode;
+  _pendingImportText = null;
+  const modal = document.getElementById('pw-modal');
+  const title = document.getElementById('modal-title');
+  const desc  = document.getElementById('modal-desc');
+  const btn   = document.getElementById('modal-confirm-btn');
+  const confirm2 = document.getElementById('modal-confirm-wrap');
+  const alert = document.getElementById('modal-alert');
+  alert.classList.remove('visible');
+  document.getElementById('modal-pw').value = '';
+  document.getElementById('modal-pw2').value = '';
+
+  if (mode === 'export') {
+    title.textContent = 'Export encrypted';
+    desc.textContent  = 'Choose a password. The file is AES-256-GCM encrypted — only this password unlocks it.';
+    btn.textContent   = 'Export';
+    confirm2.style.display = 'block';
+  } else if (mode === 'export-plain') {
+    // No password needed — just confirm and export
+    exportPlain();
+    return;
+  } else {
+    title.textContent = 'Import encrypted file';
+    desc.textContent  = 'Enter the password used when this file was exported.';
+    btn.textContent   = 'Decrypt & import';
+    confirm2.style.display = 'none';
+  }
+
+  modal.classList.add('visible');
+  setTimeout(() => document.getElementById('modal-pw').focus(), 60);
+}
+
+function closeModal() {
+  document.getElementById('pw-modal').classList.remove('visible');
+  _pendingImportText = null;
+}
+
+function modalKeydown(e) {
+  if (e.key === 'Enter') modalConfirm();
+  if (e.key === 'Escape') closeModal();
+}
+
+function setModalAlert(msg) {
+  const el = document.getElementById('modal-alert');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+async function modalConfirm() {
+  const pw  = document.getElementById('modal-pw').value;
+  const pw2 = document.getElementById('modal-pw2').value;
+
+  if (!pw) { setModalAlert('Password cannot be empty.'); return; }
+
+  if (_modalMode === 'export') {
+    if (pw !== pw2) { setModalAlert('Passwords do not match.'); return; }
+    try {
+      const encrypted = await encryptSettings(pw);
+      downloadText(encrypted, 'section11-settings.enc.json');
+      closeModal();
+      showAlert('settings-alert', 'ok', '🔒 Encrypted settings exported.');
+    } catch (e) {
+      setModalAlert('Encryption failed: ' + e.message);
+    }
+
+  } else if (_modalMode === 'import') {
+    try {
+      const imported = await decryptSettings(_pendingImportText, pw);
+      cfg = imported;
+      saveToStorage();
+      renderSettingsPage();
+      updateNavStatus();
+      closeModal();
+      showAlert('settings-alert', 'ok', '✓ Encrypted settings imported.');
+    } catch {
+      setModalAlert('Wrong password or corrupted file.');
+    }
+  }
+}
+
+function togglePwVis(id, btn) {
+  const inp = document.getElementById(id);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+}
+
+/* ── Export / Import ── */
+function exportPlain() {
+  downloadText(JSON.stringify(cfg, null, 2), 'section11-settings.json');
+  showAlert('settings-alert', 'warn', '⚠ Exported as plain JSON — tokens visible in file.');
+}
+
+function downloadText(text, filename) {
+  const blob = new Blob([text], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+async function handleImportText(text) {
+  if (isEncrypted(text)) {
+    _pendingImportText = text;
+    _modalMode = 'import';
+    openModal('import');
+  } else {
+    try {
+      cfg = JSON.parse(text);
+      saveToStorage();
+      renderSettingsPage();
+      updateNavStatus();
+      showAlert('settings-alert', 'ok', '✓ Settings imported.');
+    } catch {
+      showAlert('settings-alert', 'danger', '✗ Invalid JSON file.');
+    }
+  }
+}
+
+function importSettings(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => handleImportText(ev.target.result);
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+/* Drag-and-drop on the drop zone */
+const dropZone = document.getElementById('file-drop');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
+dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = ''; });
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => handleImportText(ev.target.result);
+  reader.readAsText(file);
+});
+
+/* ── Alert helper ── */
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = `alert alert-${type} visible`;
+  el.textContent = msg;
+  setTimeout(() => el.classList.remove('visible'), 5000);
+}
+
+/* ── Nav status ── */
+function updateNavStatus() {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  if (isConfigured()) {
+    dot.classList.add('ok');
+    txt.textContent = cfg.repo;
+  } else {
+    dot.classList.remove('ok');
+    txt.textContent = 'Not configured';
+  }
+}
+
+/* ── Logging ── */
+const logArea = document.getElementById('log-area');
+
+function log(msg, cls = 'log-line') {
+  logArea.classList.add('visible');
+  const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = `[${ts}] ${msg}`;
+  logArea.appendChild(line);
+  logArea.scrollTop = logArea.scrollHeight;
+}
+
+function clearLog() {
+  logArea.innerHTML = '';
+  logArea.classList.remove('visible');
+  setProgress(false);
+}
+
+/* ── Progress ── */
+function setProgress(show, pct = 0, label = '') {
+  const wrap = document.getElementById('progress-wrap');
+  const bar = document.getElementById('progress-bar');
+  const lbl = document.getElementById('progress-label');
+  wrap.classList.toggle('visible', show);
+  if (show) {
+    bar.style.width = pct + '%';
+    lbl.textContent = label;
+  }
+}
+
+/* ── GitHub helpers ── */
+function ghHeaders(token) {
+  return {
+    'Authorization': `token ${token}`,
+    'Accept': 'application/vnd.github.v3+json',
+    'User-Agent': 'section11-helper',
+    'Content-Type': 'application/json',
+  };
+}
+
+async function triggerWorkflow() {
+  const { repo, tokenWf, workflow = 'sync.yml', branch = 'main' } = cfg;
+  const url = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`;
+  log(`Triggering workflow ${workflow} on ${branch}…`, 'log-line info');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: ghHeaders(tokenWf),
+    body: JSON.stringify({ ref: branch }),
+  });
+  if (res.status === 204) {
+    log('Workflow dispatched ✓', 'log-line ok');
+    return true;
+  }
+  log(`Workflow trigger failed (HTTP ${res.status})`, 'log-line err');
+  return false;
+}
+
+async function pollWorkflow(onProgress) {
+  const { repo, tokenWf, workflow = 'sync.yml' } = cfg;
+  const url = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?per_page=1`;
+  let elapsed = 0;
+
+  return new Promise((resolve) => {
+    const id = setInterval(async () => {
+      elapsed += 4;
+      onProgress(elapsed);
+      try {
+        const res = await fetch(url, { headers: ghHeaders(tokenWf) });
+        const data = await res.json();
+        const run = data.workflow_runs?.[0];
+        if (!run) return;
+        log(`Workflow status: ${run.status} (${elapsed}s elapsed)`, 'log-line');
+        if (run.status === 'completed') {
+          clearInterval(id);
+          resolve(run.conclusion);
+        }
+      } catch (e) {
+        log(`Poll error: ${e.message}`, 'log-line err');
+      }
+    }, 4000);
+  });
+}
+
+function rawUrl(file) {
+  return `https://raw.githubusercontent.com/${cfg.repo}/main/${file}`;
+}
+
+async function fetchFile(file) {
+  const res = await fetch(rawUrl(file), {
+    headers: { 'Authorization': `token ${cfg.tokenDl}` }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${file}`);
+  return res.blob();
+}
+
+function timestamp() {
+  const d = new Date();
+  return d.toISOString().replace(/[:\-T]/g, '').slice(0,13);
+}
+
+async function downloadZip(files) {
+  // Use JSZip from CDN
+  if (!window.JSZip) {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+  }
+  const zip = new JSZip();
+  const ts = timestamp();
+  for (const f of files) {
+    log(`Downloading ${f}…`, 'log-line info');
+    const blob = await fetchFile(f);
+    zip.file(`${f.replace('.json', '')}_${ts}.json`, blob);
+  }
+  const content = await zip.generateAsync({ type: 'blob' });
+  triggerDownload(content, `training-data_${ts}.zip`, 'application/zip');
+}
+
+async function downloadSingle(file) {
+  log(`Downloading ${file}…`, 'log-line info');
+  const blob = await fetchFile(file);
+  triggerDownload(blob, `${file.replace('.json', '')}_${timestamp()}.json`, 'application/json');
+}
+
+function triggerDownload(blob, name, type) {
+  const url = URL.createObjectURL(new Blob([blob], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = res;
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+/* ── Actions ── */
+async function runAction(type) {
+  if (!isConfigured()) {
+    showPage('settings');
+    return;
+  }
+  clearLog();
+  log(`Starting: ${type}`, 'log-line info');
+  setProgress(true, 5, 'Starting…');
+
+  try {
+    const needsSync = type === 'sync' || type === 'sync_download' || type === 'sync_download_latest';
+    const needsDownloadAll = type === 'sync_download' || type === 'download_all';
+    const needsDownloadLatest = type === 'sync_download_latest' || type === 'download_latest';
+
+    if (needsSync) {
+      const ok = await triggerWorkflow();
+      if (!ok) { setProgress(false); return; }
+
+      setProgress(true, 15, 'Waiting for workflow…');
+      log('Polling for completion (checks every 4s)…', 'log-line');
+
+      const conclusion = await pollWorkflow((elapsed) => {
+        const pct = Math.min(15 + (elapsed / 180) * 70, 85);
+        setProgress(true, pct, `Workflow running… ${elapsed}s`);
+      });
+
+      if (conclusion === 'success') {
+        log('Workflow completed successfully ✓', 'log-line ok');
+        setProgress(true, 90, 'Downloading…');
+      } else {
+        log(`Workflow ended with: ${conclusion}`, 'log-line err');
+        setProgress(false);
+        if (type === 'sync') { setProgress(true, 100, 'Done (with errors)'); }
+        return;
+      }
+    } else {
+      setProgress(true, 40, 'Preparing download…');
+    }
+
+    if (type === 'sync') {
+      log('Sync complete — no download requested.', 'log-line ok');
+      setProgress(true, 100, 'Sync complete ✓');
+    } else if (needsDownloadAll) {
+      await downloadZip(['latest.json', 'history.json']);
+      log('Download complete ✓', 'log-line ok');
+      setProgress(true, 100, 'Done ✓');
+    } else if (needsDownloadLatest) {
+      await downloadSingle('latest.json');
+      log('Download complete ✓', 'log-line ok');
+      setProgress(true, 100, 'Done ✓');
+    }
+  } catch (err) {
+    log(`Error: ${err.message}`, 'log-line err');
+    setProgress(false);
+  }
+}
+
+/* ── Init ── */
+loadFromStorage();
+updateNavStatus();
+renderActionPage();
+</script>
+</body>
+</html>

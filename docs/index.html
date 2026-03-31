@@ -971,10 +971,13 @@ async function decryptSettings(text, password) {
 }
 
 function b64(buf) {
-  return btoa(String.fromCharCode(...buf));
+  return btoa(String.fromCharCode(...buf))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 function ub64(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
   return Uint8Array.from(atob(str), c => c.charCodeAt(0));
 }
 

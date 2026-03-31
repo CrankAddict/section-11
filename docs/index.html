@@ -331,16 +331,16 @@
   .action-body p { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 
   .action-badge {
-    position: absolute;
-    top: 12px; right: 12px;
+    display: inline-block;
     font-size: 10px;
     font-family: var(--mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    padding: 3px 8px;
+    padding: 2px 7px;
     border-radius: 4px;
     background: var(--accent-dim);
     color: var(--accent);
+    margin-bottom: 5px;
   }
 
   /* ── Log / status ── */
@@ -592,18 +592,18 @@
       <div style="margin-top: 20px;">
         <div class="action-grid">
           <div class="action-card primary-action" onclick="runAction('sync_download')">
-            <div class="action-badge">recommended pre-workout</div>
             <div class="action-icon icon-blue">🔄</div>
             <div class="action-body">
+              <div class="action-badge">recommended pre-workout</div>
               <h3>Sync + Download all</h3>
               <p>Triggers the GitHub workflow, waits for completion, then downloads <code>latest.json</code>, <code>intervals.json</code> and <code>history.json</code> as a ZIP.</p>
             </div>
           </div>
 
           <div class="action-card primary-action" onclick="runAction('sync_download_latest')">
-            <div class="action-badge">recommended post-workout</div>
             <div class="action-icon icon-green">⚡</div>
             <div class="action-body">
+              <div class="action-badge">recommended post-workout</div>
               <h3>Sync + Download latest</h3>
               <p>Syncs via workflow then downloads <code>latest.json</code> and <code>intervals.json</code> as a ZIP — ideal after a session when you only need recent data.</p>
             </div>

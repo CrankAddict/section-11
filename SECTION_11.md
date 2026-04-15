@@ -756,7 +756,7 @@ Reports use a structured line-by-line format per session, not bullet-point summa
    - TSS (actual vs planned)
    - Note (athlete text or coach notes, if present on the activity)
    Omit fields only if data unavailable for that activity type.
-4. **Weekly totals block:** Polarization, Durability (7d/28d + trend), TID 28d (+ drift), TSB, CTL, ATL, Ramp rate, ACWR, Hours, TSS
+4. **Weekly totals (rolling 7d) block:** Polarization, Durability (7d/28d + trend), TID 28d (+ drift), TSB, CTL, ATL, Ramp rate, ACWR, Hours, TSS
 5. **Overall:** Coach note (2–4 sentences — compliance, key quality observations, load context, recovery note if applicable)
 
 See **Output Format Guidelines** for full field reference, assessment labels, and report templates.

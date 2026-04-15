@@ -36,7 +36,7 @@ Note: [description or chat_notes text]
 
 [Repeat block for every completed activity whose date falls on the report day (athlete local time). One block per activity ID — never merge. Include walks, ski-erg, short rides, aborted rides, commutes. Never drop secondary sessions. Within a block, omit only fields the activity type does not have (e.g., no power for a walk).]
 
-Weekly totals:
+Weekly totals (rolling 7d):
 Phase: [phase_detection.phase] Wk[phase_detection.phase_duration_weeks]
 Polarization: Z1+Z2 [XX]%, Z3 [X]%, Z4+ [X]% — [Classification] (PI: [X.XX])
 Durability: [X.XX]% 7d mean([X]) / [X.XX]% 28d mean([X]) ([trend])
@@ -90,7 +90,7 @@ Round zone percentages to the nearest **whole number** (1%). The JSON data sourc
 | Durability (weekly) | Aggregate decoupling 7d/28d | Steady-state sessions only (VI ≤ 1.05, ≥ 90min). Trend direction matters more than absolute value |
 | EF (weekly) | Aggregate EF 7d/28d | Steady-state cycling only (VI ≤ 1.05, ≥ 20min). Trend direction matters more than absolute value |
 | TID 28d (weekly) | 28d Seiler classification + drift | Shows whether acute TID matches chronic pattern. Always include drift label |
-| Weekly totals | Always | Running totals through current day |
+| Weekly totals (rolling 7d) | Always | Rolling 7-day window (last 7 days including today). Not calendar week. |
 
 ## Assessment Labels
 

@@ -41,7 +41,7 @@ HR zones: 68% Zone 1, 32% Zone 2
 Calories: 165 kcal
 TSS: 10 (planned 10)
 
-Weekly totals:
+Weekly totals (rolling 7d):
 Phase: Build Wk2
 Polarization: Z1+Z2 97%, Z3 1%, Z4+ 3%
 Durability: 2.14% 7d mean(3) / 2.50% 28d mean(11) (stable)
@@ -121,7 +121,7 @@ HR zones: 100% Zone 1
 Calories: 156 kcal
 TSS: 5
 
-Weekly totals:
+Weekly totals (rolling 7d):
 Phase: Base Wk3
 Polarization: Z1+Z2 88%, Z3 7%, Z4+ 5% — Polarized (PI: 1.85)
 Durability: 3.20% 7d mean(3) / 2.75% 28d mean(12) (stable)
@@ -178,7 +178,7 @@ TSS: 95 (planned 90)
 Feel: 3/5 (Normal)
 RPE: 7/10
 
-Weekly totals:
+Weekly totals (rolling 7d):
 Phase: Build Wk3
 Polarization: Z1+Z2 84%, Z3 2%, Z4+ 13%
 Durability: 2.95% 7d mean(3) / 2.50% 28d mean(11) (stable)
@@ -231,7 +231,7 @@ TSS: 47 (planned 78)
 Skipped workout: VirtualSki Training Session
 Reason: Precautionary — knee discomfort from ride
 
-Weekly totals:
+Weekly totals (rolling 7d):
 Phase: Base Wk4
 Polarization: Z1+Z2 98%, Z3 0%, Z4+ 2%
 Durability: 1.92% 7d mean(2) / 2.40% 28d mean(10) (improving)
@@ -271,7 +271,7 @@ HR zones: 100% Zone 1
 Calories: 210 kcal
 TSS: 6
 
-Weekly totals:
+Weekly totals (rolling 7d):
 Phase: Base Wk2
 Polarization: Z1+Z2 97%, Z3 0%, Z4+ 3%
 Durability: 2.30% 7d mean(3) / 2.55% 28d mean(11) (stable)
@@ -323,7 +323,7 @@ TSS: 218 (planned 210)
 Feel: 3/5 (Normal)
 RPE: 6/10
 
-Weekly totals:
+Weekly totals (rolling 7d):
 Phase: Base Wk4
 Polarization: Z1+Z2 92%, Z3 5%, Z4+ 3%
 Durability: 4.50% 7d mean(3) / 3.20% 28d mean(13) (declining)
@@ -385,7 +385,7 @@ TSS: 88 (planned 85)
 Feel: 2/5 (Good)
 RPE: 6/10
 
-Weekly totals:
+Weekly totals (rolling 7d):
 Phase: Build Wk2
 Polarization: Z1+Z2 81%, Z3 6%, Z4+ 13%
 Durability: 2.80% 7d mean(2) / 2.95% 28d mean(12) (stable)

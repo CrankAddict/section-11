@@ -4,6 +4,15 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.106 - has_intervals semantics fix: has_intervals is now true only when at least
+  one interval segment is type=="WORK". Pre-existing bug: a non-empty intervals list was
+  treated as structured, but Intervals.icu emits a single whole-session RECOVERY placeholder
+  on unstructured endurance rides. Live v3.105 test across 62 activities showed 9 false
+  positives (SkiErg, virtual endurance) vs 3 true RECOVERY,WORK structures. This realizes
+  the v3.101 intent ("narrowed to structured segments only") which never took effect at the
+  check level. has_dfa and intervals collection logic unchanged — only the downstream flag
+  is tightened.
+
 Version 3.105 - Effort Response Signal: new effort_response key on every recent_activities[]
   entry. Deterministic classifier mapping session IF (icu_intensity) against reported RPE
   (icu_rpe) through the v11.34 RPE Expectation Bands. Values: "positive" (RPE below band —
@@ -119,7 +128,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.105"
+    VERSION = "3.106"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -6703,11 +6712,13 @@ class IntervalsSync:
                 "has_dfa": False,
             }
 
-            # v3.100: has_intervals narrowed to structured segments only;
+            # has_intervals: requires at least one WORK segment. Intervals.icu emits a
+            # whole-session RECOVERY placeholder on unstructured endurance rides, so a
+            # non-empty intervals list alone is not sufficient.
             # has_dfa flags AlphaHRV sessions; dfa_summary attached only when sufficient.
             _entry = intervals_by_id.get(str(act.get("id")))
             if _entry:
-                if _entry.get("intervals"):
+                if any(i.get("type") == "WORK" for i in (_entry.get("intervals") or [])):
                     activity["has_intervals"] = True
                 _dfa = _entry.get("dfa")
                 if _dfa:

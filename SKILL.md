@@ -1,6 +1,6 @@
 ---
 name: section-11
-description: Evidence-based endurance coaching protocol (v11.36). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
+description: Evidence-based endurance coaching protocol (v11.37). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
 ---
 
 # Section 11 — AI Coaching Protocol
@@ -56,7 +56,7 @@ Load the coaching protocol using this precedence:
 
 If both root and `section11/` copies exist, prefer the root copy.
 
-**Current version:** 11.36
+**Current version:** 11.37
 
 ## External Sources
 

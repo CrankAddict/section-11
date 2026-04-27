@@ -2,7 +2,8 @@
 
 > This template defines the standard output format for post-workout reports.  
 > Fields in `[brackets]` are placeholders. Omit fields that don't apply to the activity type.  
-> **Data Freshness:** Every numeric value in a report must come from a current read of its source JSON file. Do not carry forward values from earlier reports or earlier in the conversation — re-read before quoting.
+> **Data Freshness:** Every numeric value in a report must come from a current read of its source JSON file. Do not carry forward values from earlier reports or earlier in the conversation — re-read before quoting.  
+> **Display Units:** For distance / elevation / weight / height / position / speed, quote `display.*` fields from the source JSON — they're pre-converted to the athlete's Intervals.icu preferences. Use canonical metric (`*_km`, `*_m`, `*_kg`) only for calculations. See SECTION_11.md §Display Unit Semantics.
 
 ---
 
@@ -16,7 +17,7 @@ Outdoor context: [synthesis line per SECTION_11.md §"Completed-Activity Terrain
 Completed workout: [ActivityType] [WorkoutName]
 Start time: [HH:MM:SS]
 Duration: [XhYm] (planned [XhYm])
-Distance: [XX.XX] km
+Distance: [display.distance.value] [display.distance.unit]
 Power: [XXX] W avg / [XXX] W NP
 IF: [X.XX] [omit line if null]
 Power zones: [XX]% Zone 1, [XX]% Zone 2, [XX]% Zone 3, ... (list every zone with ≥1% after rounding; omit zones that round to 0%)

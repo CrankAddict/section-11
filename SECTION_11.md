@@ -1,10 +1,21 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.39  
-**Last Updated:** 2026-04-26
+**Protocol Version:** 11.40  
+**Last Updated:** 2026-04-27
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.40 — Display Unit Semantics:**
+- New "Display Unit Semantics" subsection in the Data Mirror block. Establishes a three-layer signal: (1) `athlete_profile.display_preferences` — six-key map of athlete's Intervals.icu unit choices, (2) per-record `display.*` blocks with display-ready `{value, unit}` pairs converted from canonical metric, (3) per-activity `*_unit` siblings + `weather_summary.units` for fields the API already returns in account units (left as-is for backward compatibility)
+- AI rules: quote `display.*` for any user-facing prose involving distance / elevation / weight / height / position / speed; use canonical metric (`*_km`, `*_m`, `*_kg`) for calculations only; cross-record arithmetic stays in canonical and display-converts the result at narration; W/kg / kJ / IF / % / heat-protocol °C calibration are universal physics units, pref-independent
+- Sustainability profile `weight_kg` deliberately stays canonical-only (calculation input for W/kg, never narrated as a weight value)
+- Heat-protocol °C thresholds are canonical scientific units. AI quotes them as °C regardless of athlete preference; no inline °C → °F conversion at narration time. Future sync.py may emit a display-converted threshold block; until then, °C is the reference
+- Resolves the `avg_speed_unit`/`max_speed_unit` always-KPH asymmetry documented earlier — narration now reads from `display.avg_speed`/`display.max_speed` which honor the athlete's distance preference; the original sibling fields remain for backward compatibility
+- Pairs with `sync.py` v3.109. Sites: `athlete_profile.display.height`, `current_status.current_metrics.display.weight`, `recent_activities[].display.{distance, elevation, avg_speed, max_speed}`, `terrain_summary.display.{total_distance, total_elevation, elevation_per_distance}` + `climbs[]/descents[].display.{position, distance, elevation}` (recent_activities and routes.json), `summary.by_activity_type[].display.distance`, `wellness_data[].display.weight`, history.json `daily_90d/weekly_180d[].display.weight`, `monthly_*y[].display.avg_weight` (aggregate naming preserved), `race_calendar.all_races[].display.distance`
+- All display sub-objects use a single nested shape (`display.*`) — no `*_display` sibling form. One AI rule, one schema shape across every emission site
+- Pre-workout report Weather line de-metric'd: hardcoded `°C` and `m/s` labels replaced by `weather_summary.units.{temp, wind}` references so imperial athletes see °F and MPH/MPS/KPH per their account
+- Templates updated with directive line + de-metric'd placeholders. Examples remain metric (Daniel's account is metric); imperial coverage relies on per-pref display blocks rather than parallel example sets
 
 **v11.39 — Outdoor Context Synthesis Line:**
 - New `Outdoor context:` line at the top of each outdoor activity block in post-workout reports. Single optional line synthesizing terrain + weather and, when earned, a causal clause attributing observed variability or environmental cost
@@ -321,7 +332,44 @@ These fields are informational context for AI coaching. They do NOT enter readin
 
 - `avg_temp_unit`: `"C"` or `"F"` — reflects athlete's Intervals.icu account temperature setting; the API returns `avg_temp` in this unit.
 - `wind_speed_unit`: `"MPS"`, `"KPH"`, or `"MPH"` — reflects athlete's account wind setting; the API returns `wind_speed` in this unit.
-- `avg_speed_unit` / `max_speed_unit`: always `"KPH"` — sync.py converts m/s → km/h unconditionally regardless of athlete preference. Surfacing the label makes this asymmetry visible.
+- `avg_speed_unit` / `max_speed_unit`: always `"KPH"` — sync.py converts m/s → km/h unconditionally regardless of athlete preference. The new `display.avg_speed`/`display.max_speed` blocks (see *Display Unit Semantics* below) resolve the user-facing asymmetry; these labels are retained for backward compatibility.
+
+#### Display Unit Semantics
+
+**Purpose.** Many narrative-bearing fields ship in canonical metric units (km, m, kg, m/h-as-km/h, m/km) regardless of the athlete's Intervals.icu unit preferences. This is by design — calculations use stable units. Narration is a separate concern: the AI must quote values in the athlete's preferred system without doing the conversion itself. sync.py emits a parallel `display` sub-object alongside every canonical metric field, with the conversion already applied.
+
+**Three-layer signal:**
+
+1. **`athlete_profile.display_preferences`** — six-key map of the athlete's Intervals.icu choices: `wind`, `temp`, `rain`, `distance`, `weight`, `height`. Confirms which units to expect across the rest of the data. Athlete-wide intent.
+2. **Per-record `display.*` blocks** — `{value: <converted>, unit: <display code>}` sub-objects sitting next to canonical metric fields. The unit code is the display-layer code (`km`/`mi`, `m`/`ft`, `kg`/`lb`, `cm`/`in`, `km/h`/`mph`, `m/km`/`ft/mi`).
+3. **Per-activity `*_unit` siblings + `weather_summary.units`** — for fields the Intervals API already returns in the athlete's account units (`avg_temp`, `wind_speed`, weather summary values). These existed before display blocks and remain untouched. The label tells you the unit; the value is already in that unit.
+
+**AI rules:**
+
+- **Quote `display.*` for any user-facing prose involving distance, elevation, weight, height, position, or speed.** This is the single source of truth for narration in those dimensions. If you write "76.42 km" when the athlete's preference is imperial, you've ignored a value sitting one field over.
+- **Use canonical metric fields (`*_km`, `*_m`, `*_kg`) for calculations only — never quote them in narrative.** They are stable inputs to math, not display strings.
+- **Cross-record arithmetic stays in canonical units.** Sum `distance_km` across activities → canonical total. Display-convert that single result at narration. Do not sum `display.distance.value` across records (the unit may already be imperial; you'd report a meaningless number to a metric athlete after re-conversion). `summary.by_activity_type[].distance_km` is built this way: the running canonical sum is what's stored; the row's `display.distance` is the converted snapshot of that sum.
+- **Universal physics units are pref-independent and stay as-is.** W/kg, kJ, IF, %, kJ/kg, ml/kg/min — these are scientific units, not display choices.
+- **Heat-protocol °C thresholds are canonical scientific units, not pref-dependent.** The Environmental Conditions Protocol's tier thresholds (15°C floor, 38°C ceiling, +5/+8/+12°C deltas) are physical-science calibrations from the literature — same status as W/kg, IF, or PI. Quote thresholds as °C in narrative regardless of athlete preference. Do not display-convert °C → °F inline at narration time; that violates the "AI does not convert" rule. If a future sync.py revision precomputes a display-converted threshold value into the data layer, narrate from that block; until then, °C stands as the canonical reference. The athlete's reported temperature value (`avg_temp` etc.) is already returned by Intervals.icu in the athlete's account unit and labelled via `weather_summary.units.temp` / `avg_temp_unit` — that path is unchanged.
+- **Sustainability profile `weight_kg` is canonical-only by design.** It is a calculation input for W/kg in the sustainability anchors block, not a user-facing weight value. The W/kg result is itself unit-universal, so no display block is needed there.
+
+**Where display blocks ship:**
+
+| Surface | Canonical fields | Display fields |
+|---|---|---|
+| `athlete_profile` | `height_m` | `display.height` + `display_preferences` (six-key map) |
+| `current_status.current_metrics` | `weight_kg` | `display.weight` |
+| `recent_activities[]` | `distance_km`, `elevation_m`, `avg_speed`, `max_speed` | `display.{distance, elevation, avg_speed, max_speed}` |
+| `recent_activities[].terrain_summary` + `routes.json` events | `total_distance_km`, `total_elevation_m`, `elevation_per_km`; `climbs[]`/`descents[]` `position_km`, `distance_km`, `elevation_m` (signed for descents) | `display.{total_distance, total_elevation, elevation_per_distance}` on container; `display.{position, distance, elevation}` on each climb/descent |
+| `summary.by_activity_type[]` | `distance_km` | `display.distance` |
+| `wellness_data[]` | `weight_kg` | `display.weight` |
+| `history.json daily_90d[]`, `weekly_180d[]` | `weight_kg` | `display.weight` |
+| `history.json monthly_1y/2y/3y[]` | `avg_weight_kg` | `display.avg_weight` |
+| `race_calendar.all_races[]` | `distance_meters` | `display.distance` (already in km/mi units, not m/ft) |
+
+**Cache behavior:** Terrain summaries copied forward from a previous sync (recent_activities terrain copy-forward and the routes.json attachment-id cache) refresh their display blocks against current preferences each sync. A change to the athlete's Intervals.icu unit preference picks up on the next sync without invalidating the (expensive) GPX/streams analysis cache; the canonical metric fields are preserved verbatim.
+
+**Null handling:** `display` sub-objects may be `null` when the corresponding canonical value is `null` (e.g., a wellness row with no weight reported produces `weight_kg: null` and `display.weight: null`). The AI treats `null` display blocks identically to null canonical fields — surface "no data" rather than guessing.
 
 #### History Data Mirror (history.json)
 

@@ -2,14 +2,15 @@
 
 > This template defines the standard output format for pre-workout reports.  
 > Fields in `[brackets]` are placeholders. Omit fields that don't apply.  
-> **Data Freshness:** Every numeric value in a report must come from a current read of its source JSON file. Do not carry forward values from earlier reports or earlier in the conversation — re-read before quoting.
+> **Data Freshness:** Every numeric value in a report must come from a current read of its source JSON file. Do not carry forward values from earlier reports or earlier in the conversation — re-read before quoting.  
+> **Display Units:** For distance / elevation / weight / height / position / speed, quote `display.*` fields from the source JSON — they're pre-converted to the athlete's Intervals.icu preferences. Use canonical metric (`*_km`, `*_m`, `*_kg`) only for calculations. See SECTION_11.md §Display Unit Semantics.
 
 ---
 
 ```
 Data last_updated (UTC): [YYYY-MM-DDTHH:MM:SS]
 
-Weather ([Location]): [icon] [temp]°C, [humidity]% humidity, [conditions], wind [speed] m/s from [direction].
+Weather ([Location]): [icon] [temp][weather_summary.units.temp], [humidity]% humidity, [conditions], wind [speed] [weather_summary.units.wind] from [direction].
 Coach note: [Brief weather-relevant tip. Omit if no actionable weather context.]
 
 Current Status Summary:
@@ -41,8 +42,8 @@ Planned Workouts for Today (Planned TSS: [XXX]):
 [If rest day: "Rest day — no sessions scheduled."]
 [If rest day: "Next session: [Day] — [workout preview]"]
 
-Terrain Context ([course_character], [total_distance_km] km, [total_elevation_m]m):
-[Key climbs condensed: "Cat 2 at km 48 (6.8 km, 6.3% avg, max 11%). Cat 4 at km 71 (1.4 km, 4.8% avg)."]
+Terrain Context ([course_character], [terrain_summary.display.total_distance.value] [terrain_summary.display.total_distance.unit], [terrain_summary.display.total_elevation.value][terrain_summary.display.total_elevation.unit]):
+[Key climbs condensed — quote `display.position` / `display.distance` for each climb, e.g. "Cat 2 at [climb.display.position] (6.8 km, 6.3% avg, max 11%)". Use the climb's `display.*` for distance/position/elevation; gradient % is unit-universal.]
 [Pacing note: one sentence connecting terrain to today's effort strategy.]
 
 Recommendation: [readiness_decision.recommendation — Go / Modify / Skip]

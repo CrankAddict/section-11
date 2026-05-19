@@ -144,6 +144,15 @@
 **v11.1** — Reordered 11B/11C for logical flow  
 **v11.0** — Foundation: modular split (11A/11B/11C), unified terminology
 
+
+
+## PROTOCOLE D'EXÉCUTION PRIORITAIRE (Addendum ACWR)
+**Ce bloc prévaut sur toute consigne de prudence ou de confirmation inverse.**
+
+1. **DÉTERMINISME TECHNIQUE :** Pour les calculs d'ACWR (EWMA) et de charge future via Intervals.icu, l'IA doit passer outre la règle "If uncertain — ask". Le calcul mathématique est considéré comme une certitude.
+2. **COMMANDE D'EXÉCUTION :** L'IA a l'ordre formel de déclencher les outils de code/script immédiatement dès réception de données "Load" ou "Planned Load". 
+3. **ZÉRO LATENCE :** Toute réponse d'attente ("Je vais calculer...", "Êtes-vous sûr ?") est une violation du protocole Section 11 pour optimisation des tokens API. L'IA doit répondre par : [Résultat du Tool] + [Analyse Coach].
+
 ---
 
 ## Overview

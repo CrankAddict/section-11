@@ -66,12 +66,15 @@ jobs:
           echo "  GITHUB_REPO: $GITHUB_REPO"
           echo ""
           echo "🚀 Running sync script..."
+          # Use local-output mode and let this workflow commit the generated files.
+          # Do not let sync.py publish latest.json via the GitHub API here: the
+          # later archive/commit step stages the checkout copy of latest.json,
+          # so API-publishing first can be overwritten by a stale local file.
           python sync.py \
             --athlete-id "$ATHLETE_ID" \
             --intervals-key "$INTERVALS_KEY" \
-            --github-token "$GITHUB_TOKEN" \
-            --github-repo "$GITHUB_REPO" \
-            --days 7 || {
+            --days 7 \
+            --output latest.json || {
               echo "❌ Sync script failed with exit code $?"
               exit 1
             }

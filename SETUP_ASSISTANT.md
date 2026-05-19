@@ -84,6 +84,8 @@ Check that they have:
 
 Confirm before continuing.
 
+**Optional — DFA a1 features.** Section 11 v11.30+ includes a DFA a1 Protocol that provides empirical aerobic/threshold zone calibration from in-activity HRV. This is an **optional feature** with a hard hardware/software requirement: **Garmin head unit + AlphaHRV Connect IQ data field + chest strap that broadcasts beat-to-beat RR (HRM-Pro Plus, Polar H10) + direct Garmin → Intervals.icu sync**. The athlete can skip this entirely and Section 11 still works fully — DFA a1 just won't appear in their reports. If they're on Wahoo, Suunto, Karoo, Coros, Polar, or any non-Garmin platform, point them at [`examples/dfa_a1/NON_GARMIN.md`](examples/dfa_a1/NON_GARMIN.md) — it documents what's known about their platform and how to help us verify a path. **Do not promise DFA a1 features to non-Garmin athletes** — only Garmin + AlphaHRV is verified end-to-end as of v11.30.
+
 ### Step 2: Get Intervals.icu credentials
 
 Walk them through:
@@ -314,7 +316,7 @@ Read data using the first method that works:
 1. **Connected repo/filesystem** — If data files are available via connector (GitHub, Google Drive, OneDrive — platform support varies) or local filesystem, read latest.json, history.json, intervals.json, and routes.json directly
 2. **URL fetch** — Fetch https://raw.githubusercontent.com/[USERNAME]/[REPO]/main/latest.json (append ?date= with today's date). Same for history.json
 3. If activities don't match today's date, re-fetch or re-read before concluding no data exists
-4. Load intervals.json when analysing a specific activity with `has_intervals: true` — use for interval compliance, pacing, cardiac drift, recovery quality
+4. Load intervals.json when analyzing a specific activity with `has_intervals: true` or `has_dfa: true` — use for interval compliance, pacing, cardiac drift, recovery quality, DFA a1 session-level interpretation
 5. Load routes.json when a planned event has `has_terrain: true` — use for route analysis, terrain-adjusted pacing, pre-ride briefing
 
 Do NOT ask me for data — read or fetch it yourself.
@@ -476,7 +478,7 @@ For local setups, the AI coach reads files from the data directory instead of fe
 ## DATA ACCESS:
 1. Read latest.json from the data directory
 2. Read history.json from the data directory
-3. Read intervals.json when analysing a specific activity with has_intervals: true
+3. Read intervals.json when analyzing a specific activity with has_intervals: true or has_dfa: true
 4. Read routes.json when a planned event has has_terrain: true
 5. Read protocol from section11/SECTION_11.md
 5. Read report templates from section11/examples/reports/

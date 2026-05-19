@@ -1,14 +1,16 @@
 {
-  "notification_id": "2026-04-02",
+  "notification_id": "2026-04-26",
   "changes": [
-    "— sync.py v3.93–v3.96 + SECTION_11.md v11.23–v11.25 (2026-03-24–04-02) —",
-    "v3.93: Route & Terrain Intelligence — GPX/TCX attachments parsed into routes.json. Climb detection (Cat 4–HC), descent detection, course character, elevation smoothing. Cached by attachment ID. has_terrain flag on events.",
-    "v3.94: Phase detection rewrite — live 4-week bucketing from activities_28d. Eliminates stale history.json row bug. recent_activities widened to 28 days.",
-    "v3.95: 500m polyline in routes.json, start_time on planned events, indoor flag passthrough.",
-    "v3.96: Course character fix — elevation_per_km only, absolute thresholds removed.",
-    "v11.23: No Conversational Data Substitution — AI must re-read JSON before citing metrics. No cached values from prior messages.",
-    "v11.24–v11.25: Route & Terrain Protocol — terrain-adjusted power, wind overlay, segment reasoning, drafting, nutrition timing, pre-ride briefing flow, course character table. 11 evidence base entries.",
-    "Hash-based cache invalidation on all cached files. On-demand sync path (phone/browser). Pre-workout terrain context block. Report template/example alignment. External API reference (Strava + yr.no). routes.json documentation sweep.",
-    "Upgrade: replace your sync.py + pull fresh docs. Most files touched."
+    "— sync.py v3.104–v3.108 + SECTION_11.md v11.35–v11.39 + push.py v0.4–v0.5 + pull.py v0.1 (2026-04-26) —",
+    "v11.39: Outdoor Context Synthesis Line — post-workout reports now include a concise optional Outdoor context line per outdoor activity, synthesizing terrain + weather and adding causal attribution only when earned.",
+    "v11.38 / v3.107: Completed-Activity Terrain & Weather — terrain_summary and weather_summary now attach to outdoor recent_activities[], with course character, elevation density, grade distribution, weather, wind exposure, and explicit units.",
+    "v3.107: New pull.py read-only helper for agentic/local setups — fetch raw activity streams (trace) on demand for deeper inspection.",
+    "v3.108: Conservative fetch error classification — intervals, streams, and terrain fetchers now distinguish terminal no-data cases from transient API/network errors, so transient failures retry instead of being cached as truth.",
+    "v11.37 / v3.106: has_intervals semantics fixed — has_intervals now requires at least one WORK segment; recovery-only placeholder intervals no longer trigger unnecessary intervals.json loads.",
+    "v11.36 / v3.105: Effort Response Signal — recent_activities[] now includes effort_response from session IF vs logged RPE, and post-workout reports render IF + Effort response when available.",
+    "v11.35 / v3.104: Aggregate Durability reliability gate — durability alerts now require sufficient qualifying-session counts before firing; reliability_limited metadata explains low-N cases.",
+    "push.py v0.4–v0.5: fixed device sync by omitting empty workout_doc, improved credential validation, clearer 403 errors, and centralized requests handling.",
+    "Reports/docs: post-workout formatting consistency pass, distance precision to 2 decimals, full zone distributions after rounding, decoupling display labels removed, examples updated.",
+    "Upgrade: replace sync.py, push.py, pull.py, and pull fresh SECTION_11.md, SKILL.md, docs, and report templates/examples."
   ]
 }

@@ -25,8 +25,9 @@ An open protocol for deterministic, auditable AI-powered endurance coaching. Bui
 |------|-------------|
 | [SECTION_11.md](SECTION_11.md) | Complete protocol: AI Coach Guidance (11 A), Training Plan Protocol (11 B), Validation Protocol (11 C) |
 | [examples/workout-library/](examples/workout-library/) | Workout Reference Library — 26 session templates that Section 11 B §8 requires AI systems to select from |
-| [examples/agentic/](examples/agentic/) | Write planned workouts to Intervals.icu calendar — for agentic AI platforms with code execution |
+| [examples/agentic/](examples/agentic/) | Agentic tools — calendar writes, raw activity stream reads, external API reference — for AI platforms with code execution |
 | [examples/json-local-sync/](examples/json-local-sync/) | Local automated sync for agentic platforms — no GitHub needed |
+| [examples/dfa_a1/NON_GARMIN.md](examples/dfa_a1/NON_GARMIN.md) | DFA a1 platform support status — documents that the feature requires Garmin + AlphaHRV today, plus discovery commands for Suunto / Karoo / phone-fallback verification |
 | [DOSSIER_TEMPLATE.md](DOSSIER_TEMPLATE.md) | Blank athlete dossier template — fill in your own data |
 | [examples/](examples/) | Full examples directory |
 | [SETUP_ASSISTANT.md](SETUP_ASSISTANT.md) | Interactive AI-guided setup — paste into any AI chat to get started |
@@ -127,9 +128,15 @@ Cowork is a desktop app that can read files directly from your filesystem.
 1. Install: `npm install -g @google/gemini-cli` (or `npx @google/gemini-cli`)
 2. Clone your data repo locally — Gemini CLI has full filesystem access
 
-### Pushing Workouts to Calendar
+### Agentic Tools
 
-Agentic platforms can write planned workouts to your Intervals.icu calendar using [push.py](examples/agentic/). This requires code execution — web chat platforms cannot use this feature.
+Agentic platforms can use the tools in [examples/agentic/](examples/agentic/) for:
+
+- **`push.py`** — write planned workouts to your Intervals.icu calendar (push, list, move, delete), update sport-specific thresholds, annotate activities
+- **`pull.py`** — fetch raw per-second activity streams (GPS, altitude, watts, HR, …) when `terrain_summary`/`weather_summary` in `latest.json` aren't enough and the AI needs the underlying track
+- **`EXTERNAL_APIS.md`** — endpoint reference for Strava, MET Norway, Open-Meteo, and Intervals.icu streams + weather, used by agentic flows for pre-ride enrichment
+
+These all require code execution — web chat platforms cannot use them.
 
 See [examples/agentic/README.md](examples/agentic/README.md) for setup, commands, and workout syntax.
 
@@ -154,7 +161,7 @@ Read data using the first method that works:
 1. **Connected repo/filesystem** — If data files are available via connector (GitHub, Google Drive, OneDrive — platform support varies) or local filesystem, read latest.json, history.json, intervals.json, and routes.json directly
 2. **URL fetch** — Fetch https://raw.githubusercontent.com/[USERNAME]/[REPO]/main/latest.json (append ?date= with today's date). Same for history.json
 3. If activities don't match today's date, re-fetch or re-read before concluding no data exists
-4. Load intervals.json when analysing a specific activity with `has_intervals: true` — use for interval compliance, pacing, cardiac drift, recovery quality
+4. Load intervals.json when analyzing a specific activity with `has_intervals: true` or `has_dfa: true` — use for interval compliance, pacing, cardiac drift, recovery quality, DFA a1 session-level interpretation
 5. Load routes.json when a planned event has `has_terrain: true` — use for route analysis, terrain-adjusted pacing, pre-ride briefing
 
 Do NOT ask me for data — read or fetch it yourself.
@@ -222,7 +229,7 @@ Most major AI platforms now have native GitHub connectors that can access privat
 | Gemini | ✅ | + → Drive (enable Workspace extensions) | Free tier works |
 | Perplexity | ✅ | Settings → Connectors → Google Drive | Pro, Max, and Enterprise |
 | ChatGPT | ⚠️ | Settings → Apps → Google Drive | Workspace accounts only — not personal Gmail |
-| Claude | ❌ | — | Google Docs only — use GitHub connector |
+| Claude | ✅ | Settings → Connectors → Google Drive | All plans including Free |
 | Grok | ✅ | Settings → Connected Apps → Google Drive | Business/Enterprise only |
 | Mistral | ⚠️ | Side panel → Connectors → Google Drive | Beta — Team & Enterprise; admin setup required |
 
@@ -482,7 +489,7 @@ The protocol is designed to work with [Intervals.icu](https://intervals.icu) as 
 
 ### Derived Metrics
 
-The sync script pre-calculates Section 11-compliant metrics so AI doesn't need to compute them. Key metrics include ACWR, Recovery Index, Monotony/Strain, Grey Zone %, Quality Intensity %, Polarisation Index, Benchmark Index, Phase Detection, Seiler TID, Aggregate Durability, and TID Drift.
+The sync script pre-calculates Section 11-compliant metrics so AI doesn't need to compute them. Key metrics include ACWR, Recovery Index, Monotony/Strain, Grey Zone %, Quality Intensity %, Easy Time Ratio, Benchmark Index, Phase Detection, Seiler TID, Aggregate Durability, and TID Drift.
 
 Zone aggregations (TID, polarization, grey zone %) default to power zones with HR fallback. Configure `ZONE_PREFERENCE` to override per sport — e.g. `run:hr,cycling:power` for runners who prefer HR-based zone analysis. See [auto-sync setup](examples/json-auto-sync/SETUP.md) or [local sync setup](examples/json-local-sync/SETUP.md) for configuration.
 
@@ -498,7 +505,7 @@ The script maintains `ftp_history.json` to track indoor and outdoor FTP changes 
 
 ### Interval-Level Data
 
-The script generates `intervals.json` with per-interval segment data (power, HR, cadence, zone, decoupling, W'bal) for recent structured sessions. Activities with interval data are flagged with `has_intervals: true` in `latest.json`. Incrementally cached with a 72h scan window and 7-day retention. Only activities in whitelisted sport families (cycling, run, ski, rowing, swim) with detected interval structure are included.
+The script generates `intervals.json` with per-interval segment data (power, HR, cadence, zone, decoupling, W'bal) for recent structured sessions, plus per-session DFA a1 rollups when AlphaHRV recorded. Activities in `latest.json` carry two independent flags: `has_intervals: true` (structured segments) and `has_dfa: true` (AlphaHRV session). Either flag indicates an entry in `intervals.json`. Incrementally cached with a 72h scan window and 14-day retention. Only activities in whitelisted sport families (cycling, run, ski, rowing, swim) with either detected interval structure or AlphaHRV data are included.
 
 ### Route & Terrain Data
 

@@ -139,7 +139,7 @@ Test by opening the URLs in your browser — you should see your training data a
 
 - `latest.json` — current 7-day snapshot with activities, wellness, fitness metrics, and derived Section 11 values
 - `history.json` — longitudinal data with tiered granularity: daily (90 days), weekly (180 days), and monthly (up to 3 years). Generated automatically on first run, regenerated when outdated.
-- `intervals.json` — per-interval segment data for recent structured sessions (7-day retention). Generated automatically for activities with detected interval structure.
+- `intervals.json` — per-interval segment data for recent structured sessions (14-day retention). Generated automatically for activities with detected interval structure.
 - `routes.json` — route/terrain data for planned events with GPX/TCX attachments. Includes climb/descent detection, course character, and polyline. Generated when attachments exist, cached by attachment ID.
 
 ---

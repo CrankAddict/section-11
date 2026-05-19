@@ -85,6 +85,7 @@ python3 section11/examples/sync.py --output latest.json
 │   │   ├── sync.py
 │   │   ├── agentic/
 │   │   │   ├── push.py
+│   │   │   ├── pull.py
 │   │   │   └── ...
 │   │   ├── reports/
 │   │   │   ├── PRE_WORKOUT_REPORT_TEMPLATE.md
@@ -153,7 +154,7 @@ Add these instructions to your AI platform's project settings (or provide them i
 ## DATA ACCESS:
 1. Read latest.json from the data directory
 2. Read history.json from the data directory
-3. Read intervals.json when analysing a specific activity with has_intervals: true
+3. Read intervals.json when analyzing a specific activity with has_intervals: true or has_dfa: true
 4. Read protocol from section11/SECTION_11.md
 5. Read report templates from section11/examples/reports/
 6. Read workout templates from section11/examples/workout-library/WORKOUT_REFERENCE.md
@@ -407,6 +408,17 @@ python3 section11/examples/agentic/push.py push --name "Sweet Spot 3x15" --date 
 ```
 
 See [examples/agentic/README.md](../agentic/README.md) for all commands, workout syntax, and template mappings.
+
+## Read Side (pull.py)
+
+pull.py fetches raw per-second activity streams (lat/lng, altitude, watts, HR, …) on demand. Used only when the AI needs detail beyond the precomputed `terrain_summary` / `weather_summary` already present on outdoor activities in `latest.json` — for example, locating a specific power spike or wind segment within the GPS track.
+
+```bash
+cd ~/training-data
+python3 section11/examples/agentic/pull.py trace --activity-id i142557875 --types latlng,altitude
+```
+
+Same `.sync_config.json` credentials. Read-only — no `--confirm` gate. Don't reach for pull.py if `latest.json` already answers the question; the streams payload is several MB per ride.
 
 ---
 

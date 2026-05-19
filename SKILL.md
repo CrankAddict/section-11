@@ -1,13 +1,13 @@
 ---
 name: section-11
-description: Evidence-based endurance coaching protocol (v11.25). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
+description: Evidence-based endurance coaching protocol (v11.39). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
 ---
 
 # Section 11 — AI Coaching Protocol
 
 ## File Locations
 
-Data files (`latest.json`, `history.json`, `intervals.json`, `routes.json`, `DOSSIER.md`, `section11/`) live in the athlete's **data directory** — typically `~/training-data/`. HEARTBEAT.md lives in the **agent workspace** — the directory the agent runs from (e.g., `~/clawd/`). These may or may not be the same directory.
+Data files (`latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, `routes.json`, `DOSSIER.md`, `section11/`) live in the athlete's **data directory** — typically `~/training-data/`. HEARTBEAT.md lives in the **agent workspace** — the directory the agent runs from (e.g., `~/clawd/`). These may or may not be the same directory.
 
 ## First Use Setup
 
@@ -22,12 +22,13 @@ On first use:
    - Save as DOSSIER.md in the data directory root
 
 2. **Set up JSON data source**
-   - **Local setup (recommended):** Athlete runs sync.py on a timer, producing `latest.json`, `history.json`, `intervals.json`, and `routes.json` (when events have GPX/TCX attachments) in the data directory. See `examples/json-local-sync/SETUP.md` for the full local pipeline.
+   - **Local setup (recommended):** Athlete runs sync.py on a timer, producing `latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, and `routes.json` (when events have GPX/TCX attachments) in the data directory. See `examples/json-local-sync/SETUP.md` for the full local pipeline.
    - **GitHub connector:** If the platform has a GitHub connector (Claude, ChatGPT, Gemini, Mistral, etc.), the athlete connects their private data repo directly. The AI reads files through the connector — no URLs needed. If the athlete also commits `DOSSIER.md` and `SECTION_11.md` to the data repo, the connector provides everything in one connection.
    - **GitHub URL fetch:** Athlete creates a private or public GitHub repo for training data with automated sync. Save raw URLs in DOSSIER.md under "Data Source".
    - `latest.json` — current 7-day snapshot + 28-day derived metrics
    - `history.json` — longitudinal data (daily 90d, weekly 180d, monthly 3y)
-   - `intervals.json` — per-interval segment data for recent structured sessions (7-day retention)
+   - `intervals.json` — per-interval segment data for recent structured sessions, plus DFA a1 session rollups when AlphaHRV recorded (14-day retention)
+   - `ftp_history.json` — dated FTP changes (indoor/outdoor), used for staleness tracking and benchmark comparison
    - `routes.json` — route/terrain data for events with GPX/TCX attachments (when present)
    - See: https://github.com/CrankAddict/section-11#2-set-up-your-data-mirror-optional-but-recommended
 
@@ -55,7 +56,7 @@ Load the coaching protocol using this precedence:
 
 If both root and `section11/` copies exist, prefer the root copy.
 
-**Current version:** 11.25
+**Current version:** 11.39
 
 ## External Sources
 
@@ -74,7 +75,7 @@ All external files referenced by this skill (`sync.py`, `SECTION_11.md`, templat
 
 - Read or fetch latest.json before any training question. Check data directory first, then connected repo (if GitHub connector is available), then fall back to dossier-specified URLs.
 - Read or fetch history.json when trend analysis, phase context, or longitudinal comparison is needed. Same precedence.
-- Load `intervals.json` when analysing a specific activity with `has_intervals: true`. Use for: interval compliance, pacing analysis, cardiac drift per set, recovery quality. Do not load for readiness, load management, or weekly summaries.
+- Load `intervals.json` when analyzing a specific activity where `has_intervals: true` OR `has_dfa: true`. For block reports, load when any session in the block has either flag. Use for: interval compliance, pacing analysis, cardiac drift per set, recovery quality, DFA a1 session-level interpretation. Do not load for readiness, load management, or weekly summaries.
 - Load `routes.json` when a planned event has `has_terrain: true`. Use for: route analysis, terrain-adjusted pacing, pre-ride briefing, race preparation. Same precedence as other JSON files.
 - For all files (JSON data, protocol, dossier, templates): data directory → connected repo → uploaded/attached files → URL fetch.
 - No virtual math on pre-computed metrics — use values from the JSON for CTL, ATL, TSB, ACWR, RI, zones, etc. Custom analysis from raw data is fine when pre-computed values don't cover the question.
@@ -128,7 +129,7 @@ All training data is stored where the user chooses: on their own device or in a 
 The skill reads from: user-configured JSON data sources and DOSSIER.md in the data directory, and HEARTBEAT.md in the agent workspace. It writes to: DOSSIER.md in the data directory and HEARTBEAT.md in the agent workspace (during first-use setup only).
 
 **Data Handling**
-`sync.py` redacts `athlete_id` from the output and replaces outdoor activity names with "Training Session" (strips location-revealing ride names). Both are on by default. All other training data — activities, wellness, intervals, power/HR values, dates — is passed through to the AI coach as-is.
+`sync.py` redacts `athlete_id` from the output (always on, unconditional). Activity names are passed through as-is — they carry coaching context (route identification, terrain association). All other training data — activities, wellness, intervals, power/HR values, dates — is passed through to the AI coach as-is.
 
 **Network behavior**
 When running locally (files in the data directory), no network requests are needed for protocol, templates, or data. When files are not available locally, the skill performs simple HTTP GET requests to fetch them from configured sources.

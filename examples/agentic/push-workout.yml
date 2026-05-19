@@ -1,4 +1,4 @@
-# push.py v0.3 workflow — supports push, list, move, delete, set-threshold, annotate
+# push.py v0.5 workflow — supports push, list, move, delete, set-threshold, annotate
 name: Push Workout to Intervals.icu
 
 on:
@@ -224,4 +224,5 @@ jobs:
           echo "  - Invalid workout JSON format"
           echo "  - Invalid date (must be today or future)"
           echo "  - Event/activity ID not found"
+          echo "  - 403 Access denied: ATHLETE_ID secret must be in i123456 form (with leading i), and INTERVALS_KEY must be the raw API key string"
           echo "  - Intervals.icu API unreachable"

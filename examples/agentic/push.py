@@ -49,11 +49,31 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 
+_requests = None
+
+
+def _ensure_requests():
+    """Import `requests` on first use. Raise a clear error if it's missing."""
+    global _requests
+    if _requests is None:
+        try:
+            import requests
+        except ImportError:
+            raise RuntimeError(
+                "The `requests` library is not installed in the Python "
+                "interpreter running push.py. Install it with "
+                "`pip install requests`, or run push.py from the same "
+                "venv/environment as sync.py."
+            )
+        _requests = requests
+    return _requests
+
+
 class IntervalsPush:
     """Manage planned workouts on Intervals.icu calendar."""
 
     BASE_URL = "https://intervals.icu/api/v1"
-    VERSION = "0.3"
+    VERSION = "0.5"
 
     VALID_TYPES = {
         "Ride", "VirtualRide", "MountainBikeRide", "GravelRide", "EBikeRide",
@@ -85,6 +105,13 @@ class IntervalsPush:
     def __init__(self, athlete_id: str, api_key: str):
         if not athlete_id or not api_key:
             raise ValueError("athlete_id and api_key are required")
+        athlete_id = athlete_id.strip()
+        api_key = api_key.strip()
+        if athlete_id.isdigit():
+            raise ValueError(
+                f"athlete_id must be in `i123456` form (with the leading `i`). "
+                f"Got `{athlete_id}`. Check .sync_config.json / ATHLETE_ID / --athlete-id."
+            )
         self.athlete_id = athlete_id
         self.auth = base64.b64encode(f"API_KEY:{api_key}".encode()).decode()
 
@@ -107,32 +134,38 @@ class IntervalsPush:
                 error_msg = f"{e.response.status_code}: {detail}"
             except Exception:
                 error_msg = f"{e.response.status_code}: {e.response.text[:200]}"
+            if e.response.status_code == 403:
+                error_msg = (
+                    "Access denied (403). Common causes: athlete_id isn't in "
+                    "`i123456` form, API key is wrong, or the API key doesn't "
+                    f"belong to this athlete. Raw response: {error_msg}"
+                )
         return error_msg
 
     def _get(self, endpoint: str, params: dict = None) -> any:
         """GET from Intervals.icu API."""
-        import requests
+        requests = _ensure_requests()
         response = requests.get(self._url(endpoint), headers=self._headers(), params=params)
         response.raise_for_status()
         return response.json()
 
     def _post(self, endpoint: str, payload) -> any:
         """POST to Intervals.icu API."""
-        import requests
+        requests = _ensure_requests()
         response = requests.post(self._url(endpoint), headers=self._headers(), json=payload)
         response.raise_for_status()
         return response.json()
 
     def _put(self, endpoint: str, payload: dict) -> any:
         """PUT to Intervals.icu API."""
-        import requests
+        requests = _ensure_requests()
         response = requests.put(self._url(endpoint), headers=self._headers(), json=payload)
         response.raise_for_status()
         return response.json()
 
     def _delete(self, endpoint: str) -> bool:
         """DELETE on Intervals.icu API. Returns True on success."""
-        import requests
+        requests = _ensure_requests()
         response = requests.delete(self._url(endpoint), headers=self._headers())
         response.raise_for_status()
         return True
@@ -224,7 +257,6 @@ class IntervalsPush:
         description = workout.get("description", "")
         if description:
             event["description"] = description
-            event["workout_doc"] = {}
 
         target = workout.get("target")
         if target:
@@ -453,21 +485,21 @@ class IntervalsPush:
 
     def _get_raw(self, url: str) -> any:
         """GET from an absolute Intervals.icu URL."""
-        import requests
+        requests = _ensure_requests()
         response = requests.get(url, headers=self._headers())
         response.raise_for_status()
         return response.json()
 
     def _post_raw(self, url: str, payload) -> any:
         """POST to an absolute Intervals.icu URL."""
-        import requests
+        requests = _ensure_requests()
         response = requests.post(url, headers=self._headers(), json=payload)
         response.raise_for_status()
         return response.json()
 
     def _put_raw(self, url: str, payload: dict) -> any:
         """PUT to an absolute Intervals.icu URL."""
-        import requests
+        requests = _ensure_requests()
         response = requests.put(url, headers=self._headers(), json=payload)
         response.raise_for_status()
         return response.json()
@@ -930,7 +962,11 @@ def main():
             "error": "Missing credentials. Provide via --athlete-id/--api-key, .sync_config.json, or env vars ATHLETE_ID/INTERVALS_KEY",
         })
 
-    pusher = IntervalsPush(athlete_id, api_key)
+    pusher = None
+    try:
+        pusher = IntervalsPush(athlete_id, api_key)
+    except ValueError as e:
+        _output({"success": False, "error": str(e)})
 
     if args.command == "push":
         _cmd_push(args, pusher)

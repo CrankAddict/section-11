@@ -70,7 +70,7 @@ The script creates/maintains these files:
 |------|---------|--------------|
 | `latest.json` | Training data export | Every run with `--output` |
 | `history.json` | Longitudinal data — daily (90d), weekly (180d), monthly (3y) | First run, regenerates when outdated |
-| `intervals.json` | Per-interval data for structured sessions | Every run (incremental, 7-day retention) |
+| `intervals.json` | Per-interval data for structured sessions | Every run (incremental, 14-day retention) |
 | `routes.json` | Route/terrain data for events with GPX/TCX attachments | When attachments exist |
 | `ftp_history.json` | FTP progression tracking | Automatically on first run |
 | `.sync_config.json` | Your credentials + preferences (local only) | After `--setup` |
@@ -93,7 +93,7 @@ Also includes period summaries, FTP timeline, and data gap detection. Generated 
 
 ## What's Included
 
-The export includes pre-calculated **derived metrics** for Section 11 compliance — AI should use these, not calculate its own. Key metrics: ACWR, Recovery Index, Monotony/Strain, Grey Zone %, Quality Intensity %, Polarisation Index, Benchmark Index, Phase Detection, Seiler TID, Aggregate Durability, and TID Drift.
+The export includes pre-calculated **derived metrics** for Section 11 compliance — AI should use these, not calculate its own. Key metrics: ACWR, Recovery Index, Monotony/Strain, Grey Zone %, Quality Intensity %, Easy Time Ratio, Benchmark Index, Phase Detection, Seiler TID, Aggregate Durability, and TID Drift.
 
 See [examples/README.md](../README.md#derived-metrics) for the full derived metrics table.
 

@@ -1,14 +1,16 @@
 # Pre-Workout Report Template
 
 > This template defines the standard output format for pre-workout reports.  
-> Fields in `[brackets]` are placeholders. Omit fields that don't apply.
+> Fields in `[brackets]` are placeholders. Omit fields that don't apply.  
+> **Data Freshness:** Every numeric value in a report must come from a current read of its source JSON file. Do not carry forward values from earlier reports or earlier in the conversation — re-read before quoting.  
+> **Display Units:** For distance / elevation / weight / height / position / speed, quote `display.*` fields from the source JSON — they're pre-converted to the athlete's Intervals.icu preferences. Use canonical metric (`*_km`, `*_m`, `*_kg`) only for calculations. See SECTION_11.md §Display Unit Semantics.
 
 ---
 
 ```
 Data last_updated (UTC): [YYYY-MM-DDTHH:MM:SS]
 
-Weather ([Location]): [icon] [temp]°C, [humidity]% humidity, [conditions], wind [speed] m/s from [direction].
+Weather ([Location]): [icon] [temp][weather_summary.units.temp], [humidity]% humidity, [conditions], wind [speed] [weather_summary.units.wind] from [direction].
 Coach note: [Brief weather-relevant tip. Omit if no actionable weather context.]
 
 Current Status Summary:
@@ -40,8 +42,8 @@ Planned Workouts for Today (Planned TSS: [XXX]):
 [If rest day: "Rest day — no sessions scheduled."]
 [If rest day: "Next session: [Day] — [workout preview]"]
 
-Terrain Context ([course_character], [total_distance_km] km, [total_elevation_m]m):
-[Key climbs condensed: "Cat 2 at km 48 (6.8 km, 6.3% avg, max 11%). Cat 4 at km 71 (1.4 km, 4.8% avg)."]
+Terrain Context ([course_character], [terrain_summary.display.total_distance.value] [terrain_summary.display.total_distance.unit], [terrain_summary.display.total_elevation.value][terrain_summary.display.total_elevation.unit]):
+[Key climbs condensed — quote `display.position` / `display.distance` for each climb, e.g. "Cat 2 at [climb.display.position] (6.8 km, 6.3% avg, max 11%)". Use the climb's `display.*` for distance/position/elevation; gradient % is unit-universal.]
 [Pacing note: one sentence connecting terrain to today's effort strategy.]
 
 Recommendation: [readiness_decision.recommendation — Go / Modify / Skip]
@@ -68,6 +70,7 @@ AI may override the pre-computed recommendation with explicit rationale.]
 | Durability | Include if qualifying sessions exist. Omit if 0 qualifying sessions in 7d |
 | EF | Include if qualifying sessions exist. Omit if 0 qualifying sessions in 7d |
 | TID 28d + drift | Include as separate line **only** if drift is "shifting" or "acute_depolarization". Omit entire line when "consistent" |
+| Polarization | Weekly Seiler TID rendered in power-zone labels. Source: `seiler_tid_7d.z1_pct/z2_pct/z3_pct`. Render as `Z1+Z2` (Seiler Easy / below LT1), `Z3` (Seiler Grey Zone / LT1–LT2), `Z4+` (Seiler Hard / above LT2). Do not output raw `Z1/Z2/Z3` labels — they collide with the per-session Power zones line above |
 | Load/Recovery context | Include tolerance note only when within 0.2 of threshold |
 | Next session | Include only on rest days |
 | Terrain Context | Include when `has_terrain: true` on a planned event and `routes.json` has the corresponding terrain data. Omit entirely otherwise. Full pre-ride briefing available on request |

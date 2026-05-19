@@ -27,7 +27,7 @@ Built on the [Section 11 Protocol](https://github.com/CrankAddict/section-11).
 
 | File | Description | Link |
 |------|-------------|------|
-| `latest.json` | Current 7-day snapshot + derived metrics | [View](https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/latest.json) |
+| `latest.json` | Current 7-day snapshot + derived metrics + completed-activity terrain & weather summaries | [View](https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/latest.json) |
 | `history.json` | Longitudinal data (daily/weekly/monthly) | [View](https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/history.json) |
 | `intervals.json` | Per-interval data for structured sessions | [View](https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/intervals.json) |
 | `routes.json` | Route/terrain data (when GPX/TCX attachments exist) | [View](https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/routes.json) |

@@ -29,12 +29,12 @@ Session Breakdown:
 Quality Session Detail:
   Sweetspot 2x20:
     Target: 248W | Actual: 251W avg / 254W NP
-    Decoupling: 2.1% (good)
+    Decoupling: 2.14%
     VI: 1.01 (good)
     HR: 158 avg / 167 max
   VO2max 5x4min:
     Target: 310W | Actual: 306W avg / 315W NP
-    Decoupling: 4.8% (good)
+    Decoupling: 4.82%
     VI: 1.03 (good)
     HR: 168 avg / 178 max
     HRRc: 42 bpm
@@ -124,7 +124,7 @@ Session Breakdown:
 Quality Session Detail:
   Tempo 3x15 (modified to 2x15):
     Target: 235W | Actual: 228W avg / 232W NP
-    Decoupling: 6.2% (elevated)
+    Decoupling: 6.24%
     VI: 1.02 (good)
     HR: 155 avg / 164 max
 

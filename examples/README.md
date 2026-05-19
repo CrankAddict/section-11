@@ -11,10 +11,10 @@ Working implementations for Section 11 integrations.
 | [json-local-sync](json-local-sync/) | Automated local sync for agentic platforms (no GitHub) | ✅ Ready |
 | [json-on-demand](json-on-demand/) | On-demand sync from phone or browser — no local Python | ✅ Ready |
 | [json-manual](json-manual/) | Manual export from Mac/PC | ✅ Ready |
-| [reports](reports/) | Pre/post workout report templates | ✅ Ready |
+| [reports](reports/) | Pre/post/weekly/block/season report templates | ✅ Ready |
 | [agentic](agentic/) | Write planned workouts to Intervals.icu calendar (code execution required) | ✅ Ready |
 | [workout-library](workout-library/) | Structured workout templates for AI prescription | ✅ Ready |
-| [json-examples](json-examples/) | Example JSON output (v3.86 schema reference) | ✅ Ready |
+| [json-examples](json-examples/) | Example JSON output / current schema reference | ✅ Ready |
 
 ---
 
@@ -59,7 +59,7 @@ Both methods use the same `sync.py` script and produce these files:
 | `ftp_history.json` | FTP tracking for Benchmark Index | Yes |
 | `archive/` | Timestamped snapshots (auto-sync only) | Yes |
 
-See [json-examples/](json-examples/) for example output showing the full v3.86 schema.
+See [json-examples/](json-examples/) for example output showing the full current schema.
 
 ```bash
 # Manual local export
@@ -94,7 +94,7 @@ latest.json
 ├── derived_metrics      → Section 11 calculated values (see below)
 │   ├── capability       → Durability, EF, HRRc trends + TID drift (7d vs 28d)
 │   └── phase_detection  → Dual-stream phase detection with confidence
-├── recent_activities    → Detailed activity data with zones, EF, HRRc, has_intervals
+├── recent_activities    → Detailed activity data with zones, EF, HRRc, has_intervals, has_dfa, dfa_summary, effort_response, terrain_summary/weather_summary (outdoor only)
 ├── wellness_data        → Daily HRV, RHR, sleep, subjective state, vitals, nutrition, lifestyle
 ├── planned_workouts     → Upcoming scheduled sessions with workout_summary
 ├── workout_summary_stats → Planned-vs-actual matching statistics
@@ -110,7 +110,7 @@ history.json
 ├── weekly_180d          → Week-by-week (last 180 days)
 └── monthly_1y/2y/3y     → Month-by-month (up to 3 years)
 
-intervals.json (on-demand — load when analysing activities with has_intervals: true)
+intervals.json (on-demand — load when analyzing activities with has_intervals: true or has_dfa: true)
 ├── generated_at         → Timestamp
 ├── version              → sync.py version
 └── activities[]         → Per-activity interval segments
@@ -130,6 +130,8 @@ routes.json (on-demand — load when planned events have has_terrain: true)
         └── descents[]   → Recovery windows with position, gradient, coords
 ```
 
+> **Note on terrain data location:** `routes.json` holds **planned-route** terrain (events with GPX/TCX attachments). **Completed-activity** terrain — what was actually ridden — lives embedded on each outdoor activity in `latest.json`'s `recent_activities[]` as `terrain_summary` and `weather_summary`. Same base schema, different time direction. See SECTION_11.md "Completed-Activity Terrain & Weather" for interpretation rules.
+
 ### Derived Metrics
 
 Pre-calculated values for Section 11 compliance — AI should use these, not calculate its own:
@@ -141,7 +143,7 @@ Pre-calculated values for Section 11 compliance — AI should use these, not cal
 | `monotony` / `strain` | Training variability (Foster) |
 | `grey_zone_percentage` | Z3 time % — minimize in polarized training |
 | `quality_intensity_percentage` | Z4+ time % — target ~20% |
-| `polarisation_index` | Easy time ratio — target ~0.80 |
+| `easy_time_ratio` | Easy time ratio — target ~0.80 |
 | `consistency_index` | Plan adherence (completed/planned) |
 | `phase_detected` | Auto-detected: Build, Base, Peak, Taper, Deload, Recovery, Overreached, null |
 | `phase_detection` | Full phase detection object: phase, confidence, reason_codes, basis (dual-stream), phase_duration_weeks |
@@ -163,6 +165,9 @@ The [reports/](reports/) folder contains Section 11-compliant templates:
 |----------|----------|
 | `PRE_WORKOUT_REPORT_TEMPLATE.md` | Briefing before a session |
 | `POST_WORKOUT_REPORT_TEMPLATE.md` | Analysis after a session |
+| `WEEKLY_REPORT_TEMPLATE.md` | End-of-week summary |
+| `BLOCK_REPORT_TEMPLATE.md` | End-of-block phase assessment |
+| `SEASON_REPORT_TEMPLATE.md` | On-demand annual-arc trajectory + YoY |
 | `*_EXAMPLES.md` | Anonymized examples showing normal and threshold-breach scenarios |
 
 Use these to standardize AI coaching output across platforms.

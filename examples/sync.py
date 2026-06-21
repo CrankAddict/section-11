@@ -3548,15 +3548,13 @@ class IntervalsSync:
                 if date_str:
                     planned_dates.add(date_str)
         
-        # Get unique dates with completed activities (cycling only for fair comparison)
+        # Get unique dates with completed activities (any sport type)
         completed_dates = set()
-        cycling_types = {"Ride", "VirtualRide", "MountainBikeRide", "GravelRide"}
         
         for activity in activities:
-            if activity.get("type") in cycling_types:
-                date_str = activity.get("start_date_local", "")[:10]
-                if date_str:
-                    completed_dates.add(date_str)
+            date_str =(activity.get("date") or activity.get("start_date_local") or "")[:10]
+            if date_str:
+                completed_dates.add(date_str)
         
         # Calculate overlap
         matched_dates = planned_dates & completed_dates

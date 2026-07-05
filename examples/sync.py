@@ -16,6 +16,12 @@ Version 3.113 - DFA a1 crossing integrity: LT1/LT2 crossing estimates now
   the other's estimate all-null; new lt1_reason/lt2_reason explain a null.
   Sport-level confidence retained as a coarse max-across-thresholds signal.
   capability_metrics_note updated. (SECTION_11.md v11.44 pairs.)
+  Also (v3.113): _generate_intervals now receives the 28d extended activity set so
+  first-run backfill reaches the full 14d retention window (was silently truncated
+  to the 7d display set), and prunes cached entries whose activity_id is no longer
+  present (deleted/re-uploaded rides); completed recent_activities gain
+  duration_formatted; DFA entries gain start_datetime for same-day latest_session
+  tiebreak.
 
 Version 3.112 - Body weight signal block (current_status.weight): gated fields
   for block-level W/kg and weekly weight trend, all surfaced via a single
@@ -1379,6 +1385,7 @@ class IntervalsSync:
                 entry = {
                     "activity_id": act_id,
                     "date": act.get("start_date_local", "")[:10],
+                    "start_datetime": act.get("start_date_local", ""),  # v3.113: full local datetime for same-day tiebreak
                     "type": act.get("type", "Unknown"),
                     "name": act.get("name", ""),
                     "interval_summary": act.get("interval_summary"),
@@ -4683,7 +4690,10 @@ class IntervalsSync:
         dfa_activities = [a for a in activities if a.get("dfa") is not None]
         if not dfa_activities:
             return None
-        dfa_activities.sort(key=lambda a: a.get("date", ""), reverse=True)
+        # v3.113: sort by full start_datetime (ISO strings sort chronologically) with day-only
+        # date as fallback, so two genuine same-day DFA rides (e.g. indoor AM + outdoor PM)
+        # resolve by actual time rather than arbitrary cache order for latest_session/window.
+        dfa_activities.sort(key=lambda a: (a.get("start_datetime") or a.get("date", "")), reverse=True)
 
         # --- latest_session: most recent SUFFICIENT session ---
         latest_session = None

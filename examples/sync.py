@@ -4,6 +4,19 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.114 - DFA a1 three-marker semantics (Commit A of A/B/C): the LT1 crossing
+  estimate moves from a1=1.0 to the literature HRVT1 value a1=0.75 (aerobic threshold),
+  and a1=1.0 becomes its own named 'easy_guard' marker (a conservative easy-state guard,
+  NOT a threshold). Three markers now: easy_guard (1.0), lt1 (0.75), lt2 (0.5). Each
+  per-session crossing block and each trailing estimate carries marker_dfa_a1 so the JSON
+  is self-describing (no AI need remember which a1 value a field means). Per-marker gating/
+  reason logic generalized via _build_marker (called 3x). Sport-level confidence stays a
+  coarse max across the THRESHOLD markers only (lt1, lt2) - easy_guard excluded so easy
+  rides can't inflate threshold-calibration confidence. capability_metrics_note rewritten.
+  NOTE: old lt1_estimate semantics (a1=1.0) now live under easy_guard_estimate; the new
+  lt1_estimate (a1=0.75) reads higher and populates less often. SECTION_11.md v11.45 +
+  report templates + TIZ band rename follow in Commits B/C.
+
 Version 3.113 - DFA a1 crossing integrity: LT1/LT2 crossing estimates now
   require a sustained CONTIGUOUS crossing (>=DFA_MIN_CROSSING_DWELL_SECS in-band
   seconds, bridging <=DFA_CROSSING_MAX_GAP_SECS of original ride-time), measured
@@ -273,7 +286,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.113"
+    VERSION = "3.114"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -287,11 +300,15 @@ class IntervalsSync:
     # --- DFA a1 Protocol (v3.99) ---
     # Per-session DFA a1 rollups computed from streams when AlphaHRV Connect IQ field
     # has written to the FIT and Intervals.icu surfaces dfa_a1 + artifacts streams.
-    # Threshold mapping (1.0 / 0.5) is cycling-validated (Rowlands 2017, Gronwald 2020,
-    # Mateo-March 2023). Other sports get rollups but validated=False.
-    DFA_LT1 = 1.0                       # DFA a1 above this = below LT1 (true aerobic)
+    # Three DFA a1 markers (v3.114). Literature: HRVT1/aerobic threshold = 0.75, HRVT2 = 0.5
+    # (Gronwald/Rogers 2020, Rogers 2021, Mateo-March 2023). 1.0 is BELOW the aerobic threshold
+    # (well-correlated easy state) — Section 11 uses it as a deliberate conservative easy-state
+    # guard, NOT as LT1. Mapping cycling-validated; other sports get rollups but validated=False.
+    DFA_EASY_GUARD = 1.0                # v3.114: conservative easy-state guard (α1 1.0) — NOT a threshold
+    DFA_LT1 = 0.75                      # v3.114: HRVT1 / aerobic threshold (literature; was 1.0)
     DFA_LT2 = 0.5                       # DFA a1 below this = above LT2 (supra-threshold)
-    DFA_LT1_BAND = 0.05                 # crossing window for LT1 estimate: 0.95-1.05
+    DFA_EASY_GUARD_BAND = 0.05          # crossing window for easy-guard estimate: 0.95-1.05
+    DFA_LT1_BAND = 0.05                 # crossing window for LT1 estimate: 0.70-0.80
     DFA_LT2_BAND = 0.05                 # crossing window for LT2 estimate: 0.45-0.55
     DFA_MIN_CROSSING_DWELL_SECS = 60    # min CONTIGUOUS seconds in crossing band to emit threshold estimate (v3.113)
     DFA_CROSSING_MAX_GAP_SECS = 5       # v3.113: max original-time gap (dropped/out-of-band secs) bridged within one crossing segment
@@ -302,7 +319,7 @@ class IntervalsSync:
     DFA_SUFFICIENT_MIN_VALID_PCT = 70.0 # min valid_pct for sufficient=True (excludes noisy AlphaHRV sessions)
     DFA_DRIFT_INTERPRETABLE_MAX_LT2_PCT = 15.0  # if >15% time above LT2, drift is structural noise
     DFA_TRAILING_WINDOW_N = 7           # latest N AlphaHRV sessions for trailing window (≥6 needed for 'high' confidence)
-    DFA_VALIDATED_SPORTS = {"cycling"}  # sports where 1.0/0.5 mapping is literature-validated
+    DFA_VALIDATED_SPORTS = {"cycling"}  # 0.75/0.5 threshold markers cycling-validated; 1.0 is operational easy_guard
 
     # Sport family mapping for per-sport monotony calculation
     # Multi-sport athletes get inflated total monotony when cross-training
@@ -1048,6 +1065,7 @@ class IntervalsSync:
                 "tiz_transition_lt2": None,
                 "tiz_above_lt2": None,
                 "drift": None,
+                "easy_guard_crossing": None,
                 "lt1_crossing": None,
                 "lt2_crossing": None,
                 "quality": quality,
@@ -1083,9 +1101,13 @@ class IntervalsSync:
                 "avg_watts": round(w_sum / w_n) if w_n else None,
             }
 
-        tiz_below_lt1 = _band_stats(lambda d: d > self.DFA_LT1)
-        tiz_lt1_transition = _band_stats(lambda d: 0.75 <= d <= self.DFA_LT1)
-        tiz_transition_lt2 = _band_stats(lambda d: self.DFA_LT2 <= d < 0.75)
+        # TIZ band boundaries (v3.114): keep the four v3.113 boundaries (1.0 / 0.75 / 0.5)
+        # explicitly. DFA_LT1 moved to 0.75, so the 1.0 edge must reference DFA_EASY_GUARD to
+        # avoid collapsing the model. Band VALUES are unchanged from v3.113; band NAMES are
+        # renamed in Commit C.
+        tiz_below_lt1 = _band_stats(lambda d: d > self.DFA_EASY_GUARD)
+        tiz_lt1_transition = _band_stats(lambda d: self.DFA_LT1 <= d <= self.DFA_EASY_GUARD)
+        tiz_transition_lt2 = _band_stats(lambda d: self.DFA_LT2 <= d < self.DFA_LT1)
         tiz_above_lt2 = _band_stats(lambda d: d < self.DFA_LT2)
 
         # Drift: first-third vs last-third of valid data
@@ -1162,6 +1184,7 @@ class IntervalsSync:
                 avg_watts = None
 
             return {
+                "marker_dfa_a1": center,
                 "secs_in_band": total_in_band,
                 "contiguous_secs": best_segment_secs,
                 "n_qualifying_segments": len(qualifying),
@@ -1170,6 +1193,7 @@ class IntervalsSync:
                 "avg_watts": avg_watts,
             }
 
+        easy_guard_crossing = _crossing_stats(self.DFA_EASY_GUARD, self.DFA_EASY_GUARD_BAND)
         lt1_crossing = _crossing_stats(self.DFA_LT1, self.DFA_LT1_BAND)
         lt2_crossing = _crossing_stats(self.DFA_LT2, self.DFA_LT2_BAND)
 
@@ -1181,6 +1205,7 @@ class IntervalsSync:
             "tiz_transition_lt2": tiz_transition_lt2,
             "tiz_above_lt2": tiz_above_lt2,
             "drift": drift,
+            "easy_guard_crossing": easy_guard_crossing,
             "lt1_crossing": lt1_crossing,
             "lt2_crossing": lt2_crossing,
             "quality": quality,
@@ -2718,7 +2743,7 @@ class IntervalsSync:
                 "display_formatting": "For durations and sleep, always display the '_formatted' fields (e.g., sleep_formatted, duration_formatted, total_training_formatted) instead of converting decimal '_hours' values. The formatted fields are pre-calculated from raw seconds and avoid rounding errors.",
                 "data_period": f"Last {days_back} days (including today)",
                 "extended_data_note": f"ACWR and baselines calculated from {days_for_acwr} days of data",
-                "capability_metrics_note": "The 'capability' block in derived_metrics contains durability trend (aggregate decoupling 7d/28d), efficiency factor trend (aggregate EF 7d/28d), HRRc trend (heart rate recovery 7d/28d), TID comparison (7d vs 28d distribution drift), power curve delta (MMP shift at anchor durations across 28d windows — energy system adaptation direction), HR curve delta (max sustained HR shift at anchor durations — cardiac adaptation, cross-sport), sustainability profile (per-sport power/HR sustainability table for race estimation — 42d window, sport-filtered), and DFA a1 profile (per-session non-linear HRV index from AlphaHRV Connect IQ field — latest_session + trailing_by_sport with crossing-band LT1/LT2 estimates). These measure HOW the athlete expresses fitness, not just load. Use these for coaching context alongside traditional load metrics. Durability and EF trend direction matters more than absolute values. HRRc is display only — higher = better parasympathetic recovery. Power curve delta rotation_index reveals whether gains are sprint-biased (positive) or endurance-biased (negative). HR curve delta is ambiguous — rising max sustained HR may indicate fitness or fatigue; cross-reference with resting HRV/HR and RPE. Sustainability profile provides race estimation lookup: actual MMP, Coggan predicted (cycling only), CP/W' model (cycling only), model_divergence_pct (actual vs CP — divergence IS the coaching signal). CP/W' is primary for durations ≤20min; Coggan duration factors are the established reference for ≥60min. Source flag (observed_outdoor/observed_indoor) matters for cycling race estimation — indoor MMP is typically 3-5% lower. DFA a1 profile: thresholds (1.0 ≈ LT1, 0.5 ≈ LT2) cycling-validated only — non-cycling sports get rollups but validated=False. Crossing-band estimates require a SUSTAINED contiguous crossing (v3.113): each session's lt1_crossing/lt2_crossing carries a reason (ok / no_samples_in_band / insufficient_total_dwell / no_contiguous_dwell); scattered in-band time no longer produces an estimate. HR is pooled across all sessions; watts are split by environment for cycling (watts_outdoor, watts_indoor with per-environment n_sessions) — compare watts_outdoor against ftp, watts_indoor against ftp_indoor. Non-cycling sports keep pooled watts. lt1_estimate and lt2_estimate are gated INDEPENDENTLY — each is null when that threshold has fewer than 3 qualifying-crossing sessions, and trailing_by_sport.{sport}.lt1_reason / lt2_reason explains a null (insufficient_sessions, or a sub-threshold blocker such as no_contiguous_dwell); a null estimate means the athlete did not sustain that threshold, NOT missing sensor data. Sport-level confidence is a coarse max-across-thresholds signal (low is suppressed for calibration delta surfacing, usable at 'moderate' or 'high'); per-threshold estimate presence + reason are authoritative. DFA a1 is a Tier-2 interpretive signal — does NOT enter readiness P0–P3 ladder, does NOT auto-update dossier zones; surfaces calibration deltas only. Quality gate: refuse to interpret when latest_session.sufficient=false or trailing confidence=null. See SECTION_11.md DFA a1 Protocol for full interpretation rules.",
+                "capability_metrics_note": "The 'capability' block in derived_metrics contains durability trend (aggregate decoupling 7d/28d), efficiency factor trend (aggregate EF 7d/28d), HRRc trend (heart rate recovery 7d/28d), TID comparison (7d vs 28d distribution drift), power curve delta (MMP shift at anchor durations across 28d windows — energy system adaptation direction), HR curve delta (max sustained HR shift at anchor durations — cardiac adaptation, cross-sport), sustainability profile (per-sport power/HR sustainability table for race estimation — 42d window, sport-filtered), and DFA a1 profile (per-session non-linear HRV index from AlphaHRV Connect IQ field — latest_session + trailing_by_sport with crossing-band easy_guard / LT1 / LT2 estimates). These measure HOW the athlete expresses fitness, not just load. Use these for coaching context alongside traditional load metrics. Durability and EF trend direction matters more than absolute values. HRRc is display only — higher = better parasympathetic recovery. Power curve delta rotation_index reveals whether gains are sprint-biased (positive) or endurance-biased (negative). HR curve delta is ambiguous — rising max sustained HR may indicate fitness or fatigue; cross-reference with resting HRV/HR and RPE. Sustainability profile provides race estimation lookup: actual MMP, Coggan predicted (cycling only), CP/W' model (cycling only), model_divergence_pct (actual vs CP — divergence IS the coaching signal). CP/W' is primary for durations ≤20min; Coggan duration factors are the established reference for ≥60min. Source flag (observed_outdoor/observed_indoor) matters for cycling race estimation — indoor MMP is typically 3-5% lower. DFA a1 profile: three self-describing markers (each estimate + crossing block carries marker_dfa_a1) — easy_guard (a1 1.0, a conservative easy-state guard, NOT a threshold), lt1 (a1 0.75, HRVT1 / aerobic threshold), lt2 (a1 0.5, HRVT2 / anaerobic threshold). The literature threshold markers (0.75 / 0.5) are cycling-validated only - non-cycling sports get rollups but validated=False. Every estimate requires a SUSTAINED contiguous crossing: each session's easy_guard_crossing / lt1_crossing / lt2_crossing carries a reason (ok / no_samples_in_band / insufficient_total_dwell / no_contiguous_dwell); scattered in-band time does not produce an estimate. HR is pooled across sessions; watts are split by environment for cycling (watts_outdoor, watts_indoor with per-environment n_sessions) - compare watts_outdoor against ftp, watts_indoor against ftp_indoor. Non-cycling sports keep pooled watts. easy_guard_estimate, lt1_estimate and lt2_estimate are each gated INDEPENDENTLY - null when that marker has fewer than 3 qualifying-crossing sessions; trailing_by_sport.{sport}.easy_guard_reason / lt1_reason / lt2_reason explains a null (insufficient_sessions, or a sub-threshold blocker such as no_contiguous_dwell). A null estimate means the athlete did not sustain that marker, NOT missing sensor data. IMPORTANT: easy_guard is a conservative easy-state compliance guard, NOT an LT1/aerobic-threshold estimate - never compare it to dossier zones and never treat it as a calibration or staleness signal; only lt1 (0.75) and lt2 (0.5) inform threshold calibration. lt1 (0.75) populates only on rides that sustain aerobic-threshold intensity, so it is often null on easy/deload riding - that is expected, not a data gap. Sport-level confidence is a coarse max across the THRESHOLD markers only (lt1, lt2; easy_guard excluded) - low is suppressed for calibration delta surfacing, usable at 'moderate' or 'high'; per-marker estimate presence + reason are authoritative. DFA a1 is a Tier-2 interpretive signal - does NOT enter readiness P0-P3 ladder, does NOT auto-update dossier zones; surfaces calibration deltas only (from lt1/lt2, never easy_guard). Quality gate: refuse to interpret any DFA output when latest_session.sufficient=false. Threshold (lt1/lt2) calibration additionally requires trailing confidence != null; when confidence is null, do NOT surface lt1/lt2 calibration deltas. easy_guard is NOT gated on confidence (it is excluded from it) - interpret easy_guard_estimate from its own reason / n_sessions / quality when present, but never as a calibration signal. See SECTION_11.md DFA a1 Protocol for full interpretation rules.",
                 "readiness_decision_note": "The 'readiness_decision' block contains a pre-computed go/modify/skip recommendation with priority level (P0=safety, P1=overload, P2=fatigue, P3=green), individual signal statuses, phase-adjusted thresholds, and structured modification guidance. Use this as the baseline for pre-workout recommendations. Override with explanation in the coach note if the AI's contextual judgment disagrees.",
                 "zone_preference": self.zone_preference if self.zone_preference else "default (power preferred, HR fallback)",
                 "wellness_field_scales": {
@@ -4784,58 +4809,14 @@ class IntervalsSync:
                     return None, 0
                 return round(sum(vals) / len(vals)), len(vals)
 
-            # HR estimates — pooled across all sessions (physiology signal, not environment-dependent)
-            lt1_hr, lt1_n_hr = _avg_crossing("lt1_crossing", "avg_hr")
-            lt2_hr, lt2_n_hr = _avg_crossing("lt2_crossing", "avg_hr")
-
-            # Watts estimates — split by environment for cycling, pooled for other sports
+            # Watts subsets for cycling (environment split); HR is always pooled.
             is_cycling = (family == "cycling")
             if is_cycling:
                 indoor = [a for a in window if self._is_indoor_cycling(a.get("type", ""))]
                 outdoor = [a for a in window if not self._is_indoor_cycling(a.get("type", ""))]
-                lt1_watts_out, lt1_n_w_out = _avg_crossing("lt1_crossing", "avg_watts", outdoor)
-                lt1_watts_in, lt1_n_w_in = _avg_crossing("lt1_crossing", "avg_watts", indoor)
-                lt2_watts_out, lt2_n_w_out = _avg_crossing("lt2_crossing", "avg_watts", outdoor)
-                lt2_watts_in, lt2_n_w_in = _avg_crossing("lt2_crossing", "avg_watts", indoor)
-                lt1_n_w = lt1_n_w_out + lt1_n_w_in
-                lt2_n_w = lt2_n_w_out + lt2_n_w_in
-            else:
-                lt1_watts, lt1_n_w = _avg_crossing("lt1_crossing", "avg_watts")
-                lt2_watts, lt2_n_w = _avg_crossing("lt2_crossing", "avg_watts")
-
-            # Observability: how many sessions in window had a QUALIFYING contiguous crossing
-            # (v3.113: reason=="ok", not raw secs_in_band). If confidence stays low/null with
-            # high n_sessions, these reveal "athlete rarely sustains this band" vs other causes.
-            # Diagnostic only — not used in confidence logic itself.
-            lt1_crossing_sessions = sum(
-                1 for a in window
-                if (a["dfa"].get("lt1_crossing") or {}).get("reason") == "ok"
-            )
-            lt2_crossing_sessions = sum(
-                1 for a in window
-                if (a["dfa"].get("lt2_crossing") or {}).get("reason") == "ok"
-            )
-
-            # Per-threshold session counts (v3.113). Each threshold's estimate is gated on its
-            # OWN count so one threshold's crossings can't emit the other's block hollow.
-            lt1_n = max(lt1_n_hr, lt1_n_w)
-            lt2_n = max(lt2_n_hr, lt2_n_w)
-
-            # Sport-level confidence: coarse, max-across-thresholds (backward-compatible; consumed
-            # by the agent + BLOCK_REPORT gate). Per-threshold estimate presence + lt*_reason are
-            # authoritative — see capability_metrics_note / SECTION_11 DFA a1 Protocol.
-            crossing_n = max(lt1_n, lt2_n)
-            if crossing_n >= 6:
-                confidence = "high"
-            elif crossing_n >= 4:
-                confidence = "moderate"
-            elif crossing_n >= self.DFA_MIN_CROSSING_SESSIONS_N:
-                confidence = "low"
-            else:
-                confidence = None  # not enough sessions for any threshold estimate
 
             def _threshold_reason(key, thr_n):
-                # 'ok' when the threshold has enough qualifying-crossing sessions; else explain why.
+                # 'ok' when the marker has enough qualifying-crossing sessions; else explain why.
                 if thr_n >= self.DFA_MIN_CROSSING_SESSIONS_N:
                     return "ok"
                 if thr_n >= 1:
@@ -4852,55 +4833,80 @@ class IntervalsSync:
                 severity = {"no_samples_in_band": 0, "insufficient_total_dwell": 1, "no_contiguous_dwell": 2}
                 return sorted(counts.items(), key=lambda kv: (-kv[1], severity.get(kv[0], 99)))[0][0]
 
-            lt1_reason = _threshold_reason("lt1_crossing", lt1_n)
-            lt2_reason = _threshold_reason("lt2_crossing", lt2_n)
+            # Per-marker estimate builder (v3.114): generalizes the v3.113 per-threshold
+            # gating/reason logic across all three markers (easy_guard 1.0, lt1 0.75, lt2 0.5).
+            # HR pooled; watts split by environment for cycling. Each estimate carries
+            # marker_dfa_a1 so the JSON is self-describing. Gated on its OWN qualifying count.
+            def _build_marker(key, marker_value):
+                hr, n_hr = _avg_crossing(key, "avg_hr")
+                if is_cycling:
+                    w_out, n_w_out = _avg_crossing(key, "avg_watts", outdoor)
+                    w_in, n_w_in = _avg_crossing(key, "avg_watts", indoor)
+                    n_w = n_w_out + n_w_in
+                else:
+                    watts, n_w = _avg_crossing(key, "avg_watts")
+                n_marker = max(n_hr, n_w)
+                crossing_sessions = sum(
+                    1 for a in window if (a["dfa"].get(key) or {}).get("reason") == "ok"
+                )
+                reason = _threshold_reason(key, n_marker)
+                if n_marker < self.DFA_MIN_CROSSING_SESSIONS_N:
+                    return None, reason, crossing_sessions, n_marker
+                if is_cycling:
+                    est = {
+                        "marker_dfa_a1": marker_value,
+                        "hr": hr,
+                        "watts_outdoor": w_out,
+                        "watts_indoor": w_in,
+                        "n_sessions": n_marker,
+                        "n_sessions_outdoor": n_w_out,
+                        "n_sessions_indoor": n_w_in,
+                    }
+                else:
+                    est = {
+                        "marker_dfa_a1": marker_value,
+                        "hr": hr,
+                        "watts": watts,
+                        "n_sessions": n_marker,
+                    }
+                return est, reason, crossing_sessions, n_marker
+
+            easy_guard_est, easy_guard_reason, easy_guard_crossing_sessions, easy_guard_n = \
+                _build_marker("easy_guard_crossing", self.DFA_EASY_GUARD)
+            lt1_est, lt1_reason, lt1_crossing_sessions, lt1_n = \
+                _build_marker("lt1_crossing", self.DFA_LT1)
+            lt2_est, lt2_reason, lt2_crossing_sessions, lt2_n = \
+                _build_marker("lt2_crossing", self.DFA_LT2)
+
+            # Sport-level confidence: coarse, max across THRESHOLD markers only (lt1, lt2).
+            # easy_guard is a compliance guard, deliberately EXCLUDED — it populates on easy
+            # rides and would inflate threshold-calibration confidence (v3.114). Consumed by the
+            # agent + BLOCK_REPORT gate; per-marker estimate presence + reason are authoritative.
+            crossing_n = max(lt1_n, lt2_n)
+            if crossing_n >= 6:
+                confidence = "high"
+            elif crossing_n >= 4:
+                confidence = "moderate"
+            elif crossing_n >= self.DFA_MIN_CROSSING_SESSIONS_N:
+                confidence = "low"
+            else:
+                confidence = None  # not enough sessions for any threshold estimate
 
             quality_avg = round(
                 sum(a["dfa"]["quality"]["valid_pct"] for a in window) / n, 1
             )
-
             validated = family in self.DFA_VALIDATED_SPORTS
-
-            # Build estimate blocks — each gated on its OWN per-threshold count (v3.113).
-            # cycling splits watts by environment; others keep pooled.
-            _gate1 = lt1_n >= self.DFA_MIN_CROSSING_SESSIONS_N
-            _gate2 = lt2_n >= self.DFA_MIN_CROSSING_SESSIONS_N
-            if is_cycling:
-                lt1_est = {
-                    "hr": lt1_hr,
-                    "watts_outdoor": lt1_watts_out,
-                    "watts_indoor": lt1_watts_in,
-                    "n_sessions": lt1_n,
-                    "n_sessions_outdoor": lt1_n_w_out,
-                    "n_sessions_indoor": lt1_n_w_in,
-                } if _gate1 else None
-                lt2_est = {
-                    "hr": lt2_hr,
-                    "watts_outdoor": lt2_watts_out,
-                    "watts_indoor": lt2_watts_in,
-                    "n_sessions": lt2_n,
-                    "n_sessions_outdoor": lt2_n_w_out,
-                    "n_sessions_indoor": lt2_n_w_in,
-                } if _gate2 else None
-            else:
-                lt1_est = {
-                    "hr": lt1_hr,
-                    "watts": lt1_watts,
-                    "n_sessions": lt1_n,
-                } if _gate1 else None
-                lt2_est = {
-                    "hr": lt2_hr,
-                    "watts": lt2_watts,
-                    "n_sessions": lt2_n,
-                } if _gate2 else None
 
             sport_block = {
                 "n_sessions": n,
                 "date_range": [window[-1].get("date"), window[0].get("date")],
                 "avg_dfa_a1": avg_dfa,
                 "drift_delta_mean": drift_mean,
+                "easy_guard_crossing_sessions": easy_guard_crossing_sessions,
                 "lt1_crossing_sessions": lt1_crossing_sessions,
                 "lt2_crossing_sessions": lt2_crossing_sessions,
+                "easy_guard_estimate": easy_guard_est,
+                "easy_guard_reason": easy_guard_reason,
                 "lt1_estimate": lt1_est,
                 "lt1_reason": lt1_reason,
                 "lt2_estimate": lt2_est,
@@ -4911,7 +4917,7 @@ class IntervalsSync:
             }
             if not validated:
                 sport_block["note"] = (
-                    f"DFA a1 threshold mapping (1.0/0.5) is cycling-validated. "
+                    f"DFA a1 threshold mapping (LT1 0.75 / LT2 0.5) is cycling-validated. "
                     f"{family} thresholds may differ — treat estimates as informational only."
                 )
             trailing_by_sport[family] = sport_block

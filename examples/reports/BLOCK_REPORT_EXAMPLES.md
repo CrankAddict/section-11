@@ -309,7 +309,7 @@ Next Block Plan:
 
 ---
 
-## Example 3: Aerobic Base Block with DFA a1 Calibration Surfacing
+## Example 3: Aerobic Base Block — DFA a1 Profile (easy-state guard + LT1 calibration delta)
 
 ```
 Block 4 Report (17 Mar – 27 Apr 2026)
@@ -364,21 +364,29 @@ Sustainability Ceilings:
   Model trust: CP/W′ primary ≤20min, Coggan reference ≥60min
   Block-over-block: 60min ceiling rose 6W, 90min rose 5W. Aerobic ceilings tracking up.
 
-DFA a1 Calibration:
-  Sessions in window: 7 sufficient (LT1 crossings: 6, LT2 crossings: 2)
-  Confidence: moderate
+DFA a1 Profile:
+  Sessions in window: 7 sufficient (easy_guard crossings: 7, LT1 crossings: 5, LT2 crossings: 1)
   Average DFA a1: 1.18 (drift mean: -0.08)
-  Empirical LT1: 145 bpm (from 6 sessions) / outdoor 220 W (from 4 sessions) / indoor 208 W (from 2 sessions)
-  Empirical LT2: not enough sessions in band — base block had little time near 0.5 (lt2_crossing_sessions: 2)
-  Dossier LT1 (cycling): 152 bpm / outdoor 232 W / indoor 222 W
-  Dossier LT2 (cycling): 168 bpm / outdoor 268 W / indoor 258 W
-  Delta: LT1 -4.6% HR / outdoor -5.2% W (from 4 sessions — moderate) / indoor insufficient depth (2 sessions — below confidence floor)
-  Coaching note: empirical LT1 trending below dossier values across the base block —
-  consistent with what aerobic base work should produce (lower HR/power at the same internal
-  intensity). Outdoor watts delta is at moderate confidence; indoor watts delta suppressed
-  (only 2 crossing sessions). This is a calibration observation, not an action. Recommend
-  formal LT1 retest or 60-min step test before the next threshold block to confirm and
-  update dossier zones if the gap holds.
+
+  Easy-state guard (α1 1.0) — descriptive / compliance only, NOT a calibration delta:
+    145 bpm (from 7 sessions) / outdoor 220 W (from 5 sessions) / indoor 208 W (from 2 sessions)
+    Top-of-easy ceiling for recovery/endurance compliance — the well-correlated easy state sits
+    below the aerobic threshold. Not compared to dossier zones; not a calibration or staleness signal.
+
+  Calibration deltas (Empirical LT1 α1 0.75 / LT2 α1 0.5):
+    Confidence: moderate (off LT1 crossings; easy_guard excluded from confidence)
+    Empirical LT1 (α1 0.75): 158 bpm (from 5 sessions) / outdoor 246 W (from 4 sessions) / indoor 232 W (from 1 session)
+    Empirical LT2 (α1 0.5): omitted — base block sustained little time near 0.5 (lt2_estimate null,
+      lt2_reason: insufficient_sessions, lt2_crossing_sessions: 1)
+    Dossier LT1 (cycling): 152 bpm / outdoor 230 W / indoor 220 W
+    Delta: LT1 outdoor +7.0% W (246 vs 230, from 4 sessions — moderate) / +3.9% HR
+      / indoor insufficient depth (1 session — below confidence floor)
+    Coaching note: the empirical LT1 here is the α1 0.75 estimate from the block's tempo/upper-endurance
+    sessions — NOT the α1 1.0 easy-state guard above, which is descriptive only. It is trending above the
+    dossier LT1, consistent with aerobic-base adaptation lifting the aerobic-threshold ceiling; the dossier
+    value may be under-reading current fitness. Outdoor watts delta is at moderate confidence; indoor
+    suppressed (1 crossing session). This is a calibration observation, not an action. Recommend a formal
+    LT1 retest or step test before the next build block to confirm and update dossier zones if the gap holds.
 
 Polarization (block average):
   Z1+Z2: 89%
@@ -453,15 +461,17 @@ Phase Progression Check:
 Interpretation:
 Strong base block. CTL rose 9.2 points at a sustainable 1.18/week ramp. Every aerobic
 quality metric moved in the right direction: durability 3.8% → 2.0%, EF 1.42 → 1.52, HRRc
-+4 bpm, wellness uniformly improving. The DFA a1 calibration section is the new addition
-this block — with moderate confidence on 7 cycling sessions, empirical LT1 came in at 145
-bpm against dossier 152 bpm. Outdoor watts (220W from 4 sessions) show a 5.2% gap vs
-dossier 232W — moderate confidence, worth surfacing. Indoor watts (208W from 2 sessions)
-fell below the per-environment confidence floor and were correctly suppressed. That outdoor
-gap is the kind of signal a base block should produce, and it argues for a formal LT1
-retest before the threshold block to confirm. LT2 crossings were too few (2) to estimate —
-base work doesn't spend much time near DFA a1 = 0.5, which is exactly what the
-lt2_crossing_sessions diagnostic is for. Block ends fresh (TSB +24.6) with the aerobic
++4 bpm, wellness uniformly improving. The DFA a1 Profile section is the new addition this block, and it now separates the
+α1 1.0 easy_guard from threshold calibration. The easy-state guard sits at 145 bpm /
+outdoor 220 W / indoor 208 W — a top-of-easy compliance ceiling, descriptive only, never
+compared to dossier zones. The genuine empirical LT1 at α1 0.75 came in higher, at 158 bpm
+/ outdoor 246 W, against dossier 152 bpm / 230 W — a +7.0% outdoor watts gap at moderate
+confidence (from 4 qualifying LT1 crossings). That direction — empirical threshold above a
+stale dossier — is what a productive base block should produce, and it argues for a formal
+LT1 retest before the threshold block to confirm, not an automatic zone update. Indoor LT1
+(232 W from 1 session) stayed below the per-environment confidence floor and was correctly
+suppressed. LT2 is omitted — only 1 qualifying crossing near DFA a1 = 0.5, which is exactly
+what the lt2_crossing_sessions diagnostic is for. Block ends fresh (TSB +24.6) with the aerobic
 base in good shape.
 
 Next Block Plan:
@@ -482,7 +492,7 @@ Next Block Plan:
 
 - **Example 1** shows a clean, successful block — all criteria met, clear progression
 - **Example 2** shows how the template handles real-world disruption — illness, regression, and the protocol's decision to NOT progress
-- **Example 3** shows the DFA a1 Calibration section in action — moderate confidence after 7 sufficient cycling sessions, an empirical-vs-dossier LT1 delta surfaced as a coaching observation (not an auto-update), with watts split by environment (outdoor at moderate confidence, indoor suppressed below per-environment confidence floor), and lt2_estimate appropriately omitted because base work doesn't dwell near DFA a1 = 0.5
+- **Example 3** shows the DFA a1 Profile section in action under three-marker semantics — the α1 1.0 `easy_guard` renders as a descriptive top-of-easy compliance line (independent of threshold confidence, never part of a delta), while a genuine α1 0.75 empirical LT1 (from the block's tempo/upper-endurance sessions) surfaces an empirical-vs-dossier calibration delta as a coaching observation (not an auto-update). Confidence is moderate off the LT1 crossings (easy_guard excluded); watts are split by environment (outdoor at moderate confidence, indoor suppressed below the per-environment floor); and lt2_estimate is appropriately omitted because base work doesn't dwell near DFA a1 = 0.5
 - **Polarization by Week** caught the grey zone creep in Example 2 that the block average partially masked
 - **Durability by Week** caught the aerobic efficiency regression in Example 2 before wellness metrics crashed — the aggregate trend is a leading indicator of fatigue
 - **Week-by-week CTL** in Volume Progression tells the trajectory story — Example 2's dip-and-partial-recovery is immediately visible

@@ -1,10 +1,18 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.44  
-**Last Updated:** 2026-07-04
+**Protocol Version:** 11.45  
+**Last Updated:** 2026-07-06
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.45 — Three-marker DFA a1 semantics (easy_guard / LT1 / LT2):**
+- DFA a1 crossing estimates are now three self-describing markers, each carrying `marker_dfa_a1`: **`easy_guard` (α1 1.0)**, **`lt1` (α1 0.75)**, **`lt2` (α1 0.5)**. `easy_guard` is a conservative easy-state guard (well-correlated dynamics, below the aerobic threshold) — NOT a threshold and never a calibration/staleness signal. `lt1` is the literature HRVT1 / aerobic threshold; `lt2` is HRVT2. Pairs with `sync.py` v3.114
+- **Semantic correction:** the LT1 crossing estimate moved from α1 1.0 to α1 **0.75**. The old 1.0 crossing now lives under `easy_guard_estimate`. Migration: any cached "LT1 ≈ N W/bpm" derived from the 1.0 crossing is today's `easy_guard`; the new `lt1_estimate` (0.75) reads higher and populates less often — it requires rides that sustain aerobic-threshold intensity, so it is frequently null on easy/deload riding (expected, not a data gap)
+- Threshold-mapping table and DFA a1 Evidence Base corrected to the literature: 0.75 = HRVT1/AeT/VT1, 0.5 = HRVT2/AnT/VT2 (Rogers et al. Front Physiol 2020/2021; Gronwald/Rogers/Hoos 2020 framework; Schaffarczyk 2023; Mateo-March 2023). The prior "Rowlands 2017 / α1 1.0 = aerobic threshold" citation was removed — no such DFA paper is locatable and no source places LT1 at α1 1.0
+- `easy_guard_estimate` / `lt1_estimate` / `lt2_estimate` gated independently (≥3 qualifying-crossing sessions each), with `easy_guard_reason` / `lt1_reason` / `lt2_reason` and `easy_guard_crossing_sessions` / `lt1_crossing_sessions` / `lt2_crossing_sessions`. Sport-level `confidence` is a coarse max across THRESHOLD markers only (lt1, lt2) — `easy_guard` is excluded so easy rides can't inflate threshold confidence
+- Per-session `dfa` block adds `easy_guard_crossing` alongside `lt1_crossing` / `lt2_crossing`; each crossing block carries `marker_dfa_a1`. TIZ four-band values are unchanged (1.0/0.75/0.5 boundaries preserved); band names are legacy this release and rename in a later commit
+- `BLOCK_REPORT_TEMPLATE.md` DFA section renamed "DFA a1 Calibration" → "DFA a1 Profile"; renders an easy-state guard line (descriptive/compliance-only) independent of threshold confidence, while LT1/LT2 calibration deltas stay gated on threshold confidence ≥ moderate. Documentation-only release — no `sync.py` change beyond the v3.114 core
 
 **v11.44 — DFA a1 crossing integrity (contiguous dwell + per-threshold gating):**
 - LT1/LT2 crossing estimates now require a **sustained contiguous crossing**, not scattered in-band time. Each `lt1_crossing` / `lt2_crossing` block gains `contiguous_secs`, `n_qualifying_segments`, and a `reason` (`ok` / `no_samples_in_band` / `insufficient_total_dwell` / `no_contiguous_dwell`); `avg_hr` / `avg_watts` populate only at `reason == "ok"`. Fixes smeared threshold estimates from warmup/cooldown/descent scatter on sub-threshold rides
@@ -141,7 +149,7 @@
 
 **v11.30 — DFA a1 Protocol:**
 - New section: DFA a1 Protocol — non-linear HRV index from AlphaHRV Connect IQ data field, ingested via Intervals.icu streams when direct Garmin sync is used (Strava strips developer fields)
-- Threshold mapping: DFA a1 ≈ 1.0 ↔ LT1/AeT, DFA a1 ≈ 0.5 ↔ LT2/VT2 (Rowlands 2017, Gronwald 2020, Mateo-March 2023). Cycling-validated only — non-cycling sports get rollups but flagged validated=False
+- Threshold mapping: DFA a1 ↔ physiological thresholds (Gronwald 2020, Mateo-March 2023). Cycling-validated only — non-cycling sports get rollups but flagged validated=False `[superseded by v11.45: α1=1.0 is easy_guard, not LT1; LT1/HRVT1 is α1=0.75; Rowlands citation removed as non-DFA/miscited]`
 - Per-session `dfa` block in `intervals.json`: artifact-filtered avg, 4-band TIZ split (below_lt1 / lt1_transition / transition_lt2 / above_lt2) with HR/power cross-references per band, drift (first vs last third) with `interpretable` flag tied to time-above-LT2, LT1/LT2 crossing-band estimates (avg HR/watts in narrow ±0.05 windows around each threshold), quality block with sufficient flag
 - `dfa_a1_profile` in `latest.json` capability block: latest_session + trailing_by_sport (per sport family, last 7 sessions, confidence low/moderate/high based on crossing-dwell N)
 - Quality gates: ≥20 min valid data per session, max 5% artifact rate per second, AlphaHRV sentinel zeros excluded
@@ -152,7 +160,7 @@
 - Trailing window bumped 5 → 7 sessions so `confidence: high` (≥6 contributing) is achievable
 - `latest_session` now carries a `validated` flag (cycling = true, others = false) so the AI cannot accidentally overread non-cycling sessions
 - Intervals.json retention bumped 8d → 14d to support DFA drift analysis across multiple sessions
-- Evidence base: 5 entries (Rowlands 2017, Gronwald 2020, Schaffarczyk 2023, Mateo-March 2023, Altini methodology)
+- Evidence base: Gronwald 2020, Schaffarczyk 2023, Mateo-March 2023, Altini methodology `[Rowlands removed — see v11.45]`
 - POST_WORKOUT_REPORT_TEMPLATE.md: new `DFA a1` line in per-session block (conditional on `dfa` block presence), Field Notes row with three-way branching rules (absent / sufficient=false / sufficient=true) and per-interval-vs-session-level distinction note, Assessment Labels row
 - POST_WORKOUT_REPORT_EXAMPLES.md: Example 6 (long Z2 ride with interpretable drift flag triggering fueling/heat cross-reference per protocol) and Example 7 (sweet spot session with consonant DFA reading, drift flagged structural)
 - BLOCK_REPORT_TEMPLATE.md: new `DFA a1 Calibration` section heavily gated (cycling only, validated=true, confidence ≥ moderate), Field Definitions row, Notes entry stressing protocol-anchored thresholds and no auto-zone-updates
@@ -493,9 +501,12 @@ Null fields are stripped from output — only populated fields appear per segmen
 | `tiz_transition_lt2` | object/null | 0.5 ≤ DFA a1 < 0.75 (sweet spot / threshold) |
 | `tiz_above_lt2` | object/null | DFA a1 < 0.5 (above LT2, supra-threshold) |
 | `drift` | object/null | First-third vs last-third comparison: `first_third_avg`, `last_third_avg`, `delta`, `interpretable` (false when >15% time above LT2 — structural noise) |
-| `lt1_crossing` | object | HR/watts during a **sustained contiguous crossing** of the 0.95–1.05 band (v3.113): `secs_in_band` (total, diagnostic), `contiguous_secs` (best qualifying segment), `n_qualifying_segments`, `reason` (`ok` / `no_samples_in_band` / `insufficient_total_dwell` / `no_contiguous_dwell`), `avg_hr`, `avg_watts` (populated only when `reason == "ok"` — i.e. a ≥60 s segment bridging ≤5 s gaps in ride-time). Scattered in-band time no longer yields an estimate |
-| `lt2_crossing` | object | Same shape for the 0.45–0.55 band |
+| `easy_guard_crossing` | object | HR/watts during a **sustained contiguous crossing** of the **0.95–1.05 band** (`marker_dfa_a1` 1.0 — conservative easy-state guard, NOT a threshold). Same shape as `lt1_crossing` (`marker_dfa_a1`, `secs_in_band`, `contiguous_secs`, `n_qualifying_segments`, `reason`, `avg_hr`, `avg_watts`; values populate only at `reason == "ok"`). Descriptive/compliance-only — never a calibration input |
+| `lt1_crossing` | object | HR/watts during a **sustained contiguous crossing** of the **0.70–0.80 band** (`marker_dfa_a1` 0.75 — HRVT1 / aerobic threshold; v3.114 moved this from the old 0.95–1.05 band, which is now `easy_guard_crossing`): `secs_in_band` (total, diagnostic), `contiguous_secs` (best qualifying segment), `n_qualifying_segments`, `reason` (`ok` / `no_samples_in_band` / `insufficient_total_dwell` / `no_contiguous_dwell`), `avg_hr`, `avg_watts` (populated only when `reason == "ok"` — i.e. a ≥60 s segment bridging ≤5 s gaps in ride-time). Scattered in-band time no longer yields an estimate |
+| `lt2_crossing` | object | Same shape for the 0.45–0.55 band (`marker_dfa_a1` 0.5 — HRVT2) |
 | `quality` | object | `valid_secs`, `total_secs`, `valid_pct`, `artifact_rate_avg`, `sufficient` |
+
+> **Note — `tiz_*` band names are legacy.** The four TIZ band *values* (boundaries at DFA a1 1.0 / 0.75 / 0.5) are unchanged and correct. The band *names* (`tiz_below_lt1`, `tiz_lt1_transition`, `tiz_transition_lt2`, `tiz_above_lt2`) and their zone labels predate the v11.45 three-marker correction and are slated for a rename in a later commit. Read the boundaries, not the names.
 
 **See DFA a1 Protocol section for interpretation rules.**
 
@@ -1884,13 +1895,16 @@ The published mapping from DFA a1 to physiological thresholds:
 
 | DFA a1 value | Physiological state |
 |---|---|
-| > 1.0 | Below LT1 / aerobic threshold (true Z2, sustainable hours) |
-| ≈ 1.0 | LT1 / VT1 / aerobic threshold |
-| 0.75 | Mid-transition (upper Z2 / tempo / Sweet Spot lower bound) |
-| ≈ 0.5 | LT2 / VT2 / anaerobic threshold |
+| ≳ 1.0 | Well-correlated easy-state dynamics — below the aerobic threshold (`easy_guard` zone: true Z2, sustainable hours) |
+| ≈ 1.0 | **`easy_guard`** — Section 11's conservative easy-state marker. Point where fully-correlated easy dynamics break down. **NOT a threshold** |
+| 0.75 | **LT1 / HRVT1 / AeT / VT1** — aerobic threshold (literature-validated) |
+| 0.5–0.75 | Heavy domain (between aerobic and anaerobic threshold — tempo / sweet spot) |
+| ≈ 0.5 | **LT2 / HRVT2 / AnT / VT2** — anaerobic threshold |
 | < 0.5 | Above LT2 (VO₂max work, supra-threshold) |
 
-**This mapping is cycling-validated** (Rowlands et al. 2017, Gronwald et al. 2020, Schaffarczyk et al. 2023, Mateo-March et al. 2023). Other sports get rollups computed but `validated: false` is flagged in `dfa_a1_profile.trailing_by_sport.{sport}` — running has higher movement-induced HRV noise and different autonomic dynamics, and per-sport calibration is not yet established. Treat non-cycling DFA estimates as informational only.
+Section 11 tracks **three markers**: `easy_guard` (α1 1.0), `lt1` (α1 0.75), `lt2` (α1 0.5). `easy_guard` at α1 1.0 is a deliberate conservative easy-state guard — it sits *below* the aerobic threshold and is used for easy/recovery compliance, not as an LT1 estimate. The literature aerobic threshold (LT1/HRVT1) is at α1 **0.75**, not 1.0.
+
+**The 0.75 / 0.5 threshold markers are cycling-validated** (Rogers et al. Front Physiol 2020/2021, Gronwald/Rogers/Hoos 2020, Schaffarczyk et al. 2023, Mateo-March et al. 2023); α1 1.0 is Section 11's operational `easy_guard`, not a literature threshold. Other sports get rollups computed but `validated: false` is flagged in `dfa_a1_profile.trailing_by_sport.{sport}` — running has higher movement-induced HRV noise and different autonomic dynamics, and per-sport calibration is not yet established. Treat non-cycling DFA estimates as informational only.
 
 **Important caveats:**
 - Athlete-specific calibration is needed before DFA-derived thresholds replace dossier values. The protocol surfaces deltas; the human decides.
@@ -1901,15 +1915,15 @@ The published mapping from DFA a1 to physiological thresholds:
 
 The AI does not compute DFA a1 statistics — `sync.py` does. The AI reads pre-computed values from two locations:
 
-**`intervals.json` per-activity `dfa` block** (see Interval Data Mirror section above for full schema). Contains: artifact-filtered avg + quartiles, 4-band TIZ split with HR/power cross-references per band, drift (first vs last third) with `interpretable` flag, LT1/LT2 crossing-band estimates (`avg_hr`/`avg_watts` in narrow ±0.05 windows around each threshold), quality block.
+**`intervals.json` per-activity `dfa` block** (see Interval Data Mirror section above for full schema). Contains: artifact-filtered avg + quartiles, 4-band TIZ split with HR/power cross-references per band, drift (first vs last third) with `interpretable` flag, three crossing-band estimates — `easy_guard_crossing` (α1 1.0), `lt1_crossing` (α1 0.75), `lt2_crossing` (α1 0.5) — each carrying `marker_dfa_a1` with `avg_hr`/`avg_watts` in a narrow ±0.05 window around its center, quality block.
 
 **`latest.json` `derived_metrics.capability.dfa_a1_profile`**:
 - `latest_session` — most recent activity with a sufficient dfa block: avg, tiz_split_pct, drift_delta, drift_interpretable, quality_pct, sufficient flag. If no recent session is sufficient, surfaces the most recent insufficient one with `sufficient: false` so the AI can see "AlphaHRV ran but data unusable".
-- `trailing_by_sport` — keyed by sport family. Per sport: n_sessions (up to 7 most recent sufficient), date_range, avg_dfa_a1, drift_delta_mean, lt1_crossing_sessions / lt2_crossing_sessions (diagnostic: how many of n_sessions had a **qualifying contiguous crossing** — `reason == "ok"` — in each band; reveals whether low confidence is "athlete rarely sustains a band" vs other causes), lt1_estimate, lt2_estimate, **lt1_reason / lt2_reason** (v3.113), quality_avg_pct, validated flag, confidence.
-  - **Per-threshold gating (v3.113):** `lt1_estimate` and `lt2_estimate` are gated **independently** — each is `null` when that threshold has fewer than 3 qualifying-crossing sessions. A one-threshold-carries-the-other hollow block can no longer occur. `lt1_reason` / `lt2_reason` explain the state per threshold: `ok` (estimate present) / `insufficient_sessions` (1–2 qualifying) / a sub-threshold blocker (`no_contiguous_dwell` / `insufficient_total_dwell` / `no_samples_in_band`, modal across the window). **A null estimate + reason means the athlete did not sustain that threshold — not missing sensor data.**
-  - **`confidence`** (`low` / `moderate` / `high` / null) is a **coarse, max-across-thresholds** signal (3 → low, 4–5 → moderate, ≥6 → high) kept for backward compatibility and section gating. It is NOT per-threshold — a `moderate` confidence can coexist with one threshold's estimate being null. Per-threshold `lt*_estimate` presence + `lt*_reason` are authoritative.
+- `trailing_by_sport` — keyed by sport family. Per sport: n_sessions (up to 7 most recent sufficient), date_range, avg_dfa_a1, drift_delta_mean, **three self-describing markers** (v3.114) — `easy_guard_estimate` (α1 1.0), `lt1_estimate` (α1 0.75), `lt2_estimate` (α1 0.5), each carrying `marker_dfa_a1` so the JSON states which α1 value it is anchored to; `easy_guard_crossing_sessions` / `lt1_crossing_sessions` / `lt2_crossing_sessions` (diagnostic: how many of n_sessions had a **qualifying contiguous crossing** — `reason == "ok"` — in each band; reveals whether low confidence is "athlete rarely sustains a band" vs other causes), `easy_guard_reason` / **`lt1_reason` / `lt2_reason`**, quality_avg_pct, validated flag, confidence. **`easy_guard` (α1 1.0) is a conservative easy-state guard, NOT a threshold — never compare it to dossier zones, never treat it as a calibration or staleness signal.** Only `lt1` (0.75) and `lt2` (0.5) inform threshold calibration.
+  - **Per-marker gating (v3.113/v3.114):** `easy_guard_estimate`, `lt1_estimate`, and `lt2_estimate` are each gated **independently** — each is `null` when *that* marker has fewer than 3 qualifying-crossing sessions. A one-marker-carries-the-other hollow block can no longer occur. `easy_guard_reason` / `lt1_reason` / `lt2_reason` explain the state per marker: `ok` (estimate present) / `insufficient_sessions` (1–2 qualifying) / a sub-threshold blocker (`no_contiguous_dwell` / `insufficient_total_dwell` / `no_samples_in_band`, modal across the window). **A null estimate + reason means the athlete did not sustain that marker — not missing sensor data.** `lt1` (0.75) populates only on rides that sustain aerobic-threshold intensity, so it is frequently null on easy/deload riding — expected, not a data gap. `easy_guard` populates on easy riding; `lt1`/`lt2` rarely.
+  - **`confidence`** (`low` / `moderate` / `high` / null) is a **coarse, max-across-THRESHOLD-markers** signal — computed over `lt1` and `lt2` only; **`easy_guard` is EXCLUDED** so easy rides can't inflate threshold confidence (3 → low, 4–5 → moderate, ≥6 → high). Kept for backward compatibility and section gating. It is NOT per-threshold — a `moderate` confidence can coexist with one threshold's estimate being null. Per-marker `*_estimate` presence + `*_reason` are authoritative. `easy_guard` is interpreted from its own `easy_guard_reason` / n_sessions, never from `confidence`.
 
-**Estimate shape — cycling:** `{hr, watts_outdoor, watts_indoor, n_sessions, n_sessions_outdoor, n_sessions_indoor}` — **or `null` for the whole block** when the threshold has fewer than 3 qualifying-crossing sessions (v3.113; check `lt*_reason`). Within a present block, HR is pooled across all sessions (physiology signal); watts are split by environment because the power-DFA relationship differs meaningfully between indoor (VirtualRide) and outdoor cycling — pooling would blend them unactionably. `watts_outdoor` / `watts_indoor` are null when that environment has no qualifying session.
+**Estimate shape — cycling** (applies to each of `easy_guard_estimate` / `lt1_estimate` / `lt2_estimate`)**:** `{marker_dfa_a1, hr, watts_outdoor, watts_indoor, n_sessions, n_sessions_outdoor, n_sessions_indoor}` — **or `null` for the whole block** when that marker has fewer than 3 qualifying-crossing sessions (check the matching `*_reason`). Within a present block, HR is pooled across all sessions (physiology signal); watts are split by environment because the power-DFA relationship differs meaningfully between indoor (VirtualRide) and outdoor cycling — pooling would blend them unactionably. `watts_outdoor` / `watts_indoor` are null when that environment has no qualifying session.
 
 **Estimate shape — non-cycling:** `{hr, watts, n_sessions}`. No indoor/outdoor distinction.
 
@@ -1978,12 +1992,13 @@ DFA a1 is a **Tier-2 interpretive signal**. The following constraints are absolu
 
 | Source | Finding | Application |
 |---|---|---|
-| Rowlands et al. (2017) Front Physiol — original framework | DFA a1 from short-term RR scaling correlates with ventilatory thresholds during incremental exercise; α1 ≈ 1.0 marks aerobic threshold, α1 ≈ 0.5 marks anaerobic threshold | Threshold mapping (1.0 ↔ LT1, 0.5 ↔ LT2) |
-| Gronwald et al. (2020) Front Physiol — incremental cycling validation | DFA a1 dynamics during graded cycling test confirm the threshold mapping; loss of correlation properties accelerates near VT2 | Cycling-specific validation; rationale for 0.5 cutoff |
+| Rogers, Giles, Draper, Hoos, Gronwald (2020/2021) Front Physiol, Art. 596567 — aerobic-threshold detection method | Reaching α1 = 0.75 on an incremental test is closely associated with crossing the first ventilatory threshold (VT1); 0.75 is the midpoint between well-correlated fractal behavior (~1.0, light exercise) and uncorrelated white noise (~0.5, high intensity) | Primary basis for **α1 0.75 = LT1 / HRVT1 / aerobic threshold** |
+| Gronwald, Rogers, Hoos (2020) Front Physiol — framework / biomarker perspective | Establishes DFA a1 as a "global" systemic-load biomarker for intensity-distribution monitoring; conceptual support for the 0.75 / 0.5 marker scheme (perspective piece, not an empirical cycling-validation trial) | Interpretive framework for the 0.75 / 0.5 markers |
 | Schaffarczyk et al. (2023) Sports Med Open — trained cyclists | DFA a1 thresholds in trained male cyclists correspond to gas-exchange thresholds with acceptable agreement; intra-individual variability noted | Confirms cycling validation; supports per-athlete calibration caveat |
 | Mateo-March et al. (2023) Eur J Appl Physiol — pro cyclists | DFA a1 vs lactate threshold comparison in elite cyclists; method viable for field use, lactate remains gold standard | Pro-level cycling validation; DFA as accessible field proxy, not lab replacement |
 | Rogers, Peake et al. (2025) Eur J Appl Physiol — Fatmaxxer validation | Open-source Android implementation (Fatmaxxer) shows close alignment with Kubios HRV reference for both DFA a1 responses and HRV thresholds across 23 cyclists in step-ramp-step protocol | Validates the open-source phone-app path documented in `examples/dfa_a1/NON_GARMIN.md`; relevant when phone fallback ever ships |
 | Altini methodology (HRV4Training / AlphaHRV documentation) | Implementation: rolling 2-min windows, RR artifact correction, 5% artifact rate as trustworthiness threshold; sentinel zeros during warmup/uncorrected windows | Quality gates: 5% artifact filter, sentinel-zero exclusion, minimum dwell time |
+| No located source (α1 1.0 as a threshold) | Across the DFA a1 literature the aerobic threshold is α1 **0.75**; α1 declines from ~1.0 at very light intensity, so 1.0 represents well-correlated easy-state behavior — **not** a threshold. No locatable paper places LT1 at α1 1.0 | Section 11 uses α1 1.0 as a deliberate conservative **`easy_guard`** (easy/recovery compliance), kept separate from the 0.75 LT1 estimate |
 
 
 

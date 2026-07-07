@@ -328,7 +328,7 @@ Decoupling: 6.85%
 EF: 1.32
 HRRc: 28 bpm
 Variability Index: 1.06 (variable)
-DFA a1: 0.94 avg, 38% Z2/52% transition/10% SS/0% above LT2 (drift -0.31, interpretable)
+DFA a1: 0.94 avg, 38% recovery/52% endurance/10% tempo/0% supra (drift -0.31, interpretable)
 Calories: 2480 kcal
 Carbs used: 412 g
 TSS: 218 (planned 210)
@@ -354,10 +354,12 @@ TSS: 528
 
 Interpretation:
 Duration and external load on plan, but multiple internal signals point to a costly session.
-DFA a1 averaged 0.94 with 52% of the ride in the transition band (0.75–1.0) rather than the
-expected >75% above 1.0 for a Z2 ride — internal intensity ran higher than prescribed
-external power. The drift of -0.31 across the session is interpretable (no time above LT2 to
-distort it) and crosses the threshold for fueling/heat/fatigue cross-reference per DFA a1
+DFA a1 averaged 0.94, split across `tiz_recovery` (38%) and `tiz_endurance` (52%). For a long
+endurance ride, time in the endurance band (0.75–1.0, working toward LT1) is acceptable in
+itself — it is not the flag. The flag is the drift: -0.31 across the session, and interpretable
+(no time above LT2 to distort it). DFA a1 falling toward LT1 as the ride wore on points to
+rising internal cost — fueling state, accumulated heat, or fatigue — rather than a steady
+aerobic effort, and crosses the threshold for fueling/heat/fatigue cross-reference per DFA a1
 Protocol §Session Interpretation. Decoupling 6.85% and HRRc dropping to 28 bpm reinforce the
 same picture. Carbs in (412g, ~98g/h) were on the lower bound for a 4h+ ride at this
 intensity — raise to 110–120g/h on the next long ride and see if DFA holds. Easy day tomorrow
@@ -392,7 +394,7 @@ Decoupling: 2.45%
 EF: 1.51
 HRRc: 32 bpm
 Variability Index: 1.10
-DFA a1: 0.78 avg, 18% Z2/35% transition/44% SS/3% above LT2 (drift +0.04, structural)
+DFA a1: 0.78 avg, 18% recovery/35% endurance/44% tempo/3% supra (drift +0.04, structural)
 Calories: 825 kcal
 Carbs used: 168 g
 TSS: 88 (planned 85)
@@ -418,7 +420,7 @@ TSS: 295
 
 Interpretation:
 Clean sweet spot session. Power on target across all four intervals, DFA a1 sat predominantly
-in the 0.5–0.75 transition_lt2 band (44%) where sweet spot work should land per the protocol
+in the 0.5–0.75 tempo band (44%) where sweet spot work should land per the protocol
 threshold mapping — internal intensity matched prescription. Drift was slightly positive but
 flagged structural (work above LT2 present), so no autonomic drift signal. Decoupling 2.45%
 and stable HRRc round out a session that did exactly what it was meant to do.

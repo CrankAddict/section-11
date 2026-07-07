@@ -4,6 +4,17 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.115 - DFA a1 TIZ band rename (Commit C of A/B/C): the four time-in-zone bands
+  are renamed to marker-consistent names - values/boundaries UNCHANGED, keys only.
+  Per-session dfa block: tiz_below_lt1 -> tiz_recovery (a1>1.0), tiz_lt1_transition ->
+  tiz_endurance (0.75-1.0), tiz_transition_lt2 -> tiz_tempo (0.5-0.75), tiz_above_lt2 ->
+  tiz_supra (a1<0.5). Compact summaries (latest_session.tiz_split_pct, recent_activities[].
+  dfa_summary.tiz_pct, dominant_band) carry the bare short keys: recovery / endurance /
+  tempo / supra. The old names encoded the pre-v3.114 error (LT1=1.0); the new names read
+  correctly against LT1=0.75 (the 0.75-1.0 band is endurance approaching LT1 from below (LT1 at the 0.75 edge), not a 'transition',
+  and the >1.0 band is recovery, not 'below LT1'). SECTION_11.md v11.46 + report display
+  labels harmonized (Z2/transition/SS/above-LT2 -> recovery/endurance/tempo/supra).
+
 Version 3.114 - DFA a1 three-marker semantics (Commit A of A/B/C): the LT1 crossing
   estimate moves from a1=1.0 to the literature HRVT1 value a1=0.75 (aerobic threshold),
   and a1=1.0 becomes its own named 'easy_guard' marker (a conservative easy-state guard,
@@ -286,7 +297,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.114"
+    VERSION = "3.115"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -1060,10 +1071,10 @@ class IntervalsSync:
             return {
                 "avg": None,
                 "p25": None, "p50": None, "p75": None,
-                "tiz_below_lt1": None,
-                "tiz_lt1_transition": None,
-                "tiz_transition_lt2": None,
-                "tiz_above_lt2": None,
+                "tiz_recovery": None,
+                "tiz_endurance": None,
+                "tiz_tempo": None,
+                "tiz_supra": None,
                 "drift": None,
                 "easy_guard_crossing": None,
                 "lt1_crossing": None,
@@ -1101,14 +1112,14 @@ class IntervalsSync:
                 "avg_watts": round(w_sum / w_n) if w_n else None,
             }
 
-        # TIZ band boundaries (v3.114): keep the four v3.113 boundaries (1.0 / 0.75 / 0.5)
-        # explicitly. DFA_LT1 moved to 0.75, so the 1.0 edge must reference DFA_EASY_GUARD to
-        # avoid collapsing the model. Band VALUES are unchanged from v3.113; band NAMES are
-        # renamed in Commit C.
-        tiz_below_lt1 = _band_stats(lambda d: d > self.DFA_EASY_GUARD)
-        tiz_lt1_transition = _band_stats(lambda d: self.DFA_LT1 <= d <= self.DFA_EASY_GUARD)
-        tiz_transition_lt2 = _band_stats(lambda d: self.DFA_LT2 <= d < self.DFA_LT1)
-        tiz_above_lt2 = _band_stats(lambda d: d < self.DFA_LT2)
+        # TIZ band boundaries: the four boundaries (1.0 / 0.75 / 0.5) are explicit. DFA_LT1 is
+        # 0.75, so the 1.0 edge references DFA_EASY_GUARD to avoid collapsing the model. Band
+        # VALUES are unchanged; band NAMES are marker-consistent (v3.115): recovery (a1>1.0),
+        # endurance (0.75-1.0, approaching LT1 from below; 0.75 is LT1), tempo (0.5-0.75), supra (a1<0.5).
+        tiz_recovery = _band_stats(lambda d: d > self.DFA_EASY_GUARD)
+        tiz_endurance = _band_stats(lambda d: self.DFA_LT1 <= d <= self.DFA_EASY_GUARD)
+        tiz_tempo = _band_stats(lambda d: self.DFA_LT2 <= d < self.DFA_LT1)
+        tiz_supra = _band_stats(lambda d: d < self.DFA_LT2)
 
         # Drift: first-third vs last-third of valid data
         third = valid_secs // 3
@@ -1120,8 +1131,8 @@ class IntervalsSync:
             drift_delta = round(last_avg - first_avg, 3)
             # Drift is interpretable only on steady-state work — if significant time
             # was spent above LT2, the session has hard intervals and drift is structural
-            above_lt2_pct = tiz_above_lt2["pct"] if tiz_above_lt2 else 0.0
-            interpretable = above_lt2_pct <= self.DFA_DRIFT_INTERPRETABLE_MAX_LT2_PCT
+            supra_pct = tiz_supra["pct"] if tiz_supra else 0.0
+            interpretable = supra_pct <= self.DFA_DRIFT_INTERPRETABLE_MAX_LT2_PCT
             drift = {
                 "first_third_avg": first_avg,
                 "last_third_avg": last_avg,
@@ -1200,10 +1211,10 @@ class IntervalsSync:
         return {
             "avg": avg,
             "p25": p25, "p50": p50, "p75": p75,
-            "tiz_below_lt1": tiz_below_lt1,
-            "tiz_lt1_transition": tiz_lt1_transition,
-            "tiz_transition_lt2": tiz_transition_lt2,
-            "tiz_above_lt2": tiz_above_lt2,
+            "tiz_recovery": tiz_recovery,
+            "tiz_endurance": tiz_endurance,
+            "tiz_tempo": tiz_tempo,
+            "tiz_supra": tiz_supra,
             "drift": drift,
             "easy_guard_crossing": easy_guard_crossing,
             "lt1_crossing": lt1_crossing,
@@ -1226,10 +1237,10 @@ class IntervalsSync:
             return b["pct"] if b else 0.0
 
         bands = {
-            "below_lt1": _band_pct("tiz_below_lt1"),
-            "lt1_transition": _band_pct("tiz_lt1_transition"),
-            "transition_lt2": _band_pct("tiz_transition_lt2"),
-            "above_lt2": _band_pct("tiz_above_lt2"),
+            "recovery": _band_pct("tiz_recovery"),
+            "endurance": _band_pct("tiz_endurance"),
+            "tempo": _band_pct("tiz_tempo"),
+            "supra": _band_pct("tiz_supra"),
         }
         # Dominant band: max pct, alphabetical tiebreak (deterministic, conservative).
         dominant_band = sorted(bands.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
@@ -4728,10 +4739,10 @@ class IntervalsSync:
             if quality.get("sufficient"):
                 tiz_split = {}
                 for key, label in [
-                    ("tiz_below_lt1", "below_lt1"),
-                    ("tiz_lt1_transition", "lt1_transition"),
-                    ("tiz_transition_lt2", "transition_lt2"),
-                    ("tiz_above_lt2", "above_lt2"),
+                    ("tiz_recovery", "recovery"),
+                    ("tiz_endurance", "endurance"),
+                    ("tiz_tempo", "tempo"),
+                    ("tiz_supra", "supra"),
                 ]:
                     band = block.get(key)
                     tiz_split[label] = band["pct"] if band else 0.0

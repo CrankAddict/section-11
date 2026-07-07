@@ -1,10 +1,16 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.45  
+**Protocol Version:** 11.46  
 **Last Updated:** 2026-07-06
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.46 — DFA a1 TIZ band rename (marker-consistent names):**
+- The four time-in-zone bands are renamed to match the corrected three-marker semantics — **values and boundaries are unchanged, keys only**. Per-session `dfa` block: `tiz_below_lt1` → **`tiz_recovery`** (α1 > 1.0), `tiz_lt1_transition` → **`tiz_endurance`** (0.75–1.0, between easy_guard and LT1), `tiz_transition_lt2` → **`tiz_tempo`** (0.5–0.75), `tiz_above_lt2` → **`tiz_supra`** (α1 < 0.5). Pairs with `sync.py` v3.115
+- Compact summaries (`latest_session.tiz_split_pct`, `recent_activities[].dfa_summary.tiz_pct`, and the `dominant_band` value) carry the **bare short keys**: `recovery` / `endurance` / `tempo` / `supra` (the `tiz_pct` wrapper already carries the "tiz" sense)
+- The old names encoded the pre-v11.45 error (LT1 = 1.0): "below_lt1" for the >1.0 band and "transition" for 0.75–1.0 both misread once LT1 is at 0.75. Under the correct mapping the >1.0 band is recovery and the 0.75–1.0 band is endurance approaching LT1 (LT1 at its 0.75 edge), not a transition
+- Report display labels harmonized to match (Z2 / transition / SS / above-LT2 → recovery / endurance / tempo / supra) in the POST_WORKOUT template + examples. Physiological threshold phrasing ("time above LT2" for drift interpretability) is retained as-is — it references the LT2 threshold, not the band key. Closes the three-marker cycle (Commits A/B/C)
 
 **v11.45 — Three-marker DFA a1 semantics (easy_guard / LT1 / LT2):**
 - DFA a1 crossing estimates are now three self-describing markers, each carrying `marker_dfa_a1`: **`easy_guard` (α1 1.0)**, **`lt1` (α1 0.75)**, **`lt2` (α1 0.5)**. `easy_guard` is a conservative easy-state guard (well-correlated dynamics, below the aerobic threshold) — NOT a threshold and never a calibration/staleness signal. `lt1` is the literature HRVT1 / aerobic threshold; `lt2` is HRVT2. Pairs with `sync.py` v3.114
@@ -496,17 +502,15 @@ Null fields are stripped from output — only populated fields appear per segmen
 |-------|------|-------|
 | `avg` | number/null | Artifact-filtered, zero-excluded mean DFA a1 |
 | `p25` / `p50` / `p75` | number/null | Quartiles of valid DFA a1 values |
-| `tiz_below_lt1` | object/null | DFA a1 > 1.0 (below LT1, true aerobic): `secs`, `pct`, `avg_hr`, `avg_watts` |
-| `tiz_lt1_transition` | object/null | 0.75 ≤ DFA a1 ≤ 1.0 (upper Z2 / tempo) |
-| `tiz_transition_lt2` | object/null | 0.5 ≤ DFA a1 < 0.75 (sweet spot / threshold) |
-| `tiz_above_lt2` | object/null | DFA a1 < 0.5 (above LT2, supra-threshold) |
+| `tiz_recovery` | object/null | DFA a1 > 1.0 (recovery / very-easy, below the aerobic threshold): `secs`, `pct`, `avg_hr`, `avg_watts` |
+| `tiz_endurance` | object/null | 0.75 ≤ DFA a1 ≤ 1.0 (endurance / approaching LT1; 0.75 is the LT1 marker) |
+| `tiz_tempo` | object/null | 0.5 ≤ DFA a1 < 0.75 (tempo / sweet spot, heavy domain) |
+| `tiz_supra` | object/null | DFA a1 < 0.5 (supra-threshold, above LT2) |
 | `drift` | object/null | First-third vs last-third comparison: `first_third_avg`, `last_third_avg`, `delta`, `interpretable` (false when >15% time above LT2 — structural noise) |
 | `easy_guard_crossing` | object | HR/watts during a **sustained contiguous crossing** of the **0.95–1.05 band** (`marker_dfa_a1` 1.0 — conservative easy-state guard, NOT a threshold). Same shape as `lt1_crossing` (`marker_dfa_a1`, `secs_in_band`, `contiguous_secs`, `n_qualifying_segments`, `reason`, `avg_hr`, `avg_watts`; values populate only at `reason == "ok"`). Descriptive/compliance-only — never a calibration input |
 | `lt1_crossing` | object | HR/watts during a **sustained contiguous crossing** of the **0.70–0.80 band** (`marker_dfa_a1` 0.75 — HRVT1 / aerobic threshold; v3.114 moved this from the old 0.95–1.05 band, which is now `easy_guard_crossing`): `secs_in_band` (total, diagnostic), `contiguous_secs` (best qualifying segment), `n_qualifying_segments`, `reason` (`ok` / `no_samples_in_band` / `insufficient_total_dwell` / `no_contiguous_dwell`), `avg_hr`, `avg_watts` (populated only when `reason == "ok"` — i.e. a ≥60 s segment bridging ≤5 s gaps in ride-time). Scattered in-band time no longer yields an estimate |
 | `lt2_crossing` | object | Same shape for the 0.45–0.55 band (`marker_dfa_a1` 0.5 — HRVT2) |
 | `quality` | object | `valid_secs`, `total_secs`, `valid_pct`, `artifact_rate_avg`, `sufficient` |
-
-> **Note — `tiz_*` band names are legacy.** The four TIZ band *values* (boundaries at DFA a1 1.0 / 0.75 / 0.5) are unchanged and correct. The band *names* (`tiz_below_lt1`, `tiz_lt1_transition`, `tiz_transition_lt2`, `tiz_above_lt2`) and their zone labels predate the v11.45 three-marker correction and are slated for a rename in a later commit. Read the boundaries, not the names.
 
 **See DFA a1 Protocol section for interpretation rules.**
 
@@ -1951,9 +1955,10 @@ When `latest.json.derived_metrics.capability.dfa_a1_profile.trailing_by_sport.cy
 For each completed session with a sufficient `dfa` block, the AI may apply the following interpretive rules:
 
 **Steady-state Z1/Z2 rides** (prescribed as endurance):
-- Should hold DFA a1 > 1.0 throughout
+- Recovery / very-easy rides should sit predominantly in `tiz_recovery` (DFA a1 > 1.0)
+- Endurance / Z2 rides legitimately mix `tiz_recovery` and `tiz_endurance` (0.75–1.0). Time in `tiz_endurance` means the ride is working toward LT1 (a1 0.75) and is **not** by itself a problem for an endurance prescription
 - If `drift.interpretable: true` AND `drift.delta < -0.2`, flag as physiological drift signal — likely fueling state, accumulated heat stress, dehydration, or fatigue. Cross-reference Environmental Conditions Protocol (heat tier) and the session's nutrition/hydration log if available.
-- If session held below 1.0 for substantial time despite Z2 prescription, the session was harder internally than external load suggests — note this in the post-workout report
+- Flag only where the DFA distribution contradicts the *prescription*: a ride prescribed **very easy** that spends substantial time in `tiz_endurance` or deeper (a1 approaching 0.75, or into `tiz_tempo`) ran harder internally than the external load suggests — note this in the post-workout report
 
 **Sweet Spot / threshold intervals**:
 - Work intervals should land in 0.5–0.75 range

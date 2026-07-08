@@ -4,6 +4,14 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.116 - P1 readiness-skip severity gate (Commit B of the alert-tier cycle): the P1
+  "persistent tier-1 alert" skip branch now requires severity in ("warning", "alarm"), not
+  tier alone. Inert on current data - the only tier-1 info alerts (race_taper, race_week)
+  carry persistence_days None and were already excluded by the >=2 check; guards against a
+  future tier-1 info alert with a real persistence value silently forcing a P1 skip. Behavior
+  change to the readiness ladder in principle, no output change today. SECTION_11.md v11.48
+  syncs the P1 doc line + alerts[].severity / alerts[].persistence_days schema rows.
+
 Version 3.115 - DFA a1 TIZ band rename (Commit C of A/B/C): the four time-in-zone bands
   are renamed to marker-consistent names - values/boundaries UNCHANGED, keys only.
   Per-session dfa block: tiz_below_lt1 -> tiz_recovery (a1>1.0), tiz_lt1_transition ->
@@ -297,7 +305,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.115"
+    VERSION = "3.116"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -6579,7 +6587,7 @@ class IntervalsSync:
             p1_skip_reasons.append(f"TSB {tsb} < -30 with HRV {hrv_delta_pct}% below baseline")
         
         # RI < 0.7 + persistent tier-1 alerts
-        tier1_persistent = [a for a in alerts if a.get("tier") == 1 and (a.get("persistence_days") or 0) >= 2]
+        tier1_persistent = [a for a in alerts if a.get("tier") == 1 and a.get("severity") in ("warning", "alarm") and (a.get("persistence_days") or 0) >= 2]
         if ri is not None and ri < 0.7 and tier1_persistent:
             persistent_metrics = [a["metric"] for a in tier1_persistent]
             p1_skip_reasons.append(f"RI {ri} < 0.7 with persistent alerts: {', '.join(persistent_metrics)}")

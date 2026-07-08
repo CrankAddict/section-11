@@ -1,10 +1,14 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.47  
+**Protocol Version:** 11.48  
 **Last Updated:** 2026-07-08
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.48 — P1 readiness-skip severity gate (Commit B):**
+- `sync.py` v3.116: the P1 persistent-alert skip branch now requires `severity in ("warning", "alarm")` in addition to `tier == 1` and `persistence_days ≥ 2`. Inert on current data (`race_taper` / `race_week` are the only tier-1 `info` alerts and carry `persistence_days: null`, already excluded); prevents a future tier-1 `info` alert with a real persistence value from silently forcing a P1 skip
+- P1 priority-ladder line and the `alerts[].severity` / `alerts[].persistence_days` schema rows updated to state the `warning`/`alarm` requirement (P1 alert branch also gated on RI < 0.7), closing the doc/code gap that Commit A deliberately left open
 
 **v11.47 — Alert tier semantics clarified (doc-only):**
 - Defines **Alert Tier 1** (`alerts[].tier == 1`) and **tier-1 alarm** (`tier: 1` + `severity: "alarm"`) in the Readiness Decision section, resolving the terminology collision raised in forum #133. Tier 1 spans primary readiness signals (`hrv` / `rhr` / `recovery_index`) **and** race-calendar alerts (`race_taper` / `race_week` / `race_week_tsb`); only a tier-1 alarm fires P0. Disambiguated from the unrelated Tier-1 verified data mirror and Tier 1 heat-stress band (no renames)
@@ -1087,7 +1091,7 @@ AI systems must only consider caloric-reduction or weight-optimization phases du
 | Priority | Condition | Result |
 |----------|-----------|--------|
 | **P0 — Safety stop** | RI < 0.6, OR any active **Alert Tier 1** item with `severity: "alarm"` | **Skip** (non-negotiable) |
-| **P1 — Acute overload** | ACWR ≥ 1.5, OR (TSB < -30 + HRV ↓>10%), OR (RI < 0.7 + any **Alert Tier 1** item with `persistence_days` ≥ 2) | **Skip** |
+| **P1 — Acute overload** | ACWR ≥ 1.5, OR (TSB < -30 + HRV ↓>10%), OR (RI < 0.7 + any **Alert Tier 1** item of `warning`/`alarm` severity with `persistence_days` ≥ 2) | **Skip** |
 | **P1 — Acute overload (modify)** | ACWR ≥ 1.3, OR (TSB < -25 + HRV ↓>10%) | **Modify** |
 | **P2 — Accumulated fatigue** | Red signal count ≥ 2, OR (1 red in tightened phase), OR amber count ≥ phase threshold | **Modify** (or Skip if 2+ red) |
 | **P3 — Green light** | None of the above | **Go** |
@@ -3130,9 +3134,9 @@ This subsection defines the formal self-validation and audit metadata structure 
 | `alerts`                       | array    | Top-level array of currently-active alert objects emitted by `sync.py`. `readiness_decision.alarm_refs` references these by `metric`. See *Alert Tiers* under Readiness Decision. |
 | `alerts[].metric`              | string   | Signal name, e.g. `hrv`, `rhr`, `recovery_index`, `acwr`, `monotony`, `strain`, `durability`, `tid_distribution`, `race_taper`, `race_week`, `race_week_tsb`. |
 | `alerts[].value`               | number/string | Raw metric value at evaluation — numeric for most signals; a classification label (string) for `tid_distribution` shift alerts. |
-| `alerts[].severity`            | string   | `"info"` / `"warning"` / `"alarm"`. Only `"alarm"` at `tier: 1` triggers a P0 skip. |
+| `alerts[].severity`            | string   | `"info"` / `"warning"` / `"alarm"`. At `tier: 1`: `"alarm"` triggers a P0 skip; `"warning"`/`"alarm"` with `persistence_days` ≥ 2 is eligible for the alert-based P1 branch when RI < 0.7; `"info"` never forces a skip. |
 | `alerts[].tier`                | number   | `1` / `2` / `3`. Tier 1 = primary readiness signals + race-calendar; Tier 2 = load (`acwr` / `monotony` / `strain`); Tier 3 = quality (`durability` / `tid_distribution`). Only Alert Tier 1 is eligible for the alert-based P0/P1 branches. See *Alert Tiers*. |
-| `alerts[].persistence_days`    | number/null | Consecutive days the signal has held. Integer when persistence is computed; `null` for single-day/immediate alerts (e.g. the RI < 0.6 alarm) and alerts without a persistence axis, including race-calendar alerts. P1 persistent branch requires `≥ 2`. |
+| `alerts[].persistence_days`    | number/null | Consecutive days the signal has held. Integer when persistence is computed; `null` for single-day/immediate alerts (e.g. the RI < 0.6 alarm) and alerts without a persistence axis, including race-calendar alerts. P1 persistent branch requires `≥ 2`, `warning`/`alarm` severity, and RI < 0.7. |
 | `alerts[].threshold`           | number/string | The threshold that was crossed — numeric for some branches (RI `0.6`/`0.7`, monotony/strain), a string for others (HRV/RHR/race/TID/durability). |
 | `alerts[].context`             | string   | Human-readable one-line explanation for the AI layer. |
 | `seasonal_context`             | string   | Current position in annual training cycle                                           |

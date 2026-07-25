@@ -31,7 +31,7 @@ Decoupling: [X.XX]%
 EF: [X.XX]
 HRRc: [XX] bpm [omit line if null]
 Variability Index: [X.XX] ([assessment])
-DFA a1: [X.XX] avg, [X]% recovery/[X]% endurance/[X]% tempo/[X]% supra ([drift summary if applicable]) [omit line entirely if no dfa block on this activity; one-line notice if dfa block present but sufficient=false]
+DFA a1: [X.XX] avg, [X]% easy/[X]% endurance/[X]% tempo/[X]% supra ([drift summary if applicable]) [omit line entirely if no dfa block on this activity; one-line notice if dfa block present but sufficient=false]
 Calories: [XXXX] kcal
 Carbs used: [XXX] g
 TSS: [XXX] (planned [XXX])
@@ -112,7 +112,7 @@ Round zone percentages to the nearest **whole number** (1%). The JSON data sourc
 | Grey Zone (Z3) | < 5% (base) | 5–10% | > 10% (base phase) |
 | Durability (7d mean) | < 3% (good) | 3–5% (moderate) | > 5% (declining) |
 | EF trend | improving/stable | — | declining |
-| DFA a1 (cycling, sufficient) | Internal response matches prescription (very-easy/recovery → predominantly `tiz_recovery`; endurance/Z2 → a `tiz_recovery`/`tiz_endurance` mix, `tiz_endurance` = working toward LT1; SS/tempo → `tiz_tempo`) | Mild mismatch — note in Interpretation | Significant mismatch OR interpretable negative drift on an easy/endurance ride |
+| DFA a1 (cycling, sufficient) | Internal response matches prescription (very-easy/recovery → predominantly `tiz_easy`; endurance/Z2 → a `tiz_easy`/`tiz_endurance` mix, `tiz_endurance` = working toward LT1; SS/tempo → `tiz_tempo`) | Mild mismatch — note in Interpretation | Significant mismatch OR interpretable negative drift on an easy/endurance ride |
 | TID drift | consistent | shifting | acute_depolarization |
 
 ## Formatting Rule

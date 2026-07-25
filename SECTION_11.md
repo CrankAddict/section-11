@@ -1,10 +1,18 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.49  
-**Last Updated:** 2026-07-08
+**Protocol Version:** 11.50  
+**Last Updated:** 2026-07-25
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.50 — DFA a1 easy-band rename + `dominant_band` tie rule (`sync.py` v3.118):**
+- The α1 > 1.0 band is renamed `tiz_recovery` → **`tiz_easy`**, and the bare short key `recovery` → **`easy`** in `dfa_summary.tiz_pct`, `latest_session.tiz_split_pct`, and the `dominant_band` **value**. **Band boundaries and values are unchanged.** Supersedes the v11.46 naming
+- Rationale: α1 > 1.0 is the well-correlated **easy state** above the `easy_guard` marker (α1 1.0) — it occurs on recovery rides *and* on endurance rides, and does not classify the session as recovery. The v11.46 name invited exactly that misreading in report narrative ("96.9% recovery band" for a ride that was not a recovery ride). The correct phrasing is *time above the easy guard*. `easy_guard` itself is unchanged: still a conservative easy-state guard at α1 1.0, still not a threshold, still never a calibration input
+- **This release is not keys-only.** `dominant_band` is now selected on **raw band `secs`** rather than the rounded one-decimal `pct` (rounding could manufacture a tie), and a genuine exact-second tie resolves by **descending intensity — `supra` → `tempo` → `endurance` → `easy`** — instead of alphabetically. Two consequences: band key names can no longer move the result (the old alphabetical rule could be changed by a rename, which is why it was replaced alongside one), and a true tie can never understate internal load. Verified inert on current live sessions — no session's `dominant_band` changes under the new rule
+- Report display labels updated in the POST_WORKOUT template + examples (`recovery` → `easy` in the DFA a1 line and the compliance table). Session-type language ("recovery ride", "very-easy ride") is retained where it describes the *prescription* — only the band name changed
+- **Hard migration, no deprecation window** — no dual `recovery`/`easy` emission. Any consumer keyed on `tiz_pct.recovery`, `tiz_split_pct.recovery`, `dfa.tiz_recovery`, or `dominant_band == "recovery"` must be updated. Replacing `sync.py` changes `script_hash`, which invalidates `intervals.json`, so the next run re-scans the full 14-day retention window and re-fetches streams — expect one heavier sync, then normal
+- Historical changelog entries (v11.46 / `sync.py` v3.115 for the original band rename; v11.32 / v3.101 for the original max-pct alphabetical `dominant_band` rule) are left intact as a record of what shipped
 
 **v11.49 — P1 `alarm_refs` per-branch attribution (`sync.py` v3.117, changelog-only):**
 - `sync.py` v3.117: the P1 skip return previously set `alarm_refs` to every `tier1_persistent` ref whenever any P1 reason fired. When P1 fired from ACWR (≥ 1.5) or the TSB+HRV composite while RI ≥ 0.7 (persistent branch inactive) and unrelated persistent tier-1 alerts happened to be active, `alarm_refs` named alerts that did not trigger the decision. Now built per firing branch: ACWR contributes the `acwr` alert ref (present only if the object exists — guaranteed at ≥ 1.5, above the ≥ 1.35 alert threshold), the TSB+HRV composite contributes none (no discrete alert object to resolve to), the RI < 0.7 persistent branch contributes its tier-1 metrics only when it fires
@@ -486,7 +494,7 @@ N≥1 emits a mean for all three capability fields. Use `*_qualifying` to calibr
 
 #### Interval Data Mirror (intervals.json)
 
-Per-interval segment data for recent structured sessions, plus optional DFA a1 session-level rollups when AlphaHRV recorded. Activities in `latest.json` are flagged with two independent booleans: `has_intervals: true` (structured segments present) and `has_dfa: true` (AlphaHRV recorded). Either flag indicates a corresponding entry in `intervals.json`. Sessions with `has_dfa: true` and sufficient data quality also carry a compact `dfa_summary` block on the activity in `latest.json` (avg, dominant_band, tiz_pct, valid_pct, sufficient, plus optional drift_delta/drift_interpretable and lt1/lt2 watts/hr when crossings dwelled long enough). `has_dfa: true` without a `dfa_summary` means AlphaHRV recorded but data quality was insufficient to interpret — do not cite DFA numbers.
+Per-interval segment data for recent structured sessions, plus optional DFA a1 session-level rollups when AlphaHRV recorded. Activities in `latest.json` are flagged with two independent booleans: `has_intervals: true` (structured segments present) and `has_dfa: true` (AlphaHRV recorded). Either flag indicates a corresponding entry in `intervals.json`. Sessions with `has_dfa: true` and sufficient data quality also carry a compact `dfa_summary` block on the activity in `latest.json` (avg, dominant_band, tiz_pct, valid_pct, sufficient, plus optional drift_delta/drift_interpretable and lt1/lt2 watts/hr when crossings dwelled long enough). `has_dfa: true` without a `dfa_summary` means AlphaHRV recorded but data quality was insufficient to interpret — do not cite DFA numbers. `dominant_band` is selected from raw band `secs`; an exact-second tie resolves by descending intensity: `supra` → `tempo` → `endurance` → `easy`.
 
 **Scope:** 14-day retention, incrementally cached (72h scan window on subsequent runs, 14-day backfill on first run). Activities in whitelisted sport families (cycling, run, ski, rowing, swim) are included when they have **either** detected interval structure (`intervals` array populated) **or** an AlphaHRV-recorded `dfa_a1` stream (`dfa` block present). Pure endurance rides without structured intervals appear in this file when they have a DFA block — that's by design, since steady-state rides are exactly where DFA a1 drift detection is most useful.
 
@@ -516,7 +524,7 @@ Null fields are stripped from output — only populated fields appear per segmen
 |-------|------|-------|
 | `avg` | number/null | Artifact-filtered, zero-excluded mean DFA a1 |
 | `p25` / `p50` / `p75` | number/null | Quartiles of valid DFA a1 values |
-| `tiz_recovery` | object/null | DFA a1 > 1.0 (recovery / very-easy, below the aerobic threshold): `secs`, `pct`, `avg_hr`, `avg_watts` |
+| `tiz_easy` | object/null | DFA a1 > 1.0 (easy state, above the `easy_guard` marker and below the aerobic threshold): `secs`, `pct`, `avg_hr`, `avg_watts`. Describes the *intensity band*, not the session — time here accrues on endurance rides as well as recovery rides |
 | `tiz_endurance` | object/null | 0.75 ≤ DFA a1 ≤ 1.0 (endurance / approaching LT1; 0.75 is the LT1 marker) |
 | `tiz_tempo` | object/null | 0.5 ≤ DFA a1 < 0.75 (tempo / sweet spot, heavy domain) |
 | `tiz_supra` | object/null | DFA a1 < 0.5 (supra-threshold, above LT2) |
@@ -1978,8 +1986,9 @@ When `latest.json.derived_metrics.capability.dfa_a1_profile.trailing_by_sport.cy
 For each completed session with a sufficient `dfa` block, the AI may apply the following interpretive rules:
 
 **Steady-state Z1/Z2 rides** (prescribed as endurance):
-- Recovery / very-easy rides should sit predominantly in `tiz_recovery` (DFA a1 > 1.0)
-- Endurance / Z2 rides legitimately mix `tiz_recovery` and `tiz_endurance` (0.75–1.0). Time in `tiz_endurance` means the ride is working toward LT1 (a1 0.75) and is **not** by itself a problem for an endurance prescription
+- Recovery / very-easy rides should sit predominantly in `tiz_easy` (DFA a1 > 1.0)
+- Endurance / Z2 rides legitimately mix `tiz_easy` and `tiz_endurance` (0.75–1.0). Time in `tiz_endurance` means the ride is working toward LT1 (a1 0.75) and is **not** by itself a problem for an endurance prescription
+- A high `tiz_easy` percentage means the session was spent **above the easy guard**; it does **not** make the session a recovery ride. Report it as time above the easy guard, never as a "recovery band" percentage
 - If `drift.interpretable: true` AND `drift.delta < -0.2`, flag as physiological drift signal — likely fueling state, accumulated heat stress, dehydration, or fatigue. Cross-reference Environmental Conditions Protocol (heat tier) and the session's nutrition/hydration log if available.
 - Flag only where the DFA distribution contradicts the *prescription*: a ride prescribed **very easy** that spends substantial time in `tiz_endurance` or deeper (a1 approaching 0.75, or into `tiz_tempo`) ran harder internally than the external load suggests — note this in the post-workout report
 

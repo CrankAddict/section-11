@@ -4,6 +4,20 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.118 - DFA a1 easy-band rename + dominant_band tie rule. The >1.0 band is renamed
+  tiz_recovery -> tiz_easy (short key recovery -> easy in dfa_summary.tiz_pct,
+  latest_session.tiz_split_pct and the dominant_band VALUE). a1 > 1.0 is the well-correlated
+  easy state above the easy_guard (1.0); it can occur on a recovery ride OR an endurance ride
+  and does not classify the session as recovery - the v3.115 name invited exactly that
+  misreading in reports. Band boundaries and values are UNCHANGED. Not a keys-only release:
+  dominant_band is now selected on raw band secs instead of the rounded one-decimal pct
+  (rounding could manufacture ties), and a genuine exact-second tie resolves by descending
+  intensity (supra > tempo > endurance > easy) instead of alphabetically, so band key names
+  can no longer influence the result and a true tie never understates internal load. No
+  dominant_band change on current live sessions. Hard migration - no dual recovery/easy keys;
+  the script_hash change invalidates intervals.json, so the next run re-scans the full 14d
+  retention window and re-fetches streams. SECTION_11.md v11.50.
+
 Version 3.117 - P1 readiness alarm_refs per-branch attribution: the P1 skip return listed
   every tier1_persistent ref whenever any P1 reason fired, so an ACWR- or TSB-triggered skip
   with RI >= 0.7 (persistent branch inactive) and unrelated persistent alerts present could
@@ -318,7 +332,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.117"
+    VERSION = "3.118"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -1092,7 +1106,7 @@ class IntervalsSync:
             return {
                 "avg": None,
                 "p25": None, "p50": None, "p75": None,
-                "tiz_recovery": None,
+                "tiz_easy": None,
                 "tiz_endurance": None,
                 "tiz_tempo": None,
                 "tiz_supra": None,
@@ -1135,9 +1149,10 @@ class IntervalsSync:
 
         # TIZ band boundaries: the four boundaries (1.0 / 0.75 / 0.5) are explicit. DFA_LT1 is
         # 0.75, so the 1.0 edge references DFA_EASY_GUARD to avoid collapsing the model. Band
-        # VALUES are unchanged; band NAMES are marker-consistent (v3.115): recovery (a1>1.0),
+        # VALUES are unchanged; band NAMES are marker-consistent (v3.115, easy renamed v3.118):
+        # easy (a1>1.0 — the easy state above the easy_guard, NOT a session classification),
         # endurance (0.75-1.0, approaching LT1 from below; 0.75 is LT1), tempo (0.5-0.75), supra (a1<0.5).
-        tiz_recovery = _band_stats(lambda d: d > self.DFA_EASY_GUARD)
+        tiz_easy = _band_stats(lambda d: d > self.DFA_EASY_GUARD)
         tiz_endurance = _band_stats(lambda d: self.DFA_LT1 <= d <= self.DFA_EASY_GUARD)
         tiz_tempo = _band_stats(lambda d: self.DFA_LT2 <= d < self.DFA_LT1)
         tiz_supra = _band_stats(lambda d: d < self.DFA_LT2)
@@ -1232,7 +1247,7 @@ class IntervalsSync:
         return {
             "avg": avg,
             "p25": p25, "p50": p50, "p75": p75,
-            "tiz_recovery": tiz_recovery,
+            "tiz_easy": tiz_easy,
             "tiz_endurance": tiz_endurance,
             "tiz_tempo": tiz_tempo,
             "tiz_supra": tiz_supra,
@@ -1247,24 +1262,42 @@ class IntervalsSync:
         """
         Build the compact dfa_summary attached to recent_activities[] in latest.json (v3.100).
 
-        Pure extractor — no computation. All numbers come from _compute_dfa_block output.
+        Near-pure extractor — every number comes from _compute_dfa_block output; the only
+        derived field is dominant_band, which selects a band (no arithmetic). v3.118: that
+        selection reads raw band secs, not the rounded pct, and breaks exact ties by
+        descending intensity rather than alphabetically — see the comment on the rule below.
         Caller must only invoke this when dfa_block["quality"]["sufficient"] is True;
         the sufficient=False branch of _compute_dfa_block returns all-None tiz_* fields
-        and is not summarisable. Per-band None (zero time in band) is handled here as 0.0.
+        and is not summarisable. Per-band None (zero time in band) is handled here as
+        0.0 pct / 0 secs.
         Optional fields are omitted (not nulled) when their underlying data is absent.
         """
         def _band_pct(name):
             b = dfa_block.get(name)
             return b["pct"] if b else 0.0
 
+        def _band_secs(name):
+            b = dfa_block.get(name)
+            return b["secs"] if b else 0
+
         bands = {
-            "recovery": _band_pct("tiz_recovery"),
+            "easy": _band_pct("tiz_easy"),
             "endurance": _band_pct("tiz_endurance"),
             "tempo": _band_pct("tiz_tempo"),
             "supra": _band_pct("tiz_supra"),
         }
-        # Dominant band: max pct, alphabetical tiebreak (deterministic, conservative).
-        dominant_band = sorted(bands.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+        # Dominant band (v3.118): most RAW SECONDS in band. Raw secs, not the one-decimal
+        # `pct`, so rounding can no longer manufacture a tie. A genuine exact-second tie
+        # resolves by descending intensity — the order of _DOMINANT_ORDER below — which is
+        # conservative: a true tie never understates internal load. Band key NAMES cannot
+        # influence the outcome; the pre-3.118 rule (max rounded pct, alphabetical key
+        # tiebreak) could be moved by a rename, which is why it was replaced alongside one.
+        _DOMINANT_ORDER = (("supra", "tiz_supra"), ("tempo", "tiz_tempo"),
+                           ("endurance", "tiz_endurance"), ("easy", "tiz_easy"))
+        dominant_band = sorted(
+            _DOMINANT_ORDER,
+            key=lambda b: (-_band_secs(b[1]), _DOMINANT_ORDER.index(b)),
+        )[0][0]
 
         summary = {
             "avg": dfa_block["avg"],
@@ -4760,7 +4793,7 @@ class IntervalsSync:
             if quality.get("sufficient"):
                 tiz_split = {}
                 for key, label in [
-                    ("tiz_recovery", "recovery"),
+                    ("tiz_easy", "easy"),
                     ("tiz_endurance", "endurance"),
                     ("tiz_tempo", "tempo"),
                     ("tiz_supra", "supra"),

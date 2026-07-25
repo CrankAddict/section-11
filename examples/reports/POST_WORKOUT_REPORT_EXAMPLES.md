@@ -328,7 +328,7 @@ Decoupling: 6.85%
 EF: 1.32
 HRRc: 28 bpm
 Variability Index: 1.06 (variable)
-DFA a1: 0.94 avg, 38% recovery/52% endurance/10% tempo/0% supra (drift -0.31, interpretable)
+DFA a1: 0.94 avg, 38% easy/52% endurance/10% tempo/0% supra (drift -0.31, interpretable)
 Calories: 2480 kcal
 Carbs used: 412 g
 TSS: 218 (planned 210)
@@ -354,7 +354,7 @@ TSS: 528
 
 Interpretation:
 Duration and external load on plan, but multiple internal signals point to a costly session.
-DFA a1 averaged 0.94, split across `tiz_recovery` (38%) and `tiz_endurance` (52%). For a long
+DFA a1 averaged 0.94, split across `tiz_easy` (38%) and `tiz_endurance` (52%). For a long
 endurance ride, time in the endurance band (0.75–1.0, working toward LT1) is acceptable in
 itself — it is not the flag. The flag is the drift: -0.31 across the session, and interpretable
 (no time above LT2 to distort it). DFA a1 falling toward LT1 as the ride wore on points to
@@ -394,7 +394,7 @@ Decoupling: 2.45%
 EF: 1.51
 HRRc: 32 bpm
 Variability Index: 1.10
-DFA a1: 0.78 avg, 18% recovery/35% endurance/44% tempo/3% supra (drift +0.04, structural)
+DFA a1: 0.78 avg, 18% easy/35% endurance/44% tempo/3% supra (drift +0.04, structural)
 Calories: 825 kcal
 Carbs used: 168 g
 TSS: 88 (planned 85)

@@ -4,6 +4,17 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.119 - Per-interval min_hr (issue #19). The interval mapping copied
+  average_heartrate and max_heartrate but dropped min_heartrate, which Intervals.icu already
+  returns on the same /activity/{id}?intervals=true payload - no new API call. Additive only;
+  None-stripping keeps the key absent when unavailable. min_hr is the lowest HR reported
+  upstream for the segment and does NOT establish recovery-zone compliance: a segment average
+  carries the delayed fall from the preceding work bout, and any extremum can be produced by a
+  stop, a dropout or an artifact rather than by physiology. SECTION_11.md v11.51 adds the strict
+  interpretation rule and suspends the four HR-recovery progression/regression use sites that
+  had no defined input. script_hash change invalidates intervals.json - next run re-scans the
+  full 14d retention window. SECTION_11.md v11.51.
+
 Version 3.118 - DFA a1 easy-band rename + dominant_band tie rule. The >1.0 band is renamed
   tiz_recovery -> tiz_easy (short key recovery -> easy in dfa_summary.tiz_pct,
   latest_session.tiz_split_pct and the dominant_band VALUE). a1 > 1.0 is the well-correlated
@@ -332,7 +343,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.118"
+    VERSION = "3.119"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -1440,6 +1451,7 @@ class IntervalsSync:
                     "max_power": iv.get("max_watts"),
                     "avg_hr": iv.get("average_heartrate"),
                     "max_hr": iv.get("max_heartrate"),
+                    "min_hr": iv.get("min_heartrate"),
                     "avg_cadence": iv.get("average_cadence"),
                     "zone": iv.get("zone"),
                     "w_bal": iv.get("w_bal"),

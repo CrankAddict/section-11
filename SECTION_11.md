@@ -1,10 +1,17 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.50  
-**Last Updated:** 2026-07-25
+**Protocol Version:** 11.51  
+**Last Updated:** 2026-08-01
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.51 — Per-interval `min_hr` + recovery-HR interpretation rule (`sync.py` v3.119):**
+- New `min_hr` on each interval segment in `intervals.json`, mapped from the `min_heartrate` field Intervals.icu already returns on the interval payload. Additive only — no consumer breaks, no new API call. Closes issue #19
+- **The fix for the reported false alarm is the interpretation rule, not the field.** New rule: recovery-zone compliance may never be inferred from any single segment statistic. `avg_hr` across a short recovery carries the delayed fall from the preceding work bout; `min_hr` and `max_hr` are extrema that a stop, a signal dropout or a single artifact can produce just as readily as physiology. `min_hr` is descriptive evidence only — "reached" or "sustained" requires a rolling or time-in-zone metric, which is not yet emitted
+- **Four HR-recovery use sites suspended**, not deleted: the VO₂max "HR rise between reps < 10 bpm" and Sweet Spot "< 10 bpm drift between intervals" progression gates, and both the trigger and the response arm of the Regression Rule's "intra-session HR recovery worsens by > 15 bpm". No field in any emitted JSON defines these quantities, so none was ever computable; adding `min_hr` without suspending them would have invited an AI to compute them from a dropout-vulnerable extremum. Deterministic progression is preserved through power-target / full-set compliance; regression is preserved through the RPE arm. Each site is retained in the document, marked suspended, and restores when a sustained recovery metric ships
+- `SKILL.md` bumped 11.49 → 11.51, closing a missed coupled bump at v11.50
+- Requires `sync.py` v3.119. Replacing `sync.py` changes `script_hash`, which invalidates `intervals.json` — expect one heavier re-scan of the full 14-day window, then normal
 
 **v11.50 — DFA a1 easy-band rename + `dominant_band` tie rule (`sync.py` v3.118):**
 - The α1 > 1.0 band is renamed `tiz_recovery` → **`tiz_easy`**, and the bare short key `recovery` → **`easy`** in `dfa_summary.tiz_pct`, `latest_session.tiz_split_pct`, and the `dominant_band` **value**. **Band boundaries and values are unchanged.** Supersedes the v11.46 naming
@@ -509,6 +516,7 @@ Per-interval segment data for recent structured sessions, plus optional DFA a1 s
 | `max_power` | number/null | Peak power (watts) |
 | `avg_hr` | number/null | Average heart rate |
 | `max_hr` | number/null | Peak heart rate |
+| `min_hr` | number/null | Lowest heart rate reported upstream for this segment. Not a compliance signal — see the recovery-HR rule below |
 | `avg_cadence` | number/null | Average cadence |
 | `zone` | number/null | Power zone for this segment |
 | `w_bal` | number/null | W' balance at end of segment |
@@ -517,6 +525,8 @@ Per-interval segment data for recent structured sessions, plus optional DFA a1 s
 | `avg_dfa_a1` | number/null | Per-interval DFA a1 average (when AlphaHRV recorded) |
 
 Null fields are stripped from output — only populated fields appear per segment.
+
+**Recovery-HR interpretation rule (v11.51):** Never conclude that a recovery target zone was or was not reached from any single segment statistic. `avg_hr` across a short recovery carries the delayed fall from the preceding work bout and can read high even when the target was reached. `min_hr` is the lowest heart rate reported upstream for the segment — it carries no information about dwell, and a stop, a signal dropout or a single artifact produces the same value as genuine recovery; `max_hr` is subject to the same class of error. A claim that a zone was *reached* or *sustained* requires a rolling or time-in-zone metric, which `intervals.json` does not currently emit. When asked about recovery compliance, report the observed values, state that the data cannot settle the question, and do not issue a verdict.
 
 **Optional `dfa` block (per activity):** Present only when AlphaHRV Connect IQ data field recorded a `dfa_a1` stream and the activity reached Intervals.icu via direct Garmin sync. Absence of the block means no AlphaHRV recording. Block-present-with-`quality.sufficient: false` means AlphaHRV ran but data was unusable (too short, too noisy, sentinel-only).
 
@@ -1282,12 +1292,12 @@ Apply One at a Time — Some phases may run concurrently with readiness validati
 
 **VO₂max Sessions:**
 - Prioritize power progression, not duration
-- Increase target power by +2–3% (≤ +5 W) once full set compliance maintained with consistent recovery (HR rise between reps < 10 bpm)
+- Increase target power by +2–3% (≤ +5 W) once full set compliance maintained. **The "HR rise between reps < 10 bpm" criterion is suspended (v11.51)** — no emitted field defines it; do not compute it from `avg_hr`, `max_hr` or `min_hr`. Progress on power-target / full-set compliance alone until a sustained recovery metric ships
 - Extend total sets only when power targets sustainable and RI ≥ 0.85 for ≥ 3 consecutive workouts
 - Cap total weekly VO₂max time at ≤ 45 min
 
 **Sweet Spot Sessions:**
-- Progress by increasing target power +2–3% after two consecutive weeks of stable HR recovery (< 10 bpm drift between intervals)
+- Progress by increasing target power +2–3% after two consecutive weeks of full session compliance. **The "< 10 bpm drift between intervals" criterion is suspended (v11.51)** — see the recovery-HR interpretation rule under Interval Data Mirror
 - Maintain total session time unless HR drift or RPE indicates clear under-load
 
 #### *3 Metabolic & Environmental Progression (Optional Advanced Phase)
@@ -1313,13 +1323,13 @@ This rule applies exclusively to structured interval sessions (Sweet Spot, Thres
 It governs acute, session-level performance safety, ensuring localized overreach is corrected before systemic fatigue develops.
 
 **Triggers:**
-- Intra-session HR recovery worsens by >15 bpm between intervals
+- ~~Intra-session HR recovery worsens by >15 bpm between intervals~~ — **suspended (v11.51)**: no emitted field defines intra-session HR recovery, and it must not be substituted from `avg_hr`, `max_hr` or `min_hr`. Until a sustained recovery metric ships, this rule fires on the RPE trigger alone
 - RPE rises ≥2 points at constant power
 
 **Response:**
 - Classify as acute overreach.  
 - For minor deviations (isolated fatigue signals or transient HR drift), insert **1–2 days of Z1-only training** to restore autonomic stability.  
-- If fatigue persists after 2 days (HR recovery >15 bpm or RPE +2), revert next interval session to prior week’s load or reduce volume 30–40% for 3–4 days.
+- If fatigue persists after 2 days (RPE +2; the HR-recovery arm is suspended per v11.51), revert next interval session to prior week’s load or reduce volume 30–40% for 3–4 days.
 - Maintain normal Z2 endurance unless global readiness metrics also indicate systemic fatigue (RI < 0.7 for 3+ days, HRV ↓ > 20%)
 
 ---

@@ -505,7 +505,7 @@ The script maintains `ftp_history.json` to track indoor and outdoor FTP changes 
 
 ### Interval-Level Data
 
-The script generates `intervals.json` with per-interval segment data (power, HR, cadence, zone, decoupling, W'bal) for recent structured sessions, plus per-session DFA a1 rollups when AlphaHRV recorded. Activities in `latest.json` carry two independent flags: `has_intervals: true` (structured segments) and `has_dfa: true` (AlphaHRV session). Either flag indicates an entry in `intervals.json`. Incrementally cached with a 72h scan window and 14-day retention. Only activities in whitelisted sport families (cycling, run, ski, rowing, swim) with either detected interval structure or AlphaHRV data are included.
+The script generates `intervals.json` with per-interval segment data (power, HR incl. min, cadence, zone, timing, W'bal start/end) for recent structured sessions, plus per-session DFA a1 rollups when AlphaHRV recorded. Activities in `latest.json` carry two independent flags: `has_intervals: true` (structured segments) and `has_dfa: true` (AlphaHRV session). Either flag indicates an entry in `intervals.json`. Incrementally cached with a 72h scan window and 14-day retention. Only activities in whitelisted sport families (cycling, run, ski, rowing, swim) with either detected interval structure or AlphaHRV data are included. Note that Intervals.icu emits a whole-session `RECOVERY` placeholder on many unstructured activities, which counts as "detected structure" for inclusion but sets neither flag — follow `has_intervals` / `has_dfa`, not the presence of an entry.
 
 ### Route & Terrain Data
 

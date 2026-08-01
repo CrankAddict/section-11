@@ -112,11 +112,13 @@ history.json
 
 intervals.json (on-demand — load when analyzing activities with has_intervals: true or has_dfa: true)
 ├── generated_at         → Timestamp
+├── schema_version       → intervals.json contract version (integer)
 ├── version              → sync.py version
 └── activities[]         → Per-activity interval segments
     ├── activity_id      → Matches id in latest.json recent_activities
     ├── interval_summary → Group summary (e.g., "4x 9m56s 259w")
-    └── intervals[]      → WORK + RECOVERY segments with power, HR, cadence, zone, decoupling
+    ├── zone_basis       → What `zone` refers to: power | hr | pace (omitted if unresolved)
+    └── intervals[]      → WORK + RECOVERY segments with power, HR, cadence, zone, timing
 
 routes.json (on-demand — load when planned events have has_terrain: true)
 ├── generated_at         → Timestamp

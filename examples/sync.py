@@ -4,6 +4,33 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.120 - intervals.json schema correctness (B1). HARD MIGRATION: per-interval
+  decoupling and avg_dfa_a1 are REMOVED, for two different reasons. decoupling compares
+  the power-HR relationship between the first and second halves of a segment; on a short
+  or non-steady segment it is not an interpretable cardiac-drift measure, mainly
+  reflecting effort shape and HR lag. avg_dfa_a1 fails differently: each a1 value
+  reflects a rolling window of preceding beats, so a short interval's average is
+  dominated by carry-in from whatever preceded it. The session-level artifact-filtered
+  dfa block is unaffected and remains the only DFA source. w_bal is REPLACED by
+  w_bal_start / w_bal_end: the old key never existed upstream (the real fields are
+  wbal_start / wbal_end), so the documented w_bal was always null and always stripped -
+  this is a mapping fix, not a rename. New additive fields: moving_secs (moving_time)
+  alongside the existing elapsed duration_secs, and start_secs / end_secs (start_time /
+  end_time) for segment position within the activity. NOTE: those are activity elapsed
+  seconds, NOT stream indices - any future stream slicing must use start_index /
+  end_index, which are a different coordinate system when pauses exist. New
+  activity-level zone_basis ("power" | "hr" | "pace") resolved from
+  zone_min_watts / zone_max_watts on the segments and the documented activity zone-time
+  arrays (icu_hr_zone_times, pace_zone_times, gap_zone_times); GAP counts as pace. The
+  field is OMITTED when no segment carries zone, when HR and pace sources coexist
+  (ambiguous), or when neither exists (unavailable) - omission is never a claim about
+  the basis. New schema_version (integer, 1) on intervals.json only, independent of the
+  producer VERSION: it increments for consumer-incompatible contract changes (rename,
+  removal, type, meaning, requiredness), not for additive optional fields.
+  script_hash change invalidates intervals.json - next run re-scans the full 14d
+  retention window. No classifier or placeholder normalization in this release.
+  SECTION_11.md v11.52.
+
 Version 3.119 - Per-interval min_hr (issue #19). The interval mapping copied
   average_heartrate and max_heartrate but dropped min_heartrate, which Intervals.icu already
   returns on the same /activity/{id}?intervals=true payload - no new API call. Additive only;
@@ -343,7 +370,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.119"
+    VERSION = "3.120"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -1447,6 +1474,9 @@ class IntervalsSync:
                     "type": iv.get("type"),
                     "label": iv.get("group_id"),
                     "duration_secs": iv.get("elapsed_time"),
+                    "moving_secs": iv.get("moving_time"),
+                    "start_secs": iv.get("start_time"),
+                    "end_secs": iv.get("end_time"),
                     "avg_power": iv.get("average_watts"),
                     "max_power": iv.get("max_watts"),
                     "avg_hr": iv.get("average_heartrate"),
@@ -1454,13 +1484,9 @@ class IntervalsSync:
                     "min_hr": iv.get("min_heartrate"),
                     "avg_cadence": iv.get("average_cadence"),
                     "zone": iv.get("zone"),
-                    "w_bal": iv.get("w_bal"),
+                    "w_bal_start": iv.get("wbal_start"),
+                    "w_bal_end": iv.get("wbal_end"),
                     "training_load": iv.get("training_load"),
-                    "decoupling": iv.get("decoupling"),
-                    # Per-interval avg_dfa_a1 is the Intervals.icu-computed value (UNFILTERED).
-                    # The session-level dfa.avg below IS artifact-filtered. Don't try to
-                    # reconcile the two — they use different denominators by design.
-                    "avg_dfa_a1": iv.get("average_dfa_a1"),
                 }
                 # Strip None values to keep output lean
                 segment = {k: v for k, v in segment.items() if v is not None}
@@ -1479,6 +1505,29 @@ class IntervalsSync:
                         print(f"    ⚠️  DFA a1 computation failed for {act_id}: {e}")
                     dfa_block = None
 
+            # Zone basis (v3.120): `zone` on an interval segment is power-based when
+            # Intervals.icu returns watt bounds alongside it, HR-based or pace-based
+            # otherwise. Resolved from the documented activity-level zone-time arrays.
+            # GAP is a pace basis. Omitted when no segment carries `zone` at all, or
+            # when HR and pace/GAP sources coexist (ambiguous) or neither exists
+            # (unavailable) — omission is never a claim about the basis.
+            has_zone = any(iv.get("zone") is not None for iv in raw_intervals)
+            has_power_bounds = any(
+                iv.get("zone_min_watts") is not None or iv.get("zone_max_watts") is not None
+                for iv in raw_intervals
+            )
+            has_hr_zones = bool(act.get("icu_hr_zone_times"))
+            has_pace_zones = bool(act.get("pace_zone_times")) or bool(act.get("gap_zone_times"))
+
+            zone_basis = None
+            if has_zone:
+                if has_power_bounds:
+                    zone_basis = "power"
+                elif has_hr_zones and not has_pace_zones:
+                    zone_basis = "hr"
+                elif has_pace_zones and not has_hr_zones:
+                    zone_basis = "pace"
+
             # Emit entry if EITHER segments OR dfa block exists.
             # Pure endurance rides with AlphaHRV: no segments, has dfa.
             # Structured intervals without AlphaHRV: has segments, no dfa.
@@ -1493,6 +1542,8 @@ class IntervalsSync:
                     "interval_summary": act.get("interval_summary"),
                     "intervals": segments
                 }
+                if zone_basis is not None:
+                    entry["zone_basis"] = zone_basis
                 if dfa_block is not None:
                     entry["dfa"] = dfa_block
                 new_entries.append(entry)
@@ -1519,6 +1570,7 @@ class IntervalsSync:
         # Build intervals.json
         self._intervals_data = {
             "generated_at": now.isoformat(),
+            "schema_version": 1,
             "version": self.VERSION,
             "script_hash": self.script_hash,
             "scan_hours": self.INTERVAL_SCAN_HOURS,

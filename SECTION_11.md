@@ -1,10 +1,19 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.51  
+**Protocol Version:** 11.52  
 **Last Updated:** 2026-08-01
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.52 — `intervals.json` schema correctness, part 1 (`sync.py` v3.120):**
+- **HARD MIGRATION — two per-interval fields removed, for two different reasons.** `decoupling` compares the power–HR relationship between the first and second halves of a segment; on a short or non-steady segment it is not an interpretable cardiac-drift measure, and mainly reflects effort shape and HR lag. `avg_dfa_a1` fails differently: each α1 value reflects a rolling window of preceding beats, so a short interval's average is dominated by carry-in from whatever preceded it. No deprecation window. Any consumer keyed on `intervals[].decoupling` or `intervals[].avg_dfa_a1` must be updated. Activity-level decoupling (durability, `capability`) and the session-level artifact-filtered `dfa` block are **unaffected** — the `dfa` block remains the only DFA a1 source, as the POST_WORKOUT template already required
+- **`w_bal` replaced by `w_bal_start` / `w_bal_end`.** The documented `w_bal` key never existed upstream — Intervals.icu returns `wbal_start` and `wbal_end` — so the field was always null and always stripped. This is a mapping fix, not a rename: the old key emitted nothing, and there is no delta field (derive it)
+- **New additive fields:** `moving_secs` alongside the existing elapsed `duration_secs` (a gap between them is non-moving time; where it is large, an average power is diluted and an HR extremum is unreliable), and `start_secs` / `end_secs` giving segment position within the activity. **`start_secs` / `end_secs` are activity elapsed seconds, not stream indices** — the two coordinate systems diverge when pauses exist, and any future stream slicing must use the index pair
+- **New activity-level `zone_basis`** — `"power"`, `"hr"` or `"pace"` — resolving what the per-segment `zone` number actually refers to. Power is established by watt bounds on the segments themselves; HR and pace are resolved from the activity zone-time arrays, with GAP counted as a pace basis. The field is **omitted** when no segment carries `zone`, when HR and pace sources coexist (ambiguous), or when neither exists (unavailable). Omission is never a claim about the basis. `zone` itself is **not** renamed
+- **New `schema_version`** (integer, `1`) on `intervals.json` only, independent of the producer `version`. It increments for consumer-incompatible contract changes — rename, removal, type, meaning, requiredness — and not for additive optional fields. The root `version` remains the sync-script version
+- Not in this release: interval structure classification and placeholder normalization. Whole-session `RECOVERY` placeholders are still emitted and still mislabel unstructured rides; that work is gated on evidence that repeated efforts reliably share a `group_id`
+- Requires `sync.py` v3.120. Replacing `sync.py` changes `script_hash`, which invalidates `intervals.json` — expect one heavier re-scan of the full 14-day window, then normal
 
 **v11.51 — Per-interval `min_hr` + recovery-HR interpretation rule (`sync.py` v3.119):**
 - New `min_hr` on each interval segment in `intervals.json`, mapped from the `min_heartrate` field Intervals.icu already returns on the interval payload. Additive only — no consumer breaks, no new API call. Closes issue #19
@@ -505,6 +514,8 @@ Per-interval segment data for recent structured sessions, plus optional DFA a1 s
 
 **Scope:** 14-day retention, incrementally cached (72h scan window on subsequent runs, 14-day backfill on first run). Activities in whitelisted sport families (cycling, run, ski, rowing, swim) are included when they have **either** detected interval structure (`intervals` array populated) **or** an AlphaHRV-recorded `dfa_a1` stream (`dfa` block present). Pure endurance rides without structured intervals appear in this file when they have a DFA block — that's by design, since steady-state rides are exactly where DFA a1 drift detection is most useful.
 
+**Presence of an entry is not evidence of structure (until B2).** Intervals.icu emits a single whole-session `RECOVERY` placeholder on many unstructured activities, and that placeholder populates the `intervals` array. Such an entry has **neither** `has_intervals` nor `has_dfa` set on the corresponding activity in `latest.json`, and is therefore unreachable under the loading rule below — but it is still written to the file, and its `duration_secs`, `training_load` and HR values describe the whole session rather than any recovery. **Follow the flags, never the presence of an entry.** Placeholder normalization lands in a later release.
+
 **Per-interval fields:**
 
 | Field | Type | Notes |
@@ -512,19 +523,25 @@ Per-interval segment data for recent structured sessions, plus optional DFA a1 s
 | `type` | string | `WORK` or `RECOVERY` |
 | `label` | string/null | Group ID from Intervals.icu (e.g., `596s@259w100rpm`) |
 | `duration_secs` | number | Elapsed time for this segment |
+| `moving_secs` | number/null | Moving time for this segment. A gap below `duration_secs` is non-moving time — where that gap is large, `avg_power` is diluted and HR extrema are unreliable |
+| `start_secs` / `end_secs` | number/null | Segment start and end in **activity elapsed seconds**, not stream indices. The two coordinate systems diverge when the activity contains pauses |
 | `avg_power` | number/null | Average power (watts) |
 | `max_power` | number/null | Peak power (watts) |
 | `avg_hr` | number/null | Average heart rate |
 | `max_hr` | number/null | Peak heart rate |
 | `min_hr` | number/null | Lowest heart rate reported upstream for this segment. Not a compliance signal — see the recovery-HR rule below |
 | `avg_cadence` | number/null | Average cadence |
-| `zone` | number/null | Power zone for this segment |
-| `w_bal` | number/null | W' balance at end of segment |
+| `zone` | number/null | Zone for this segment. **Read `zone_basis` on the activity to know what it refers to** — power, HR or pace |
+| `w_bal_start` / `w_bal_end` | number/null | W' balance at segment start and end (upstream `wbal_start` / `wbal_end`). Cycling with power only. No delta field — derive it |
 | `training_load` | number/null | Segment training load |
-| `decoupling` | number/null | HR:power decoupling for this segment |
-| `avg_dfa_a1` | number/null | Per-interval DFA a1 average (when AlphaHRV recorded) |
 
 Null fields are stripped from output — only populated fields appear per segment.
+
+**Activity-level `zone_basis` (v11.52):** `"power"`, `"hr"` or `"pace"`, stating what the per-segment `zone` number refers to. Power is established by watt bounds returned alongside the segment; HR and pace are resolved from the activity's zone-time arrays, with GAP treated as a pace basis. The field is **omitted** when no segment carries `zone`, when HR and pace sources coexist (ambiguous), or when neither exists (unavailable) — omission means the basis could not be established and is never itself a claim about the basis. Do not assume power when the field is absent.
+
+**Root `schema_version` (v11.52):** integer, currently `1`, on `intervals.json` only. It is independent of the root `version`, which remains the sync-script version. `schema_version` increments only for consumer-incompatible contract changes — a rename, a removal, a type change, a meaning change, or a field becoming required. Additive optional fields do not increment it.
+
+**Removed in v11.52 (hard migration):** per-interval `decoupling` and `avg_dfa_a1`, for two different reasons. `decoupling` compares the power–HR relationship between the first and second halves of a segment; on a short or non-steady segment it is not an interpretable cardiac-drift measure, and mainly reflects effort shape and HR lag. `avg_dfa_a1` fails differently: each α1 value reflects a rolling window of preceding beats, so a short interval's average is dominated by carry-in from whatever preceded it. Activity-level decoupling and the session-level `dfa` block below are unaffected.
 
 **Recovery-HR interpretation rule (v11.51):** Never conclude that a recovery target zone was or was not reached from any single segment statistic. `avg_hr` across a short recovery carries the delayed fall from the preceding work bout and can read high even when the target was reached. `min_hr` is the lowest heart rate reported upstream for the segment — it carries no information about dwell, and a stop, a signal dropout or a single artifact produces the same value as genuine recovery; `max_hr` is subject to the same class of error. A claim that a zone was *reached* or *sustained* requires a rolling or time-in-zone metric, which `intervals.json` does not currently emit. When asked about recovery compliance, report the observed values, state that the data cannot settle the question, and do not issue a verdict.
 
@@ -540,7 +557,7 @@ Null fields are stripped from output — only populated fields appear per segmen
 | `tiz_supra` | object/null | DFA a1 < 0.5 (supra-threshold, above LT2) |
 | `drift` | object/null | First-third vs last-third comparison: `first_third_avg`, `last_third_avg`, `delta`, `interpretable` (false when >15% time above LT2 — structural noise) |
 | `easy_guard_crossing` | object | HR/watts during a **sustained contiguous crossing** of the **0.95–1.05 band** (`marker_dfa_a1` 1.0 — conservative easy-state guard, NOT a threshold). Same shape as `lt1_crossing` (`marker_dfa_a1`, `secs_in_band`, `contiguous_secs`, `n_qualifying_segments`, `reason`, `avg_hr`, `avg_watts`; values populate only at `reason == "ok"`). Descriptive/compliance-only — never a calibration input |
-| `lt1_crossing` | object | HR/watts during a **sustained contiguous crossing** of the **0.70–0.80 band** (`marker_dfa_a1` 0.75 — HRVT1 / aerobic threshold; v3.114 moved this from the old 0.95–1.05 band, which is now `easy_guard_crossing`): `secs_in_band` (total, diagnostic), `contiguous_secs` (best qualifying segment), `n_qualifying_segments`, `reason` (`ok` / `no_samples_in_band` / `insufficient_total_dwell` / `no_contiguous_dwell`), `avg_hr`, `avg_watts` (populated only when `reason == "ok"` — i.e. a ≥60 s segment bridging ≤5 s gaps in ride-time). Scattered in-band time no longer yields an estimate |
+| `lt1_crossing` | object | HR/watts during a **sustained contiguous crossing** of the **0.70–0.80 band** (`marker_dfa_a1` 0.75 — HRVT1 / aerobic threshold; v3.114 moved this from the old 0.95–1.05 band, which is now `easy_guard_crossing`): `secs_in_band` (total, diagnostic), `contiguous_secs` (largest in-band-second count among any candidate run, **including non-qualifying runs** — so it can be non-zero while `n_qualifying_segments` is 0, which is exactly what `no_contiguous_dwell` means), `n_qualifying_segments`, `reason` (`ok` / `no_samples_in_band` / `insufficient_total_dwell` / `no_contiguous_dwell`), `avg_hr`, `avg_watts` (keys always present; `null` unless `reason == "ok"` — i.e. a ≥60 s segment bridging ≤5 s gaps in activity elapsed time). Scattered in-band time no longer yields an estimate |
 | `lt2_crossing` | object | Same shape for the 0.45–0.55 band (`marker_dfa_a1` 0.5 — HRVT2) |
 | `quality` | object | `valid_secs`, `total_secs`, `valid_pct`, `artifact_rate_avg`, `sufficient` |
 

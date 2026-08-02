@@ -1,10 +1,21 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.52  
-**Last Updated:** 2026-08-01
+**Protocol Version:** 11.53  
+**Last Updated:** 2026-08-02
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.53 — Per-endpoint interval fetch state with backoff (`sync.py` v3.121):**
+- New root-level `fetch_state` on `intervals.json`. **Internal — not part of the `activities[]` consumer contract.** Per activity, per endpoint (`intervals`, `streams`): `status` (`ok` / `pending` / `tombstone`), `reason`, `attempts`, `first_seen`, `last_attempt`, `next_retry_at`. Consumers must continue to read `activities[]` and the `has_intervals` / `has_dfa` flags, and should ignore this block entirely
+- **The two endpoints now advance independently.** A transient streams failure previously discarded an already-successful interval fetch for the same activity; a retry that succeeds now replaces only its own sibling payload, never the whole record
+- **Late upstream analysis is now recoverable.** An activity whose intervals were not yet analysed produced no cache record at all, so it was re-fetched on every sync inside the 72-hour window and then became permanently unreachable once it aged out. Retries are now scheduled — attempts 1–6 at 5 minutes, 7–12 at 30 minutes, then 6-hourly, honouring `Retry-After` on 429 — and retry *selection* ignores the 72-hour candidate scan cutoff, while endpoint-specific *deadlines* still apply. Exactly-paired planned workouts continue daily to the 14-day limit; everything else stops at 72 hours with a `retry_expired` tombstone. Deadlines derive from **activity start**, never from when the entry was first seen
+- **Streams count as `ok` only when a usable DFA a1 block was computed.** The streams fetcher succeeds when *any* requested stream exists, and heart rate is present on almost every activity — so an HTTP 200 carrying only heart rate and power is `pending` / `no_data`, and a computation failure is `pending` / `compute_error`. Absence and failure stay distinguishable
+- Both write gates required a non-empty `activities[]`, so pending-only state would never have reached disk. They now write whenever the file object exists, which also lets a fully-pruned cache publish as empty rather than leaving a stale file in place
+- The planned-workout pairing map uses a strict ID join in both directions and extends the interval retry window **only** — it never gates emission and does not classify structure. The events fetch widens to retention depth to cover it; the Consistency Index slice is unchanged
+- `schema_version` **stays `1`** — an additive optional root key is not a consumer-incompatible change, per the rule shipped in v11.52
+- Not in this release: structure classification, placeholder normalization, activity revision tracking
+- Requires `sync.py` v3.121
 
 **v11.52 — `intervals.json` schema correctness, part 1 (`sync.py` v3.120):**
 - **HARD MIGRATION — two per-interval fields removed, for two different reasons.** `decoupling` compares the power–HR relationship between the first and second halves of a segment; on a short or non-steady segment it is not an interpretable cardiac-drift measure, and mainly reflects effort shape and HR lag. `avg_dfa_a1` fails differently: each α1 value reflects a rolling window of preceding beats, so a short interval's average is dominated by carry-in from whatever preceded it. No deprecation window. Any consumer keyed on `intervals[].decoupling` or `intervals[].avg_dfa_a1` must be updated. Activity-level decoupling (durability, `capability`) and the session-level artifact-filtered `dfa` block are **unaffected** — the `dfa` block remains the only DFA a1 source, as the POST_WORKOUT template already required
@@ -514,7 +525,7 @@ Per-interval segment data for recent structured sessions, plus optional DFA a1 s
 
 **Scope:** 14-day retention, incrementally cached (72h scan window on subsequent runs, 14-day backfill on first run). Activities in whitelisted sport families (cycling, run, ski, rowing, swim) are included when they have **either** detected interval structure (`intervals` array populated) **or** an AlphaHRV-recorded `dfa_a1` stream (`dfa` block present). Pure endurance rides without structured intervals appear in this file when they have a DFA block — that's by design, since steady-state rides are exactly where DFA a1 drift detection is most useful.
 
-**Presence of an entry is not evidence of structure (until B2).** Intervals.icu emits a single whole-session `RECOVERY` placeholder on many unstructured activities, and that placeholder populates the `intervals` array. Such an entry has **neither** `has_intervals` nor `has_dfa` set on the corresponding activity in `latest.json`, and is therefore unreachable under the loading rule below — but it is still written to the file, and its `duration_secs`, `training_load` and HR values describe the whole session rather than any recovery. **Follow the flags, never the presence of an entry.** Placeholder normalization lands in a later release.
+**Presence of an entry is not evidence of structure.** Intervals.icu emits a single whole-session `RECOVERY` placeholder on many unstructured activities, and that placeholder populates the `intervals` array. Such an entry has **neither** `has_intervals` nor `has_dfa` set on the corresponding activity in `latest.json`, and is therefore unreachable under the loading rule below — but it is still written to the file, and its `duration_secs`, `training_load` and HR values describe the whole session rather than any recovery. **Follow the flags, never the presence of an entry.** Placeholder normalization is not addressed in v11.53 and remains deferred: it depends on evidence that repeated efforts reliably share a `group_id`, without which normalization could empty a genuine unpaired session.
 
 **Per-interval fields:**
 
@@ -538,6 +549,8 @@ Per-interval segment data for recent structured sessions, plus optional DFA a1 s
 Null fields are stripped from output — only populated fields appear per segment.
 
 **Activity-level `zone_basis` (v11.52):** `"power"`, `"hr"` or `"pace"`, stating what the per-segment `zone` number refers to. Power is established by watt bounds returned alongside the segment; HR and pace are resolved from the activity's zone-time arrays, with GAP treated as a pace basis. The field is **omitted** when no segment carries `zone`, when HR and pace sources coexist (ambiguous), or when neither exists (unavailable) — omission means the basis could not be established and is never itself a claim about the basis. Do not assume power when the field is absent.
+
+**Root `fetch_state` (v11.53) — internal, do not consume.** A per-activity, per-endpoint record of what has been fetched and what is still being retried. It exists so that late upstream interval analysis is recoverable and so that a failure on one endpoint does not discard the other's data. It is **not** part of the `activities[]` contract: it names activities that may have no entry at all, and an entry's absence from `activities[]` while present in `fetch_state` means "still pending", not "no data". Read `activities[]` and the `has_intervals` / `has_dfa` flags; ignore this block.
 
 **Root `schema_version` (v11.52):** integer, currently `1`, on `intervals.json` only. It is independent of the root `version`, which remains the sync-script version. `schema_version` increments only for consumer-incompatible contract changes — a rename, a removal, a type change, a meaning change, or a field becoming required. Additive optional fields do not increment it.
 

@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-08-01T12:00:00.000000",
+  "generated_at": "2026-08-02T12:00:00.000000",
   "schema_version": 1,
-  "version": "3.120",
-  "script_hash": "3b1bc2061b07",
+  "version": "3.121",
+  "script_hash": "8a4f02741de5",
   "scan_hours": 72,
   "retention_days": 14,
   "activities": [
     {
       "activity_id": "activity_2",
-      "date": "2026-07-28",
-      "start_datetime": "2026-07-28T17:42:11",
+      "date": "2026-07-29",
+      "start_datetime": "2026-07-29T17:42:11",
       "type": "VirtualRide",
       "name": "Sweet Spot 4x8",
       "interval_summary": [
@@ -248,8 +248,8 @@
     },
     {
       "activity_id": "activity_5",
-      "date": "2026-07-25",
-      "start_datetime": "2026-07-25T09:05:48",
+      "date": "2026-07-26",
+      "start_datetime": "2026-07-26T09:05:48",
       "type": "Ride",
       "name": "Outdoor Endurance + 2x4",
       "interval_summary": [
@@ -348,8 +348,8 @@
     },
     {
       "activity_id": "activity_9",
-      "date": "2026-07-24",
-      "start_datetime": "2026-07-24T18:20:03",
+      "date": "2026-07-25",
+      "start_datetime": "2026-07-25T18:20:03",
       "type": "VirtualSki",
       "name": "SkiErg 15m",
       "interval_summary": null,
@@ -369,5 +369,80 @@
         }
       ]
     }
-  ]
+  ],
+  "fetch_state": {
+    "activity_2": {
+      "date": "2026-07-29",
+      "paired_planned": true,
+      "intervals": {
+        "status": "ok",
+        "reason": "ok",
+        "attempts": 1,
+        "first_seen": "2026-07-29T18:55:04",
+        "last_attempt": "2026-07-29T18:55:04"
+      },
+      "streams": {
+        "status": "ok",
+        "reason": "ok",
+        "attempts": 2,
+        "first_seen": "2026-07-29T18:55:04",
+        "last_attempt": "2026-07-29T19:00:07"
+      }
+    },
+    "activity_5": {
+      "date": "2026-07-26",
+      "intervals": {
+        "status": "ok",
+        "reason": "ok",
+        "attempts": 1,
+        "first_seen": "2026-07-26T10:31:12",
+        "last_attempt": "2026-07-26T10:31:12"
+      },
+      "streams": {
+        "status": "pending",
+        "reason": "no_data",
+        "attempts": 4,
+        "first_seen": "2026-07-26T10:31:12",
+        "last_attempt": "2026-08-02T11:44:51",
+        "next_retry_at": "2026-08-02T12:14:51"
+      }
+    },
+    "activity_9": {
+      "date": "2026-07-25",
+      "intervals": {
+        "status": "ok",
+        "reason": "ok",
+        "attempts": 1,
+        "first_seen": "2026-07-25T19:02:40",
+        "last_attempt": "2026-07-25T19:02:40"
+      },
+      "streams": {
+        "status": "tombstone",
+        "reason": "retry_expired",
+        "attempts": 17,
+        "first_seen": "2026-07-25T19:02:40",
+        "last_attempt": "2026-07-28T18:11:03"
+      }
+    },
+    "activity_7": {
+      "date": "2026-08-01",
+      "paired_planned": true,
+      "intervals": {
+        "status": "pending",
+        "reason": "no_data",
+        "attempts": 3,
+        "first_seen": "2026-08-01T16:20:55",
+        "last_attempt": "2026-08-02T11:52:30",
+        "next_retry_at": "2026-08-02T12:22:30"
+      },
+      "streams": {
+        "status": "pending",
+        "reason": "compute_error",
+        "attempts": 2,
+        "first_seen": "2026-08-01T16:20:55",
+        "last_attempt": "2026-08-02T11:52:31",
+        "next_retry_at": "2026-08-02T12:22:31"
+      }
+    }
+  }
 }

@@ -4,6 +4,42 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.121 - Per-endpoint interval fetch state with backoff (B2). New root-level
+  fetch_state on intervals.json: per activity, per endpoint (intervals, streams),
+  status ok / pending / tombstone with attempts, first_seen, last_attempt and
+  next_retry_at. It is INTERNAL - not part of the activities[] consumer contract.
+  Fixes three defects. (1) A transient streams failure discarded an already
+  successful interval fetch; the endpoints now advance independently and a retry
+  replaces only its own sibling payload. (2) no_data and terminal outcomes wrote no
+  cache record at all despite the v3.108 comment claiming otherwise, so an activity
+  whose upstream analysis was not ready was refetched on EVERY sync inside the 72h
+  window - at minute cadence that is thousands of requests - and then became
+  permanently unrecoverable once it aged out. Retries are now scheduled: attempts
+  1-6 at 5 min, 7-12 at 30 min, then 6-hourly, honouring Retry-After on 429 (both
+  delta-seconds and HTTP-date forms). Exactly-paired planned workouts continue daily
+  to the 14d retention limit; everything else stops at 72h with a retry_expired
+  tombstone. Retry SELECTION ignores the 72h candidate scan cutoff - that cutoff is
+  why late analysis was unrecoverable - but endpoint-specific DEADLINES still apply:
+  unpaired intervals and all streams stop 72h after activity start, exactly-paired
+  intervals continue to the 14d retention limit. Retention is the outer bound, not
+  the only one. Deadlines derive from ACTIVITY START, never first_seen. (3) Both
+  write gates required a non-empty activities[], so pending-only state would never
+  have persisted; they now write whenever the object exists, which also lets a
+  fully-pruned cache publish as empty instead of leaving a stale file. Streams count
+  as ok ONLY when a usable dfa_a1 block was computed - the fetcher returns ok when
+  ANY requested stream exists, so a 200 carrying only heartrate/watts is
+  pending/no_data, and a computation failure is pending/compute_error, keeping
+  absence and failure distinct. The events fetch widens to retention depth to build
+  an exact planned-workout pairing map (activity.paired_event_id <-> event.id and
+  event.paired_activity_id <-> activity.id, strict ID join only); past_events keeps
+  its original days_back slice so the Consistency Index denominator does not move.
+  Pairing extends the interval retry window ONLY - it never gates emission and does
+  not classify structure. fetch_state is pruned by retention and present_activity_ids
+  and is wiped with the cache on script_hash change. schema_version stays 1: an
+  additive optional root key is not a consumer-incompatible change. No structure
+  classifier, no placeholder normalization, no activity revision field.
+  SECTION_11.md v11.53.
+
 Version 3.120 - intervals.json schema correctness (B1). HARD MIGRATION: per-interval
   decoupling and avg_dfa_a1 are REMOVED, for two different reasons. decoupling compares
   the power-HR relationship between the first and second halves of a segment; on a short
@@ -370,7 +406,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.120"
+    VERSION = "3.121"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -379,6 +415,16 @@ class IntervalsSync:
     # per-interval detail for. Walk, strength, yoga, other excluded.
     INTERVAL_SPORT_FAMILIES = {"cycling", "run", "ski", "rowing", "swim"}
     INTERVAL_SCAN_HOURS = 72    # Only scan recent activities for new intervals
+    # v3.121 retry policy. Ladder is (through_attempt, delay_secs); the final row's
+    # None means "all further attempts". Deadlines derive from ACTIVITY START, never
+    # from first_seen, so a first-run backfill of an old activity cannot open a fresh
+    # window. Only the intervals endpoint gets the extended paired-planned tier —
+    # stream availability is a property of the recording device, not of upstream
+    # analysis latency, so retrying streams past 72h can never produce a result.
+    INTERVAL_RETRY_LADDER = ((6, 300), (12, 1800), (None, 21600))
+    INTERVAL_RETRY_WINDOW_HOURS = 72        # unpaired intervals + all streams
+    INTERVAL_PAIRED_RETRY_DAYS = 14         # exactly-paired planned intervals only
+    INTERVAL_PAIRED_RETRY_DELAY_SECS = 86400
     INTERVAL_RETENTION_DAYS = 14  # Keep cached intervals for 14 days (DFA drift analysis window)
 
     # --- DFA a1 Protocol (v3.99) ---
@@ -496,6 +542,10 @@ class IntervalsSync:
         self.week_start_day = week_start_day if week_start_day is not None else self.WEEK_START_DAY
         self.zone_preference = zone_preference or {}  # {"run": "hr", "cycling": "power", ...}
         self._cached_script_hash = None  # lazy-computed
+        # v3.121: Retry-After seconds from the MOST RECENT interval/stream fetch only.
+        # Both fetchers reset it to None on entry, so a 429 value can never leak into
+        # a later request. Valid only immediately after the fetcher returns.
+        self._last_retry_after_secs = None
     
     @property
     def script_hash(self) -> str:
@@ -559,6 +609,7 @@ class IntervalsSync:
                                           network, timeout, parse error,
                                           unexpected response shape
         """
+        self._last_retry_after_secs = None
         url = f"{self.INTERVALS_BASE_URL}/activity/{activity_id}"
         headers = {
             "Authorization": f"Basic {self.intervals_auth}",
@@ -590,6 +641,10 @@ class IntervalsSync:
         else:
             # Conservative: all other non-2xx (incl. 401/403/5xx/429) treated as
             # transient. Better to retry than permanently cache an auth/config flake.
+            # v3.121: on 429 surface Retry-After so the caller can honour it.
+            if status_code == 429:
+                self._last_retry_after_secs = self._parse_retry_after(
+                    response.headers.get("Retry-After"))
             return ("transient", f"http_{status_code}")
 
     def _fetch_activity_streams(self, activity_id: str, types: List[str]) -> tuple:
@@ -621,6 +676,7 @@ class IntervalsSync:
         the cached rollup will be stale. Rare in practice; workaround is to delete
         intervals.json.
         """
+        self._last_retry_after_secs = None
         url = f"{self.INTERVALS_BASE_URL}/activity/{activity_id}/streams"
         headers = {
             "Authorization": f"Basic {self.intervals_auth}",
@@ -657,6 +713,10 @@ class IntervalsSync:
         else:
             # Conservative: all other non-2xx (incl. 401/403/5xx/429) treated as
             # transient. Better to retry than permanently cache an auth/config flake.
+            # v3.121: on 429 surface Retry-After so the caller can honour it.
+            if status_code == 429:
+                self._last_retry_after_secs = self._parse_retry_after(
+                    response.headers.get("Retry-After"))
             return ("transient", f"http_{status_code}")
 
     def _fetch_terrain_streams(self, activity_id: str) -> tuple:
@@ -1365,219 +1425,447 @@ class IntervalsSync:
         return summary
 
     
-    def _generate_intervals(self, activities: List[Dict], present_activity_ids: set = None) -> set:
+    def _parse_retry_after(self, value) -> Optional[int]:
         """
-        Generate intervals.json with incremental caching.
-        
+        Parse an HTTP Retry-After header. Accepts both documented forms:
+        delta-seconds ("120") and HTTP-date ("Wed, 21 Oct 2026 07:28:00 GMT").
+        Returns non-negative seconds, or None when absent/unparseable.
+        """
+        if value is None:
+            return None
+        raw = str(value).strip()
+        if not raw:
+            return None
+        try:
+            secs = int(raw)
+            return secs if secs >= 0 else None
+        except ValueError:
+            pass
+        try:
+            from email.utils import parsedate_to_datetime
+            dt = parsedate_to_datetime(raw)
+            if dt is None:
+                return None
+            ref = datetime.now(dt.tzinfo) if dt.tzinfo is not None else datetime.now()
+            delta = (dt - ref).total_seconds()
+            return int(delta) if delta > 0 else 0
+        except Exception:
+            return None
+
+    def _activity_start_dt(self, act: Dict) -> datetime:
+        """Local start datetime for an activity; falls back to now on unparseable input."""
+        raw = (act.get("start_date_local") or "")
+        for cut, fmt in ((19, "%Y-%m-%dT%H:%M:%S"), (10, "%Y-%m-%d")):
+            try:
+                return datetime.strptime(raw[:cut], fmt)
+            except (ValueError, TypeError):
+                continue
+        return datetime.now()
+
+    def _build_pairing_map(self, events: Optional[List[Dict]],
+                           activities: List[Dict]) -> set:
+        """
+        Activity IDs (as strings) EXACTLY paired to a planned event that carries a
+        non-empty workout_doc.steps. Strict ID join in both documented directions —
+        activity.paired_event_id <-> event.id and event.paired_activity_id <->
+        activity.id. Never date+sport: a wrong match would extend the retry window
+        for the wrong activity.
+
+        Used ONLY to extend the interval retry window. It never gates emission and
+        never classifies structure — the classifier remains out of scope.
+        """
+        paired = set()
+        event_has_steps = {}
+        for evt in (events or []):
+            doc = evt.get("workout_doc")
+            has_steps = bool(isinstance(doc, dict) and doc.get("steps"))
+            eid = evt.get("id")
+            if eid is not None:
+                event_has_steps[str(eid)] = has_steps
+            aid = evt.get("paired_activity_id")
+            if has_steps and aid is not None:
+                paired.add(str(aid))
+        for act in activities:
+            eid = act.get("paired_event_id")
+            if eid is not None and event_has_steps.get(str(eid)):
+                paired.add(str(act.get("id")))
+        return paired
+
+    def _schedule_retry(self, endpoint: str, attempts: int, paired_planned: bool,
+                        activity_start: datetime, now: datetime,
+                        retry_after_secs: Optional[int] = None) -> Optional[str]:
+        """
+        Next retry timestamp for a pending endpoint, or None when the window has
+        closed (caller writes a retry_expired tombstone).
+
+        The deadline derives from activity_start, NOT from first_seen: a first-run
+        backfill of a week-old activity must not open a fresh 72h window. Only
+        intervals on an exactly-paired planned workout get the extended daily tier.
+        """
+        extended = (endpoint == "intervals" and paired_planned)
+        if extended:
+            deadline = activity_start + timedelta(days=self.INTERVAL_PAIRED_RETRY_DAYS)
+        else:
+            deadline = activity_start + timedelta(hours=self.INTERVAL_RETRY_WINDOW_HOURS)
+        if now >= deadline:
+            return None
+
+        delay = self.INTERVAL_RETRY_LADDER[-1][1]
+        for through, secs in self.INTERVAL_RETRY_LADDER:
+            if through is None or attempts <= through:
+                delay = secs
+                break
+        # Past the 72h ladder an extended (paired) endpoint drops to daily.
+        ladder_end = activity_start + timedelta(hours=self.INTERVAL_RETRY_WINDOW_HOURS)
+        if extended and now >= ladder_end:
+            delay = max(delay, self.INTERVAL_PAIRED_RETRY_DELAY_SECS)
+        if retry_after_secs is not None:
+            delay = max(delay, int(retry_after_secs))
+
+        nxt = now + timedelta(seconds=delay)
+        if nxt >= deadline:
+            return None
+        return nxt.isoformat()
+
+    def _advance_endpoint_state(self, prev: Optional[Dict], endpoint: str, outcome: str,
+                                reason: str, now: datetime, activity_start: datetime,
+                                paired_planned: bool,
+                                retry_after_secs: Optional[int] = None) -> Dict:
+        """
+        One endpoint's state transition. outcome is "ok" | "tombstone" | "pending".
+        A pending outcome whose retry window has closed becomes a retry_expired
+        tombstone here, so expiry is decided in exactly one place.
+        """
+        attempts = int((prev or {}).get("attempts", 0)) + 1
+        state = {
+            "attempts": attempts,
+            "first_seen": (prev or {}).get("first_seen") or now.isoformat(),
+            "last_attempt": now.isoformat(),
+        }
+        if outcome == "ok":
+            state["status"] = "ok"
+            state["reason"] = "ok"
+            return state
+        if outcome == "tombstone":
+            state["status"] = "tombstone"
+            state["reason"] = reason
+            return state
+        nxt = self._schedule_retry(endpoint, attempts, paired_planned,
+                                   activity_start, now, retry_after_secs)
+        if nxt is None:
+            state["status"] = "tombstone"
+            state["reason"] = "retry_expired"
+        else:
+            state["status"] = "pending"
+            state["reason"] = reason
+            state["next_retry_at"] = nxt
+        return state
+
+    def _format_interval_segments(self, raw_intervals: List[Dict], act: Dict) -> tuple:
+        """
+        Map raw icu_intervals to Section 11 segments and resolve activity-level
+        zone_basis. Returns (segments, zone_basis) where zone_basis may be None.
+        Extracted from _generate_intervals in v3.121 — logic unchanged from v3.120.
+        """
+        segments = []
+        for iv in raw_intervals:
+            segment = {
+                "type": iv.get("type"),
+                "label": iv.get("group_id"),
+                "duration_secs": iv.get("elapsed_time"),
+                "moving_secs": iv.get("moving_time"),
+                "start_secs": iv.get("start_time"),
+                "end_secs": iv.get("end_time"),
+                "avg_power": iv.get("average_watts"),
+                "max_power": iv.get("max_watts"),
+                "avg_hr": iv.get("average_heartrate"),
+                "max_hr": iv.get("max_heartrate"),
+                "min_hr": iv.get("min_heartrate"),
+                "avg_cadence": iv.get("average_cadence"),
+                "zone": iv.get("zone"),
+                "w_bal_start": iv.get("wbal_start"),
+                "w_bal_end": iv.get("wbal_end"),
+                "training_load": iv.get("training_load"),
+            }
+            segments.append({k: v for k, v in segment.items() if v is not None})
+
+        has_zone = any(iv.get("zone") is not None for iv in raw_intervals)
+        has_power_bounds = any(
+            iv.get("zone_min_watts") is not None or iv.get("zone_max_watts") is not None
+            for iv in raw_intervals
+        )
+        has_hr_zones = bool(act.get("icu_hr_zone_times"))
+        has_pace_zones = bool(act.get("pace_zone_times")) or bool(act.get("gap_zone_times"))
+
+        zone_basis = None
+        if has_zone:
+            if has_power_bounds:
+                zone_basis = "power"
+            elif has_hr_zones and not has_pace_zones:
+                zone_basis = "hr"
+            elif has_pace_zones and not has_hr_zones:
+                zone_basis = "pace"
+        return segments, zone_basis
+
+    def _generate_intervals(self, activities: List[Dict], present_activity_ids: set = None,
+                            events: List[Dict] = None) -> set:
+        """
+        Generate intervals.json with incremental caching and per-endpoint retry state.
+
         First run (no cache): scans full retention window (14 days) to backfill.
-        Subsequent runs: scans recent activities (72h) for new sessions only.
-        Fetches per-interval data for new qualifying activities, merges
-        with cached data, and purges entries older than 14 days.
+        Subsequent runs: scans recent activities (72h) for NEW sessions, and
+        independently re-attempts any activity carrying pending fetch state whose
+        next_retry_at has come due — that retry path deliberately ignores the 72h
+        scan window, because upstream interval analysis can complete days after
+        upload and was otherwise unrecoverable.
 
         v3.113: callers pass the 28d extended activity set as `activities` so the
-        first-run backfill genuinely reaches the full 14d retention window (the old
-        7d display set silently truncated it). `present_activity_ids` (stringified
-        ids from that extended fetch) is used to prune cached entries whose activity
-        no longer exists — deleted/re-uploaded rides that previously lingered until
-        they aged out and could win the latest_session pointer.
+        first-run backfill genuinely reaches the full 14d retention window.
+        `present_activity_ids` prunes entries AND fetch_state whose activity no
+        longer exists.
 
-        DFA a1 (v3.99): for each new qualifying activity, also fetches streams
-        (dfa_a1, artifacts, heartrate, watts) and computes a per-session dfa block.
-        Attached to the activity entry as 'dfa' key when AlphaHRV recorded.
-        
+        v3.121 fetch_state (root-level, internal — NOT part of the activities[]
+        consumer contract): per activity, per endpoint (`intervals`, `streams`),
+        one of status ok / pending / tombstone. The two endpoints advance
+        independently, so a stream failure no longer discards a successful interval
+        fetch, and a retry that succeeds replaces only its own sibling payload.
+        Streams count as `ok` only when a usable dfa_a1 block was computed: an HTTP
+        200 carrying only heartrate/watts is `pending`/`no_data`, and a computation
+        failure is `pending`/`compute_error` — absence and failure stay distinct.
+
+        `events` (v3.121) is used only to build the exact planned-workout pairing
+        map that extends the interval retry window. It never gates emission.
+
         Returns set of activity IDs that have interval data (for has_intervals flag).
         """
         now = datetime.now()
+        now_iso = now.isoformat()
         retention_cutoff = (now - timedelta(days=self.INTERVAL_RETENTION_DAYS)).strftime("%Y-%m-%d")
-        
+
         # Load existing cache
         intervals_path = self.data_dir / self.INTERVALS_FILE
-        cached = {"activities": []}
+        cached = {"activities": [], "fetch_state": {}}
         first_run = not intervals_path.exists()
         if not first_run:
             try:
                 with open(intervals_path, 'r') as f:
                     cached = json.load(f)
-                # Invalidate cache if sync.py changed
+                # Invalidate cache if sync.py changed. fetch_state is wiped with it:
+                # a schema change can alter what a completed fetch even means.
                 if cached.get("script_hash") != self.script_hash:
                     if self.debug:
                         print(f"    🔄 intervals.json stale (sync.py changed), re-scanning all")
-                    cached = {"activities": []}
+                    cached = {"activities": [], "fetch_state": {}}
                     first_run = True
             except Exception as e:
                 if self.debug:
                     print(f"    ⚠️  Could not read intervals.json: {e}")
-                cached = {"activities": []}
+                cached = {"activities": [], "fetch_state": {}}
                 first_run = True
-        
+
+        # All fetch_state keys are strings; activity ids arrive as both int and str
+        # from different endpoints, so normalize on load rather than at every lookup.
+        fetch_state = {}
+        for k, v in (cached.get("fetch_state") or {}).items():
+            if isinstance(v, dict):
+                fetch_state[str(k)] = v
+
         # First run: backfill full retention window (14 days). Subsequent: scan 72h only.
         if first_run:
             scan_cutoff = retention_cutoff
             print("    First run — scanning 14 days for interval data...")
         else:
             scan_cutoff = (now - timedelta(hours=self.INTERVAL_SCAN_HOURS)).strftime("%Y-%m-%d")
-        
-        cached_ids = {a["activity_id"] for a in cached.get("activities", [])}
-        
-        # Filter activities to scan window + sport family whitelist.
-        # NOTE (v3.99): interval_summary requirement removed. Pure endurance rides
-        # without structured intervals are exactly where DFA a1 is most valuable
-        # (steady-state drift detection, LT1 calibration). We attempt both intervals
-        # AND streams fetches; entry is emitted if either yields data.
+
+        cached_ids = {str(a.get("activity_id")) for a in cached.get("activities", [])}
+        paired_ids = self._build_pairing_map(events, activities)
+
+        # Candidate selection. Two independent arms:
+        #   NEW   — no fetch_state record at all; the 72h scan window applies.
+        #   RETRY — pending endpoint(s) now due; the scan window does NOT apply,
+        #           only retention. Only the due endpoints are fetched; a sibling
+        #           that is ok, tombstoned, or not yet due is left untouched.
         candidates = []
         for act in activities:
             date_str = act.get("start_date_local", "")[:10]
-            if date_str < scan_cutoff:
+            if date_str < retention_cutoff:
                 continue
-            act_type = act.get("type", "")
-            family = self.SPORT_FAMILIES.get(act_type)
+            family = self.SPORT_FAMILIES.get(act.get("type", ""))
             if family not in self.INTERVAL_SPORT_FAMILIES:
                 continue
-            act_id = act.get("id")
-            if act_id in cached_ids:
+            act_id = str(act.get("id"))
+            state = fetch_state.get(act_id)
+            if state is None:
+                if date_str < scan_cutoff or act_id in cached_ids:
+                    continue
+                candidates.append((act, {"intervals": True, "streams": True}))
                 continue
-            candidates.append(act)
-        
-        # Fetch intervals for new qualifying activities
-        new_entries = []
-        for act in candidates:
-            act_id = act.get("id")
-            print(f"    Fetching intervals/streams for {act.get('name', act_id)}...")
+            due = {}
+            for endpoint in ("intervals", "streams"):
+                ep_state = state.get(endpoint) or {}
+                if ep_state.get("status") != "pending":
+                    continue
+                nxt = ep_state.get("next_retry_at")
+                if nxt is None or str(nxt) <= now_iso:
+                    due[endpoint] = True
+            if due:
+                candidates.append((act, due))
 
-            # v3.108: classify fetch outcomes. Transient on either fetcher → skip
-            # this activity entirely (no cache write). Activity stays out of
-            # cached_ids and is retried on the next sync. Terminal (404/410) and
-            # no_data are definitive: cache the entry so we don't keep retrying.
-            intervals_status, intervals_payload = self._fetch_activity_intervals(act_id)
-            if intervals_status == "transient":
-                if self.debug:
-                    print(f"    ⚠️  Intervals fetch transient failure for {act_id}: {intervals_payload} (will retry)")
-                continue
+        # Fetch due endpoints. Payload updates are collected per activity and applied
+        # sibling-by-sibling during the merge — never as a whole-record replacement.
+        updates = {}
+        fetched_any = 0
+        for act, due in candidates:
+            act_id = str(act.get("id"))
+            act_start = self._activity_start_dt(act)
+            paired = act_id in paired_ids
+            state = fetch_state.setdefault(act_id, {})
+            state["date"] = act.get("start_date_local", "")[:10]
+            if paired:
+                state["paired_planned"] = True
+            else:
+                state.pop("paired_planned", None)
 
-            streams_status, streams_payload = self._fetch_activity_streams(
-                act_id, ["dfa_a1", "artifacts", "heartrate", "watts"]
-            )
-            if streams_status == "transient":
-                if self.debug:
-                    print(f"    ⚠️  Streams fetch transient failure for {act_id}: {streams_payload} (will retry)")
-                continue
+            print(f"    Fetching {'+'.join(sorted(due))} for {act.get('name', act_id)}...")
+            upd = updates.setdefault(act_id, {"act": act})
 
-            # Normalize payloads. On no_data/terminal_error, payload is a sentinel
-            # ([] / {} / "http_NNN") — treat as "definitively absent" rather than
-            # iterating over it.
-            raw_intervals = intervals_payload if intervals_status == "ok" else []
-
-            # Format interval segments (empty list if no structured intervals exist)
-            segments = []
-            for iv in raw_intervals:
-                segment = {
-                    "type": iv.get("type"),
-                    "label": iv.get("group_id"),
-                    "duration_secs": iv.get("elapsed_time"),
-                    "moving_secs": iv.get("moving_time"),
-                    "start_secs": iv.get("start_time"),
-                    "end_secs": iv.get("end_time"),
-                    "avg_power": iv.get("average_watts"),
-                    "max_power": iv.get("max_watts"),
-                    "avg_hr": iv.get("average_heartrate"),
-                    "max_hr": iv.get("max_heartrate"),
-                    "min_hr": iv.get("min_heartrate"),
-                    "avg_cadence": iv.get("average_cadence"),
-                    "zone": iv.get("zone"),
-                    "w_bal_start": iv.get("wbal_start"),
-                    "w_bal_end": iv.get("wbal_end"),
-                    "training_load": iv.get("training_load"),
-                }
-                # Strip None values to keep output lean
-                segment = {k: v for k, v in segment.items() if v is not None}
-                segments.append(segment)
-
-            # DFA a1 session-level rollup (v3.99) — compute block only on ok.
-            # None means no AlphaHRV recording on this activity (skip dfa key entirely).
-            # A block with quality.sufficient=False means AlphaHRV ran but data unusable.
-            dfa_block = None
-            if streams_status == "ok":
-                try:
-                    if streams_payload.get("dfa_a1"):
-                        dfa_block = self._compute_dfa_block(streams_payload)
-                except Exception as e:
+            if due.get("intervals"):
+                status, payload = self._fetch_activity_intervals(act_id)
+                retry_after = self._last_retry_after_secs
+                if status == "ok":
+                    segments, zone_basis = self._format_interval_segments(payload, act)
+                    upd["intervals"] = segments
+                    upd["zone_basis"] = zone_basis
+                    state["intervals"] = self._advance_endpoint_state(
+                        state.get("intervals"), "intervals", "ok", "ok",
+                        now, act_start, paired)
+                    fetched_any += 1
+                elif status == "terminal_error":
+                    state["intervals"] = self._advance_endpoint_state(
+                        state.get("intervals"), "intervals", "tombstone", "terminal_error",
+                        now, act_start, paired)
+                else:
+                    # no_data (200, analysis not ready) is retryable, exactly like a
+                    # transient failure — it is the shape late analysis actually takes.
+                    reason = "no_data" if status == "no_data" else "transient"
+                    state["intervals"] = self._advance_endpoint_state(
+                        state.get("intervals"), "intervals", "pending", reason,
+                        now, act_start, paired, retry_after)
                     if self.debug:
-                        print(f"    ⚠️  DFA a1 computation failed for {act_id}: {e}")
-                    dfa_block = None
+                        print(f"    ⚠️  intervals {reason} for {act_id} "
+                              f"(status={state['intervals']['status']})")
 
-            # Zone basis (v3.120): `zone` on an interval segment is power-based when
-            # Intervals.icu returns watt bounds alongside it, HR-based or pace-based
-            # otherwise. Resolved from the documented activity-level zone-time arrays.
-            # GAP is a pace basis. Omitted when no segment carries `zone` at all, or
-            # when HR and pace/GAP sources coexist (ambiguous) or neither exists
-            # (unavailable) — omission is never a claim about the basis.
-            has_zone = any(iv.get("zone") is not None for iv in raw_intervals)
-            has_power_bounds = any(
-                iv.get("zone_min_watts") is not None or iv.get("zone_max_watts") is not None
-                for iv in raw_intervals
-            )
-            has_hr_zones = bool(act.get("icu_hr_zone_times"))
-            has_pace_zones = bool(act.get("pace_zone_times")) or bool(act.get("gap_zone_times"))
+            if due.get("streams"):
+                status, payload = self._fetch_activity_streams(
+                    act_id, ["dfa_a1", "artifacts", "heartrate", "watts"])
+                retry_after = self._last_retry_after_secs
+                if status == "terminal_error":
+                    state["streams"] = self._advance_endpoint_state(
+                        state.get("streams"), "streams", "tombstone", "terminal_error",
+                        now, act_start, paired)
+                elif status == "transient":
+                    state["streams"] = self._advance_endpoint_state(
+                        state.get("streams"), "streams", "pending", "transient",
+                        now, act_start, paired, retry_after)
+                elif status == "no_data" or not payload.get("dfa_a1"):
+                    # An HTTP 200 carrying only heartrate/watts is NOT success for this
+                    # pipeline — the streams fetcher returns ok when ANY requested
+                    # stream exists, so only a usable dfa_a1 counts.
+                    state["streams"] = self._advance_endpoint_state(
+                        state.get("streams"), "streams", "pending", "no_data",
+                        now, act_start, paired)
+                else:
+                    try:
+                        dfa_block = self._compute_dfa_block(payload)
+                    except Exception as e:
+                        if self.debug:
+                            print(f"    ⚠️  DFA a1 computation failed for {act_id}: {e}")
+                        state["streams"] = self._advance_endpoint_state(
+                            state.get("streams"), "streams", "pending", "compute_error",
+                            now, act_start, paired)
+                    else:
+                        if dfa_block is None:
+                            state["streams"] = self._advance_endpoint_state(
+                                state.get("streams"), "streams", "pending", "no_data",
+                                now, act_start, paired)
+                        else:
+                            upd["dfa"] = dfa_block
+                            state["streams"] = self._advance_endpoint_state(
+                                state.get("streams"), "streams", "ok", "ok",
+                                now, act_start, paired)
+                            fetched_any += 1
 
-            zone_basis = None
-            if has_zone:
-                if has_power_bounds:
-                    zone_basis = "power"
-                elif has_hr_zones and not has_pace_zones:
-                    zone_basis = "hr"
-                elif has_pace_zones and not has_hr_zones:
-                    zone_basis = "pace"
+        if fetched_any:
+            print(f"    ✅ {fetched_any} endpoint payload{'s' if fetched_any != 1 else ''} fetched")
 
-            # Emit entry if EITHER segments OR dfa block exists.
-            # Pure endurance rides with AlphaHRV: no segments, has dfa.
-            # Structured intervals without AlphaHRV: has segments, no dfa.
-            # Both: full entry. Neither: skip silently.
-            if segments or dfa_block is not None:
+        # Merge. Retain cached entries within retention that still exist upstream,
+        # then apply per-sibling updates keyed by activity_id — newest wins for the
+        # sibling that was refetched, and only for that sibling.
+        by_id = {}
+        dropped = 0
+        for entry in cached.get("activities", []):
+            if entry.get("date", "") < retention_cutoff:
+                continue
+            eid = str(entry.get("activity_id"))
+            if present_activity_ids is not None and eid not in present_activity_ids:
+                dropped += 1
+                continue
+            by_id[eid] = entry
+        if dropped and self.debug:
+            print(f"    🧹 Pruned {dropped} stale cached interval/DFA entr"
+                  f"{'y' if dropped == 1 else 'ies'} (activity no longer present)")
+
+        for act_id, upd in updates.items():
+            act = upd["act"]
+            entry = by_id.get(act_id)
+            if entry is None:
                 entry = {
-                    "activity_id": act_id,
+                    "activity_id": act.get("id"),
                     "date": act.get("start_date_local", "")[:10],
-                    "start_datetime": act.get("start_date_local", ""),  # v3.113: full local datetime for same-day tiebreak
+                    "start_datetime": act.get("start_date_local", ""),
                     "type": act.get("type", "Unknown"),
                     "name": act.get("name", ""),
                     "interval_summary": act.get("interval_summary"),
-                    "intervals": segments
+                    "intervals": [],
                 }
-                if zone_basis is not None:
-                    entry["zone_basis"] = zone_basis
-                if dfa_block is not None:
-                    entry["dfa"] = dfa_block
-                new_entries.append(entry)
-        
-        if new_entries:
-            print(f"    ✅ Fetched intervals for {len(new_entries)} new activit{'y' if len(new_entries) == 1 else 'ies'}")
-        
-        # Merge: keep cached entries within retention window + new entries
-        # Merge: keep cached entries within retention window, then (v3.113) drop any whose
-        # activity_id is no longer in the current fetched set. present_activity_ids comes from
-        # the 28d extended fetch, which fully covers the 14d retention window, so absence means
-        # the activity was deleted. Stringified compare guards int/str id mismatch. The
-        # `is None` guard preserves prior behaviour if a caller omits the set.
-        cached_within = [a for a in cached.get("activities", []) if a.get("date", "") >= retention_cutoff]
-        if present_activity_ids is None:
-            retained = cached_within
-        else:
-            retained = [a for a in cached_within if str(a.get("activity_id")) in present_activity_ids]
-            pruned = len(cached_within) - len(retained)
-            if pruned and self.debug:
-                print(f"    🧹 Pruned {pruned} stale cached interval/DFA entr{'y' if pruned == 1 else 'ies'} (activity no longer present)")
-        all_entries = retained + new_entries
-        
+                by_id[act_id] = entry
+            if "intervals" in upd:
+                entry["intervals"] = upd["intervals"]
+                entry["interval_summary"] = act.get("interval_summary")
+                if upd.get("zone_basis") is not None:
+                    entry["zone_basis"] = upd["zone_basis"]
+                else:
+                    # A replacement payload that no longer resolves a basis must not
+                    # leave the previous one standing.
+                    entry.pop("zone_basis", None)
+            if "dfa" in upd:
+                entry["dfa"] = upd["dfa"]
+
+        # An entry with neither payload carries nothing a consumer can use; its
+        # fetch_state record is what keeps it from being re-queued.
+        all_entries = [e for e in by_id.values() if e.get("intervals") or e.get("dfa")]
+
+        # Prune fetch_state on the same two axes as the entries.
+        pruned_state = {}
+        for act_id, state in fetch_state.items():
+            if state.get("date", "") < retention_cutoff:
+                continue
+            if present_activity_ids is not None and act_id not in present_activity_ids:
+                continue
+            pruned_state[act_id] = state
+
         # Build intervals.json
         self._intervals_data = {
-            "generated_at": now.isoformat(),
+            "generated_at": now_iso,
             "schema_version": 1,
             "version": self.VERSION,
             "script_hash": self.script_hash,
             "scan_hours": self.INTERVAL_SCAN_HOURS,
             "retention_days": self.INTERVAL_RETENTION_DAYS,
-            "activities": all_entries
+            "activities": all_entries,
+            "fetch_state": pruned_state,
         }
-        
+
         # Return all activity IDs that have interval data
         return {a["activity_id"] for a in all_entries}
     
@@ -2624,12 +2912,22 @@ class IntervalsSync:
         
         # Fetch planned workouts (EXTENDED: include past 7 days for Consistency Index, 90 days ahead for race calendar)
         print("Fetching planned workouts (past + future for Consistency Index + race calendar)...")
-        oldest_events = (datetime.now() - timedelta(days=days_back - 1)).strftime("%Y-%m-%d")
+        # v3.121: the fetch reaches back to interval retention depth so the exact
+        # planned-workout pairing map covers every activity still in intervals.json.
+        # past_events keeps its original days_back slice — the Consistency Index
+        # denominator must not move as a side effect of widening this fetch.
+        past_events_cutoff = (datetime.now() - timedelta(days=days_back - 1)).strftime("%Y-%m-%d")
+        oldest_events = (datetime.now() - timedelta(
+            days=max(days_back - 1, self.INTERVAL_RETENTION_DAYS))).strftime("%Y-%m-%d")
         newest_ahead = (datetime.now() + timedelta(days=90)).strftime("%Y-%m-%d")
         events = self._intervals_get("events", {"oldest": oldest_events, "newest": newest_ahead, "resolve": "true"})
         
         # Split events into past (for consistency), near future (for planned workouts display), and all future (for race calendar)
-        past_events = [e for e in events if e.get("start_date_local", "")[:10] <= today]
+        past_events = [e for e in events
+                       if past_events_cutoff <= e.get("start_date_local", "")[:10] <= today]
+        # Full-depth past slice for the interval pairing map only. past_events above
+        # stays at days_back for the Consistency Index; this one reaches retention.
+        pairing_events = [e for e in events if e.get("start_date_local", "")[:10] <= today]
         future_events = [e for e in events if e.get("start_date_local", "")[:10] >= today]
         near_future_events = [e for e in future_events if e.get("start_date_local", "")[:10] <= (datetime.now() + timedelta(days=42)).strftime("%Y-%m-%d")]
         
@@ -2784,7 +3082,8 @@ class IntervalsSync:
         # reaches the full 14d retention window, and supply the present-ID set for stale-entry
         # pruning. Scan cutoff inside _generate_intervals still limits what actually gets fetched.
         present_ids = {str(a.get("id")) for a in activities_extended if a.get("id")}
-        interval_activity_ids = self._generate_intervals(activities_extended, present_activity_ids=present_ids)
+        interval_activity_ids = self._generate_intervals(
+            activities_extended, present_activity_ids=present_ids, events=pairing_events)
         if interval_activity_ids:
             print(f"  📊 {len(interval_activity_ids)} activit{'y' if len(interval_activity_ids) == 1 else 'ies'} with interval data")
         
@@ -10187,7 +10486,7 @@ def main():
         
         # === SAVE INTERVALS.JSON (local mode) ===
         intervals_data = getattr(sync, '_intervals_data', None)
-        if intervals_data and intervals_data.get("activities"):
+        if intervals_data is not None:
             intervals_path = sync.data_dir / sync.INTERVALS_FILE
             with open(intervals_path, 'w') as f:
                 json.dump(intervals_data, f, indent=2, default=str)
@@ -10213,7 +10512,7 @@ def main():
         
         # === PUBLISH INTERVALS.JSON (GitHub mode) ===
         intervals_data = getattr(sync, '_intervals_data', None)
-        if intervals_data and intervals_data.get("activities"):
+        if intervals_data is not None:
             # Save locally for incremental cache on next run
             intervals_path = sync.data_dir / sync.INTERVALS_FILE
             with open(intervals_path, 'w') as f:

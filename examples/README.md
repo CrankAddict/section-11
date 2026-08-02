@@ -114,6 +114,7 @@ intervals.json (on-demand — load when analyzing activities with has_intervals:
 ├── generated_at         → Timestamp
 ├── schema_version       → intervals.json contract version (integer)
 ├── version              → sync.py version
+├── fetch_state{}        → INTERNAL retry/fetch bookkeeping — not a consumer contract
 └── activities[]         → Per-activity interval segments
     ├── activity_id      → Matches id in latest.json recent_activities
     ├── interval_summary → Group summary (e.g., "4x 9m56s 259w")

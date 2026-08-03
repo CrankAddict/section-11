@@ -4,6 +4,36 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.122 - DFA a1 crossing estimate-eligibility + artifact truthfulness.
+  (1) Crossing eligibility. a1 is a windowed estimator - alphaHRV publishes it from the
+  prior DFA_LOOKBACK_BEATS beats, so the window's DURATION varies with HR - while watts is
+  instantaneous. Averaging them is valid only where power was stationary across the window
+  that produced those a1 values; on intermittent work a crossing blends work and recovery
+  into a number that is not usable as a threshold estimate. Each qualifying segment is now
+  judged over itself PLUS its beat lookback (_segment_estimate_reason), and each crossing
+  gains estimate_eligible / estimate_reason / n_eligible_segments. Fails closed on unknown
+  or excessive artifact, invalid HR, invalid power, an unresolvable lookback, or power CV
+  above DFA_CROSSING_MAX_POWER_CV_PCT. avg_hr/avg_watts stay populated on a dwell-qualified
+  but ineligible crossing as descriptive evidence; a dwell-failed crossing is null as before.
+  (2) Artifact truthfulness. Unknown artifact samples are no longer padded with 0.0, which
+  reported a perfect artifact rate for recordings carrying no artifact data at all and left
+  the artifact filter silently inert. quality gains artifact_state (absent/partial/complete)
+  and artifact_coverage_pct (3dp, so a near-complete stream cannot serialize as 100.0 while
+  the state says partial); artifact_rate_avg stays always-present, null when nothing observed.
+  HR/watts are finite-normalised in the same post-alignment stage so descriptive averages
+  cannot be poisoned by NaN before eligibility runs.
+  (3) Counts split. trailing_by_sport gains *_eligible_sessions beside *_crossing_sessions;
+  gating, n_sessions and confidence key on the eligible count, not max(n_hr, n_w).
+  (4) _threshold_reason staged: with zero eligible sessions but some dwell-qualified, it
+  reports the modal ELIGIBILITY blocker among those, so no-dwell sessions cannot bury a
+  crossing rejected for stationarity. Deterministic tiebreaks throughout.
+  DFA_CROSSING_MAX_GAP_SECS renamed to DFA_CROSSING_MAX_GAP_SAMPLES (it always measured
+  sample-index gaps). DELIBERATELY UNCHANGED: quality.sufficient, valid_pct, TIZ,
+  dominant_band and drift. Deferred: whole-session band/drift artifact verification; the
+  drift rewrite into original-index spans (its coverage floor did not separate - missing
+  sample LOCATION dominates the percentage); the valid_secs/total_secs local rename;
+  set-aware DFA; respiration. SECTION_11.md v11.54 pairs.
+
 Version 3.121 - Per-endpoint interval fetch state with backoff (B2). New root-level
   fetch_state on intervals.json: per activity, per endpoint (intervals, streams),
   status ok / pending / tombstone with attempts, first_seen, last_attempt and
@@ -406,7 +436,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.121"
+    VERSION = "3.122"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -441,13 +471,37 @@ class IntervalsSync:
     DFA_LT1_BAND = 0.05                 # crossing window for LT1 estimate: 0.70-0.80
     DFA_LT2_BAND = 0.05                 # crossing window for LT2 estimate: 0.45-0.55
     DFA_MIN_CROSSING_DWELL_SECS = 60    # min CONTIGUOUS seconds in crossing band to emit threshold estimate (v3.113)
-    DFA_CROSSING_MAX_GAP_SECS = 5       # v3.113: max original-time gap (dropped/out-of-band secs) bridged within one crossing segment
-    DFA_MIN_CROSSING_SESSIONS_N = 3     # v3.113: min sessions with a qualifying crossing to emit a per-threshold estimate (matches 'low' confidence floor)
+    DFA_CROSSING_MAX_GAP_SAMPLES = 5    # v3.113: max sample gap (dropped/out-of-band samples) bridged within one crossing segment
+    DFA_MIN_CROSSING_SESSIONS_N = 3     # v3.122: min ESTIMATE-ELIGIBLE marker-sessions to emit a per-threshold estimate (dwell alone no longer counts; matches 'low' confidence floor)
     DFA_ARTIFACT_MAX_PCT = 5.0          # drop seconds where artifacts % exceeds this
     DFA_MIN_VALID_VALUE = 0.01          # exclude AlphaHRV sentinel zeros
     DFA_MIN_DURATION_SECS = 1200        # 20 min minimum valid data for sufficient=True
     DFA_SUFFICIENT_MIN_VALID_PCT = 70.0 # min valid_pct for sufficient=True (excludes noisy AlphaHRV sessions)
     DFA_DRIFT_INTERPRETABLE_MAX_LT2_PCT = 15.0  # if >15% time above LT2, drift is structural noise
+    # v3.122 crossing estimate-eligibility. a1 is a windowed estimator (alphaHRV: prior 200
+    # beats, so its span varies with HR - Rogers & Gronwald, Front Physiol 2022;13:879071),
+    # while watts is instantaneous. Averaging them is valid only while power is stationary
+    # across the window that produced the a1 values.
+    # CV = 100 * statistics.pstdev(watts) / mean over the lookback-plus-segment span, zero
+    # watts INCLUDED (coasting inside the a1 window IS non-stationary load; excluding it
+    # would hide the contamination). Population SD because the span is the complete observed
+    # population, not a sample of a larger one.
+    # Derivation: stationary-class max 11.168% (pstdev; 11.200% sample SD), non-stationary-class
+    # min 14.850%. N=11 pass (5 real, all easy-guard segments) / N=7 fail (6 real). These are
+    # POWER-STATIONARITY classes only. One of the five real CV-pass segments (Jul 24 easy guard,
+    # CV 4.801%) is independently estimate-rejected for excessive artifacts - a separate gate,
+    # outside this derivation, which is why overall eligibility totals differ from 11/7. Set
+    # below the gap midpoint - a false accept publishes a wrong threshold as valid, a false
+    # reject reports insufficient depth. CAVEAT: the retention window contained no real outdoor LT1/LT2
+    # CLEAN CONTROL - outdoor dwell-qualified crossings existed but failed eligibility - so
+    # outdoor generalisation is unproven.
+    DFA_CROSSING_MAX_POWER_CV_PCT = 12.0
+    DFA_LOOKBACK_BEATS = 200            # alphaHRV rolling window, beats not seconds (version-sensitive)
+    # Fixed precedence so mixed failures across segments/sessions always yield the same class.
+    ESTIMATE_REASON_PRIORITY = [
+        "lookback_incomplete", "lookback_gap", "unknown_artifact", "excessive_artifact",
+        "unknown_hr", "unknown_power", "non_positive_power_mean", "non_stationary_power",
+    ]
     DFA_TRAILING_WINDOW_N = 7           # latest N AlphaHRV sessions for trailing window (≥6 needed for 'high' confidence)
     DFA_VALIDATED_SPORTS = {"cycling"}  # 0.75/0.5 threshold markers cycling-validated; 1.0 is operational easy_guard
 
@@ -1147,23 +1201,48 @@ class IntervalsSync:
         if not dfa_stream:
             return None  # no AlphaHRV recording on this activity
 
-        artifacts_stream = streams.get("artifacts") or [0.0] * len(dfa_stream)
+        # v3.122: unknown artifact samples stay None. Padding them with 0.0 reported a perfect
+        # artifact rate for recordings carrying no artifact data at all, made the artifact
+        # filter silently inert, and still passed quality.sufficient.
+        raw_artifacts = streams.get("artifacts")
         hr_stream = streams.get("heartrate") or [None] * len(dfa_stream)
         watts_stream = streams.get("watts") or [None] * len(dfa_stream)
 
         # Align all streams to dfa_a1 length (defensive — should already match)
         n = len(dfa_stream)
-        if len(artifacts_stream) != n:
-            artifacts_stream = (artifacts_stream + [0.0] * n)[:n]
+        if not raw_artifacts:
+            artifacts_stream = [None] * n
+        elif len(raw_artifacts) != n:
+            artifacts_stream = (list(raw_artifacts) + [None] * n)[:n]
+        else:
+            artifacts_stream = raw_artifacts
         if len(hr_stream) != n:
             hr_stream = (hr_stream + [None] * n)[:n]
         if len(watts_stream) != n:
             watts_stream = (watts_stream + [None] * n)[:n]
 
+        # v3.122: normalise ONCE, post-alignment. "Observed" means a finite number (and, for
+        # artifacts, non-negative); everything else becomes None. State, coverage, the average,
+        # the sample filter and segment eligibility all consume these same lists, so they cannot
+        # disagree about what observed means. _crossing_stats sums valid_hr / valid_watts and
+        # rounds descriptive averages BEFORE eligibility runs, so a NaN would poison those sums
+        # and a nonnumeric value would raise before the helper could fail closed. Finite-only
+        # here; non-positive-HR and unknown-power rejection stays in the helper, so zero HR and
+        # zero watts survive and TIZ, drift, valid_pct and sufficient are all unchanged.
+        artifacts_stream = [
+            a if (a is not None and a >= 0.0) else None
+            for a in (self._finite_num(x) for x in artifacts_stream)
+        ]
+        hr_stream = [self._finite_num(x) for x in hr_stream]
+        watts_stream = [self._finite_num(x) for x in watts_stream]
+
         # Apply filters
-        # v3.113: valid_idx records each surviving sample's ORIGINAL stream index (second-of-ride).
-        # The valid_* arrays are compacted (dropped seconds are skipped), so array-index adjacency
-        # != ride-time adjacency. Crossing contiguity must be measured against valid_idx, not position.
+        # v3.113: valid_idx records each surviving sample's ORIGINAL stream index. The valid_*
+        # arrays are compacted (dropped samples are skipped), so array-index adjacency != stream
+        # adjacency. Crossing contiguity must be measured against valid_idx, not position.
+        # NOTE (v3.122): stream index is a SAMPLE index, not an elapsed second - they coincide
+        # only at 1 Hz with no pauses. The *_secs locals and wire keys below are nominal 1 Hz
+        # sample counts; the local rename is deferred to the drift rewrite.
         valid_dfa, valid_hr, valid_watts, valid_idx = [], [], [], []
         artifact_sum = 0.0
         artifact_count = 0
@@ -1185,7 +1264,22 @@ class IntervalsSync:
         valid_secs = len(valid_dfa)
         total_secs = n
         valid_pct = round(100.0 * valid_secs / total_secs, 1) if total_secs else 0.0
+        # v3.122: artifact_count is the OBSERVED (finite, non-negative) sample count, so it
+        # doubles as coverage - a full-length stream containing nulls or NaN is partial, not
+        # complete. sufficient is deliberately NOT gated on artifact coverage; whole-session
+        # band and drift artifact verification remains unresolved and is deferred.
         artifact_rate_avg = round(artifact_sum / artifact_count, 2) if artifact_count else None
+        # Three decimals: at one decimal a near-complete stream (Jul 24: 10,802 of 10,806
+        # observed = 99.962984%) serialises as 100.0 while artifact_state is partial, which
+        # reads as a contradiction to any consumer. Not capped or floored - the value stays
+        # true and the state stays authoritative.
+        artifact_coverage_pct = round(100.0 * artifact_count / n, 3) if n else 0.0
+        if artifact_count == 0:
+            artifact_state = "absent"
+        elif artifact_count == n:
+            artifact_state = "complete"
+        else:
+            artifact_state = "partial"
         sufficient = (
             valid_secs >= self.DFA_MIN_DURATION_SECS
             and valid_pct >= self.DFA_SUFFICIENT_MIN_VALID_PCT
@@ -1195,6 +1289,8 @@ class IntervalsSync:
             "valid_secs": valid_secs,
             "total_secs": total_secs,
             "valid_pct": valid_pct,
+            "artifact_state": artifact_state,
+            "artifact_coverage_pct": artifact_coverage_pct,
             "artifact_rate_avg": artifact_rate_avg,
             "sufficient": sufficient,
         }
@@ -1279,7 +1375,7 @@ class IntervalsSync:
         # LT1 / LT2 crossing-band estimates (the actually-coachable threshold candidates)
         def _crossing_stats(center, band):
             # v3.113 contiguous-dwell gate (see class constants). Build segments of in-band
-            # samples, bridging <= DFA_CROSSING_MAX_GAP_SECS of original ride-time (dropped or
+            # samples, bridging <= DFA_CROSSING_MAX_GAP_SAMPLES of original stream index (dropped or
             # out-of-band seconds). Only segments reaching DFA_MIN_CROSSING_DWELL_SECS in-band
             # seconds qualify; HR/watts pool across qualifying segments only. This rejects the
             # warmup/cooldown/descent scatter that previously smeared threshold estimates.
@@ -1295,10 +1391,12 @@ class IntervalsSync:
                     continue
                 total_in_band += 1
                 orig = valid_idx[i]
-                if cur is None or (orig - last_orig - 1) > self.DFA_CROSSING_MAX_GAP_SECS:
-                    cur = {"count": 0, "hr_sum": 0, "hr_n": 0, "w_sum": 0, "w_n": 0}
+                if cur is None or (orig - last_orig - 1) > self.DFA_CROSSING_MAX_GAP_SAMPLES:
+                    cur = {"count": 0, "hr_sum": 0, "hr_n": 0, "w_sum": 0, "w_n": 0,
+                           "start_sample_idx": orig, "end_sample_idx": orig}
                     segments.append(cur)
                 cur["count"] += 1
+                cur["end_sample_idx"] = orig
                 if valid_hr[i] is not None:
                     cur["hr_sum"] += valid_hr[i]
                     cur["hr_n"] += 1
@@ -1328,12 +1426,40 @@ class IntervalsSync:
                 avg_hr = None
                 avg_watts = None
 
+            # v3.122 estimate eligibility. Every qualifying segment is judged independently
+            # over itself PLUS the alphaHRV lookback that produced its a1 values; the marker is
+            # eligible only when all of them pass. Dwell failure outranks eligibility failure.
+            # Mixed segment failures resolve through ESTIMATE_REASON_PRIORITY, not by which
+            # segment happened to come first in time. avg_hr/avg_watts stay descriptive here
+            # even when ineligible - consumers read the flag, never infer from absence.
+            seg_reasons = [
+                self._segment_estimate_reason(s, artifacts_stream, hr_stream, watts_stream)
+                for s in qualifying
+            ]
+            n_eligible = sum(1 for r in seg_reasons if r == "ok")
+            failing = [r for r in seg_reasons if r != "ok"]
+            if reason != "ok":
+                estimate_eligible = False
+                estimate_reason = reason
+            elif not failing:
+                estimate_eligible = True
+                estimate_reason = "ok"
+            else:
+                estimate_eligible = False
+                order = {r: i for i, r in enumerate(self.ESTIMATE_REASON_PRIORITY)}
+                # Deterministic under an incomplete priority list: unknown reasons sort last,
+                # then alphabetically. Never falls back to segment order in time.
+                estimate_reason = min(failing, key=lambda r: (order.get(r, len(order)), r))
+
             return {
                 "marker_dfa_a1": center,
                 "secs_in_band": total_in_band,
                 "contiguous_secs": best_segment_secs,
                 "n_qualifying_segments": len(qualifying),
+                "n_eligible_segments": n_eligible,
                 "reason": reason,
+                "estimate_eligible": estimate_eligible,
+                "estimate_reason": estimate_reason,
                 "avg_hr": avg_hr,
                 "avg_watts": avg_watts,
             }
@@ -1355,6 +1481,72 @@ class IntervalsSync:
             "lt2_crossing": lt2_crossing,
             "quality": quality,
         }
+
+    @staticmethod
+    def _finite_num(v) -> Optional[float]:
+        """Finite numeric value, else None. Rejects bool, non-numeric types, NaN and inf."""
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            return None
+        f = float(v)
+        return f if math.isfinite(f) else None
+
+    def _segment_estimate_reason(self, seg, artifacts_stream, hr_stream, watts_stream) -> str:
+        """
+        Judge one dwell-qualified crossing segment for threshold-estimate eligibility (v3.122).
+
+        alphaHRV publishes a1 from the prior DFA_LOOKBACK_BEATS beats, so the window's
+        DURATION varies with HR and can never be a fixed sample count. The segment's a1 values
+        were produced by that lookback, so the lookback is evaluated with the segment.
+
+        Fails closed throughout: unknown OR excessive artifact, invalid HR, invalid power, an
+        unresolvable lookback, or non-stationary power all make the segment ineligible. Zero
+        watts are VALID and included - coasting inside the a1-producing window is itself
+        non-stationary load, and dropping it would hide the contamination.
+
+        Failure classes are checked over the complete span in a fixed order, so the emitted
+        reason never depends on which bad sample appears first.
+
+        Streams are the v3.122 finite-normalised lists from _compute_dfa_block.
+        """
+        start = seg["start_sample_idx"]
+        end = seg["end_sample_idx"]
+
+        # 1. Resolve the lookback; it defines the span. Walk back from immediately before the
+        #    segment. A hole fails rather than being skipped to reach earlier beats.
+        beats = 0.0
+        i = start - 1
+        while i >= 0 and beats < self.DFA_LOOKBACK_BEATS:
+            hr = hr_stream[i]
+            if hr is None or hr <= 0:
+                return "lookback_gap"
+            beats += hr / 60.0
+            i -= 1
+        if beats < self.DFA_LOOKBACK_BEATS:
+            return "lookback_incomplete"
+        span = range(i + 1, end + 1)
+
+        # 2. Whole-span coverage, fixed order. Bridged gaps inside the segment are part of the
+        #    span: an excessive-artifact sample there contaminates the a1 values regardless of
+        #    having been dropped from valid_dfa.
+        arts = [artifacts_stream[j] for j in span]
+        if any(a is None for a in arts):
+            return "unknown_artifact"
+        if any(a > self.DFA_ARTIFACT_MAX_PCT for a in arts):
+            return "excessive_artifact"
+        hrs = [hr_stream[j] for j in span]
+        if any(h is None or h <= 0 for h in hrs):
+            return "unknown_hr"
+        watts = [watts_stream[j] for j in span]
+        if any(w is None for w in watts):
+            return "unknown_power"
+
+        # 3. Stationarity, per the characterised formula.
+        mean = sum(watts) / len(watts)
+        if mean <= 0:
+            return "non_positive_power_mean"
+        if 100.0 * statistics.pstdev(watts) / mean > self.DFA_CROSSING_MAX_POWER_CV_PCT:
+            return "non_stationary_power"
+        return "ok"
 
     def _build_dfa_summary(self, dfa_block: Dict) -> Dict:
         """
@@ -1410,17 +1602,22 @@ class IntervalsSync:
             summary["drift_delta"] = drift["delta"]
             summary["drift_interpretable"] = drift.get("interpretable", False)
 
+        # v3.122: the compact summary is the AI-facing surface, so it carries threshold
+        # numbers only when the crossing is estimate-eligible. The detailed crossing block
+        # retains avg_hr/avg_watts as descriptive evidence with estimate_eligible: false.
         lt1 = dfa_block.get("lt1_crossing") or {}
-        if lt1.get("avg_watts") is not None:
-            summary["lt1_watts"] = lt1["avg_watts"]
-        if lt1.get("avg_hr") is not None:
-            summary["lt1_hr"] = lt1["avg_hr"]
+        if lt1.get("estimate_eligible"):
+            if lt1.get("avg_watts") is not None:
+                summary["lt1_watts"] = lt1["avg_watts"]
+            if lt1.get("avg_hr") is not None:
+                summary["lt1_hr"] = lt1["avg_hr"]
 
         lt2 = dfa_block.get("lt2_crossing") or {}
-        if lt2.get("avg_watts") is not None:
-            summary["lt2_watts"] = lt2["avg_watts"]
-        if lt2.get("avg_hr") is not None:
-            summary["lt2_hr"] = lt2["avg_hr"]
+        if lt2.get("estimate_eligible"):
+            if lt2.get("avg_watts") is not None:
+                summary["lt2_watts"] = lt2["avg_watts"]
+            if lt2.get("avg_hr") is not None:
+                summary["lt2_hr"] = lt2["avg_hr"]
 
         return summary
 
@@ -3171,7 +3368,7 @@ class IntervalsSync:
                 "display_formatting": "For durations and sleep, always display the '_formatted' fields (e.g., sleep_formatted, duration_formatted, total_training_formatted) instead of converting decimal '_hours' values. The formatted fields are pre-calculated from raw seconds and avoid rounding errors.",
                 "data_period": f"Last {days_back} days (including today)",
                 "extended_data_note": f"ACWR and baselines calculated from {days_for_acwr} days of data",
-                "capability_metrics_note": "The 'capability' block in derived_metrics contains durability trend (aggregate decoupling 7d/28d), efficiency factor trend (aggregate EF 7d/28d), HRRc trend (heart rate recovery 7d/28d), TID comparison (7d vs 28d distribution drift), power curve delta (MMP shift at anchor durations across 28d windows — energy system adaptation direction), HR curve delta (max sustained HR shift at anchor durations — cardiac adaptation, cross-sport), sustainability profile (per-sport power/HR sustainability table for race estimation — 42d window, sport-filtered), and DFA a1 profile (per-session non-linear HRV index from AlphaHRV Connect IQ field — latest_session + trailing_by_sport with crossing-band easy_guard / LT1 / LT2 estimates). These measure HOW the athlete expresses fitness, not just load. Use these for coaching context alongside traditional load metrics. Durability and EF trend direction matters more than absolute values. HRRc is display only — higher = better parasympathetic recovery. Power curve delta rotation_index reveals whether gains are sprint-biased (positive) or endurance-biased (negative). HR curve delta is ambiguous — rising max sustained HR may indicate fitness or fatigue; cross-reference with resting HRV/HR and RPE. Sustainability profile provides race estimation lookup: actual MMP, Coggan predicted (cycling only), CP/W' model (cycling only), model_divergence_pct (actual vs CP — divergence IS the coaching signal). CP/W' is primary for durations ≤20min; Coggan duration factors are the established reference for ≥60min. Source flag (observed_outdoor/observed_indoor) matters for cycling race estimation — indoor MMP is typically 3-5% lower. DFA a1 profile: three self-describing markers (each estimate + crossing block carries marker_dfa_a1) — easy_guard (a1 1.0, a conservative easy-state guard, NOT a threshold), lt1 (a1 0.75, HRVT1 / aerobic threshold), lt2 (a1 0.5, HRVT2 / anaerobic threshold). The literature threshold markers (0.75 / 0.5) are cycling-validated only - non-cycling sports get rollups but validated=False. Every estimate requires a SUSTAINED contiguous crossing: each session's easy_guard_crossing / lt1_crossing / lt2_crossing carries a reason (ok / no_samples_in_band / insufficient_total_dwell / no_contiguous_dwell); scattered in-band time does not produce an estimate. HR is pooled across sessions; watts are split by environment for cycling (watts_outdoor, watts_indoor with per-environment n_sessions) - compare watts_outdoor against ftp, watts_indoor against ftp_indoor. Non-cycling sports keep pooled watts. easy_guard_estimate, lt1_estimate and lt2_estimate are each gated INDEPENDENTLY - null when that marker has fewer than 3 qualifying-crossing sessions; trailing_by_sport.{sport}.easy_guard_reason / lt1_reason / lt2_reason explains a null (insufficient_sessions, or a sub-threshold blocker such as no_contiguous_dwell). A null estimate means the athlete did not sustain that marker, NOT missing sensor data. IMPORTANT: easy_guard is a conservative easy-state compliance guard, NOT an LT1/aerobic-threshold estimate - never compare it to dossier zones and never treat it as a calibration or staleness signal; only lt1 (0.75) and lt2 (0.5) inform threshold calibration. lt1 (0.75) populates only on rides that sustain aerobic-threshold intensity, so it is often null on easy/deload riding - that is expected, not a data gap. Sport-level confidence is a coarse max across the THRESHOLD markers only (lt1, lt2; easy_guard excluded) - low is suppressed for calibration delta surfacing, usable at 'moderate' or 'high'; per-marker estimate presence + reason are authoritative. DFA a1 is a Tier-2 interpretive signal - does NOT enter readiness P0-P3 ladder, does NOT auto-update dossier zones; surfaces calibration deltas only (from lt1/lt2, never easy_guard). Quality gate: refuse to interpret any DFA output when latest_session.sufficient=false. Threshold (lt1/lt2) calibration additionally requires trailing confidence != null; when confidence is null, do NOT surface lt1/lt2 calibration deltas. easy_guard is NOT gated on confidence (it is excluded from it) - interpret easy_guard_estimate from its own reason / n_sessions / quality when present, but never as a calibration signal. See SECTION_11.md DFA a1 Protocol for full interpretation rules.",
+                "capability_metrics_note": "The 'capability' block in derived_metrics contains durability trend (aggregate decoupling 7d/28d), efficiency factor trend (aggregate EF 7d/28d), HRRc trend (heart rate recovery 7d/28d), TID comparison (7d vs 28d distribution drift), power curve delta (MMP shift at anchor durations across 28d windows — energy system adaptation direction), HR curve delta (max sustained HR shift at anchor durations — cardiac adaptation, cross-sport), sustainability profile (per-sport power/HR sustainability table for race estimation — 42d window, sport-filtered), and DFA a1 profile (per-session non-linear HRV index from AlphaHRV Connect IQ field — latest_session + trailing_by_sport with crossing-band easy_guard / LT1 / LT2 estimates). These measure HOW the athlete expresses fitness, not just load. Use these for coaching context alongside traditional load metrics. Durability and EF trend direction matters more than absolute values. HRRc is display only — higher = better parasympathetic recovery. Power curve delta rotation_index reveals whether gains are sprint-biased (positive) or endurance-biased (negative). HR curve delta is ambiguous — rising max sustained HR may indicate fitness or fatigue; cross-reference with resting HRV/HR and RPE. Sustainability profile provides race estimation lookup: actual MMP, Coggan predicted (cycling only), CP/W' model (cycling only), model_divergence_pct (actual vs CP — divergence IS the coaching signal). CP/W' is primary for durations ≤20min; Coggan duration factors are the established reference for ≥60min. Source flag (observed_outdoor/observed_indoor) matters for cycling race estimation — indoor MMP is typically 3-5% lower. DFA a1 profile: three self-describing markers (each estimate + crossing block carries marker_dfa_a1) — easy_guard (a1 1.0, a conservative easy-state guard, NOT a threshold), lt1 (a1 0.75, HRVT1 / aerobic threshold), lt2 (a1 0.5, HRVT2 / anaerobic threshold). The literature threshold markers (0.75 / 0.5) are cycling-validated only - non-cycling sports get rollups but validated=False. Every estimate requires a SUSTAINED contiguous crossing: each session's easy_guard_crossing / lt1_crossing / lt2_crossing carries a reason (ok / no_samples_in_band / insufficient_total_dwell / no_contiguous_dwell); scattered in-band time does not produce an estimate. v3.122: dwell is not sufficient. Each crossing also carries estimate_eligible / estimate_reason / n_eligible_segments - a1 reflects the prior 200 beats while watts is instantaneous, so a crossing recorded across varying power blends work and recovery into a number that is not usable as a threshold estimate. avg_hr / avg_watts stay populated on a dwell-qualified but estimate-ineligible crossing as descriptive evidence (a dwell-failed crossing has null averages as before); read estimate_eligible, never infer from absence. Compact lt1_/lt2_ summary fields and all trailing rollups consume eligible crossings only. HR is pooled across sessions; watts are split by environment for cycling (watts_outdoor, watts_indoor with per-environment n_sessions) - compare watts_outdoor against ftp, watts_indoor against ftp_indoor. Non-cycling sports keep pooled watts. easy_guard_estimate, lt1_estimate and lt2_estimate are each gated INDEPENDENTLY - null when that marker has fewer than 3 estimate-ELIGIBLE marker-sessions (v3.122 - not merely dwell-qualified; see easy_guard_eligible_sessions / lt1_eligible_sessions / lt2_eligible_sessions alongside the *_crossing_sessions counts, and note that any gap between them means at least one dwell-qualified marker-session was estimate-rejected). An estimate is null whenever minimum estimate-eligible session depth is not met. If at least one eligible session exists, trailing_by_sport.{sport}.easy_guard_reason / lt1_reason / lt2_reason is insufficient_sessions. If none exists, the staged reason identifies the dominant blocker: dwell failure, incomplete coverage, excessive artifacts, non-positive mean power, or non-stationary power. Do NOT read a null estimate as 'the athlete did not sustain that marker' - read the reason. IMPORTANT: easy_guard is a conservative easy-state compliance guard, NOT an LT1/aerobic-threshold estimate - never compare it to dossier zones and never treat it as a calibration or staleness signal; only lt1 (0.75) and lt2 (0.5) inform threshold calibration. lt1 (0.75) populates only on rides that sustain aerobic-threshold intensity, so it is often null on easy/deload riding - that is expected, not a data gap. Sport-level confidence is a coarse max across the THRESHOLD markers only (lt1, lt2; easy_guard excluded) - low is suppressed for calibration delta surfacing, usable at 'moderate' or 'high'; per-marker estimate presence + reason are authoritative. DFA a1 is a Tier-2 interpretive signal - does NOT enter readiness P0-P3 ladder, does NOT auto-update dossier zones; surfaces calibration deltas only (from lt1/lt2, never easy_guard). Quality gate: refuse to interpret any DFA output when latest_session.sufficient=false. Threshold (lt1/lt2) calibration additionally requires trailing confidence != null; when confidence is null, do NOT surface lt1/lt2 calibration deltas. easy_guard is NOT gated on confidence (it is excluded from it) - interpret easy_guard_estimate from its own reason / n_sessions / quality when present, but never as a calibration signal. See SECTION_11.md DFA a1 Protocol for full interpretation rules.",
                 "readiness_decision_note": "The 'readiness_decision' block contains a pre-computed go/modify/skip recommendation with priority level (P0=safety, P1=overload, P2=fatigue, P3=green), individual signal statuses, phase-adjusted thresholds, and structured modification guidance. Use this as the baseline for pre-workout recommendations. Override with explanation in the coach note if the AI's contextual judgment disagrees.",
                 "zone_preference": self.zone_preference if self.zone_preference else "default (power preferred, HR fallback)",
                 "wellness_field_scales": {
@@ -5229,7 +5426,8 @@ class IntervalsSync:
                 vals = []
                 for a in source:
                     cb = a["dfa"].get(key)
-                    if cb and cb.get("reason") == "ok":
+                    # v3.122: dwell qualification AND estimate eligibility.
+                    if cb and cb.get("reason") == "ok" and cb.get("estimate_eligible"):
                         v = cb.get(field)
                         if v is not None:
                             vals.append(v)
@@ -5243,28 +5441,46 @@ class IntervalsSync:
                 indoor = [a for a in window if self._is_indoor_cycling(a.get("type", ""))]
                 outdoor = [a for a in window if not self._is_indoor_cycling(a.get("type", ""))]
 
-            def _threshold_reason(key, thr_n):
-                # 'ok' when the marker has enough qualifying-crossing sessions; else explain why.
-                if thr_n >= self.DFA_MIN_CROSSING_SESSIONS_N:
+            def _threshold_reason(key, eligible_n):
+                # v3.122 staged. A flat modal count across the whole window lets a majority of
+                # no_samples_in_band sessions bury the dwell-qualified crossings that were
+                # rejected for stationarity - the blocker the athlete can actually act on.
+                if eligible_n >= self.DFA_MIN_CROSSING_SESSIONS_N:
                     return "ok"
-                if thr_n >= 1:
+                if eligible_n >= 1:
                     return "insufficient_sessions"
-                # thr_n == 0: modal per-session blocker across the window, tiebreak toward the
+                blocks = [(a["dfa"].get(key) or {}) for a in window]
+                # Zero eligible, but crossings did sustain dwell: report why THOSE were
+                # rejected, modal among them, tiebroken by ESTIMATE_REASON_PRIORITY then name.
+                dwell_ok = [b for b in blocks if b.get("reason") == "ok"]
+                if dwell_ok:
+                    counts = {}
+                    for b in dwell_ok:
+                        r = b.get("estimate_reason")
+                        if r and r != "ok":
+                            counts[r] = counts.get(r, 0) + 1
+                    if counts:
+                        order = {r: i for i, r in enumerate(self.ESTIMATE_REASON_PRIORITY)}
+                        return sorted(counts.items(),
+                                      key=lambda kv: (-kv[1], order.get(kv[0], len(order)), kv[0]))[0][0]
+                # No dwell-qualified crossings at all: modal dwell blocker, tiebreak toward the
                 # more-blocking reason (no_samples > insufficient_total > no_contiguous).
                 counts = {}
-                for a in window:
-                    r = (a["dfa"].get(key) or {}).get("reason")
+                for b in blocks:
+                    r = b.get("reason")
                     if r and r != "ok":
                         counts[r] = counts.get(r, 0) + 1
                 if not counts:
                     return "no_samples_in_band"
                 severity = {"no_samples_in_band": 0, "insufficient_total_dwell": 1, "no_contiguous_dwell": 2}
-                return sorted(counts.items(), key=lambda kv: (-kv[1], severity.get(kv[0], 99)))[0][0]
+                return sorted(counts.items(),
+                              key=lambda kv: (-kv[1], severity.get(kv[0], len(severity)), kv[0]))[0][0]
 
             # Per-marker estimate builder (v3.114): generalizes the v3.113 per-threshold
             # gating/reason logic across all three markers (easy_guard 1.0, lt1 0.75, lt2 0.5).
             # HR pooled; watts split by environment for cycling. Each estimate carries
-            # marker_dfa_a1 so the JSON is self-describing. Gated on its OWN qualifying count.
+            # marker_dfa_a1 so the JSON is self-describing. Gated on its own estimate-eligible
+            # marker-session count.
             def _build_marker(key, marker_value):
                 hr, n_hr = _avg_crossing(key, "avg_hr")
                 if is_cycling:
@@ -5273,13 +5489,25 @@ class IntervalsSync:
                     n_w = n_w_out + n_w_in
                 else:
                     watts, n_w = _avg_crossing(key, "avg_watts")
-                n_marker = max(n_hr, n_w)
+                # v3.122: two distinct counts, never one field reinterpreted by context.
+                # crossing_sessions = marker-sessions that sustained a contiguous dwell.
+                # eligible_sessions = those that were ALSO usable as a threshold estimate.
+                # Gating, n_sessions and confidence all key on eligible_sessions - max(n_hr,
+                # n_w) inferred the count from whichever HR/watts values happened to populate,
+                # which is not the same thing. n_hr / n_w survive only for the environment
+                # subcounts below.
                 crossing_sessions = sum(
                     1 for a in window if (a["dfa"].get(key) or {}).get("reason") == "ok"
                 )
-                reason = _threshold_reason(key, n_marker)
-                if n_marker < self.DFA_MIN_CROSSING_SESSIONS_N:
-                    return None, reason, crossing_sessions, n_marker
+                eligible_sessions = sum(
+                    1 for a in window
+                    if (a["dfa"].get(key) or {}).get("reason") == "ok"
+                    and (a["dfa"].get(key) or {}).get("estimate_eligible")
+                )
+                n_marker = eligible_sessions
+                reason = _threshold_reason(key, eligible_sessions)
+                if eligible_sessions < self.DFA_MIN_CROSSING_SESSIONS_N:
+                    return None, reason, crossing_sessions, eligible_sessions
                 if is_cycling:
                     est = {
                         "marker_dfa_a1": marker_value,
@@ -5299,18 +5527,19 @@ class IntervalsSync:
                     }
                 return est, reason, crossing_sessions, n_marker
 
-            easy_guard_est, easy_guard_reason, easy_guard_crossing_sessions, easy_guard_n = \
+            easy_guard_est, easy_guard_reason, easy_guard_crossing_sessions, easy_guard_eligible = \
                 _build_marker("easy_guard_crossing", self.DFA_EASY_GUARD)
-            lt1_est, lt1_reason, lt1_crossing_sessions, lt1_n = \
+            lt1_est, lt1_reason, lt1_crossing_sessions, lt1_eligible = \
                 _build_marker("lt1_crossing", self.DFA_LT1)
-            lt2_est, lt2_reason, lt2_crossing_sessions, lt2_n = \
+            lt2_est, lt2_reason, lt2_crossing_sessions, lt2_eligible = \
                 _build_marker("lt2_crossing", self.DFA_LT2)
 
             # Sport-level confidence: coarse, max across THRESHOLD markers only (lt1, lt2).
             # easy_guard is a compliance guard, deliberately EXCLUDED — it populates on easy
             # rides and would inflate threshold-calibration confidence (v3.114). Consumed by the
             # agent + BLOCK_REPORT gate; per-marker estimate presence + reason are authoritative.
-            crossing_n = max(lt1_n, lt2_n)
+            # v3.122: these are ELIGIBLE-session counts, not dwell counts.
+            crossing_n = max(lt1_eligible, lt2_eligible)
             if crossing_n >= 6:
                 confidence = "high"
             elif crossing_n >= 4:
@@ -5333,6 +5562,9 @@ class IntervalsSync:
                 "easy_guard_crossing_sessions": easy_guard_crossing_sessions,
                 "lt1_crossing_sessions": lt1_crossing_sessions,
                 "lt2_crossing_sessions": lt2_crossing_sessions,
+                "easy_guard_eligible_sessions": easy_guard_eligible,
+                "lt1_eligible_sessions": lt1_eligible,
+                "lt2_eligible_sessions": lt2_eligible,
                 "easy_guard_estimate": easy_guard_est,
                 "easy_guard_reason": easy_guard_reason,
                 "lt1_estimate": lt1_est,

@@ -151,3 +151,13 @@ Section 11 does not implement GitHub authentication. It reads files from whateve
 - Running in an agent (OpenClaw, Claude Cowork, etc.) with GitHub access configured: can read/write repos that the agent's token/SSH key allows
 
 Access is entirely governed by credentials the user has already configured in their environment.
+
+
+# Tools & Execution
+The local agent uses the virtual environment and absolute paths from the working directory to guarantee access to credentials (.sync_config.json). All tools pass through an anti-loop security wrapper.
+- **sync**: `/home/nespinosa/.openclaw/workspace/.venv/bin/python3 /home/nespinosa/.openclaw/workspace/training-data/run_safe.py /home/nespinosa/.openclaw/workspace/.venv/bin/python3 /home/nespinosa/.openclaw/workspace/training-data/sync.py`
+- **push**: `cd /home/nespinosa/.openclaw/workspace/training-data && /home/nespinosa/.openclaw/workspace/.venv/bin/python3 /home/nespinosa/.openclaw/workspace/training-data/run_safe.py /home/nespinosa/.openclaw/workspace/.venv/bin/python3 push.py [ACTION] [ARGUMENTS]`
+- **project_fitness**: `/home/nespinosa/.openclaw/workspace/.venv/bin/python3 /home/nespinosa/.openclaw/workspace/training-data/run_safe.py /home/nespinosa/.openclaw/workspace/.venv/bin/python3 /home/nespinosa/.openclaw/workspace/training-data/project_fitness.py`
+
+## Valid Actions for push.py
+The agent must refer to the files located in `/home/nespinosa/.openclaw/workspace/skills/section-11/examples/agentic`

@@ -1,10 +1,18 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.54  
-**Last Updated:** 2026-08-02
+**Protocol Version:** 11.55  
+**Last Updated:** 2026-08-10
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.55 — Custom-interval edits invalidate the interval cache (`sync.py` v3.123):**
+- A successful interval fetch was treated as permanent. Once `fetch_state[id].intervals.status` was `ok` the activity was never queued again, so intervals the athlete added or edited in Intervals.icu **after** that sync stayed invisible until `intervals.json` was deleted. Closes issue #20
+- **Detection costs no extra API request.** The activity list already fetched every sync carries `icu_sync_date`, observed to advance on controlled repeated interval edits, and `icu_intervals_edited`. The former is the invalidation token, gated by the latter so only activities carrying custom intervals are ever re-examined. An unchanged activity still makes zero interval calls
+- **The refresh is its own lifecycle, not the retry ladder.** `fetch_state[id].intervals.refresh` carries `target_sync_date`, `attempts`, `reason` and either `next_retry_at` or `status: exhausted`. The existing ladder could not be reused because its deadline derives from **activity start**: an edit landing days after the ride would expire on its first failure and tombstone an endpoint whose cached payload is still good. `_schedule_refresh` is clocked from the attempt instead, has no deadline, and continues at the ladder maximum until retention pruning, so an outage self-heals without polling every sync
+- **A failed refresh never costs the cached payload.** The endpoint holds `status: ok` throughout; `attempts`, `first_seen` and `source_icu_sync_date` are preserved and only the `refresh` sub-object advances. `last_attempt` updates, because a request did occur. A terminal 404/410 exhausts that one target while retaining the payload, and a later, different token re-arms it
+- Absent `icu_sync_date` fails closed to prior behaviour and can never produce a fetch loop. The refresh arm queues **intervals only** — stream availability is a property of the recording, which editing cannot change
+- `fetch_state` remains internal, so `schema_version` **stays `1`** and the `activities[]` consumer contract is unchanged. Requires `sync.py` v3.123. Replacing `sync.py` changes `script_hash`, which invalidates `intervals.json` and backfills the new token on the next full re-scan
 
 **v11.54 — DFA a1 crossing estimate-eligibility + artifact truthfulness (`sync.py` v3.122):**
 - **Crossing eligibility.** a1 is a windowed estimator — alphaHRV publishes it from the prior 200 beats, so the window's duration varies with HR — while watts is instantaneous. Averaging them is valid only where power was stationary across the window that produced those a1 values; on intermittent work a crossing blends work and recovery into a number that is not usable as a threshold estimate. Each qualifying segment is now judged over itself plus its beat lookback, and each crossing carries `estimate_eligible` / `estimate_reason` / `n_eligible_segments`. Compact `lt1_*` / `lt2_*` summary fields and all trailing rollups consume eligible crossings only; `avg_hr` / `avg_watts` stay populated on **dwell-qualified but estimate-ineligible** crossings as descriptive evidence, while a dwell-failed crossing has null averages as before.
@@ -51,187 +59,26 @@
 - **Hard migration, no deprecation window** — no dual `recovery`/`easy` emission. Any consumer keyed on `tiz_pct.recovery`, `tiz_split_pct.recovery`, `dfa.tiz_recovery`, or `dominant_band == "recovery"` must be updated. Replacing `sync.py` changes `script_hash`, which invalidates `intervals.json`, so the next run re-scans the full 14-day retention window and re-fetches streams — expect one heavier sync, then normal
 - Historical changelog entries (v11.46 / `sync.py` v3.115 for the original band rename; v11.32 / v3.101 for the original max-pct alphabetical `dominant_band` rule) are left intact as a record of what shipped
 
-**v11.49 — P1 `alarm_refs` per-branch attribution (`sync.py` v3.117, changelog-only):**
-- `sync.py` v3.117: the P1 skip return previously set `alarm_refs` to every `tier1_persistent` ref whenever any P1 reason fired. When P1 fired from ACWR (≥ 1.5) or the TSB+HRV composite while RI ≥ 0.7 (persistent branch inactive) and unrelated persistent tier-1 alerts happened to be active, `alarm_refs` named alerts that did not trigger the decision. Now built per firing branch: ACWR contributes the `acwr` alert ref (present only if the object exists — guaranteed at ≥ 1.5, above the ≥ 1.35 alert threshold), the TSB+HRV composite contributes none (no discrete alert object to resolve to), the RI < 0.7 persistent branch contributes its tier-1 metrics only when it fires
-- No doc-body change: this brings the code in line with the v11.47 contract already documented at `readiness_decision.alarm_refs` ("alert metric names that triggered P0/P1 … each name resolves to an object in the top-level `alerts[]` array"). P0 was already correct; P2/P3/modify returns already emit `[]`
-- Output change in the edge case only (verified inert on current live data — no P1 skip active); resolves TODO #12
-
-**v11.48 — P1 readiness-skip severity gate (Commit B):**
-- `sync.py` v3.116: the P1 persistent-alert skip branch now requires `severity in ("warning", "alarm")` in addition to `tier == 1` and `persistence_days ≥ 2`. Inert on current data (`race_taper` / `race_week` are the only tier-1 `info` alerts and carry `persistence_days: null`, already excluded); prevents a future tier-1 `info` alert with a real persistence value from silently forcing a P1 skip
-- P1 priority-ladder line and the `alerts[].severity` / `alerts[].persistence_days` schema rows updated to state the `warning`/`alarm` requirement (P1 alert branch also gated on RI < 0.7), closing the doc/code gap that Commit A deliberately left open
-
-**v11.47 — Alert tier semantics clarified (doc-only):**
-- Defines **Alert Tier 1** (`alerts[].tier == 1`) and **tier-1 alarm** (`tier: 1` + `severity: "alarm"`) in the Readiness Decision section, resolving the terminology collision raised in forum #133. Tier 1 spans primary readiness signals (`hrv` / `rhr` / `recovery_index`) **and** race-calendar alerts (`race_taper` / `race_week` / `race_week_tsb`); only a tier-1 alarm fires P0. Disambiguated from the unrelated Tier-1 verified data mirror and Tier 1 heat-stress band (no renames)
-- Documents the full `alerts[]` object schema (`metric`, `value`, `severity`, `tier`, `persistence_days`, `threshold`, `context`) in the JSON field reference — previously only `readiness_decision.alarm_refs` was documented, not the objects it points to
-- P0/P1 priority-ladder lines rewritten to name the alert axis explicitly and to match current `sync.py`: P0 keys on `severity: "alarm"`; P1 keys on `persistence_days ≥ 2` (persistence only — no severity filter, matching the current P1 branch in `sync.py`). No behavior change; the P1 severity filter lands separately in Commit B
-
-**v11.46 — DFA a1 TIZ band rename (marker-consistent names):**
-- The four time-in-zone bands are renamed to match the corrected three-marker semantics — **values and boundaries are unchanged, keys only**. Per-session `dfa` block: `tiz_below_lt1` → **`tiz_recovery`** (α1 > 1.0), `tiz_lt1_transition` → **`tiz_endurance`** (0.75–1.0, between easy_guard and LT1), `tiz_transition_lt2` → **`tiz_tempo`** (0.5–0.75), `tiz_above_lt2` → **`tiz_supra`** (α1 < 0.5). Pairs with `sync.py` v3.115
-- Compact summaries (`latest_session.tiz_split_pct`, `recent_activities[].dfa_summary.tiz_pct`, and the `dominant_band` value) carry the **bare short keys**: `recovery` / `endurance` / `tempo` / `supra` (the `tiz_pct` wrapper already carries the "tiz" sense)
-- The old names encoded the pre-v11.45 error (LT1 = 1.0): "below_lt1" for the >1.0 band and "transition" for 0.75–1.0 both misread once LT1 is at 0.75. Under the correct mapping the >1.0 band is recovery and the 0.75–1.0 band is endurance approaching LT1 (LT1 at its 0.75 edge), not a transition
-- Report display labels harmonized to match (Z2 / transition / SS / above-LT2 → recovery / endurance / tempo / supra) in the POST_WORKOUT template + examples. Physiological threshold phrasing ("time above LT2" for drift interpretability) is retained as-is — it references the LT2 threshold, not the band key. Closes the three-marker cycle (Commits A/B/C)
-
-**v11.45 — Three-marker DFA a1 semantics (easy_guard / LT1 / LT2):**
-- DFA a1 crossing estimates are now three self-describing markers, each carrying `marker_dfa_a1`: **`easy_guard` (α1 1.0)**, **`lt1` (α1 0.75)**, **`lt2` (α1 0.5)**. `easy_guard` is a conservative easy-state guard (well-correlated dynamics, below the aerobic threshold) — NOT a threshold and never a calibration/staleness signal. `lt1` is the literature HRVT1 / aerobic threshold; `lt2` is HRVT2. Pairs with `sync.py` v3.114
-- **Semantic correction:** the LT1 crossing estimate moved from α1 1.0 to α1 **0.75**. The old 1.0 crossing now lives under `easy_guard_estimate`. Migration: any cached "LT1 ≈ N W/bpm" derived from the 1.0 crossing is today's `easy_guard`; the new `lt1_estimate` (0.75) reads higher and populates less often — it requires rides that sustain aerobic-threshold intensity, so it is frequently null on easy/deload riding (expected, not a data gap)
-- Threshold-mapping table and DFA a1 Evidence Base corrected to the literature: 0.75 = HRVT1/AeT/VT1, 0.5 = HRVT2/AnT/VT2 (Rogers et al. Front Physiol 2020/2021; Gronwald/Rogers/Hoos 2020 framework; Schaffarczyk 2023; Mateo-March 2023). The prior "Rowlands 2017 / α1 1.0 = aerobic threshold" citation was removed — no such DFA paper is locatable and no source places LT1 at α1 1.0
-- `easy_guard_estimate` / `lt1_estimate` / `lt2_estimate` gated independently (≥3 qualifying-crossing sessions each), with `easy_guard_reason` / `lt1_reason` / `lt2_reason` and `easy_guard_crossing_sessions` / `lt1_crossing_sessions` / `lt2_crossing_sessions`. Sport-level `confidence` is a coarse max across THRESHOLD markers only (lt1, lt2) — `easy_guard` is excluded so easy rides can't inflate threshold confidence [Superseded by v11.54: estimates now gate on estimate-eligible marker-sessions; separate dwell-qualified and eligible counts are exposed.]
-- Per-session `dfa` block adds `easy_guard_crossing` alongside `lt1_crossing` / `lt2_crossing`; each crossing block carries `marker_dfa_a1`. TIZ four-band values are unchanged (1.0/0.75/0.5 boundaries preserved); band names are legacy this release and rename in a later commit
-- `BLOCK_REPORT_TEMPLATE.md` DFA section renamed "DFA a1 Calibration" → "DFA a1 Profile"; renders an easy-state guard line (descriptive/compliance-only) independent of threshold confidence, while LT1/LT2 calibration deltas stay gated on threshold confidence ≥ moderate. Documentation-only release — no `sync.py` change beyond the v3.114 core
-
-**v11.44 — DFA a1 crossing integrity (contiguous dwell + per-threshold gating):**
-- LT1/LT2 crossing estimates now require a **sustained contiguous crossing**, not scattered in-band time. Each `lt1_crossing` / `lt2_crossing` block gains `contiguous_secs`, `n_qualifying_segments`, and a `reason` (`ok` / `no_samples_in_band` / `insufficient_total_dwell` / `no_contiguous_dwell`); `avg_hr` / `avg_watts` populate only at `reason == "ok"`. Fixes smeared threshold estimates from warmup/cooldown/descent scatter on sub-threshold rides
-- `trailing_by_sport.{sport}.lt1_estimate` / `lt2_estimate` are now gated **independently** on per-threshold qualifying-session count (≥3). Eliminates the hollow all-null block that appeared when one threshold's crossings made the shared `confidence` truthy for the other
-- New `lt1_reason` / `lt2_reason` on each sport block explain a null estimate (`insufficient_sessions`, or the modal sub-threshold blocker) — a null estimate means the threshold was not sustained, not missing sensor data. `confidence` is retained as a coarse max-across-thresholds signal for section gating; per-threshold estimate presence + reason are authoritative
-- `capability_metrics_note` in `latest.json` updated to teach the new reason-code behavior. `BLOCK_REPORT_TEMPLATE.md` now omits the LT1 line independently when `lt1_estimate` is null (previously only LT2)
-- `_generate_intervals` now receives the 28-day extended activity set, so first-run backfill reaches the full 14-day retention window (previously truncated to the 7-day display set, silently shrinking the DFA window on every code change); cached entries whose `activity_id` is no longer present are pruned — deleted/re-uploaded rides that could otherwise win the `latest_session` pointer (`sync.py` v3.113)
-- Completed `recent_activities` now carry `duration_formatted` (XhYm) beside `duration_hours`, so reports read the pre-formatted field instead of converting decimals in the AI layer
-- DFA interval entries carry `start_datetime`; `latest_session` and the trailing window sort on it (day-granular `date` fallback), resolving same-day double DFA rides by actual time rather than cache order
-- Pairs with `sync.py` v3.113
-
-**v11.43 — Body Weight Handling (block W/kg + weekly trend):**
-- New `current_status.weight` block in `latest.json` carrying gated weight signals: `weight_latest_kg`, `weight_latest_date`, `wkg_current`, `wkg_ftp_source` (+ optional `ftp_setting_date`), `wkg_block_start` / `wkg_block_end` / `wkg_block_delta`, `weight_7d_avg_kg`, `weight_28d_slope_kg_per_week`, plus `display.{weight_latest, weight_7d_avg, weight_28d_slope_per_week}` ({value, unit} pairs in the athlete's preferred weight unit). Each field emits only when its data-density gate is satisfied; failed-gate fields are absent from the JSON, and the AI layer omits the corresponding report section silently with no "insufficient data" boilerplate
-- FTP source: tested cycling FTP from `sportSettings` preferred, eFTP fallback. eFTP is not suppressed when the underlying tested FTP is stale — the source tag plus `ftp_setting_date` carry the staleness signal. `ftp_setting_date` reflects the FTP setting change recorded in `ftp_history.json`; Intervals does not expose a formal test-event date
-- Block trajectory uses the trailing 28d as a v1 block-window proxy (the protocol does not yet track explicit block boundaries). Boundary gates: first 4 days of window for start, last 4 days for end — symmetric and fully covered by the standard wellness fetch. Both endpoints use the *current* FTP, so `wkg_block_delta` reflects weight change across the window, not FTP change
-- Display Unit Semantics: narrated weights ship via `display.*` per the protocol-wide rule; W/kg stays unit-universal. New row added to the §Display Unit Semantics sites table for `current_status.weight`
-- Block report: new "Body Weight & W/kg" section (current W/kg headline + optional block trajectory subsection)
-- Weekly report: new conditional "Weight Trend" section, dormant on low density (e.g. <4 weigh-ins in trailing 7d)
-- Pre-workout and post-workout report templates intentionally untouched in v1
-- Deliberately deferred: target weight/date/rate config, hunger / cravings fields, daily-swing triggers, indoor / outdoor split, hydration correction, "fueling protected" inference. See the new Body Weight Handling section for the v1 boundary
-- Pairs with `sync.py` v3.112
-
-**v11.42 — Season Report v2 prerequisites land:**
-- Two items parked in v11.41 now ship via `sync.py` v3.110: weekly capability rollup on `weekly_180d[*]` (durability/EF/HRRc means + qualifying counts) and monthly `dominant_phase` alignment with `_detect_phase_v2` via modal aggregation of overlapping weekly rows
-- Schema tables for `weekly_180d` and `monthly_*y` rows added to the History Data Mirror section
-- `or`-chain → is-None cleanup at four extraction sites (`_calculate_durability` decoupling fallback, `_calculate_hrrc_trend` qualifying filter, weekly capability rollup HRRc dict-extract, activity formatter `raw_hrrc`) — exact-zero values are now treated as authoritative rather than falling through to a sibling key
-- `examples/reports/SEASON_REPORT_TEMPLATE.md` Notes section: phase bullet and capability bullet rewritten to describe shipped v3.110 behavior
-- Pairs with `sync.py` v3.110
-
-**v11.41 — Season Report Tier:**
-- New report tier above Block: trailing-12-month annual arc with current-season trajectory and year-over-year metrics comparison. Length norm 55–70 lines, on-demand only (no automatic cadence). Sits at the top of the existing Pre → Post → Weekly → Block hierarchy
-- v1 is descriptive only. Goal audit is intentionally deferred to v2 — no placeholder section, no header
-- Phase narrative is scoped to ≤180d. All phase references draw from `weekly_180d[*].phase_detected` or `derived_metrics.phase_detection`. The YoY section is **metrics-only**: no phase labels for prior years. `monthly_*y[*].dominant_phase` is derived via modal aggregation of `weekly_180d[*].phase_detected` values whose week span overlaps the month; TSS is used only as tie-break — same vocabulary as `_detect_phase_v2`. Null when no overlapping weekly rows exist (month outside the 180d window)
-- Capability metrics (durability, EF, HRRc) are available per week in `weekly_180d[*]` as trajectory fields (v3.110). Each week carries `durability_mean`, `durability_qualifying`, `ef_mean`, `ef_qualifying`, `hrrc_mean`, `hrrc_qualifying`. Gating mirrors `derived_metrics.capability` (VI≤1.05, VI>0, mt≥5400 for durability; cycling types + VI≤1.05 + mt≥1200 for EF; icu_hrr>0 for HRRc). N≥1 emits a mean; qualifying count governs render confidence. Sustainability and DFA a1 remain present-moment only in `derived_metrics.capability`
-- YoY rule: match by calendar `month` string across the union of `monthly_1y`, `monthly_2y`, `monthly_3y` (these are rolling-trailing arrays, not year-bucketed). If matched month not present, render `n/a — no prior data`. Default is current-vs-last-year only; 2y/3y lines surface only when delta is material (≥15% hours/TSS, ≥3 CTL points, ≥5pp TID)
-- Span: trailing 12 months ending at `metadata.last_updated` (or `history.generated_at` when reading `history.json` directly)
-- No `sync.py` changes needed for Season Report v1. Report consumes existing JSON only. Pairs with `sync.py` v3.110
-- New files: `examples/reports/SEASON_REPORT_TEMPLATE.md`, `examples/reports/SEASON_REPORT_EXAMPLES.md`. Updated: `examples/reports/REPORT_HIERARCHY.md` (table, flow diagram, capability scaling rule, files list)
-
-**v11.40 — Display Unit Semantics:**
-- New "Display Unit Semantics" subsection in the Data Mirror block. Establishes a three-layer signal: (1) `athlete_profile.display_preferences` — six-key map of athlete's Intervals.icu unit choices, (2) per-record `display.*` blocks with display-ready `{value, unit}` pairs converted from canonical metric, (3) per-activity `*_unit` siblings + `weather_summary.units` for fields the API already returns in account units (left as-is for backward compatibility)
-- AI rules: quote `display.*` for any user-facing prose involving distance / elevation / weight / height / position / speed; use canonical metric (`*_km`, `*_m`, `*_kg`) for calculations only; cross-record arithmetic stays in canonical and display-converts the result at narration; W/kg / kJ / IF / % / heat-protocol °C calibration are universal physics units, pref-independent
-- Sustainability profile `weight_kg` deliberately stays canonical-only (calculation input for W/kg, never narrated as a weight value)
-- Heat-protocol °C thresholds are canonical scientific units. AI quotes them as °C regardless of athlete preference; no inline °C → °F conversion at narration time. Future sync.py may emit a display-converted threshold block; until then, °C is the reference
-- Resolves the `avg_speed_unit`/`max_speed_unit` always-KPH asymmetry documented earlier — narration now reads from `display.avg_speed`/`display.max_speed` which honor the athlete's distance preference; the original sibling fields remain for backward compatibility
-- Pairs with `sync.py` v3.110. Sites: `athlete_profile.display.height`, `current_status.current_metrics.display.weight`, `recent_activities[].display.{distance, elevation, avg_speed, max_speed}`, `terrain_summary.display.{total_distance, total_elevation, elevation_per_distance}` + `climbs[]/descents[].display.{position, distance, elevation}` (recent_activities and routes.json), `summary.by_activity_type[].display.distance`, `wellness_data[].display.weight`, history.json `daily_90d/weekly_180d[].display.weight`, `monthly_*y[].display.avg_weight` (aggregate naming preserved), `race_calendar.all_races[].display.distance`
-- All display sub-objects use a single nested shape (`display.*`) — no `*_display` sibling form. One AI rule, one schema shape across every emission site
-- Pre-workout report Weather line de-metric'd: hardcoded `°C` and `m/s` labels replaced by `weather_summary.units.{temp, wind}` references so imperial athletes see °F and MPH/MPS/KPH per their account
-- Templates updated with directive line + de-metric'd placeholders. Examples remain metric (Daniel's account is metric); imperial coverage relies on per-pref display blocks rather than parallel example sets
-
-**v11.39 — Outdoor Context Synthesis Line:**
-- New `Outdoor context:` line at the top of each outdoor activity block in post-workout reports. Single optional line synthesizing terrain + weather and, when earned, a causal clause attributing observed variability or environmental cost
-- Reuses inputs already present from v11.38 (`course_character`, `elevation_per_km`, `max_grade_pct`, `avg_feels_like`, `avg_wind_speed`, `headwind_pct`, `rain`, `variability_index`). No `sync.py` changes — interpretation layer only
-- Causal-clause triggers reuse this section's existing salience thresholds. Four triggers: variability terrain-driven (cycling + VI ≥ 1.05 + non-flat terrain), headwind meaningful (`headwind_pct ≥ 30` AND `avg_wind_speed ≥ 3` — both gates required, low-magnitude wind makes headwind percentage irrelevant), thermal cost notable (`avg_feels_like` outside [5, 25]), wet conditions (`rain > 0`). When no trigger fires, clause is omitted entirely
-- Max two clauses chained with comma. When more than two qualify, judgment selects the most acute on the day — consistent with the section's "anchors not gates, apply judgment" framing
-- Graceful degrade across four states (both summaries / terrain only / weather only / neither). Indoor activities and status-only states omit the line entirely; absence of the line is the correct signal
-- Bands describe the environment as recorded; sport-specific interpretation (heat tiers, cold warm-up rules) remains the responsibility of the Environmental Conditions Protocol, unchanged
-- Three example blocks updated in `POST_WORKOUT_REPORT_EXAMPLES.md` (Examples 2, 6, 8) demonstrating three patterns: variability-terrain-driven, variability-terrain-driven with separate fueling narrative, and thermal cost on flat terrain. Example 2 interpretation deduped — "due to terrain variability" dropped now that the synthesis line attributes it
-- No sync.py change required
-
-**v11.38 — Completed-Activity Terrain & Weather:**
-- `terrain_summary` and `weather_summary` blocks now embedded on outdoor activities in `recent_activities[]` (types: Ride, MountainBikeRide, GravelRide, EBikeRide, Run, TrailRun, NordicSki, Walk, Hike). Indoor activities have no field (type is the indoor signal).
-- State semantics for terrain: `terrain_summary` present (success), `terrain_status: "no_gps" | "no_elevation" | "failed"` (terminal non-success), or no field (indoor / not yet processed / transient retry pending). Weather: `weather_summary` present, `weather_status: "unavailable"` (re-evaluated each sync), or no field (indoor).
-- New activity-level fields beyond the routes.json shape: `max_grade_pct` (steepest 200m chunk anywhere on the route, not just inside detected climbs), `grade_distribution` (flat/gentle/moderate/steep percent buckets), `start_coords`. No polyline (raw streams available on demand via pull.py).
-- Weather summary uses stable keys with explicit `units` block ({wind, temp, rain}) so values stay account-unit-agnostic. AI must read units from the block, not assume metric.
-- Documented inside the existing Route & Terrain Protocol — same vocabulary as planned-route briefings, retrospectively applied. Post-workout interpretation is the primary consumer; weekly/block review secondary.
-- Requires sync.py v3.107
-
-**v11.37 — has_intervals Semantics Fix:**
-- `has_intervals` now requires at least one `type == "WORK"` segment in the intervals.json entry — previously any non-empty segment list set the flag true
-- Pre-existing bug dating to v3.101 narrowing: Intervals.icu emits a single whole-session `RECOVERY` placeholder on unstructured endurance rides, which the prior check treated as structured. Live evidence from the v3.105 test run: 9 false positives (SkiErg, virtual endurance) vs 3 true RECOVERY,WORK activities across 62 sessions
-- v3.101 intent ("narrowed to structured segments only") now actually enforced at the check level. Descriptive docs already reflected the intended behavior — no consumer semantics change, only the implementation catching up
-- `has_dfa` behavior unchanged. `_generate_intervals` collection logic unchanged — intervals are still fetched for DFA purposes whether or not a WORK segment exists
-- Requires sync.py v3.106
-
-**v11.36 — Effort Response Signal:**
-- New `effort_response` key on every `recent_activities[]` entry in `latest.json`. Deterministic classifier reading session IF (`intensity_factor`) against reported RPE (`rpe`) through the v11.34 RPE Expectation Bands
-- Values: `"positive"` (RPE below band — fitness/freshness tell), `"neutral"` (RPE within band), `"negative"` (RPE above band — fatigue/under-recovery tell), `null` (IF absent, RPE absent or ≤ 0, or IF < 0.65)
-- The IF < 0.65 null is a **deliberate design gap**, not missing data — recovery rides and aborted sessions fall outside the bands' calibration range. Classifier returns null rather than fabricating a band there
-- Session IF used by design. Matches whole-session RPE the athlete actually logs. Work-portion IF from `intervals.json` remains available for case-by-case inspection but is not the field value
-- `intensity_factor` is stored as percentage (0–100+) and is normalized to decimal at the classifier boundary to match the canonical band table
-- New rendered `IF:` line on the post-workout per-session block (previously unrendered despite the field being on every activity)
-- Interpretive overlay only. Does NOT alter Feel/RPE Override rules (v11.14) and does NOT enter the readiness P0–P3 ladder
-- Closes the first of the `Known Future Touchpoints` flagged in v11.34
-- Requires sync.py v3.105
-
-**v11.35 — Aggregate Durability Reliability Gate:**
-- Alert-firing paths now gated on sample size: alarm (28d mean > 5%) requires `qualifying_sessions_28d ≥ 5`; declining warning (7d > 28d by > 2%) requires `qualifying_sessions_7d ≥ 3 AND qualifying_sessions_28d ≥ 5`
-- Below gate, `capability.durability` exposes `reliability_limited: true` and `reliability_note` (both current N values with both minimums) — means remain visible for situational awareness but no alert fires
-- `high_drift_count_7d ≥ 3` warning unchanged (count-based, self-guarding)
-- Filter criteria (VI ≤ 1.05, ≥ 90 min) unchanged — this is a sample-size safeguard, not a metric redefinition
-- Citation fix: `Rothschild & Maunder (2025)` → `Rothschild et al. (2025)` in two places (9-author paper, `et al.` is the correct form)
-- Addresses GitHub issue #11
-- Requires sync.py v3.104
-
-**v11.34 — Testing Protocol & RPE Expectation Bands:**
-- New section: `Testing Protocol` — codifies when formal testing adds value given continuous-data coverage (Benchmark Index, DFA a1 crossings, sustained-power observations, power-curve / HR-curve deltas). Continuous-data-first philosophy; tests as validation/confirmation/onboarding, not primary zone source
-- Data-driven staleness signals defined: DFA a1 calibration delta at `moderate`/`high` confidence and >5% dossier delta (primary trigger); Benchmark Index stall/regression outside seasonal expectation; sustained power above prescribed zones (requires ≥2 sessions in rolling 7d — noise guard); power-curve vs HR-curve divergence
-- Negative triggers: non-go readiness, recovery week, illness within 14d, ACWR outside safe band, RI persistent amber, phase Peak or Taper, Race-Week Protocol active, adverse environment
-- Protocol options table: 20-min ×0.95, ramp, 2×8min with honest strengths/limitations. Running equivalents deferred (owner: pace curve extension)
-- Interpretation rules: same-conditions comparison (indoor vs outdoor, protocol, freshness), accept/reject criteria, expected improvement rates by phase
-- New subsection: `RPE Expectation Bands (IF-calibrated)` — reference table mapping IF bands to expected RPE at the work portion. Consumers: test-result validation, general session-effort reading, canonical spec for future Effort Response Signal. Duration, indoor/outdoor, and environmental modifiers documented. Does NOT alter Feel/RPE Override rules (v11.14)
-- Boundaries: does NOT mandate testing, does NOT auto-update dossier zones, does NOT enter readiness P0–P3, does NOT override continuous data
-- Two-way cross-references added: Benchmark Index (Governance Rules) and DFA a1 Zone Validation Use both forward-link to Testing Protocol
-- Documentation-only; no sync.py changes, no template changes, no report changes
-- Future touchpoints flagged: post-workout report RPE-vs-expected commentary (separate template pass), running-specific RPE bands (with pace curve extension)
-
-**v11.33 — Athlete Profile, Notes & Activity Unit Labels:**
-- New top-level `athlete_profile` block in `latest.json` — stable identity fields from existing athlete endpoint call (zero new API calls): `date_of_birth`, derived `age`, `height_m`, `sex`, `location`, `timezone`, `platform_activated`, derived `years_on_platform`
-- New top-level `athlete_notes` block — raw string passthrough of `icu_notes` (free-text athlete-maintained notes). Opaque text; AI may reference for context but should not parse for structured coaching parameters. Future schema work may restructure into a typed mini-dossier
-- Per-field unit labels added to `recent_activities[]` entries: `avg_temp_unit` (`C`/`F` from athlete account setting), `wind_speed_unit` (`MPS`/`KPH`/`MPH` passthrough), `avg_speed_unit` and `max_speed_unit` (always `KPH` — sync.py force-converts m/s → km/h regardless of athlete preference; label surfaces this latent asymmetry vs. account-respecting temp/wind)
-- Sibling-field form (e.g. `avg_temp` + `avg_temp_unit`) chosen over nested `{value, unit}` object — additive, non-breaking for existing consumers reading these as scalars
-- Behavior posture: `athlete_profile` fields are informational. They do NOT enter readiness P0–P3 logic, threshold computation, or any numeric coaching pathway in the current protocol
-- Data hygiene: silent trailing-space bug in Intervals.icu location strings (`'Aalborg '`, `'Nordjylland '`) handled via `.strip()` in `_compose_location` helper
-- Requires sync.py v3.103
-
-**v11.32 — has_dfa Split & dfa_summary:**
-- New `has_dfa` boolean on `recent_activities[]` in `latest.json` — independent from `has_intervals`. AlphaHRV-equipped sessions now flag explicitly rather than overloading `has_intervals`
-- `has_intervals` semantics narrowed: now `true` only when structured interval segments exist. A steady Z2 ride with AlphaHRV gets `has_intervals: false`, `has_dfa: true` (previously the latter overloaded the former)
-- New compact `dfa_summary` block attached to `recent_activities[]` when `has_dfa: true` AND `quality.sufficient: true`. Fields: `avg`, `dominant_band` (max-pct, alphabetical tiebreak), `tiz_pct` (4 bands), `valid_pct`, `sufficient`, plus optional `drift_delta`/`drift_interpretable` and `lt1_watts`/`lt1_hr`/`lt2_watts`/`lt2_hr` (omitted when underlying data absent — never null-filled)
-- AI layer can now write post-workout DFA commentary from `latest.json` alone without loading `intervals.json` for the common case. Full per-band HR/watts averages and per-interval detail still live in `intervals.json` for deep analysis
-- `quality.sufficient` tightened: previously duration-only (≥20 min valid); now also requires `valid_pct ≥ 70%`. Excludes noisy AlphaHRV sessions that previously passed the duration gate. New constant `DFA_SUFFICIENT_MIN_VALID_PCT = 70.0`. Pre-existing latent bug where 40%-valid sessions reported `sufficient: true`
-- `has_dfa: true` without a `dfa_summary` means AlphaHRV recorded but data quality was insufficient — AI must not cite DFA numbers in that case
-- Interval Data Mirror loading rule simplified to two-flag form: load when `has_intervals: true` OR `has_dfa: true`. Three-trigger rule retired
-- Docs sync across SECTION_11.md, SKILL.md, README.md, SETUP_ASSISTANT.md, examples/README.md, examples/json-examples/README.md, examples/json-local-sync/SETUP.md
-- Requires sync.py v3.101
-
-**v11.31 — DFA Power Calibration Indoor/Outdoor Split:**
-- `trailing_by_sport.cycling` lt1_estimate / lt2_estimate: watts split by environment — `watts_outdoor`, `watts_indoor` (always present, null when no estimate-eligible sessions in that environment). HR stays pooled (physiology signal, not environment-dependent). Non-cycling sports unchanged (`watts` key retained)
-- Per-environment session counts: `n_sessions_outdoor`, `n_sessions_indoor` on each estimate block. Same 3/4–5/≥6 confidence thresholds apply per environment for watts calibration delta surfacing
-- Zone Validation Use updated: compare `watts_outdoor` against dossier `ftp`, `watts_indoor` against `ftp_indoor`. Fallback: if only one environment has data and the other context's dossier FTP is missing, the available estimate may inform directionally with cross-environment caveat
-- Shared `_is_indoor_cycling()` resolver (VirtualRide = indoor) used by DFA profile and sustainability profile
-- Requires sync.py v3.100
-
-**v11.30 — DFA a1 Protocol:**
-- New section: DFA a1 Protocol — non-linear HRV index from AlphaHRV Connect IQ data field, ingested via Intervals.icu streams when direct Garmin sync is used (Strava strips developer fields)
-- Threshold mapping: DFA a1 ↔ physiological thresholds (Gronwald 2020, Mateo-March 2023). Cycling-validated only — non-cycling sports get rollups but flagged validated=False `[superseded by v11.45: α1=1.0 is easy_guard, not LT1; LT1/HRVT1 is α1=0.75; Rowlands citation removed as non-DFA/miscited]`
-- Per-session `dfa` block in `intervals.json`: artifact-filtered avg, 4-band TIZ split (below_lt1 / lt1_transition / transition_lt2 / above_lt2) with HR/power cross-references per band, drift (first vs last third) with `interpretable` flag tied to time-above-LT2, LT1/LT2 crossing-band estimates (avg HR/watts in narrow ±0.05 windows around each threshold), quality block with sufficient flag
-- `dfa_a1_profile` in `latest.json` capability block: latest_session + trailing_by_sport (per sport family, last 7 sessions, confidence low/moderate/high based on crossing-dwell N)
-- Quality gates: ≥20 min valid data per session, max 5% artifact rate per second, AlphaHRV sentinel zeros excluded
-- Tier-2 interpretive signal: does NOT enter readiness P0–P3 ladder, does NOT auto-update dossier zones; surfaces calibration deltas only
-- Drift-on-structured-sessions guard: `interpretable: false` when >15% of session was above LT2 (drift number reflects session structure, not autonomic)
-- Always-emit rule: when AlphaHRV streams fetched, dfa block is always written (even with `quality.sufficient: false`) so AI can distinguish "no AlphaHRV" from "AlphaHRV ran but unusable"
-- `intervals.json` scope widened: activities now included when they have **either** structured intervals **or** an AlphaHRV `dfa` block. Pure endurance rides without intervals appear when DFA recorded — that's where DFA drift detection is most valuable
-- Trailing window bumped 5 → 7 sessions so `confidence: high` (≥6 contributing) is achievable
-- `latest_session` now carries a `validated` flag (cycling = true, others = false) so the AI cannot accidentally overread non-cycling sessions
-- Intervals.json retention bumped 8d → 14d to support DFA drift analysis across multiple sessions
-- Evidence base: Gronwald 2020, Schaffarczyk 2023, Mateo-March 2023, Altini methodology `[Rowlands removed — see v11.45]`
-- POST_WORKOUT_REPORT_TEMPLATE.md: new `DFA a1` line in per-session block (conditional on `dfa` block presence), Field Notes row with three-way branching rules (absent / sufficient=false / sufficient=true) and per-interval-vs-session-level distinction note, Assessment Labels row
-- POST_WORKOUT_REPORT_EXAMPLES.md: Example 6 (long Z2 ride with interpretable drift flag triggering fueling/heat cross-reference per protocol) and Example 7 (sweet spot session with consonant DFA reading, drift flagged structural)
-- BLOCK_REPORT_TEMPLATE.md: new `DFA a1 Calibration` section heavily gated (cycling only, validated=true, confidence ≥ moderate), Field Definitions row, Notes entry stressing protocol-anchored thresholds and no auto-zone-updates
-- BLOCK_REPORT_EXAMPLES.md: Example 3 (6-week aerobic base block with DFA calibration surfacing — moderate confidence, empirical LT1 delta vs dossier, LT2 estimate appropriately omitted due to lt2_crossing_sessions=2) [Current Example 3 revised in v11.54 to show the crossing/eligible split and insufficient eligible depth.]
-- Interval Data Mirror loading rule: extended to also load when an activity has a `dfa` block (covers steady-state rides with no structured intervals — they now appear in intervals.json under the widened entry rule)
-- Requires sync.py v3.99
+**v11.49** — P1 `alarm_refs` per-branch attribution: refs built from the firing branch only (ACWR contributes its alert ref, the TSB+HRV composite none, the RI<0.7 persistent branch its tier-1 metrics); no doc-body change; sync.py v3.117  
+**v11.48** — P1 readiness-skip severity gate: the persistent-alert skip branch now also requires `severity` in warning/alarm; sync.py v3.116  
+**v11.47** — Alert tier semantics clarified (doc-only): Alert Tier 1 and tier-1 alarm defined, full `alerts[]` object schema documented, P0/P1 ladder lines matched to code  
+**v11.46** — DFA a1 TIZ band rename (keys only, values and boundaries unchanged): `tiz_recovery` / `tiz_endurance` / `tiz_tempo` / `tiz_supra`; sync.py v3.115  
+**v11.45** — Three-marker DFA a1 semantics: `easy_guard` (α1 1.0, a conservative easy-state guard, never a threshold) / `lt1` (0.75) / `lt2` (0.5). LT1 corrected from 1.0 to the literature HRVT1 value; the prior "Rowlands 2017" basis was removed as non-DFA/miscited (retraction recorded at `DFA_LT1` in sync.py). Per-marker independent gating with reason codes; sync.py v3.114  
+**v11.44** — DFA a1 crossing integrity: contiguous-dwell requirement, per-threshold independent gating, `lt1_reason` / `lt2_reason`, 28d activity set so interval backfill reaches the full 14d window, stale-entry pruning; sync.py v3.113  
+**v11.43** — Body Weight Handling: gated `current_status.weight` block (latest, W/kg, block trajectory, 7d avg, 28d slope) with display pairs; new block-report and weekly-report sections; sync.py v3.112  
+**v11.42** — Season Report v2 prerequisites: weekly capability rollup on `weekly_180d[*]`, monthly `dominant_phase` via modal aggregation, `or`-chain → is-None cleanup at four extraction sites; sync.py v3.110  
+**v11.41** — Season Report Tier: trailing-12-month report above Block, descriptive only, phase narrative scoped to ≤180d, YoY section metrics-only; sync.py v3.110  
+**v11.40** — Display Unit Semantics: `display.*` `{value, unit}` pairs at every emission site, canonical metric reserved for calculation, universal units (W/kg, kJ, IF, %, heat °C) pref-independent; sync.py v3.110  
+**v11.39** — Outdoor Context Synthesis Line: one optional terrain+weather line per outdoor post-workout block, four causal-clause triggers, max two clauses; interpretation layer only, no sync.py change  
+**v11.38** — Completed-activity terrain & weather: `terrain_summary` / `weather_summary` on outdoor `recent_activities[]` with explicit status keys and a units block; sync.py v3.107  
+**v11.37** — `has_intervals` semantics fix: requires at least one `WORK` segment, so whole-session `RECOVERY` placeholders no longer read as structured; sync.py v3.106  
+**v11.36** — Effort Response Signal: `effort_response` on `recent_activities[]` from session IF against the v11.34 RPE bands, null below IF 0.65 by design; interpretive only, outside the readiness ladder; sync.py v3.105  
+**v11.35** — Aggregate durability reliability gate: alert paths gated on qualifying-session counts, `reliability_limited` / `reliability_note` below gate, filter criteria unchanged; closes issue #11; sync.py v3.104  
+**v11.34** — Testing Protocol & RPE Expectation Bands: when formal testing adds value given continuous data, staleness and negative triggers, protocol options, IF-calibrated RPE band table; doc-only  
+**v11.33** — Athlete Profile, Notes & Activity Unit Labels: `athlete_profile`, `athlete_notes`, per-field unit siblings on `recent_activities[]`; informational only, outside every numeric coaching pathway; sync.py v3.103  
+**v11.32** — `has_dfa` split & `dfa_summary`: DFA flagged independently of `has_intervals`, compact per-activity summary block with `dominant_band` (max-pct, alphabetical tiebreak), `quality.sufficient` tightened with `DFA_SUFFICIENT_MIN_VALID_PCT = 70.0`; sync.py v3.101  
+**v11.31** — DFA power calibration indoor/outdoor split: `watts_outdoor` / `watts_indoor` with per-environment session counts, HR pooled as environment-independent; sync.py v3.100  
+**v11.30** — DFA a1 Protocol: new section, per-session `dfa` block in `intervals.json`, `dfa_a1_profile` in `latest.json`, quality gates (≥20 min valid, ≤5% artifacts, sentinel zeros excluded), Tier-2 interpretive only, drift guard, always-emit rule `[threshold mapping superseded by v11.45]`; sync.py v3.99  
 
 **v11.29** — Post-Workout Report Completeness Rules: per-activity block enforcement, anti-merge, anti-hallucination guard for unexplained sessions; new multi-sport example; docs-only  
 **v11.28** — Schema rename: `derived_metrics.polarisation_index` → `easy_time_ratio` (disambiguates from Seiler PI, no value change); sync.py v3.98  

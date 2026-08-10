@@ -13,6 +13,9 @@ Thanks for wanting to help. This project is an open, evidence‑based protocol f
 - Open a pull request for concrete changes
 - Keep PRs small and focused
 - sync.py changes should include test output showing the change works
+- Scripts added under `examples/` should include worked-example output showing the script run against the relevant sample data in `examples/json-examples/` and the values it produces
+- Keep PR descriptions, documentation, code comments, and commit messages in English
+ 
 
 ## Ground rules
 - Stay deterministic and explainable: recommendations must be traceable to data and rules

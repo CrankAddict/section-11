@@ -2,7 +2,7 @@
   "scope": "All tracked files in the Section 11 repository. --update compares file hashes to detect changes and new files.",
   "files": {
     "CONTRIBUTING.md": {
-      "hash": "4f6594d68a39571fed5b2ee68f0ecc1307e67ae11a824cf23b1ad075c794e3eb"
+      "hash": "e9637f09b42b974311d5b1b526f2a6992be3b85c7b0e3eadff49ac80e2cd8a52"
     },
     "DOSSIER_TEMPLATE.md": {
       "hash": "aec29508bc85cc9f98a82c2fe8ba9fe98e0c631b069feea923c6cb10fe7d0c3c"
@@ -14,7 +14,7 @@
       "hash": "400ac3d04c338aa10eef2d9ec610775ead077148354476eca9985ce4a87658bd"
     },
     "SECTION_11.md": {
-      "hash": "7e7e0e2ebdef001748e55312dbc9549e33a58a9f581284aa6f063f957234e194",
+      "hash": "f2e609d8542ecda7ee45f37421a3d6bc540d7554c3de7144a2ab4baa34d295d8",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
@@ -24,7 +24,7 @@
       "hash": "ff4c31c69480178426268d341cdf9ab57075e6eec2d883a459f209ac357e9b48"
     },
     "SKILL.md": {
-      "hash": "d498273b41a4f6645def708d13e2a52565e9e02975913f70eb828437f033f334"
+      "hash": "493adc6a24898a5e55dfe75099291947d1fcff45984cc92990197fc0819fcdfd"
     },
     "changelog.json": {
       "hash": "8790c0c844cb8f97f5e124f3b3e49d88277415f293bdb754212834e16e67c882"
@@ -126,7 +126,7 @@
       "hash": "b934b16c29d3fafdfe521bebd5fae9b52312d455f2cf193da731ac3d23513c79"
     },
     "examples/sync.py": {
-      "hash": "af27dc3bc1202dc2008f218d025e9c264fa73be76353974017b91374258b8c0d"
+      "hash": "b5ef13387e28027d780e1afa5330d3387e1f40583f7519e7c1a0799ef86c20dd"
     },
     "examples/workout-library/README.md": {
       "hash": "f22d96050da8a601aac627ddb44b717f31daa9adc88b1cedf3f56a0b87dec6f4"

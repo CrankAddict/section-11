@@ -4,6 +4,21 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.124 - Present-but-null list fields no longer crash the sync.
+  Intervals.icu returns sportInfo, sportSettings and sportSettings[].types as the key
+  PRESENT with a null value, not absent, on records written by third-party wellness
+  clients. A .get(key, []) default only applies to an ABSENT key, so the null reached
+  the loop and raised TypeError, failing the whole sync (issue #23). Four expressions
+  are switched to `or []`: sportInfo in _extract_power_model_from_wellness, sportSettings
+  and types in _build_sport_thresholds, and types in _build_ftp_timeline. Behaviour on
+  absent, empty and populated payloads is unchanged, since an empty list already took
+  the same path as the [] default; only null changes, from raise to skip.
+  Deliberately NOT changed: the icu_intervals read is already guarded by an isinstance
+  check (its null bucketing is a retry-ladder semantics question, not this bug), and the
+  icu_zone_times / icu_hr_zone_times reads are each immediately gated by a truthiness
+  test, where null is falsy and harmless.
+  Pairs with SECTION_11.md / SKILL.md v11.56.
+
 Version 3.123 - Custom-interval edits invalidate the interval cache.
   A successful interval fetch was treated as permanent: fetch_state ok meant the
   activity was never queued again, so intervals the athlete added or edited in
@@ -166,7 +181,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.123"
+    VERSION = "3.124"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -2612,7 +2627,9 @@ class IntervalsSync:
         Extract eFTP, W', P-max from wellness.sportInfo.
         These are the accurate live estimates that match the Intervals.icu UI.
         """
-        sport_info = wellness_data.get("sportInfo", [])
+        # v3.124: sportInfo arrives present-but-null from third-party wellness clients,
+        # so the [] default never applies. Same for the reads below.
+        sport_info = wellness_data.get("sportInfo") or []
         
         # Find cycling sport info
         cycling_info = None
@@ -3308,8 +3325,8 @@ class IntervalsSync:
         """
         candidates: dict[str, tuple[dict, int, str]] = {}
 
-        for sport in athlete.get("sportSettings", []):
-            for sport_type in sport.get("types", []):
+        for sport in athlete.get("sportSettings") or []:          # v3.124: present-but-null
+            for sport_type in sport.get("types") or []:           # v3.124: present-but-null
                 family = self.SPORT_FAMILIES.get(sport_type)
                 if not family:
                     continue
@@ -8043,7 +8060,8 @@ class IntervalsSync:
         cycling_settings = None
         if athlete.get("sportSettings"):
             for sport in athlete["sportSettings"]:
-                if "Ride" in sport.get("types", []) or "VirtualRide" in sport.get("types", []):
+                sport_types = sport.get("types") or []             # v3.124: present-but-null
+                if "Ride" in sport_types or "VirtualRide" in sport_types:
                     cycling_settings = sport
                     break
         

@@ -1,10 +1,17 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.55  
-**Last Updated:** 2026-08-10
+**Protocol Version:** 11.56  
+**Last Updated:** 2026-08-11
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.56 — Present-but-null list fields no longer crash the sync (`sync.py` v3.124):**
+- Intervals.icu returns `sportInfo`, `sportSettings` and `sportSettings[].types` with the key **present and null**, not absent, on records written by third-party wellness clients. `.get(key, [])` substitutes its default only for an **absent** key, so the null reached the loop and raised `TypeError`, failing the entire sync. Closes issue #23
+- Four expressions switch to `or []`: `sportInfo` in `_extract_power_model_from_wellness`, `sportSettings` and `types` in `_build_sport_thresholds`, and `types` in `_build_ftp_timeline`. Athletes with no power meter are the most exposed, since `sportInfo` carries eFTP / W' / P-max and is most likely to be null precisely where it is least useful
+- **No behaviour change on any well-formed payload.** An empty list already took the same path as the `[]` default, and `or []` is a list-valued substitution only, so the falsy-scalar hazard that makes `or`-chains a bug class elsewhere does not apply. Only the null case changes, from raise to skip
+- **Deliberately unchanged.** The `icu_intervals` read is already guarded by an `isinstance` check; whether a null payload should bucket as `no_data` rather than `transient` is a retry-ladder semantics question, not this defect. The `icu_zone_times` / `icu_hr_zone_times` reads are each immediately gated by a truthiness test, where null is falsy and harmless
+- No schema, protocol or output change. `schema_version` is untouched and no consumer contract moves. Replacing `sync.py` changes `script_hash`, which invalidates `intervals.json` on the next run as usual
 
 **v11.55 — Custom-interval edits invalidate the interval cache (`sync.py` v3.123):**
 - A successful interval fetch was treated as permanent. Once `fetch_state[id].intervals.status` was `ok` the activity was never queued again, so intervals the athlete added or edited in Intervals.icu **after** that sync stayed invisible until `intervals.json` was deleted. Closes issue #20

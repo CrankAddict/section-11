@@ -4,6 +4,21 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.125 - VirtualRow joins the rowing sport family.
+  SPORT_FAMILIES had no entry for VirtualRow, so indoor and virtual rowing fell through
+  .get(type, "other") and was classified as other (issue #22). Cycling and ski already
+  pair their Virtual* variant with the outdoor type; rowing was the one family missing
+  it. VirtualRow is added to SPORT_FAMILIES and to both SUSTAINABILITY_POWER_TYPES and
+  SUSTAINABILITY_HR_TYPES, so it inherits rowing-family behaviour everywhere: per-sport
+  monotony, sustainability curves, interval-fetch eligibility (rowing is in
+  INTERVAL_SPORT_FAMILIES) and thresholds.sports["rowing"]. Collision with Rowing needs
+  no new rule: _build_sport_thresholds already resolves by populated-field count then
+  alphabetical type, and Rowing sorts first.
+  Housekeeping folded in: the generate_history() save message now names the resolved
+  path, and the auto-history path no longer rewrites a file generate_history() has
+  already written.
+  Pairs with SECTION_11.md / SKILL.md v11.57.
+
 Version 3.124 - Present-but-null list fields no longer crash the sync.
   Intervals.icu returns sportInfo, sportSettings and sportSettings[].types as the key
   PRESENT with a null value, not absent, on records written by third-party wellness
@@ -181,7 +196,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.124"
+    VERSION = "3.125"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -273,6 +288,7 @@ class IntervalsSync:
         "TrailRun": "run",
         "Swim": "swim",
         "Rowing": "rowing",
+        "VirtualRow": "rowing",
         "WeightTraining": "strength",
         "Yoga": "other",
         "Workout": "other",
@@ -322,14 +338,14 @@ class IntervalsSync:
     SUSTAINABILITY_POWER_TYPES = {
         "cycling": ["Ride", "VirtualRide"],
         "ski":     ["NordicSki", "VirtualSki"],
-        "rowing":  ["Rowing"],
+        "rowing":  ["Rowing", "VirtualRow"],
     }
     
     # Activity types for sport-filtered hr-curves fetch
     SUSTAINABILITY_HR_TYPES = {
         "cycling": ["Ride", "VirtualRide"],
         "ski":     ["NordicSki", "VirtualSki"],
-        "rowing":  ["Rowing"],
+        "rowing":  ["Rowing", "VirtualRow"],
     }
     
     def __init__(self, athlete_id: str, intervals_api_key: str, github_token: str = None, 
@@ -7519,7 +7535,7 @@ class IntervalsSync:
         history_path = self.data_dir / self.HISTORY_FILE
         with open(history_path, 'w') as f:
             json.dump(history, f, indent=2, default=str)
-        print(f"  ✅ history.json saved ({len(daily_90d)} daily, {len(weekly_180d)} weekly rows)")
+        print(f"  ✅ history.json saved to {history_path} ({len(daily_90d)} daily, {len(weekly_180d)} weekly rows)")
         
         return history
     
@@ -10477,12 +10493,7 @@ def main():
         try:
             print("\n📊 Auto-generating history.json...")
             history = sync.generate_history()
-            if args.output:
-                history_path = sync.data_dir / sync.HISTORY_FILE
-                with open(history_path, 'w') as f:
-                    json.dump(history, f, indent=2, default=str)
-                print(f"   ✅ history.json saved to {history_path}")
-            else:
+            if not args.output:
                 sync.publish_to_github(history, filepath="history.json",
                                        commit_message=f"Auto-generate history.json - {datetime.now().strftime('%Y-%m-%d')}")
                 print("   ✅ history.json auto-generated and pushed to GitHub")

@@ -1,10 +1,18 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.56  
+**Protocol Version:** 11.57  
 **Last Updated:** 2026-08-11
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.57 — VirtualRow joins the rowing sport family (`sync.py` v3.125):**
+- `SPORT_FAMILIES` had no entry for `VirtualRow`, so indoor and virtual rowing fell through `.get(type, "other")` and was classified as `other`. Cycling and ski already pair their `Virtual*` variant with the outdoor type; rowing was the one family missing it. Closes issue #22
+- **Inheriting rowing-family behaviour everywhere is the point of the mapping, not a side effect.** `VirtualRow` now counts toward per-sport monotony, becomes interval-fetch eligible (`rowing` is in `INTERVAL_SPORT_FAMILIES`), and populates `thresholds.sports["rowing"]`. Sustainability adds one power-curve and one hr-curve request per sync when the rowing family is active; each fetch is individually guarded, so a rejected type degrades to a debug warning rather than a failure
+- **Threshold collision with `Rowing` needs no new rule.** `_build_sport_thresholds` already resolves by populated-field count, then by activity type alphabetically. `Rowing` sorts before `VirtualRow`, so an equally populated `Rowing` entry still wins; a richer `VirtualRow` entry wins on merit, as intended
+- Housekeeping: `generate_history()` reported success without naming a path while writing to the resolved `data_dir`. The message now names the file it wrote
+- Housekeeping: the auto-history path re-serialized and rewrote the file `generate_history()` had already written. The bytes were identical, so no output was ever wrong, but the duplicate write and its second success line are gone. The branch is now `if not args.output:` around the GitHub publish alone
+- No schema or consumer-contract change. `schema_version` is untouched. Replacing `sync.py` moves `script_hash`, which invalidates `intervals.json` on the next run as usual
 
 **v11.56 — Present-but-null list fields no longer crash the sync (`sync.py` v3.124):**
 - Intervals.icu returns `sportInfo`, `sportSettings` and `sportSettings[].types` with the key **present and null**, not absent, on records written by third-party wellness clients. `.get(key, [])` substitutes its default only for an **absent** key, so the null reached the loop and raised `TypeError`, failing the entire sync. Closes issue #23

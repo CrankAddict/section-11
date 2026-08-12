@@ -1,10 +1,16 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.57  
-**Last Updated:** 2026-08-11
+**Protocol Version:** 11.58  
+**Last Updated:** 2026-08-12
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.58 — Apple Watch SDNN named, not substituted (`sync.py` v3.126):**
+- Apple Watch's native HRV export is **SDNN**, which Intervals.icu stores separately from the **rMSSD** in `hrv`. Readiness reads rMSSD only, so a wellness record carrying SDNN but no usable rMSSD produces `signals.hrv.status: "unavailable"` with no stated cause. Closes issue #25
+- `readiness_decision.signals.hrv` gains an optional `reason: "rmssd_missing_sdnn_available"`, emitted only when the latest wellness record has no usable rMSSD and does carry SDNN; omitted otherwise. `status`, `value`, `baseline_7d`, `delta_pct`, `signal_summary` and every P0–P3 branch are unchanged. This adds an explanation, not a decision input
+- **No SDNN fallback, by design.** SDNN and rMSSD are different time-domain measures and are not interchangeable — the native Apple value cannot be converted, relabelled or rethresholded into the other. `_is_valid_hrv`'s 10–250 ms range would pass SDNN unchanged if routed through it, so a naive fallback would look like it worked; a comment at that function now records this
+- **The repair belongs upstream of Intervals.icu.** rMSSD has to be derived from beat-to-beat data before the wellness record is written. Documented vendor-neutrally in `SETUP_ASSISTANT.md` and README troubleshooting: community tools exist, none is verified or supported here, and one may carry no historical data, so a historically established or stable baseline must not be promised immediately
 
 **v11.57 — VirtualRow joins the rowing sport family (`sync.py` v3.125):**
 - `SPORT_FAMILIES` had no entry for `VirtualRow`, so indoor and virtual rowing fell through `.get(type, "other")` and was classified as `other`. Cycling and ski already pair their `Virtual*` variant with the outdoor type; rowing was the one family missing it. Closes issue #22
@@ -1042,6 +1048,8 @@ AI systems must only consider caloric-reduction or weight-optimization phases du
 | RI | ≥ 0.7, or single-day 0.6–0.69 | < 0.7 for 2+ consecutive days | < 0.6 |
 
 Missing signals are classified as `unavailable` and excluded from amber/red counts.
+
+**Apple Watch HRV (v11.58).** Section 11's HRV signal is **rMSSD**, read from the Intervals.icu wellness `hrv` field. Apple Watch's native HRV export is **SDNN**, which Intervals.icu stores in a separate field. The two are different measures and are not interchangeable. When the Intervals.icu wellness record contains native Apple SDNN but no usable rMSSD, the HRV readiness signal remains `unavailable` until an upstream tool supplies rMSSD, and `signals.hrv` carries `reason: "rmssd_missing_sdnn_available"`. Report HRV as unavailable and name the cause; never treat SDNN as HRV, and never rescale or threshold it as one. The fix is upstream of Intervals.icu: rMSSD has to be derived from beat-to-beat data before the wellness record is written. Community tools that do this exist — see the [Intervals.icu forum's External Projects category](https://forum.intervals.icu/c/external-projects/14) — but none is verified or supported by Section 11, and one may carry no historical data, so do not promise the athlete a historically established or stable baseline immediately.
 
 **Heuristic notes (transparency):**
 - **Low-side ACWR is intentionally excluded from readiness ambers.** An ACWR < 0.8 indicates reduced recent load relative to chronic fitness (taper, detraining, or simply an off-rhythm week) — it is a load-state/context signal, not a fatigue or overload signal. Using it as a readiness penalty conflates "did little recently" with "can't handle much today," which are near-opposite states. Low-side context still surfaces via `derived_metrics.acwr_interpretation` ("undertraining") for the AI layer to read as context, but it no longer contributes to amber counts or overload alerts.
@@ -3051,6 +3059,7 @@ This subsection defines the formal self-validation and audit metadata structure 
 | `readiness_decision.recommendation` | string | "go" / "modify" / "skip" — baseline recommendation for pre-workout reports. |
 | `readiness_decision.priority`  | number   | 0 (safety stop), 1 (acute overload), 2 (accumulated fatigue), 3 (green light). |
 | `readiness_decision.signals`   | object   | Per-signal status objects (hrv, rhr, sleep, tsb, acwr, ri). Each has `status` (green/amber/red/unavailable) and raw values with deltas. |
+| `readiness_decision.signals.hrv.reason` | string | **Optional; present only when applicable.** `"rmssd_missing_sdnn_available"` — the latest wellness record has no usable rMSSD but does carry SDNN. Explains an `unavailable` HRV status; explanatory metadata only, never a decision input. See *Apple Watch HRV* under Readiness Decision. |
 | `readiness_decision.signal_summary` | object | Pre-counted tallies: `green`, `amber`, `red`, `unavailable`. |
 | `readiness_decision.phase_context` | object | `phase`, `phase_week`, `amber_threshold`, `modifier_applied` — shows which phase rule shifted thresholds. |
 | `readiness_decision.race_week_defers` | boolean | When true, modification guidance defers to race-week protocol day-by-day targets. |

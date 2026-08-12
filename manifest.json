@@ -11,20 +11,20 @@
       "hash": "0683b6ae3ded5701305dae4114d317d4346c175824d8db87a22d18e05a61ff77"
     },
     "README.md": {
-      "hash": "400ac3d04c338aa10eef2d9ec610775ead077148354476eca9985ce4a87658bd"
+      "hash": "8baf53b29dca145a3b9cf5c70833210e45fa5f8c3aa61b11e33082c37f05a3d6"
     },
     "SECTION_11.md": {
-      "hash": "57164af7af4b4de0f42f0060515f2a3f28954b03d7e5534a6b89ff426f0e421b",
+      "hash": "a06107c54f02719c81bff3558d752a4374d4aed1f8d945874279181ed6e0c79d",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
       "hash": "47a0b437722547662e2215a759678cccaeb91984734337bfe2392185d71976d5"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "ff4c31c69480178426268d341cdf9ab57075e6eec2d883a459f209ac357e9b48"
+      "hash": "4648cd0e8658cbd11777606c6088cb9fa30d2596df1ddbbb9cadc2aa073b34fd"
     },
     "SKILL.md": {
-      "hash": "4162be74735869d15cbad20044aca8f5a21e1c73d1ebc421319f37f67ec52209"
+      "hash": "84a680a17cae74a04114223d7de8604367522b63e0d04fb25a106d5a7bda9616"
     },
     "changelog.json": {
       "hash": "8790c0c844cb8f97f5e124f3b3e49d88277415f293bdb754212834e16e67c882"
@@ -126,7 +126,7 @@
       "hash": "b934b16c29d3fafdfe521bebd5fae9b52312d455f2cf193da731ac3d23513c79"
     },
     "examples/sync.py": {
-      "hash": "7f770f1bd479f53d5354c9f019fa32aa66cc7e12dc1a8d3dc69d6203a1849810"
+      "hash": "5d786c1bae18a395811e94e4630d1f845eda98134fbf84ed3813099be0464452"
     },
     "examples/workout-library/README.md": {
       "hash": "f22d96050da8a601aac627ddb44b717f31daa9adc88b1cedf3f56a0b87dec6f4"

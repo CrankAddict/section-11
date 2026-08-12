@@ -364,6 +364,12 @@ If your device syncs through Strava, the API returns stripped data. Strava's API
 
 **Fix:** Connect your device (Garmin, Wahoo, etc.) directly to Intervals.icu in Settings → Connections. Keep Strava connected if you want, but the training data needs to come in direct.
 
+### HRV shows as unavailable on Apple Watch
+
+Apple Watch exports **SDNN**; Section 11's readiness HRV signal is **rMSSD**, which Intervals.icu keeps in a different field. Your Apple value is passed through as context, but readiness never uses it. When your Intervals.icu wellness record contains native Apple SDNN but no usable rMSSD, `readiness_decision.signals.hrv` stays `unavailable` with `reason: "rmssd_missing_sdnn_available"` until an upstream tool supplies rMSSD.
+
+**Fix:** it has to happen before Intervals.icu — an app that derives rMSSD from beat-to-beat data and writes it to the `hrv` field. Community iOS apps do this; see the [Intervals.icu forum's External Projects category](https://forum.intervals.icu/c/external-projects/14). None is verified or supported by Section 11, and one may carry no historical data, so don't count on a historically established or stable baseline immediately.
+
 ### Gemini can't access your repo or ignores data
 
 - Enable the GitHub extension: gemini.google.com → Settings → Extensions (Connected Apps) → turn on GitHub

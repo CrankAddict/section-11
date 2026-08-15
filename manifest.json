@@ -14,7 +14,7 @@
       "hash": "8baf53b29dca145a3b9cf5c70833210e45fa5f8c3aa61b11e33082c37f05a3d6"
     },
     "SECTION_11.md": {
-      "hash": "a06107c54f02719c81bff3558d752a4374d4aed1f8d945874279181ed6e0c79d",
+      "hash": "a44528035daab0403629b04288443122d7d1544d2024a60b94c48828678722bf",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
@@ -24,7 +24,7 @@
       "hash": "4648cd0e8658cbd11777606c6088cb9fa30d2596df1ddbbb9cadc2aa073b34fd"
     },
     "SKILL.md": {
-      "hash": "84a680a17cae74a04114223d7de8604367522b63e0d04fb25a106d5a7bda9616"
+      "hash": "dbbd15a8d59a022d551f843f95112bceee3e29bef99200be331b882e9cbb1fe6"
     },
     "changelog.json": {
       "hash": "6e62ffe6dcd6dde91b177db10870a95daace1530a737ca3ef2770b47d8292f58"
@@ -99,13 +99,13 @@
       "hash": "2aa7f62e0edf03cb1dd995c73587445be4eb8fbdf7a7c02cdcc825350debdec4"
     },
     "examples/reports/POST_WORKOUT_REPORT_TEMPLATE.md": {
-      "hash": "a51deeede83fad49ce0c5aa203de6f94aa39dfeb4a47e2c4be32bdeed7594ed5"
+      "hash": "309df11a05c1f6b833270cafb6d42628d8967198cea8c56ad788fa7dad915124"
     },
     "examples/reports/PRE_WORKOUT_REPORT_EXAMPLES.md": {
       "hash": "ad9b1ee073d6492235f41fd38a9328a44353fc21ff31d758526990db86e07719"
     },
     "examples/reports/PRE_WORKOUT_REPORT_TEMPLATE.md": {
-      "hash": "7d33445c5b775dcb0726c1b9be24f878658a4913292e616f415d9cdf20306bfc"
+      "hash": "b9f92bd61aa64302185706800ffc5a9b95c4a4ad41dadbe74736fcda742a77f1"
     },
     "examples/reports/README.md": {
       "hash": "9b35bb1209cc7d6285eff4345741b6901dab42f6991aeb0b804fd393c8d67b77"
@@ -126,7 +126,7 @@
       "hash": "b934b16c29d3fafdfe521bebd5fae9b52312d455f2cf193da731ac3d23513c79"
     },
     "examples/sync.py": {
-      "hash": "5d786c1bae18a395811e94e4630d1f845eda98134fbf84ed3813099be0464452"
+      "hash": "81a9546c6d663b23f18997c92a39b6b91fcbe14e438ccf5910bbdcad5f84150c"
     },
     "examples/workout-library/README.md": {
       "hash": "f22d96050da8a601aac627ddb44b717f31daa9adc88b1cedf3f56a0b87dec6f4"

@@ -22,7 +22,7 @@ Sleep Quality: [X/4]
 TSB: [X.XX]
 CTL: [XX.XX]
 ATL: [XX.XX]
-ACWR: [X.XX] ([assessment])
+ACWR: [X.XX] ([assessment]) — start-of-day
 Recovery Index: [X.XX] ([assessment])
 Ramp Rate: [X.XX]
 Load/Recovery: [X.X] (tolerance [X.X]) — [context note if near edge]
@@ -54,7 +54,9 @@ suitability (proceed/modify/skip with rationale), coach tip.
 Use readiness_decision.signals for individual signal values.
 If recommendation is Modify, reference readiness_decision.modification
 for adjustment directions (intensity/volume/cap_zone).
-AI may override the pre-computed recommendation with explicit rationale.]
+AI may adjust the recommendation only under the override rules in SECTION_11.md
+(Feel/RPE Override): athlete-reported state escalates unconditionally, de-escalation
+is P2-only, P0 and P1 are not overridable. State the rationale.]
 ```
 
 ---
@@ -75,6 +77,7 @@ AI may override the pre-computed recommendation with explicit rationale.]
 | Next session | Include only on rest days |
 | Terrain Context | Include when `has_terrain: true` on a planned event and `routes.json` has the corresponding terrain data. Omit entirely otherwise. Full pre-ride briefing available on request |
 | Modify/Skip rationale | Required when recommendation is not "Go" |
+| Same-day continuation | Include only when a session has already been completed today and a further session is in question. When triggered, output the **Same-Day Continuation Block** in place of the standard report body — not alongside it. Omit entirely on a first session of the day |
 
 ## Readiness Decision Logic
 
@@ -86,9 +89,33 @@ The `readiness_decision` object in `latest.json` provides a pre-computed go/modi
 
 **Modification guidance** is in `readiness_decision.modification` when recommendation is "modify" (trigger categories + adjustment directions: intensity/volume/cap_zone).
 
-> The AI may override the pre-computed recommendation with explicit rationale in the Interpretation section. The `readiness_decision` is the deterministic baseline, not a constraint. If contextual factors (dossier notes, conversation history, athlete-reported info) suggest a different call, explain why.
+> The `readiness_decision` is the deterministic baseline. The AI may adjust it only under the override rules in **Feel/RPE Override**: athlete-reported state escalates (Go → Modify → Skip) unconditionally; de-escalation is permitted at P2 only, with no more than 2 ambers and an attributed non-training cause; **P0 and P1 are not overridable**. Where contextual factors support a permitted adjustment, state them in the Interpretation section.
+>
+> `signals.acwr` is the **start-of-day** value — the same windows with today's activities excluded — so it does not move when a session is completed today. `derived_metrics.acwr` is live and today-inclusive: retrospective load context only, never used to approve, modify or veto a later same-day session or tomorrow's.
+>
+> **Sourcing the ACWR status line:** value from `readiness_decision.signals.acwr.value`, label from `derived_metrics.acwr_start_of_day.interpretation`. Do not read `derived_metrics.acwr` for this line — that is the live figure and belongs in the post-workout report.
 
 For the full priority ladder (P0–P3) and signal classification thresholds, see **Readiness Decision** in the protocol.
+
+## Same-Day Continuation Block
+
+Use when a session has already been completed today and a later session is in question. When this block applies it **replaces the standard report body** — do not also emit Current Status Summary, Planned Workouts, Recommendation or Interpretation. See **Same-day Continuation** in SECTION_11.md for the decision rules.
+
+```
+Same-day continuation: [Go / Modify / Skip]
+
+Morning readiness: [recommendation] P[priority] — [one-line reason]
+Completed session: [type, duration] — [within/above/below intent; goal attained?]
+Response: [RPE vs work performed; Feel at the time; power-to-HR evidence if the session passes the validity gate, otherwise "not eligible"]
+Current state: [solicited — Feel now, soreness, any new pain or symptoms]
+Remaining session: [planned/added; purpose and cost]
+Decision: [one sentence]
+ACWR: start-of-day [X.XX] — live post-session value excluded from this decision
+```
+
+- Current Feel must be solicited, not read from `recent_activities[].feel`
+- Quote decoupling or EF only when the session passes its gate (`variability_index` ≤ 1.05 and > 0; `duration_formatted` ≥ 90 min for decoupling, ≥ 20 min for EF). Otherwise state that the evidence is not eligible rather than omitting the line silently
+- `effort_response: null` is expected on an easy session and is not a data gap. The classifier is calibrated only at IF ≥ 0.65; `intensity_factor` is emitted on a 0–100+ percentage scale, so the cut-off reads as 65 in the JSON and 0.65 as a decimal IF
 
 ## Brevity Rule
 

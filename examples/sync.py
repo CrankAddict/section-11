@@ -4,6 +4,32 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.127 - Start-of-day ACWR for readiness; ACWR loses standalone P1 authority.
+  derived_metrics.acwr stays live and today-inclusive for retrospective load reporting.
+  readiness_decision now reads a separate derived_metrics.acwr_start_of_day, computed
+  from the same 7d/28d windows with activities dated today excluded, so today's bucket
+  is empty. It is not a midnight snapshot: it is recomputed from current source data on
+  every sync with activities dated as_of_date excluded. The readiness value is
+  therefore unchanged by a workout completed today and cannot veto a later same-day
+  session. Tomorrow is not decided from today's post-workout snapshot either: tomorrow
+  morning computes a new start-of-day value, which will include today's training. The
+  value still moves when an earlier day's activity is backfilled or corrected. On a sync
+  with no activity dated today the two values are identical.
+  Windows and fetch depth are unchanged - no extra day fetched, no snapshot persisted.
+  ACWR no longer forces P1 on its own. Section 11 classifies it as a Tier-2 load metric
+  and Tier 2 must not override Tier-1 primary readiness, yet ACWR >= 1.5 alone produced
+  a non-overridable Skip and ACWR >= 1.3 alone a non-overridable Modify at the top of
+  the Gabbett sweet spot. P1 Skip now requires >= 1.5 AND a corroborating Tier-1 signal
+  (hrv, rhr, sleep or ri at amber or red); the standalone >= 1.3 Modify branch is gone.
+  Uncorroborated ACWR counts as a P2 amber/red like any other signal, raw value still
+  visible. Impellizzeri et al. (2020).
+  The live acwr alert keeps its severity for consumer compatibility but drops the
+  injury-risk claim and carries scope "live_retrospective" / readiness_eligible False;
+  derived_metrics gains acwr_scope / acwr_readiness_eligible for the same reason.
+  Alerts, weekly-row ACWR, acwr_trend, phase detection and _interpret_acwr are unchanged
+  and continue to read the live value.
+  Pairs with SECTION_11.md / SKILL.md v11.59.
+
 Version 3.126 - Apple Watch SDNN explained, never substituted.
   Apple's native HRV is SDNN, which Intervals.icu stores separately from the rMSSD in
   hrv. Readiness reads rMSSD only, so an athlete whose latest wellness record carries
@@ -206,7 +232,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.126"
+    VERSION = "3.127"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -3223,7 +3249,7 @@ class IntervalsSync:
                 "data_period": f"Last {days_back} days (including today)",
                 "extended_data_note": f"ACWR and baselines calculated from {days_for_acwr} days of data",
                 "capability_metrics_note": "The 'capability' block in derived_metrics contains durability trend (aggregate decoupling 7d/28d), efficiency factor trend (aggregate EF 7d/28d), HRRc trend (heart rate recovery 7d/28d), TID comparison (7d vs 28d distribution drift), power curve delta (MMP shift at anchor durations across 28d windows — energy system adaptation direction), HR curve delta (max sustained HR shift at anchor durations — cardiac adaptation, cross-sport), sustainability profile (per-sport power/HR sustainability table for race estimation — 42d window, sport-filtered), and DFA a1 profile (per-session non-linear HRV index from AlphaHRV Connect IQ field — latest_session + trailing_by_sport with crossing-band easy_guard / LT1 / LT2 estimates). These measure HOW the athlete expresses fitness, not just load. Use these for coaching context alongside traditional load metrics. Durability and EF trend direction matters more than absolute values. HRRc is display only — higher = better parasympathetic recovery. Power curve delta rotation_index reveals whether gains are sprint-biased (positive) or endurance-biased (negative). HR curve delta is ambiguous — rising max sustained HR may indicate fitness or fatigue; cross-reference with resting HRV/HR and RPE. Sustainability profile provides race estimation lookup: actual MMP, Coggan predicted (cycling only), CP/W' model (cycling only), model_divergence_pct (actual vs CP — divergence IS the coaching signal). CP/W' is primary for durations ≤20min; Coggan duration factors are the established reference for ≥60min. Source flag (observed_outdoor/observed_indoor) matters for cycling race estimation — indoor MMP is typically 3-5% lower. DFA a1 profile: three self-describing markers (each estimate + crossing block carries marker_dfa_a1) — easy_guard (a1 1.0, a conservative easy-state guard, NOT a threshold), lt1 (a1 0.75, HRVT1 / aerobic threshold), lt2 (a1 0.5, HRVT2 / anaerobic threshold). The literature threshold markers (0.75 / 0.5) are cycling-validated only - non-cycling sports get rollups but validated=False. Every estimate requires a SUSTAINED contiguous crossing: each session's easy_guard_crossing / lt1_crossing / lt2_crossing carries a reason (ok / no_samples_in_band / insufficient_total_dwell / no_contiguous_dwell); scattered in-band time does not produce an estimate. v3.122: dwell is not sufficient. Each crossing also carries estimate_eligible / estimate_reason / n_eligible_segments - a1 reflects the prior 200 beats while watts is instantaneous, so a crossing recorded across varying power blends work and recovery into a number that is not usable as a threshold estimate. avg_hr / avg_watts stay populated on a dwell-qualified but estimate-ineligible crossing as descriptive evidence (a dwell-failed crossing has null averages as before); read estimate_eligible, never infer from absence. Compact lt1_/lt2_ summary fields and all trailing rollups consume eligible crossings only. HR is pooled across sessions; watts are split by environment for cycling (watts_outdoor, watts_indoor with per-environment n_sessions) - compare watts_outdoor against ftp, watts_indoor against ftp_indoor. Non-cycling sports keep pooled watts. easy_guard_estimate, lt1_estimate and lt2_estimate are each gated INDEPENDENTLY - null when that marker has fewer than 3 estimate-ELIGIBLE marker-sessions (v3.122 - not merely dwell-qualified; see easy_guard_eligible_sessions / lt1_eligible_sessions / lt2_eligible_sessions alongside the *_crossing_sessions counts, and note that any gap between them means at least one dwell-qualified marker-session was estimate-rejected). An estimate is null whenever minimum estimate-eligible session depth is not met. If at least one eligible session exists, trailing_by_sport.{sport}.easy_guard_reason / lt1_reason / lt2_reason is insufficient_sessions. If none exists, the staged reason identifies the dominant blocker: dwell failure, incomplete coverage, excessive artifacts, non-positive mean power, or non-stationary power. Do NOT read a null estimate as 'the athlete did not sustain that marker' - read the reason. IMPORTANT: easy_guard is a conservative easy-state compliance guard, NOT an LT1/aerobic-threshold estimate - never compare it to dossier zones and never treat it as a calibration or staleness signal; only lt1 (0.75) and lt2 (0.5) inform threshold calibration. lt1 (0.75) populates only on rides that sustain aerobic-threshold intensity, so it is often null on easy/deload riding - that is expected, not a data gap. Sport-level confidence is a coarse max across the THRESHOLD markers only (lt1, lt2; easy_guard excluded) - low is suppressed for calibration delta surfacing, usable at 'moderate' or 'high'; per-marker estimate presence + reason are authoritative. DFA a1 is a Tier-2 interpretive signal - does NOT enter readiness P0-P3 ladder, does NOT auto-update dossier zones; surfaces calibration deltas only (from lt1/lt2, never easy_guard). Quality gate: refuse to interpret any DFA output when latest_session.sufficient=false. Threshold (lt1/lt2) calibration additionally requires trailing confidence != null; when confidence is null, do NOT surface lt1/lt2 calibration deltas. easy_guard is NOT gated on confidence (it is excluded from it) - interpret easy_guard_estimate from its own reason / n_sessions / quality when present, but never as a calibration signal. See SECTION_11.md DFA a1 Protocol for full interpretation rules.",
-                "readiness_decision_note": "The 'readiness_decision' block contains a pre-computed go/modify/skip recommendation with priority level (P0=safety, P1=overload, P2=fatigue, P3=green), individual signal statuses, phase-adjusted thresholds, and structured modification guidance. Use this as the baseline for pre-workout recommendations. Override with explanation in the coach note if the AI's contextual judgment disagrees. signals.hrv may carry an optional reason: 'rmssd_missing_sdnn_available' means the latest wellness record has no usable rMSSD but does carry SDNN. SDNN is a different metric and is explanatory metadata only - never a readiness input, never treated as HRV. Report HRV as unavailable and name the cause.",
+                "readiness_decision_note": "The 'readiness_decision' block contains a pre-computed go/modify/skip recommendation with priority level (P0=safety, P1=overload, P2=fatigue, P3=green), individual signal statuses, phase-adjusted thresholds, and structured modification guidance. Use this as the baseline for pre-workout recommendations. Override only under the override rules in SECTION_11.md (Feel/RPE Override): athlete-reported state escalates unconditionally, de-escalation is P2-only, P0/P1 are not overridable. signals.acwr is the START-OF-DAY value from derived_metrics.acwr_start_of_day - the same 7d/28d windows with today's activities excluded - so it does not move when a workout is completed today. derived_metrics.acwr stays live and today-inclusive: retrospective load context only (acwr_readiness_eligible false), never used to approve, modify or veto a later same-day session or tomorrow's. Tomorrow is decided from tomorrow morning's readiness output, whose start-of-day value will include today's training. ACWR alone no longer forces P1 - a Skip needs start-of-day ACWR >= 1.5 plus a corroborating Tier-1 signal, and uncorroborated ACWR counts as an ordinary P2 amber/red. signals.hrv may carry an optional reason: 'rmssd_missing_sdnn_available' means the latest wellness record has no usable rMSSD but does carry SDNN. SDNN is a different metric and is explanatory metadata only - never a readiness input, never treated as HRV. Report HRV as unavailable and name the cause.",
                 "zone_preference": self.zone_preference if self.zone_preference else "default (power preferred, HR fallback)",
                 "wellness_field_scales": {
                     "note": "All categorical wellness fields use a 1-4 positional scale where 1 = best state, 4 = worst state. Labels differ per field but direction is consistent. Fields are null when not reported.",
@@ -3617,6 +3643,31 @@ class IntervalsSync:
         acute_load = tss_7d_total / 7 if tss_7d_total else 0
         chronic_load = tss_28d_total / 28 if tss_28d_total else 0
         acwr = round(acute_load / chronic_load, 2) if chronic_load > 0 else None
+
+        # === START-OF-DAY ACWR (readiness basis, v3.127) ===
+        # Same windows, same divisors, same source lists - only today's activities are
+        # excluded, leaving today's bucket empty. Not a midnight snapshot: recomputed
+        # from current source data on every sync with activities dated as_of_date
+        # excluded. readiness_decision consumes this; `acwr` above stays live.
+        # Deliberately mirrors the live source lists (activities_7d for the acute window,
+        # activities_28d for the chronic) rather than "correcting" either, so the two
+        # values are the same metric read at two moments. With no activity dated today
+        # they are identical.
+        # Not a persisted snapshot: recomputed every sync, so a corrected earlier-day
+        # activity still moves it while a workout completed today cannot.
+        # The empty today bucket is intentional and inherited, not a defect - the
+        # 1.3/1.5 thresholds have only ever been applied to a today-inclusive window
+        # with a partly-empty current day. Do not "fix" it by shifting the windows back.
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        activities_7d_sod = [a for a in activities_7d
+                             if a.get("start_date_local", "")[:10] != today_str]
+        activities_28d_sod = [a for a in activities_28d
+                              if a.get("start_date_local", "")[:10] != today_str]
+        sod_7d_total = sum(self._get_daily_tss(activities_7d_sod, days=7))
+        sod_28d_total = sum(self._get_daily_tss(activities_28d_sod, days=28))
+        sod_acute = sod_7d_total / 7 if sod_7d_total else 0
+        sod_chronic = sod_28d_total / 28 if sod_28d_total else 0
+        acwr_start_of_day = round(sod_acute / sod_chronic, 2) if sod_chronic > 0 else None
         
         # === MONOTONY (Total) ===
         # Formula: mean(daily_tss) / stdev(daily_tss)
@@ -3950,6 +4001,19 @@ class IntervalsSync:
             # Tier 2: Secondary Load Metrics
             "acwr": acwr,
             "acwr_interpretation": self._interpret_acwr(acwr),
+            # v3.127: the live field is retrospective load reporting. Readiness reads
+            # acwr_start_of_day below; these two keys close the raw-field back door.
+            "acwr_scope": "live_retrospective",
+            "acwr_readiness_eligible": False,
+            "acwr_start_of_day": {
+                "value": acwr_start_of_day,
+                "interpretation": self._interpret_acwr(acwr_start_of_day),
+                "scope": "start_of_day",
+                "as_of_date": today_str,
+                "current_day_load_included": False,
+                "acute_days": 7,
+                "chronic_days": 28
+            },
             "monotony": monotony,
             "monotony_interpretation": self._interpret_monotony(monotony, effective_monotony, is_multi_sport),
             "primary_sport": primary_sport,
@@ -5984,11 +6048,16 @@ class IntervalsSync:
         mono_trend = features.get("monotony_trend")
         
         # Overreached: requires convergence of multiple signals, not a single metric.
-        # Path A: Current week ACWR >= 1.5 (acute spike, Gabbett danger zone)
-        # Path B: Sustained elevated monotony (>2.5) + ACWR trending up or >=1.3
+        # Both paths are gated on elevated monotony - ACWR alone never triggers this.
+        # Path A: elevated monotony + ACWR >= 1.5 (acute spike, Gabbett danger zone)
+        # Path B: elevated monotony + ACWR >= 1.3 with a rising ACWR trend
         if mono_trend == "elevated":
-            # Use CURRENT week's ACWR, not historical max — a spike 3 weeks ago
-            # that's since resolved should not keep triggering Overreached
+            # Most recent row of the caller's window, not the historical max - a spike
+            # 3 weeks ago that has since resolved should not keep triggering Overreached.
+            # NB the caller's window is finalized weeks in live mode (the in-progress
+            # current week is excluded upstream) and the target week in backfill mode,
+            # so this is the last completed week's weekly_180d acwr (7d acute / 21d
+            # chronic), not derived_metrics.acwr (7d/28d).
             current_acwr = recent_rows[-1].get("acwr") if recent_rows else None
             if current_acwr is not None and current_acwr >= 1.5:
                 return "Overreached"
@@ -6281,7 +6350,10 @@ class IntervalsSync:
             reasons.append("INSUFFICIENT_DATA")
             return None, "low", reasons
         
-        # === Priority 1: Overreached (safety) ===
+        # === Priority 1: Overreached (convergence gate, not a safety stop) ===
+        # Reached only via _phase_from_stream1's monotony-gated paths. The
+        # SAFETY_ACWR_OR_MONOTONY reason code is legacy naming, consumer-visible,
+        # and deliberately unchanged.
         if s1_phase == "Overreached":
             return "Overreached", "high", ["SAFETY_ACWR_OR_MONOTONY"]
         
@@ -6578,6 +6650,12 @@ class IntervalsSync:
         # --- ACWR Alerts ---
         # High-side only. Low ACWR = undertraining / reduced recent load context,
         # not overload risk. Low-side is surfaced via derived_metrics.acwr_interpretation.
+        # v3.127: these fire on the LIVE value, which includes today's completed load.
+        # severity is unchanged for consumer compatibility, but the risk claim is gone:
+        # ACWR is not a standalone injury-risk conclusion (Impellizzeri et al. 2020).
+        # scope and readiness_eligible say explicitly that this is reporting, not a
+        # decision input — an AI acting on an "alarm" between sessions would recreate
+        # the same-day veto the start-of-day basis removes.
         if acwr is not None:
             if acwr >= 1.35:
                 alerts.append({
@@ -6585,9 +6663,11 @@ class IntervalsSync:
                     "value": acwr,
                     "severity": "alarm",
                     "threshold": "1.35",
-                    "context": f"ACWR {acwr} above safe range. Injury/overreach risk elevated.",
+                    "context": f"Live ACWR {acwr} crossed the 1.35 reporting threshold. Retrospective load context only — not a standalone injury-risk conclusion and not a readiness decision. It includes today's completed load, so it must not decide a later same-day session, and must not decide tomorrow before tomorrow morning's new start-of-day calculation. Today's readiness used readiness_decision.signals.acwr (start-of-day).",
                     "persistence_days": None,
-                    "tier": 2
+                    "tier": 2,
+                    "scope": "live_retrospective",
+                    "readiness_eligible": False
                 })
             elif acwr >= 1.3:
                 alerts.append({
@@ -6595,9 +6675,11 @@ class IntervalsSync:
                     "value": acwr,
                     "severity": "warning",
                     "threshold": "1.3",
-                    "context": f"ACWR {acwr} at edge of optimal range. Monitor closely. Alarm at 1.35.",
+                    "context": f"Live ACWR {acwr} crossed the 1.3 reporting threshold; 1.35 is the next band. Retrospective load context only — not a standalone injury-risk conclusion and not a readiness decision. It includes today's completed load, so it must not decide a later same-day session, and must not decide tomorrow before tomorrow morning's new start-of-day calculation.",
                     "persistence_days": None,
-                    "tier": 2
+                    "tier": 2,
+                    "scope": "live_retrospective",
+                    "readiness_eligible": False
                 })
         
         # --- Monotony Alerts (with deload context + multi-sport awareness) ---
@@ -6929,7 +7011,7 @@ class IntervalsSync:
         
         Priority ladder (first match wins):
           P0 — Safety stop: RI < 0.6 or any tier-1 alarm → Skip
-          P1 — Acute overload: ACWR >= 1.5, compound TSB+HRV, RI < 0.7 + persistent alerts → Skip/Modify
+          P1 — Acute overload: start-of-day ACWR >= 1.5 WITH a Tier-1 signal amber/red, compound TSB+HRV, RI < 0.7 + persistent alerts → Skip/Modify
           P2 — Accumulated fatigue: signal counting with phase-adjusted thresholds → Modify
           P3 — Green light → Go
         
@@ -6938,7 +7020,11 @@ class IntervalsSync:
         """
         # --- Gather inputs ---
         ri = derived_metrics.get("recovery_index")
-        acwr = derived_metrics.get("acwr")
+        # v3.127: readiness reads the start-of-day basis, never the live value. A
+        # workout completed today must not change today's readiness result.
+        acwr_sod = derived_metrics.get("acwr_start_of_day") or {}
+        acwr = acwr_sod.get("value")
+        acwr_as_of = acwr_sod.get("as_of_date")
         tsb = current_tsb
         
         latest_hrv = derived_metrics.get("latest_hrv")
@@ -7015,7 +7101,7 @@ class IntervalsSync:
         else:
             signals["sleep"] = {"status": "unavailable", "hours": None, "quality": sleep_quality}
         
-        # ACWR signal
+        # ACWR signal — START-OF-DAY basis (v3.127), not the live value.
         # Readiness: high-side only. Low ACWR = reduced recent load (taper/undertraining),
         # not a fatigue/overload signal — context surfaces via acwr_interpretation.
         if acwr is not None:
@@ -7025,9 +7111,13 @@ class IntervalsSync:
                 acwr_status = "amber"
             else:
                 acwr_status = "green"
-            signals["acwr"] = {"status": acwr_status, "value": acwr}
+            signals["acwr"] = {"status": acwr_status, "value": acwr,
+                               "scope": "start_of_day", "as_of_date": acwr_as_of,
+                               "current_day_load_included": False}
         else:
-            signals["acwr"] = {"status": "unavailable", "value": None}
+            signals["acwr"] = {"status": "unavailable", "value": None,
+                               "scope": "start_of_day", "as_of_date": acwr_as_of,
+                               "current_day_load_included": False}
         
         # RI signal — amber requires 2-day persistence to filter single-night noise.
         #   red: ri < 0.6 (single day, immediate)
@@ -7090,10 +7180,23 @@ class IntervalsSync:
         p1_modify_reasons = []
         p1_alarm_refs = []
         
-        if acwr is not None and acwr >= 1.5:
-            p1_skip_reasons.append(f"ACWR {acwr} >= 1.5")
-            # acwr tier-2 alert object always exists here (fires >=1.35; skip >=1.5); ref only if present
-            p1_alarm_refs.extend(a["metric"] for a in alerts if a.get("metric") == "acwr")
+        # v3.127: ACWR is Tier-2 load. Tier 2 must not override Tier-1 primary readiness
+        # (Metric Evaluation Hierarchy), and ACWR is not validated as a standalone
+        # clearance metric (Impellizzeri et al. 2020), so a spike alone no longer forces
+        # a non-overridable Skip. It stops the session only when a Tier-1 primary signal
+        # corroborates it; uncorroborated it counts as an ordinary P2 red.
+        acwr_corroborating = [k for k in ("hrv", "rhr", "sleep", "ri")
+                              if signals.get(k, {}).get("status") in ("amber", "red")]
+        if acwr is not None and acwr >= 1.5 and acwr_corroborating:
+            p1_skip_reasons.append(
+                f"start-of-day ACWR {acwr} (as of {acwr_as_of}, today's load excluded) "
+                f">= 1.5, corroborated by {', '.join(acwr_corroborating)}"
+            )
+            # No alarm_ref. The acwr alert object carries the LIVE value and
+            # readiness_eligible False, so it is not the alert that triggered this branch
+            # and cannot truthfully be cited as one. The reason string above and
+            # signals["acwr"] are the start-of-day audit trail. alarm_refs may therefore
+            # be empty on a P1 skip — already the case for the TSB+HRV composite branch.
         
         # Compound: deep TSB + HRV confirming
         if tsb is not None and tsb < -30 and hrv_delta_pct is not None and hrv_delta_pct < -10:
@@ -7126,8 +7229,10 @@ class IntervalsSync:
             }
         
         # P1 modify tier (sub-skip thresholds)
-        if acwr is not None and acwr >= 1.3:
-            p1_modify_reasons.append(f"ACWR {acwr} >= 1.3")
+        # v3.127: the standalone ACWR >= 1.3 Modify branch is removed. 1.3 is the top of
+        # the Gabbett sweet spot — the edge of normal, not a danger zone — and a Tier-2
+        # metric must not produce a non-overridable P1 alone. ACWR >= 1.3 still registers
+        # as a P2 amber via signals["acwr"].
         if tsb is not None and tsb < -25 and hrv_delta_pct is not None and hrv_delta_pct < -10:
             p1_modify_reasons.append(f"TSB {tsb} < -25 with HRV {hrv_delta_pct}% below baseline")
         
@@ -7144,7 +7249,7 @@ class IntervalsSync:
                     "modifier_applied": modifiers["modifier_applied"]
                 },
                 "race_week_defers": race_week_active,
-                "modification": self._build_modification(["acwr"] if acwr and acwr >= 1.3 else amber_signals),
+                "modification": self._build_modification(amber_signals),
                 "reason": f"P1 acute overload (modify). {'; '.join(p1_modify_reasons)}.",
                 "alarm_refs": []
             }

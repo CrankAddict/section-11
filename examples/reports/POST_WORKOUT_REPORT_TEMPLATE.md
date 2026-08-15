@@ -53,7 +53,7 @@ TSB: [X.XX]
 CTL: [XX.XX]
 ATL: [XX.XX]
 Ramp rate: [X.XX]
-ACWR: [X.XX] ([assessment])
+ACWR: [X.XX] ([assessment]) — live, includes today's completed load; retrospective context only
 Recovery Index: [X.XX]
 Hours: [XhYm]
 TSS: [XXX]
@@ -108,12 +108,14 @@ Round zone percentages to the nearest **whole number** (1%). The JSON data sourc
 |--------|------|-------|------|
 | Decoupling (per-session) | < 5% | 5–10% | > 10% |
 | Variability Index | ≤ 1.05 | 1.05–1.10 | > 1.10 |
-| ACWR | 0.8–1.3 | 1.3–1.5 | > 1.5 or < 0.8 |
+| ACWR (live retrospective) | 0.8–<1.3 | 1.3–<1.5 | ≥1.5 |
 | Grey Zone (Z3) | < 5% (base) | 5–10% | > 10% (base phase) |
 | Durability (7d mean) | < 3% (good) | 3–5% (moderate) | > 5% (declining) |
 | EF trend | improving/stable | — | declining |
 | DFA a1 (cycling, sufficient) | Internal response matches prescription (very-easy/recovery → predominantly `tiz_easy`; endurance/Z2 → a `tiz_easy`/`tiz_endurance` mix, `tiz_endurance` = working toward LT1; SS/tempo → `tiz_tempo`) | Mild mismatch — note in Interpretation | Significant mismatch OR interpretable negative drift on an easy/endurance ride |
 | TID drift | consistent | shifting | acute_depolarization |
+
+ACWR <0.8 is reduced-load context, not a Watch/Flag classification.
 
 ## Formatting Rule
 

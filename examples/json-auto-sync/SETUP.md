@@ -39,18 +39,13 @@ The data mirror automatically syncs your Intervals.icu metrics to a GitHub repos
 
 ## Step 2: Set Up GitHub Repository
 
-### Option A: Fork (fastest)
+### Create a new private repo
 
-1. Go to [github.com/CrankAddict/section-11](https://github.com/CrankAddict/section-11) → **Fork**
-2. Rename to `training-data` or similar
-3. Set to **Private** in repo settings
-4. Skip to **Step 3: Add Repository Secrets**
-
-### Option B: Create new repo
+> **Don't fork Section 11 for this.** Forks of a public repository are always public and their visibility cannot be changed — a forked data repo would publish your training data.
 
 1. Go to [github.com/new](https://github.com/new)
 2. Name it something like `training-data`
-3. Set to **Private** (recommended) — most AI platforms now have GitHub connectors that can access private repos. See the [main README](../../README.md#platform-setup) for details.
+3. Set to **Private** — see the [connector table](../../README.md#platform-setup) for platform support.
 4. Check Add a README file
 5. Click **Create repository**
 

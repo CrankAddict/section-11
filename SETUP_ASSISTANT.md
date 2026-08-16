@@ -126,14 +126,7 @@ Tell them they can do this through the GitHub web interface:
 - Copy-paste the file contents
 - For sync.py: same process, just name it `sync.py`
 
-**Alternative — fork (if they know GitHub well):**
-1. Go to https://github.com/CrankAddict/section-11 → click **Fork**
-2. Rename the fork to something like `training-data`
-3. Set visibility (public or private) in repo settings
-4. sync.py is already at `examples/sync.py` — copy it to the repo root
-5. Copy `examples/json-auto-sync/auto-sync.yml` to `.github/workflows/auto-sync.yml`
-
-Only mention the fork option if the user seems experienced with GitHub or asks about it.
+**Do not suggest forking Section 11 as their data repo.** Forks of a public repository are always public and their visibility cannot be changed, so a forked data repo would publish their training data. For the GitHub sync path, create a new private repository instead.
 
 Confirm the files are in place before continuing.
 

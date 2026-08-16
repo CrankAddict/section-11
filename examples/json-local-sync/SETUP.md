@@ -22,7 +22,7 @@ For always-fresh data (agentic coaches, heartbeat checks), a machine that stays 
 ### How the AI reads your data
 
 - **Agentic platforms** (OpenClaw, Claude Code, Cowork, Codex CLI, Gemini CLI) — run on the same machine, read files directly from the filesystem. Simplest path.
-- **Web/phone AI chats** (ChatGPT, Gemini, Perplexity, etc.) — sync.py writes to a cloud-synced folder (Google Drive, OneDrive, Dropbox), and the AI reads via its connector. Your computer or server does the syncing; the AI just reads the result. Note: not all platforms support all cloud connectors for .json files — see the [connector table](../../README.md#platform-setup) for details. Claude's Google Drive connector only reads Google Docs; Claude users should use the GitHub connector path instead.
+- **Web/phone AI chats** (ChatGPT, Gemini, Perplexity, etc.) — sync.py writes to a cloud-synced folder (Google Drive, OneDrive, Dropbox), and the AI reads via its connector. Your computer or server does the syncing; the AI just reads the result. Note: cloud connector support for `.json` varies by platform — see the [connector table](../../README.md#platform-setup).
 
 ### Why local
 
@@ -181,7 +181,7 @@ Do NOT fetch from URLs — all files are local.
 
 If your AI coach is a web or phone app (Claude, ChatGPT, Gemini, etc.) rather than an agentic platform, it can't read files from your machine directly. You need a bridge: sync.py writes to a cloud-synced folder, and the AI reads via its connector.
 
-**The simplest version:** sync.py outputs to your Google Drive folder. Google Drive desktop app syncs it to the cloud. Gemini/Perplexity reads it through their Google Drive connector. That's it. (ChatGPT's Drive connector requires a Workspace account; Claude's doesn't support .json files — see the [connector table](../../README.md#platform-setup).)
+**The simplest version:** sync.py outputs to your Google Drive folder. Google Drive desktop app syncs it to the cloud. Your AI reads it through its Google Drive connector. That's it. (Support and refresh behavior vary by platform — see the [connector table](../../README.md#platform-setup).)
 
 ### How to set it up
 
@@ -193,7 +193,7 @@ If your AI coach is a web or phone app (Claude, ChatGPT, Gemini, etc.) rather th
 3. Point your timer's `--output` at that folder (same as the regular local setup, just a different path)
 4. Connect the AI platform's Drive connector to the folder
 
-Your AI coach now reads fresh data every time you open a chat — no URLs, no GitHub, no manual uploads.
+Your AI coach now reads your data from the synced folder — no URLs, no GitHub, no manual uploads. Refresh behavior varies by platform; see the [connector table](../../README.md#platform-setup).
 
 > **Tip:** If your data directory already contains `DOSSIER.md` and `section11/` (from `--init`), the cloud connector gives the AI access to your data, dossier, and protocol files — all in one connection. No need to manually upload `SECTION_11.md` or `DOSSIER.md` to your AI project.
 
@@ -462,9 +462,7 @@ tail -f ~/training-data/sync.log
 
 ## Privacy Notes
 
-By default, sync.py anonymizes your data:
-- Athlete ID → "REDACTED"
-- Outdoor activity names → "Training Session"
+sync.py does not anonymize your data. Only `metadata.athlete_id` is redacted — activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through. See [Privacy & Security](https://github.com/CrankAddict/section-11#privacy--security).
 
 Activity and event IDs are always real (opaque database keys, not PII) to enable features like coach annotations and planned-vs-actual pairing.
 

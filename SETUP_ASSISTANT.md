@@ -111,9 +111,8 @@ A "repository" (repo) is just a folder on GitHub that holds their files. A "work
 3. Create a **new repository** on GitHub:
    - Go to https://github.com/new
    - Name it something like `my-training-data` or `t1-data` (their choice)
-   - **Easy setup path:** set to **Public** (the data is anonymized by default — no personal info is exposed)
-   - **Privacy-conscious:** set to **Private** — most web chat platforms (ChatGPT, Claude, Gemini, Mistral) now have GitHub connectors that can access private repos directly
-   - **Agent path:** set to **Private**
+   - **Recommended:** set to **Private**. The output is not anonymized — see Privacy & Security in the README: https://github.com/CrankAddict/section-11#privacy--security
+   - **Public fallback:** only when the user's chosen AI platform/model cannot access a private repository and they need URL-based fetch. Tell them plainly that this publishes their date of birth, sex, height, location, activity names, athlete notes, and route coordinates.
    - Check **"Add a README file"**
    - Click **Create repository**
 4. Copy these files from the Section 11 repo into their new repo:
@@ -277,25 +276,9 @@ This is where the two paths diverge.
 
 Walk them through setting up a ChatGPT or Claude project. If they use a different platform (Grok, Mistral, Gemini), adapt these instructions — the concept is the same: create a project, paste instructions, upload files.
 
-**Before starting, check if their platform has a GitHub connector:**
+**Before starting, check if their platform has a GitHub connector.** Plans, connect paths, refresh behavior, and permissions vary by platform and change often. They are maintained in one place — the Platform Setup tables in the README: https://github.com/CrankAddict/section-11#platform-setup
 
-Most major AI platforms now have native GitHub connectors. If theirs does, they can use a **private repo** and skip the URL-based fetch entirely — the connector reads their data directly.
-
-**Note:** These connectors are for web chat platforms only and are currently read-only — they cannot trigger GitHub Actions workflows. For that, the user needs an [agentic platform](#agent-path-private-repo--agent-platform).
-
-| Platform | GitHub Connector | Can Trigger Actions | How to Connect |
-|----------|-----------------|---------------------|----------------|
-| ChatGPT | Varies by plan | No (Codex has write access) | Settings → Apps → GitHub |
-| Claude | All plans including Free | No (custom MCP possible†) | Settings → Integrations → GitHub, or "+" in Project Knowledge |
-| Gemini | Varies by account | No (Workspace extension has writes‡) | + → Import code, or Connected Apps |
-| Grok | Grok Business/Enterprise | No (read-only) | Settings → Connected Apps |
-| Mistral | All tiers incl. free | Not yet (writes supported, dispatch TBD) | Side panel → Intelligence → Connectors |
-| Perplexity | Pro, Max, and Enterprise | No | App Connectors |
-
-†Requires setting up a GitHub OAuth App or PAT with a custom MCP server — non-trivial.
-‡Separate Google Workspace extension; requires Google Integrations helper app. Not the same as import-code.
-
-If they have a connector available, walk them through connecting it and skip the fetch URLs in the instructions below. If not (or if they prefer simplicity), the URL-based approach works with a public repo.
+If they have a connector available, walk them through connecting it and skip the fetch URLs in the instructions below. Only if their chosen platform/model cannot access a private repository does the URL-based approach apply — that requires a public repo, so disclose what it exposes (see Privacy & Security in the README: https://github.com/CrankAddict/section-11#privacy--security).
 
 **1. Create a Project:**
 
@@ -368,12 +351,12 @@ Tell them to upload these two files to their project's knowledge/files section:
 | `DOSSIER.md` | The dossier they created in Step 7 (from their data repo) |
 
 **Platform-specific notes:**
-- **ChatGPT Projects:** Upload to "Project Files." If using the GitHub connector (Settings → Apps → GitHub), it can read your private repo directly — no need for public URLs.
+- **ChatGPT Projects:** Upload to "Project Files."
 - **ChatGPT CustomGPT:** Upload to "Knowledge" under Configure. Enable "Web Browsing" in Capabilities.
-- **Claude Projects:** Upload to "Project Knowledge." GitHub connector: click "+" in Project Knowledge → search/paste your repo URL → select files. Or enable "Web search" in settings for URL-based fetch.
-- **Grok:** Upload to "Sources" in Project configuration. GitHub connector available on Grok Business/Enterprise plans via Settings → Connected Apps.
-- **Mistral (Le Chat):** Upload during project creation. GitHub connector: side panel → Intelligence → Connectors → GitHub.
-- **Gemini Gems:** Paste Section 11 content into the instructions field and upload the dossier separately. GitHub connector: click + → Import code → paste repo URL. *(Note: Gemini capabilities vary across Google accounts and Workspace editions — it may not work for everyone. If Gemini can't access your repo, try downloading the section-11 repo as a zip and uploading it directly.)*
+- **Claude Projects:** Upload to "Project Knowledge." Enable "Web search" in settings if using URL-based fetch.
+- **Grok:** Upload to "Sources" in Project configuration.
+- **Mistral (Vibe):** Upload during project creation.
+- **Gemini Gems:** Paste Section 11 content into the instructions field and upload the dossier separately. *(If Gemini can't access your repo, try downloading the section-11 repo as a zip and uploading it directly.)*
 
 ---
 
@@ -436,7 +419,7 @@ The GitHub vs Local question was already answered in Step 0. If they're here, th
 
 **Claude Cowork:**
 1. **Local:** Grant Cowork access to `~/training-data/`
-2. **GitHub:** Use the GitHub MCP connector in Cowork settings for direct repo access
+2. **GitHub:** See the Claude Cowork setup in the README: https://github.com/CrankAddict/section-11#claude-cowork
 
 **ChatGPT Codex:**
 1. **Local (CLI):** Run from `~/training-data/` — Codex CLI has full filesystem access
@@ -454,14 +437,9 @@ For web chat users on the local path, sync.py writes to a cloud-synced folder an
 1. Install Google Drive for Desktop (or OneDrive/Dropbox — whichever their AI platform has a connector for)
 2. Set the data directory inside the synced folder (e.g., `~/Google Drive/My Drive/training-data/`)
 3. The timer's `--output` points to this folder — same setup as above, just a different path
-4. Connect the AI platform's connector to the folder:
-   - **Gemini:** Native Google Drive access — just reference the folder
-   - **Perplexity:** Settings → Connectors → Google Drive (Pro plan required)
-   - **ChatGPT:** Settings → Apps → Google Drive (Workspace accounts only — not personal Gmail)
-   - **Claude:** Google Drive connector reads Google Docs only, not .json files. Use the GitHub connector instead (Settings → Integrations → GitHub)
-   - **Other platforms:** Check their connector/integration settings
+4. Connect the AI platform's cloud connector to the folder — see the Platform Setup tables in the README for current Google Drive support by platform: https://github.com/CrankAddict/section-11#platform-setup
 
-The AI coach now reads fresh data every time they open a chat. See `examples/json-local-sync/SETUP.md` for more details and alternative setups (VPS + rclone, NAS with cloud sync, etc.).
+See `examples/json-local-sync/SETUP.md` for more details and alternative setups (VPS + rclone, NAS with cloud sync, etc.).
 
 **Optional: Enable calendar push**
 

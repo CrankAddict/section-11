@@ -11,7 +11,7 @@
       "hash": "0683b6ae3ded5701305dae4114d317d4346c175824d8db87a22d18e05a61ff77"
     },
     "README.md": {
-      "hash": "8baf53b29dca145a3b9cf5c70833210e45fa5f8c3aa61b11e33082c37f05a3d6"
+      "hash": "40b078816465a0aad94c3784dec537055465d15267f25ad00f0a032b212f3bd8"
     },
     "SECTION_11.md": {
       "hash": "a44528035daab0403629b04288443122d7d1544d2024a60b94c48828678722bf",
@@ -21,7 +21,7 @@
       "hash": "47a0b437722547662e2215a759678cccaeb91984734337bfe2392185d71976d5"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "4648cd0e8658cbd11777606c6088cb9fa30d2596df1ddbbb9cadc2aa073b34fd"
+      "hash": "5ac149ef512f081c6809a5c01ba1e063fe151c67bb873fe191d122ae92f553a5"
     },
     "SKILL.md": {
       "hash": "dbbd15a8d59a022d551f843f95112bceee3e29bef99200be331b882e9cbb1fe6"
@@ -57,7 +57,7 @@
       "hash": "464615b19c0ad4121a45655d06206b436948693a3799660c49528778990609d0"
     },
     "examples/json-auto-sync/SETUP.md": {
-      "hash": "63e4e14a4f59daf3f6ed2056a54f912d6d675052a2d3ca168f7e0358e0595932"
+      "hash": "92056708557436ec115aece9b188ee72f85001bb8924b73e646828dc32fa5c8e"
     },
     "examples/json-auto-sync/auto-sync.yml": {
       "hash": "2c42026cf15423cb656b55a086b0c9d87cda2297608a47ba2f4b8d59b95b67e6"
@@ -81,13 +81,13 @@
       "hash": "0ff2ef8770733a9b059154e7305b57510455e0024f3c60cf57eee7b0d67e97ed"
     },
     "examples/json-local-sync/SETUP.md": {
-      "hash": "c6994fe72fa9fdb9689d7ec47a7df2c3197e2051904935596dd0c8cfe9275a1e"
+      "hash": "20da171fdb552b4dfad2bbf14b96011c26d92a7723123592ea01b1e9a0f2edb0"
     },
     "examples/json-manual/SETUP.md": {
-      "hash": "c2f263e7845671805586b1fdefbf1b0980157121bc982856c255bc542ee187b0"
+      "hash": "8ab268c6b055ed789bc981f4397414c5088a8af71da14e82045f7bb086aaf91a"
     },
     "examples/json-on-demand/SETUP.md": {
-      "hash": "8a4cf6b9f4406ee0c237f23ca26cbc423ecc4d97f0c81f79b0ac79df47a4d102"
+      "hash": "461e2c1e8cd5a4990e5b142ff5254838729fe8eb496b5193c9ae17fb7d84970a"
     },
     "examples/reports/BLOCK_REPORT_EXAMPLES.md": {
       "hash": "72c7cb21f5b87f2917f11da6f64fd6344c65292116252d04ad6e9d45dd1f82bd"

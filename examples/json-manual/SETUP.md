@@ -120,11 +120,10 @@ Want sync.py to run automatically on a timer? See [json-local-sync](../json-loca
 | `--output FILE` | Save to local file | - |
 | `--week-start DAY` | Training week start day (mon/tue/wed/thu/fri/sat/sun) | mon |
 | `--debug` | Show API field debug info | off |
-| `--anonymize` | Remove identifying info | on |
 
 **Note:** `--week-start` can also be set in `.sync_config.json` (`"week_start": "sun"`) or via `WEEK_START` environment variable. Config file setting persists across runs — no need to pass the flag every time.
 
-**Note:** Anonymization is enabled by default. Activity names, athlete ID, and location data are redacted in the output.
+**Note:** Only `metadata.athlete_id` is redacted. The output is not anonymized — see [Privacy & Security](https://github.com/CrankAddict/section-11#privacy--security).
 
 ---
 

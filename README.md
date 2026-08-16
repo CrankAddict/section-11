@@ -38,6 +38,8 @@ An open protocol for deterministic, auditable AI-powered endurance coaching. Bui
 
 ## Privacy & Security
 
+`sync.py` always redacts `metadata.athlete_id`, but it does not anonymize the exported dataset. Output may include activity names and IDs, date of birth, age, sex, height, location, timezone, athlete notes, wellness and training data, and route coordinates/polylines. Store the output in a private location. Publishing the files in a public repository exposes that information.
+
 Your data stays on your machine or in repos you control. Section 11 does not run a backend, does not store your data, and does not send your training data, API keys, or chat history anywhere.
 
 ---
@@ -75,7 +77,7 @@ Keep your Intervals.icu data fresh for your AI coach automatically.
 Choose your path:
 
 - **[Agentic Platforms](#agentic-setup)** — OpenClaw, Claude Code, Claude Cowork, ChatGPT Codex, Gemini CLI (code execution, push workouts to calendar) ← **full protocol experience**
-- **[Web Chat Platforms](#web-chat-setup)** — ChatGPT Projects, Claude Projects, Gemini Gems, Grok, Mistral Le Chat
+- **[Web Chat Platforms](#web-chat-setup)** — ChatGPT Projects, Claude Projects, Gemini Gems, Grok, Mistral Vibe
 
 ### 4. Make Files Available to Your AI
 
@@ -116,7 +118,7 @@ This is the reference setup. Section 11 works well with [OpenClaw](https://githu
 Cowork is a desktop app that can read files directly from your filesystem.
 
 1. Clone your data repo locally and grant Cowork access to that folder
-2. Or connect GitHub via Settings → Connectors → GitHub (or configure via `.mcp.json`)
+2. Or add GitHub from Cowork's Connectors directory.
 
 ### ChatGPT Codex
 
@@ -203,43 +205,45 @@ Omit fields only if data unavailable for that activity type.
 
 **If using local sync:** The AI reads files from the data directory. No URL editing needed. See [local sync setup](examples/json-local-sync/SETUP.md) for project instructions tailored to filesystem access.
 
-**If using a connector (GitHub, Google Drive, OneDrive — [platform support varies](#platform-setup)):** The AI reads files directly — no URL editing needed. If you committed `DOSSIER.md` to your data repo, the connector provides your data and dossier in one connection. `SECTION_11.md` can be uploaded separately or accessed via a second connector to the CrankAddict/section-11 repo.
+**If using a connector (GitHub, Google Drive, OneDrive — [platform support varies](#platform-setup)):** The AI reads files through the connector — no URL editing needed. Refresh behavior varies by platform; follow the [Platform Setup](#platform-setup) guidance and refresh or re-import when required. If you committed `DOSSIER.md` to your data repo, the connector provides your data and dossier in one connection. `SECTION_11.md` can be uploaded separately or accessed via a second connector to the CrankAddict/section-11 repo.
 
 **If using URL fetch:** Replace `[USERNAME]/[REPO]` with your GitHub data mirror path.
 
 ### Platform Setup
 
-Most major AI platforms now have native GitHub connectors that can access private repos directly. This means you no longer need a public repo or manual file uploads in most cases.
+Most major web-chat platforms can access private GitHub repositories, but access and freshness are separate questions. Some connectors query live data, some maintain an index, and some require a manual sync or re-import. A private connector replaces a public repo only when its refresh model keeps `latest.json` and `history.json` current enough for your workflow.
 
-**GitHub connector status for web chat platforms.** Agentic platforms (OpenClaw, Claude Code, Codex, etc.) have full GitHub access including workflow dispatch — see [Agentic Setup](#agentic-setup).
+**GitHub connector status for web-chat platforms.** Agentic platforms can use authenticated GitHub tools and may support workflow dispatch — see [Agentic Setup](#agentic-setup). This table covers the web-chat connector experience.
 
-| Platform | GitHub Connector | Private Repos | Can Trigger Actions | Plan Notes |
-|----------|-----------------|---------------|---------------------|------------|
-| ChatGPT | Settings → Apps → GitHub | Yes | No (read-only)¹ | Varies by plan and experience |
-| Claude | Settings → Connectors → GitHub | Yes | No (read-only)² | All plans including Free |
-| Gemini | + → Import code / Connected Apps | Yes (link account) | No (read-only snapshot)³ | Account/region dependent — see Gemini docs |
-| Grok | Settings → Connected Apps | Yes | No (read-only) | Grok Business/Enterprise; consumer tier availability TBD |
-| Mistral | Side panel → Intelligence → Connectors → GitHub | Yes | No (full read/write, no dispatch) | All tiers including free |
-| Perplexity | Connectors → GitHub | Yes | No (full read/write, no dispatch) | Pro, Max, and Enterprise |
+*Both tables verified 2026-08-16 using vendor documentation and, where available, hands-on testing. Plans, interfaces, permissions, and regional availability can change.*
 
-**Google Drive connector status for web chat platforms (.json files).** For users on the [local sync](examples/json-local-sync/SETUP.md) path who want their AI to read data files via Google Drive.
+| Platform | How to Connect | Plans | Private Repos | Refresh | Permissions / Caveats |
+|----------|----------------|-------|---------------|---------|-----------------------|
+| [ChatGPT](https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt-deep-research) | Plugin/App directory → GitHub | Varies by plan and experience | Yes | Experience-dependent: live search or indexed sync | Read-only in ChatGPT; use Codex for repository writes. GitHub may appear in Deep Research or agent mode but not standard chat. |
+| [Claude](https://support.claude.com/en/articles/10167454-use-the-github-integration) | **+** → **Add from GitHub** | All plans including Free; organization policy may restrict | Yes | Manual **Sync now** | Files only; no commit history, pull requests, or other repository metadata. |
+| [Gemini](https://support.google.com/gemini/answer/16176929) | **+** → **Import code** | Personal accounts and qualifying Workspace accounts | Yes | Frozen at import; re-import to refresh | Desktop web only; one repository per chat, up to 5,000 files / 100 MB; read-only. |
+| [Grok](https://docs.x.ai/grok/connectors) | `grok.com/connectors` → GitHub | All users; Business/Enterprise requires admin provisioning | Authorized repositories | On demand | Public documentation identifies repository, issue, pull-request, and code access but does not state whether the GitHub connector can write; review the OAuth grant before authorizing. |
+| [Mistral Vibe](https://docs.mistral.ai/vibe/work/connectors) | **Work** → **Connectors** → **GitHub App** | All plans including Free; organization policy may restrict | Authorized repositories | Real-time / on demand | Can search repositories, review issues, and manage pull requests; actions require approval. |
+| [Perplexity](https://www.perplexity.ai/help-center/en/articles/12275669-github-connector-for-enterprise) | **Settings** → **Connectors** → **GitHub** | Pro, Max, Enterprise Pro, Enterprise Max | Yes | On demand | Can perform actions. The OAuth grant includes unusually broad scopes, including repository deletion and workflow updates; review it carefully. |
 
-| Platform | Google Drive (.json) | How to Connect | Plan Notes |
-|----------|---------------------|----------------|------------|
-| Gemini | ✅ | + → Drive (enable Workspace extensions) | Free tier works |
-| Perplexity | ✅ | Settings → Connectors → Google Drive | Pro, Max, and Enterprise |
-| ChatGPT | ⚠️ | Settings → Apps → Google Drive | Workspace accounts only — not personal Gmail |
-| Claude | ✅ | Settings → Connectors → Google Drive | All plans including Free |
-| Grok | ✅ | Settings → Connected Apps → Google Drive | Business/Enterprise only |
-| Mistral | ⚠️ | Side panel → Connectors → Google Drive | Beta — Team & Enterprise; admin setup required |
+**Google Drive access for `.json` files.** `✅` means the Drive-to-chat JSON path is supported. `⚠️` means JSON works, but connector availability or lifecycle is limited.
 
-**Note:** Cloud storage connectors are still rolling out across platforms. Availability may change by plan, region, and account type. Check your platform's current connector settings if something listed here doesn't appear.
+| Platform | `.json` via Drive | Plans | Refresh | Notes |
+|----------|-------------------|-------|---------|-------|
+| [ChatGPT](https://help.openai.com/en/articles/8437071-data-analysis-with-chatgpt) | ⚠️ Supported; connector limited | Plus and Pro; Business, Enterprise, and Edu when enabled | On-demand file search; continuous sync on Pro and supported workspace plans | JSON is supported. [App capability](https://help.openai.com/en/articles/11487775-apps-in-chatgpt), region, and workspace policy may limit availability. |
+| [Claude](https://support.claude.com/en/articles/10166901-use-google-workspace-connectors) | ✅ Supported | All users; organization policy may restrict | On demand; re-select after changes | Claude supports [JSON files](https://support.claude.com/en/articles/8241126-upload-files-to-claude) and Drive attachments. Only Google Docs are explicitly documented as staying synchronized. |
+| [Gemini](https://support.google.com/gemini/answer/14903178) | ✅ Supported | Signed-in users; Workspace policy may restrict | Re-select after changes | **Add from Drive** uses Gemini's supported-file upload path. Google documents support for most file types; limits vary by plan. |
+| [Grok](https://docs.x.ai/grok/connectors/google-drive) | ✅ Supported | All users; Business/Enterprise requires admin provisioning | Real-time / on demand | xAI documents [JSON file support](https://docs.x.ai/grok/faq), while the Drive connector reads Docs, Sheets, Slides, and other file types. |
+| [Mistral Vibe](https://docs.mistral.ai/vibe/work/connectors/knowledge-connectors) | ⚠️ Supported; connector transition | Team and Enterprise for the legacy indexed connector; replacement MCP requires admin setup | Legacy: scheduled sync; MCP: tool-dependent | Vibe supports [JSON files](https://docs.mistral.ai/vibe/work/files-and-canvas) and Drive file reading. The legacy Knowledge Connector is scheduled for removal at the end of August 2026 in favor of an admin-added MCP connector. |
+| [Perplexity](https://www.perplexity.ai/help-center/en/articles/12870620-connecting-perplexity-with-google-drive) | ✅ Supported | Pro, Max, Enterprise Pro, Enterprise Max | Real-time standard search; selected-file sync also available | JSON is explicitly listed. Enterprise adds My Files sync and high-precision search. |
+
+**Note:** Check the linked vendor documentation before setup. Connector availability and behavior change often, and a stale connector can silently serve old training data.
 
 #### ChatGPT (Projects)
 
 1. Create a Project
 2. Add instructions to Project settings
-3. **GitHub connector:** Settings → Apps → GitHub → Connect → authorize repos. Once connected, ChatGPT reads your private data repo directly — and any files in it (including `DOSSIER.md` if you committed it).
+3. **GitHub connector:** Open the Plugin/App directory → GitHub → Connect → authorize repositories. Availability and refresh behavior vary by plan and chat experience. The connector is read-only; confirm that the connected experience has fetched the current files before requesting a report.
 4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Files". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too).
 
 #### ChatGPT (CustomGPT)
@@ -253,7 +257,7 @@ Most major AI platforms now have native GitHub connectors that can access privat
 
 1. Create a Project
 2. Add instructions to "Project Instructions"
-3. **GitHub connector:** Click "+" in Project Knowledge → search/paste your repo URL → select files. Or connect via Settings → Connectors → GitHub. Available on all plans including Free.
+3. **GitHub connector:** Click **+** in a chat or the project's Files section → **Add from GitHub** → select files. Private repositories are supported. Click **Sync now** before a report when the repository has changed.
 4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Knowledge". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too).
 5. Enable "Web search" in settings if using URL-based fetch instead of the connector
 
@@ -261,7 +265,7 @@ Most major AI platforms now have native GitHub connectors that can access privat
 
 1. Create Gem
 2. Paste instructions in instructions field
-3. **GitHub connector:** Click **+** → **Import code**, paste the repo URL, and authorize. This also works for Gems. For private repos, authorize your GitHub account when prompted.
+3. **GitHub connector:** On desktop web, click **+** → **Import code**, paste the repo URL, and authorize. This also works for Gems. Private repositories are supported, but the imported repository is frozen: changes do not sync, so re-import it before the next report.
 4. **No connector?** Paste Section 11 content into the instructions field and upload dossier separately. If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately.
 
 > **Note:** Not all Google accounts have the same access. Gemini's capabilities vary by account type, Workspace edition, and region. If Gemini can't access your repo, see [Troubleshooting](#troubleshooting).
@@ -270,21 +274,21 @@ Most major AI platforms now have native GitHub connectors that can access privat
 
 1. Create Project
 2. Add instructions to Project configuration
-3. **GitHub connector:** Settings → Connected Apps → GitHub → Connect. Available on Grok Business and Enterprise plans; consumer tier availability TBD.
+3. **GitHub connector:** Open `grok.com/connectors` → **New Connector** → GitHub → authorize. Connectors are available to all Grok users; Business and Enterprise workspaces require an administrator to provision them first.
 4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Sources". If using the connector but some files aren't in your data repo, upload those separately.
 
-#### Mistral (Le Chat)
+#### Mistral (Vibe)
 
 1. Create New Project
 2. Add instructions
-3. **GitHub connector:** Open side panel → Intelligence → Connectors → find GitHub in the directory → Connect and authorize. Available on all tiers including free.
+3. **GitHub connector:** Switch to **Work** → **Connectors** → **GitHub App** → Connect and authorize. Vibe can manage pull requests as well as read repository data, and asks for approval before actions.
 4. **No connector?** Upload SECTION_11.md and DOSSIER.md during project creation. If using the connector but some files aren't in your connected repo, upload those separately.
 
 #### Perplexity
 
 1. Create a Space (or use standard chat)
 2. Add instructions
-3. **GitHub connector:** Available on Pro, Max, and Enterprise plans via App Connectors.
+3. **GitHub connector:** **Settings** → **Connectors** → GitHub. Available on Pro, Max, Enterprise Pro, and Enterprise Max. Review the OAuth grant before authorizing: it includes broad administrative scopes, repository deletion, and GitHub Actions workflow updates.
 4. **No connector?** Upload SECTION_11.md and DOSSIER.md to the Space. Free users without connector access should use URL-based fetch (requires public repo) or upload files manually.
 
 ---
@@ -343,7 +347,7 @@ After configuration, test with:
 
 Most AI platforms now have GitHub connectors that can access private repos directly. Check the [Platform Setup](#platform-setup) table for your platform's connector path.
 
-If your platform doesn't support connectors or you can't get them working: use a public repo, upload `latest.json`, `history.json`, `intervals.json`, and `routes.json` (if present) manually to your AI Project/Space, or use an [agentic platform](#agentic-setup) with GitHub access configured.
+If your platform doesn't support connectors or you can't get them working: use a public repo (see [Privacy & Security](#privacy--security) for what that exposes), upload `latest.json`, `history.json`, `intervals.json`, and `routes.json` (if present) manually to your AI Project/Space, or use an [agentic platform](#agentic-setup) with GitHub access configured.
 
 ### Data appears stale after sync
 
@@ -372,14 +376,14 @@ Apple Watch exports **SDNN**; Section 11's readiness HRV signal is **rMSSD**, wh
 
 ### Gemini can't access your repo or ignores data
 
-- Enable the GitHub extension: gemini.google.com → Settings → Extensions (Connected Apps) → turn on GitHub
+- Import the repo on desktop web: **+** → **Import code**, paste the repo URL, and authorize
 - If it's a private repo, make sure your GitHub account is linked — you'll be prompted during import, or check Connected Apps settings
-- Try referencing the repo directly in chat using `@GitHub`
+- Remember the import is frozen — re-import before a report if the repo has changed
 - Gemini capabilities vary by Google account type, Workspace edition, and region — not all accounts have the same access
 
 ### Grok can't connect to GitHub
 
-The GitHub connector for Grok requires a Grok Business or Enterprise plan. If it's not available in your Settings → Connected Apps, upload files manually or use a public repo with URL-based fetch.
+Connectors are available to all Grok users — add GitHub at `grok.com/connectors` → **New Connector**. In Business and Enterprise workspaces an administrator must provision connectors first. If it's still unavailable, upload files manually or use a public repo with URL-based fetch.
 
 ### AI fabricates metrics or ignores synced data
 

@@ -254,18 +254,11 @@ Edit `sync.py` call in workflow:
 run: python sync.py --days 14
 ```
 
-**Disable anonymization:**
-```yaml
-run: python sync.py --no-anonymize
-```
-
 ---
 
 ## Privacy Notes
 
-By default, the script anonymizes your data:
-- Athlete ID → "REDACTED"
-- Outdoor activity names → "Training Session"
+The script does not anonymize your data. Only `metadata.athlete_id` is redacted — activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through. See [Privacy & Security](https://github.com/CrankAddict/section-11#privacy--security).
 
 Activity and event IDs are always real (opaque database keys, not PII) to enable features like coach annotations and planned-vs-actual pairing. Indoor/virtual ride names are preserved for workout identification.
 

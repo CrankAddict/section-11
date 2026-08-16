@@ -14,7 +14,7 @@ Uses the same GitHub Actions workflow as auto-sync, but without the cron schedul
 
 **Flow:** Tap Sync Now → Run workflow → Download artifact ZIP → Attach to AI chat.
 
-**GitHub connector users:** If your AI platform has a GitHub connector, skip the download — the connector reads the fresh data directly from the repo after the workflow commits it.
+**GitHub connector users:** If your AI platform has a GitHub connector, you can skip the download — but refresh, sync, or re-import after the workflow commits, since not all connectors pick up changes automatically. See the [connector table](../../README.md#platform-setup).
 
 ---
 
@@ -105,7 +105,7 @@ Replace `YOUR_GITHUB_USER` and `YOUR_REPO_NAME` in `README.md` with your actual 
 5. Wait 30–60 seconds for the run to complete
 
 After the run completes:
-- **Connector users:** Your AI can now read the data directly from the repo.
+- **Connector users:** Refresh, sync, or re-import so your AI picks up the new files — see the [connector table](../../README.md#platform-setup).
 - **Download users:** Click the completed run → scroll to **Artifacts** → download **training-data** ZIP.
 
 From now on, just tap **🔄 Sync Now** in your repo's README.
@@ -116,11 +116,11 @@ From now on, just tap **🔄 Sync Now** in your repo's README.
 
 ### From your phone
 
-Open your repo in a browser → tap **🔄 Sync Now** → **Run workflow**. When the run completes, download the artifact or let the connector handle it.
+Open your repo in a browser → tap **🔄 Sync Now** → **Run workflow**. When the run completes, download the artifact or refresh, sync, or re-import through your connector as required.
 
 ### With an AI connector
 
-Most AI platforms with GitHub connectors read the repo directly. After triggering a sync, the AI reads the updated files — no download needed. See the [main README](../../README.md#web-chat-setup) for connector setup.
+AI platforms with GitHub connectors can read the repo directly, but refresh behavior varies — some need a manual sync or re-import before they see the new files. Check the [connector table](../../README.md#platform-setup) for your platform, then refresh accordingly. No download needed once the connector has the current files.
 
 ### Without a connector
 

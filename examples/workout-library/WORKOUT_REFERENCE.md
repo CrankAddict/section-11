@@ -1,8 +1,8 @@
 # Section 11 — Workout Reference Library
 
-**Version:** 0.6  
+**Version:** 0.7  
 **Companion to:** Section 11 B — AI Training Plan Protocol  
-**Last updated:** 2026-02-28
+**Last updated:** 2026-08-20
 
 ---
 
@@ -644,7 +644,11 @@ When Section 11 determines a structured session is needed, use this guide to sel
 
 ### 5.2 Progression Within a Format
 
-Before changing to a new format, progress within the current one:
+Before changing to a new format, progress within the current one.
+
+**Precedence:** The ordering below is the last resort. A template's own progression note governs which progression variable changes and in what order where one exists; failing that, the applicable Section 11 A progression pathway governs — §*1 for endurance, or the VO₂max or Sweet Spot rules in §*2. Use the generic ordering below only when neither defines an order. Section 11 A's readiness, safety, response, one-variable and regression gates always apply regardless.
+
+At every tier, the selected progression variable must remain compatible with the template's target adaptation and non-negotiable execution constraints. Do not apply a generic vector that changes the nature of the session — for example, shortening recovery where full recovery is required, increasing intensity in an already-maximal effort, or converting technique/specificity work into generic load progression. If no compatible progression vector is defined, repeat or hold; do not invent one. Format changes remain governed by §5.3.
 
 - **Duration first:** Add 1 interval or extend intervals by 1 min (e.g., 4×4 → 5×4, or 3×15 → 3×18)
 - **Recovery second:** Reduce rest by 15–30 s (e.g., 4×4 with 4 min rest → 4×4 with 3.5 min rest)
@@ -713,6 +717,8 @@ The catalog above is cycling-focused. For multi-sport or alternative-sport athle
 | 0.3.0 | 2026-02-24 | Fixed dates (2025→2026). Added deload session modification rules (§4.2). Added total session duration note to catalog header. Clarified §3.2 VO₂max/SS ordering applies to close spacing, not across full week. Added race-week protocol cross-reference in §4.3. |
 | 0.4.0 | 2026-02-25 | Added time-crunch truncation rules (§5.4). Clarified AE-6 takes a hard session slot. |
 | 0.5.0 | 2026-02-25 | Added machine-readable YAML metadata to all 26 templates (id, domain, is_hard_session, work_minutes, est_total_minutes). Updated catalog header with metadata schema description. |
+| 0.6.0 | 2026-02-28 | Hard-session classification split into the five-rung power ladder and two-rung HR fallback, with HR-classified hard days identified by `intensity_basis: "hr"`. (History row backfilled 2026-08-20; header had already read 0.6.) |
+| 0.7.0 | 2026-08-20 | §5.2 precedence clarified: a template's own progression note governs which progression variable changes and in what order; failing that the applicable Section 11 A progression pathway (§*1 for endurance, or the VO₂max or Sweet Spot rules in §*2); the generic duration/recovery/intensity ordering applies only when neither defines an order. Section 11 A gates unaffected. |
 
 ---
 

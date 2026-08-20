@@ -14,7 +14,7 @@
       "hash": "40b078816465a0aad94c3784dec537055465d15267f25ad00f0a032b212f3bd8"
     },
     "SECTION_11.md": {
-      "hash": "a44528035daab0403629b04288443122d7d1544d2024a60b94c48828678722bf",
+      "hash": "29aca304c9d3be2d729fab7b648ab9a7b368817ec7184a3c072b57a34ad453ba",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
@@ -24,7 +24,7 @@
       "hash": "0f252aa5922fae4aaccb5f5e7608ede90f4e8257413b98a0d351d1b8412a52e8"
     },
     "SKILL.md": {
-      "hash": "dbbd15a8d59a022d551f843f95112bceee3e29bef99200be331b882e9cbb1fe6"
+      "hash": "53c3f44e3168686568b4649369e9f9e87588fd31e91054b4b0d8296bc175c9ea"
     },
     "changelog.json": {
       "hash": "6e62ffe6dcd6dde91b177db10870a95daace1530a737ca3ef2770b47d8292f58"
@@ -132,7 +132,7 @@
       "hash": "f22d96050da8a601aac627ddb44b717f31daa9adc88b1cedf3f56a0b87dec6f4"
     },
     "examples/workout-library/WORKOUT_REFERENCE.md": {
-      "hash": "1649665af7f7060596e3b90a94237fb09da1fc57e82d4f3187a50e42d6ca1b09"
+      "hash": "04fdbef2d26c0a50a0e374a1443158bc7e0be4232bdaf3471ce67125feff72e1"
     }
   }
 }

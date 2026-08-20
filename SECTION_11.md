@@ -1,10 +1,17 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.59  
-**Last Updated:** 2026-08-15
+**Protocol Version:** 11.60  
+**Last Updated:** 2026-08-20
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.60 — Progression precedence and decision timing clarified; §*2 compliance gate corrected (doc-only):**
+- `SECTION_11.md` §*2 and `WORKOUT_REFERENCE.md` §5.2 gave opposing progression orders for the same session types — §*2 prioritised power for VO₂max and held session time for Sweet Spot, while §5.2's general within-format rule put duration first and intensity last. Neither stated precedence over the other. An explicit hierarchy now resolves it in both places: a template's own progression note governs **which variable changes and in what order**; failing that, the applicable Section 11 domain pathway; and only where neither defines an order does §5.2's generic duration → recovery → intensity fallback apply. Readiness, safety, response, one-variable-per-week and regression gates are unaffected and always apply. A compatibility guard at every tier prevents a generic vector from changing the nature of a session — no shortening of mandated full recovery, no intensity increase on an already-maximal effort, no converting technique or specificity work into generic load progression; where no compatible vector exists, repeat or hold. Format changes remain governed by Workout Reference §5.3
+- The existing decision process is now stated explicitly in §*2: progression is decided when prescribing the next comparable session, not when the previous one ends, weighing prior comparable sessions, prescribed versus executed work, subjective response, recovery in the days that followed, current readiness, phase, and the purpose of the next session. Successful execution is evidence, not an instruction to progress. `repeat` and `hold` are distinguished — repeat prescribes the same progression step at the next suitable opportunity; hold defers the decision or the quality session itself
+- One illustrative worked example added. The precedence and decision-timing edits above introduce no thresholds, ladders, ceilings or pathways, and change no behaviour beyond removing the ambiguity; the compliance-gate correction below is a separate change with its own stated consequences
+- **Initial placement distinguished from formal progression.** The compliance gate requires a verified prescription-to-execution pairing, which does not exist before the protocol has prescribed anything — leaving "repeat or hold" incoherent for an athlete with no established step, including any athlete arriving with imported history. Placement now has its own rule: where no established comparable step exists, the agent prescribes conservatively from all verified evidence — training history, recent comparable sessions, capability and threshold data, phase, readiness, goals, availability, and the template's entry criteria — recording the decision in the plan or coaching rationale as initial placement with the evidence stated. Unpaired historical sessions are evidence of capability and tolerance, not proof of adherence to an unknown target, so their presence permits prescribing but never a claim of advancement from a specific prior step. A verified established step whose pairing is temporarily unavailable is not relabelled as placement; it holds, or is re-established explicitly as re-entry. Readiness and safety gates apply to placement sessions unchanged
+- **Defect correction — the §*2 compliance gate was not evaluable as written.** It required "actual NP vs. target NP ±3 W", but no per-interval NP is emitted anywhere, prescriptions define a target power or range rather than a target NP, and session NP reflects the workout's recovery structure so comparing it against an interval target can mark a correctly executed session non-compliant. The clause also mixed two tolerances and defined no denominator. The gate now requires two things explicitly — prior full-set completion **and** prior target adherence ≥ 95% — both defined under *Interval Contextualization Rule* as a typed prescription-to-execution model: the prescription is expanded into atomic main-work steps with unique authoritative mapping; completion is assessed first on the prescription's own basis; adherence then dispatches to a basis-specific validator, with the existing greater-of ±3 W / ±1% rule scoped to power targets only and no equivalent invented for HR, pace, RPE, or ramps. Essential secondary constraints sit inside the step's adherence result rather than alongside it. Unavailable is reported as unavailable — never estimated, never as underperformance — and an unavailable gate is not satisfied. **The ≥ 95% figure is retained as a deliberate conservative choice, but its count-based meaning is newly defined, not preserved:** the prior clause specified no denominator and had no computable meaning. Aggregation is permitted only across every adherence-bearing atomic step in a prescription when they form one comparable set; heterogeneous structures (SS-2, SS-3, VO2-4) report per-step results and no aggregate, leaving the gate unsatisfied unless a template supplies its own evaluator. Surrounding pre-existing text corrected in the same pass: the power tolerance no longer claims to apply to a "total session", and session NP and TSS are stated as aggregate-load context rather than compliance inputs. Documentation-only; no emitted field or `sync.py` behaviour changes, and compliance therefore requires a verified paired prescription obtained outside the local mirrors
 
 **v11.59 — Start-of-day ACWR for readiness; ACWR loses standalone P1 authority (`sync.py` v3.127):**
 - `readiness_decision` was documented as a pre-workout decision but recomputed on every sync from the live, today-inclusive `derived_metrics.acwr`. A completed session could therefore move the day's readiness result and restrict a later same-day session. Worked case: seven prior days at 65 TSS over a 20-day base at 58 TSS gives a live ACWR of 0.97 in the morning; a 250 TSS session the same day takes it to 1.37, crossing the old standalone ≥ 1.3 Modify branch. `signals.acwr` now reads a new `derived_metrics.acwr_start_of_day`: same 7d/28d windows and divisors, activities dated `as_of_date` excluded, recomputed from current source data every sync. Stable against today's training, still responsive to a corrected earlier day, identical to the live value on any sync with no activity dated today. No wider fetch, no persisted snapshot
@@ -826,7 +833,7 @@ When comparing planned versus executed power targets, indoor workouts typically 
 
 This minor deviation falls within deterministic tolerance and does not constitute underperformance.
 
-AI systems must evaluate compliance within **±3 W or ±1%** of the prescribed target for each structured interval and total session.
+AI systems must evaluate compliance within **±3 W or ±1%** of the prescribed target for each power-targeted main-work step. This tolerance is a power-target rule and does not apply to a total-session average, nor to targets on any other basis.
 
 **Example:** A target of 258 W resulting in 255–256 W average is considered fully compliant.
 
@@ -840,9 +847,35 @@ Structured workouts (e.g., 4 × 10 min @ 258–261 W) include warm-up, recovery,
 Performance evaluation must therefore be phase-aware and based on interval-level intent rather than total-session output.
 
 **Compliance validation should include:**
-- Comparing each interval's mean power to its prescribed target (±3 W or ±1%)
-- Confirming session-level NP and TSS align with expected aggregate values
+- Comparing each power-targeted main-work step's mean power to its prescribed target (±3 W or ±1%)
 - Avoiding misclassification of sessions as "underperformed" solely due to lower total averages
+
+Session-level NP and TSS are contextual aggregate-load checks. They are not compliance inputs, and they neither calculate nor override step-level compliance.
+
+**Main work** is identified from explicit prescription structure and role, or from authoritative context. Ramp and freeride steps may be main work or may be warm-up, recovery, or transition. Where main work cannot be distinguished reliably from those, evaluation is unavailable — do not infer intent.
+
+**Expansion and mapping.** Before evaluation, expand the authoritative prescription's repetitions and nested structures into atomic main-work steps, preserving each step's set and repetition role. Each atomic step requires a unique authoritative mapping to its executed segment or segments. Where a split or merge is involved and its handling is not explicitly defined and unambiguous, both completion and adherence are unavailable for the session.
+
+**Typed evaluation.** For each atomic prescribed main-work step, identify (1) its completion basis — time, distance, repetitions, or open-ended; (2) its primary target basis — power, HR, pace, RPE/qualitative, or none; and (3) any secondary constraints such as cadence, position, or technique, and whether each is essential to the workout's adaptation.
+
+**Full-set completion** is a required boolean, assessed first and independently of any target. It is satisfied only when every atomic prescribed main-work step is uniquely mapped and its prescribed work amount was completed on the basis the prescription defines. Completion is judged using an explicit basis-specific completion status or criterion from the authoritative prescription or platform evaluator. Any permitted shortfall or rounding tolerance must be explicit for that completion basis. Do not reuse target-adherence tolerance and do not invent a completion tolerance. If data precision prevents a reliable decision, completion is unavailable. Use the completion clock that basis defines; elapsed and moving time are distinct and are never substituted for one another. Open-ended main work requires an explicit prescription-defined completion criterion; the mere presence of a matched segment never establishes completion, and without such a criterion completion is unavailable. Distance-based steps have no executed counterpart in the interval mirror, so their completion is unavailable unless supplied from an authoritative source. An unmatched or incomplete step makes full-set completion false. Non-completion is never encoded as an out-of-tolerance adherence result.
+
+**Target adherence** is evaluated only after full-set completion is true. Where completion is false or unavailable, report that outcome and calculate no aggregate adherence percentage for the session.
+
+Each atomic step carrying a primary target or an essential secondary constraint dispatches to the validator for its basis:
+- *Power targets* — the executed segment's mean power against the prescribed target, within the greater of ±3 W and ±1% of that target. For a prescribed range, each bound is expanded by that tolerance computed on that bound. Only power targets already resolved to watts by the authoritative paired prescription may be used. Never reconstruct a historical zone, %FTP, or MMP target from current settings; where a resolved target is absent, adherence for that step is unavailable.
+- *HR, pace, RPE/qualitative, and ramp targets* — no validator is defined in this protocol, so adherence for those steps is unavailable. The power tolerance above is a power rule and must not be reused for them.
+- *Steps with neither a primary target nor an essential secondary constraint* — completion-only. They are included in full-set completion, excluded from the adherence denominator, and their presence does not make adherence unavailable.
+
+**Essential secondary constraints** participate in the step's adherence decision, not merely in reporting. Where a validated essential constraint fails, that step is non-adherent. Where an essential constraint lacks a validator or the data to evaluate it, aggregate adherence is unavailable and the progression gate is not satisfied. Non-essential constraints are reported separately and do not affect adherence.
+
+**Adherence percentage.** An aggregate percentage may be produced only when full-set completion is true and the aggregate set includes **every** adherence-bearing atomic main-work step in the prescription — that is, every step carrying a primary target or an essential secondary constraint. Never calculate an overall percentage for one comparable subgroup while excluding other adherence-bearing steps in the same prescription. An aggregate is permitted only when all such steps form a single comparable set sharing the same role and structure and the same validated evaluator set, or when an explicit prescription- or template-defined evaluator specifies how a heterogeneous structure is combined. A shared target basis alone is not sufficient — over-unders, ascending- or mixed-duration structures, surge structures, and similar prescriptions are not comparable on count. Where comparability holds, the percentage is the count of those steps meeting every validated requirement, over the count of all of them, unweighted, with no cross-unit composite. Otherwise report per-step results and aggregate adherence unavailable.
+
+**Data source.** Compliance requires a verified pairing between the completed activity and its prescription — the Intervals.icu activity/event pairing, or an authoritative prescription supplied in context. Never match by date, name, sport, zone, or similarity. Never infer a prescribed target from an interval label, an executed segment average, a session average, or session NP. The local JSON mirrors do not carry the prescription.
+
+**Unavailable is not failed.** Report it as unavailable, never estimated, and never as underperformance.
+
+**Limitation.** Mean power validates adherence to the mean target only; it does not establish smooth pacing or time in target.
 
 ---
 
@@ -1248,6 +1281,14 @@ Apply One at a Time — Some phases may run concurrently with readiness validati
 - *Progression Pathways 1 and 3* must not overlap — avoid combining long-endurance load with metabolic or environmental stressors.  
 - Only one progression variable per category may be modified per week.
 
+**Initial placement before progression.** Formal progression requires an established comparable prescription step and a verified prescription-to-execution pairing. Where no such step exists, the agent does not infer progression from an unknown target. It makes a conservative initial placement using all verified available evidence: longitudinal training history, recent comparable sessions, capability and threshold data, phase, current readiness, goals, availability, and the selected template's entry criteria and constraints.
+
+Unpaired historical sessions are valid evidence of capability and tolerance, but are not proof of adherence to an unknown prescription. Absence of a paired prescription therefore does not prevent prescribing; it prevents claiming that the athlete has progressed from a specific prior step.
+
+Record the decision in the plan or coaching rationale as `initial placement` and state the evidence used. Once that prescription is paired with execution, subsequent comparable sessions use the formal repeat/progress/hold/regress logic and the compliance gates. Do not relabel a verified established step as initial placement merely because its pairing is temporarily unavailable; in that case do not advance it — hold progression, or conservatively re-establish a step explicitly as re-entry, then rebuild paired evidence.
+
+Initial placement is not an exemption from readiness. The readiness protocol and all safety gates apply to a placement session exactly as they do to any other prescription.
+
 #### *1 Endurance Progression (Z1–Z2 Durability Work)
 
 **Phase A — Duration Extension:**
@@ -1260,20 +1301,48 @@ Apply One at a Time — Some phases may run concurrently with readiness validati
 
 #### *2 Structured Interval Progression (VO₂max / Sweet Spot Days)
 
+**Progression precedence:** Readiness, safety, response, one-variable-per-week and regression gates always apply and are never overridden by the rules below. Subject to those gates, the progression variable and its order are selected in this order of authority:
+
+1. A template's own progression note in the Workout Reference Library, where one exists.
+2. Otherwise, the applicable Section 11 domain pathway — the VO₂max or Sweet Spot rules below, or §*1 for endurance.
+3. Only where neither defines an order, the generic duration → recovery → intensity fallback in Workout Reference §5.2.
+
+At every tier, the selected progression variable must remain compatible with the template's target adaptation and non-negotiable execution constraints. Do not apply a generic vector that changes the nature of the session — for example, shortening recovery where full recovery is required, increasing intensity in an already-maximal effort, or converting technique/specificity work into generic load progression. If no compatible progression vector is defined, repeat or hold; do not invent one. Format changes remain governed by Workout Reference §5.3.
+
+**When the decision is made:** Progression is decided when prescribing the next comparable session — not when the previous one ends. The agent weighs the prior comparable sessions, prescribed versus executed work, subjective response, recovery in the days that followed, current readiness, training phase, and the purpose of the next session. Successful execution is evidence that progression may be appropriate, not an instruction to progress; recovery and readiness data are contextual evidence that can withhold it.
+
+The outcome is one of:
+- **Repeat** — prescribe the same progression step at the next suitable opportunity.
+- **Progress** — advance one workout-specific variable, such as work duration or volume, target intensity, recovery density, structure/complexity, or template-defined specificity. This list does not create an order; the precedence hierarchy above determines the variable.
+- **Hold** — defer the progression decision, or the quality session itself, because readiness, phase, or evidence does not support it.
+- **Regress** — per the Regression Rule below.
+
+Where evidence is incomplete or conflicting, repeat or hold as context dictates — do not invent certainty.
+
 **Readiness Check (All Required):**
 - RI ≥ 0.8 and stable (no downward trend >3 days)
 - HRV within 10% of baseline
-- Prior interval compliance ≥ 95% (actual NP vs. target NP ±3 W)
+- Prior full-set completion, and prior target adherence ≥ 95% — each as defined under *Interval Contextualization Rule*. Both are required. If either is unavailable, this gate is not satisfied. Another explicit pathway may supply the missing validated completion or basis-specific adherence evaluator, but may not waive either requirement
 
 **VO₂max Sessions:**
-- Prioritize power progression, not duration
+- Prioritize power progression, not duration, where the selected template does not define its own progression
 - Increase target power by +2–3% (≤ +5 W) once full set compliance maintained. **The "HR rise between reps < 10 bpm" criterion is suspended (v11.51)** — no emitted field defines it; do not compute it from `avg_hr`, `max_hr` or `min_hr`. Progress on power-target / full-set compliance alone until a sustained recovery metric ships
 - Extend total sets only when power targets sustainable and RI ≥ 0.85 for ≥ 3 consecutive workouts
 - Cap total weekly VO₂max time at ≤ 45 min
 
 **Sweet Spot Sessions:**
 - Progress by increasing target power +2–3% after two consecutive weeks of full session compliance. **The "< 10 bpm drift between intervals" criterion is suspended (v11.51)** — see the recovery-HR interpretation rule under Interval Data Mirror
-- Maintain total session time unless HR drift or RPE indicates clear under-load
+- Maintain total session time unless HR drift or RPE indicates clear under-load, or the selected template defines its own duration progression
+
+**Worked example (illustrative):**
+
+An athlete completes a VO₂max session from a template that carries no template-specific progression guidance, so the applicable Section 11 VO₂max domain pathway selects power as the variable. They hold target power across all intervals with no fade, and report a moderate RPE. On execution alone, the next session would take the power increase.
+
+In the days that follow, RI sits below the readiness threshold and HRV runs under baseline. On the day the next VO₂max session is due, neither has returned to the required range.
+
+Progression is withheld — execution supports it, but the readiness gate is not met. The agent does not prescribe the same hard session merely because progression was withheld; it follows the readiness protocol and modifies or defers the quality work. When a comparable VO₂max session is next appropriate, the current progression step is repeated and the decision reassessed at that point.
+
+The recovery data does not establish that the athlete failed to absorb the prior session. It is contextual evidence that blocks progression at this decision point.
 
 #### *3 Metabolic & Environmental Progression (Optional Advanced Phase)
 

@@ -1,6 +1,6 @@
 ---
 name: section-11
-description: Evidence-based endurance coaching protocol (v11.60). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
+description: Evidence-based endurance coaching protocol (v11.61). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
 ---
 
 # Section 11 — AI Coaching Protocol
@@ -56,7 +56,7 @@ Load the coaching protocol using this precedence:
 
 If both root and `section11/` copies exist, prefer the root copy.
 
-**Current version:** 11.60
+**Current version:** 11.61
 
 ## External Sources
 
@@ -80,6 +80,7 @@ All external files referenced by this skill (`sync.py`, `SECTION_11.md`, templat
 - For all files (JSON data, protocol, dossier, templates): data directory → connected repo → uploaded/attached files → URL fetch.
 - No virtual math on pre-computed metrics — use values from the JSON for CTL, ATL, TSB, ACWR, RI, zones, etc. Custom analysis from raw data is fine when pre-computed values don't cover the question.
 - Every training metric cited — in reports, recommendations, or conversation — must come from a JSON data read in the current response. Conversation history, memory, and prior messages are not data sources.
+- When `health_context.clarification_required` is true in latest.json, do not recommend the planned session without addressing it. A marker in `current` means acknowledge the illness or injury and establish severity. A marker in `recent` with none current means the calendar marking stopped, not that the athlete recovered — ask, do not assume. When `source_status` is `partial` and no marker is visible, say that health markers could not be checked completely and confirm whether illness or injury is currently relevant. A marker does not discard or replace the plan: the planned session remains the starting candidate — not presumed clearance — until severity and compatibility are established, and minor illness or injury may still allow it as written or in modified form. It is not a readiness signal, does not by itself mean skip or deload, and never relaxes an existing Skip. See *Health Context* in SECTION_11.md.
 - Check `zone_preference` in READ_THIS_FIRST and `zone_basis` fields on TID/zone blocks — the athlete may have configured HR-preferred zones for specific sports (e.g., running). When `zone_basis` is not the default "power", note this in reports.
 - Follow Section 11 C validation checklist before generating recommendations
 - Cite frameworks per protocol (checklist item #10)

@@ -1,10 +1,20 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.60  
-**Last Updated:** 2026-08-20
+**Protocol Version:** 11.61  
+**Last Updated:** 2026-08-22
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.61 — Calendar illness and injury imported as health context; four non-training category defects fixed (`sync.py` v3.128):**
+- Intervals.icu calendar entries with category `SICK` or `INJURED` reached `latest.json` only as ordinary `planned_workouts[]` rows, and only while dated today or later. Intervals stores an **exclusive** end date and its events query is indexed on start date, so a multi-day marker disappeared from the payload the day after it started, while its calendar marking still spanned that day. Nothing in this document told a consumer that `planned_workouts[].type == "SICK"` was health information — `planned_workouts` was referenced exactly once, for prescription compliance — so an AI reading good physiological metrics could and did recommend the full program to a sick athlete (issue #27). The data was being imported; it was never promoted into anything that reads it
+- **New top-level `health_context` block.** A dedicated filtered fetch (`category=SICK,INJURED`, 365 days back and 90 ahead) finds markers whose span began before the main event fetch floor, which reaches back only `max(days_back − 1, 14)` days. Entries are span-tested and partitioned into `current`, `recent` and `upcoming`; `end_date` is converted to the **inclusive last calendar-marked day**. Where that fetch fails the block is rebuilt from the already-fetched events, reports `source_status: "partial"`, and omits `marker_active` / `recent_marker` rather than reporting a `false` that was never established. `"partial"` covers an unreachable endpoint **and** an unparseable response — a bad upstream answer degrades health coverage rather than killing a sync whose other data is sound
+- **`end_date_local` is the end of the calendar marking, not evidence the illness ended.** Illness is normally marked for the current day, because recovery dates cannot be predicted — a marker that stopped yesterday means the marking stopped and nothing more. The schema therefore carries **no `active` field**, since a `false` value would be read as "recovered": consumers read `marker_active` (a marker spans today), `recent_marker` (one ended inside the window and none spans today — recovery status **unknown**) and `clarification_required`. The first unmarked day after a routine one-day entry is precisely where an unqualified Go was previously issued
+- **Not wired into readiness.** `readiness_decision` stays physiological and may read `go` while `clarification_required` is true — an athlete can often train while mildly ill or around an injury. The rule is that an active or recent marker forbids an *unqualified* full-program recommendation: acknowledge it, establish severity or recovery where unknown, then proceed, modify, substitute or skip. No new P0–P3 branch, no signal added to the ladder, no automatic Skip. It escalates only, and is never grounds to relax an existing Skip
+- Wellness `injury` contributes to `clarification_required` only when the wellness record is dated today and the value is ≥ 3. A value carried on an older wellness record is a last-known value, not an observation of today, and must not trigger on its own — were it to, an unchanged entry would make the prompt permanent and therefore ignorable. A stale value is emitted with `freshness` and `days_old` as visible context that triggers nothing. The block carries the current value only; the full series stays canonical in `wellness_data[].injury` and `history.json` `daily_90d[].injury`
+- The *Negative Triggers* illness clause cited the `alerts` block as a source. No illness alert exists or has ever existed — the alert metrics are `acwr`, `monotony`, `strain`, `recovery_index`, `hrv`, `rhr`, `durability`, `tid_distribution` and the three race-calendar entries — so the clause was unsatisfiable as written. It now cites `health_context`, which makes it evaluable for the first time
+- **Four `sync.py` defects fixed, all consequences of non-training calendar categories being counted as planned training.** Two affect derived values: `_phase_stream2_features` counted every calendar entry as a planned session, so a `SICK`, `INJURED`, `NOTE` or `HOLIDAY` marker inflated `plan_coverage_current_week` / `_next_week` and fed a wrong session count into phase detection; and a marker dated today selected the decayed CTL/ATL branch, making `fitness_source` state that planned workouts were not yet completed. Two affect reported telemetry: `derived_metrics.data_quality.planned_workouts_7d` was `len(past_events)`, counting every calendar entry in the window as a planned workout and overstating the figure a consumer uses to judge data completeness; and `_format_events` incremented `workout_summary_stats.bail_no_workout_doc` for any non-training entry carrying a description, so a sickness note or a reminder registered as a workout that failed to summarise — inflating the bail rate against a denominator of sessions that were never summarisation candidates. All four now filter to `WORKOUT` / `RACE_A` / `RACE_B` / `RACE_C`, matching the filter `_calculate_consistency_index` already applied to the same event list. No fitness figure changes — the decayed and API branches are identical when today carries no planned load — only the reported source string, the phase-detection inputs and the two telemetry counters
+- **Known limitation:** a span beginning before `lookback_days`, or before the narrower fallback floor under `partial` coverage, is not visible. Absence of a marker is never proof of no illness
 
 **v11.60 — Progression precedence and decision timing clarified; §*2 compliance gate corrected (doc-only):**
 - `SECTION_11.md` §*2 and `WORKOUT_REFERENCE.md` §5.2 gave opposing progression orders for the same session types — §*2 prioritised power for VO₂max and held session time for Sweet Spot, while §5.2's general within-format rule put duration first and intensity last. Neither stated precedence over the other. An explicit hierarchy now resolves it in both places: a template's own progression note governs **which variable changes and in what order**; failing that, the applicable Section 11 domain pathway; and only where neither defines an order does §5.2's generic duration → recovery → intensity fallback apply. Readiness, safety, response, one-variable-per-week and regression gates are unaffected and always apply. A compatibility guard at every tier prevents a generic vector from changing the nature of a session — no shortening of mandated full recovery, no intensity increase on an already-maximal effort, no converting technique or specificity work into generic load progression; where no compatible vector exists, repeat or hold. Format changes remain governed by Workout Reference §5.3
@@ -1194,6 +1204,43 @@ When recommendation is `modify`, the output includes trigger categories and adju
 
 ---
 
+### Health Context (v11.61)
+
+`latest.json` carries a top-level `health_context` block holding athlete-reported illness and injury markers. It is **context, not a readiness signal** — `readiness_decision` remains physiological and can legitimately read `go` while `health_context.clarification_required` is `true`. An athlete can often train while mildly ill or around an injury; what the protocol requires is that the decision is *made*, not that it is negative.
+
+**Sources.** Intervals.icu calendar events with category `SICK` or `INJURED`, matched on the canonical category and never on the event title — an ordinary `NOTE` named "Sick" is not a marker, and a `SICK` entry named anything at all is. Plus the current wellness `injury` value, carried as the current value only; the full series stays canonical in `wellness_data[].injury` and `history.json` `daily_90d[].injury`.
+
+**Spans.** Intervals stores an exclusive end, so a single-day marker ends at midnight the following day. `end_date` in this block is already converted to the **inclusive last calendar-marked day**, and membership of `current` is the result of a span test (`start_date ≤ today ≤ end_date`), not a start-date match.
+
+**The marking is not the illness.** `end_date_local` is the end of the calendar *marking*, not evidence that the illness or injury ended. Illness is normally marked for the current day, because recovery dates cannot be predicted — so a marker that stopped yesterday means the marking stopped, and nothing more. Multi-day spans are supported but are not the normal way illness is reported. There is deliberately **no `active` field**: a `false` value would be read as "recovered", which the data cannot establish. Read instead:
+
+| Field | Meaning |
+|-------|---------|
+| `marker_active` | A calendar marker spans today. Strictly calendar — wellness never sets it. |
+| `recent_marker` | A marker ended inside `recent_window_days` and none spans today. **Recovery status is unknown.** |
+| `clarification_required` | The consumer trigger. True when a current or recent marker exists, when the wellness `injury` is current-dated and ≥ 3, or when coverage is incomplete. |
+
+**Behaviour when `clarification_required` is `true`:**
+
+1. Never issue an unqualified full-program recommendation. A physiological `go` is not clearance.
+2. **Current marker** — acknowledge it explicitly and establish severity, symptoms, site or trajectory where these are not already known. Do not infer severity from the marker, from load data, or from the absence of a wellness change.
+3. **Recent marker, none current** — recovery is unknown, not confirmed. Ask whether the athlete has recovered, unless that is already established in the conversation.
+4. **`source_status: "partial"` with nothing visible** — state that health markers could not be checked completely, and confirm whether illness or injury is currently relevant before recommending the full program. An empty list under partial coverage is not evidence of no marker.
+5. Decide to proceed, modify, substitute or skip on the athlete's answer.
+6. This escalates only. It is never grounds to relax an existing Skip, and never by itself an automatic Skip.
+
+**The plan is preserved.** A health marker does not discard or replace the existing plan. The planned session remains the starting candidate — not presumed clearance — until severity and compatibility are established; minor illness or injury may still allow it as written or in modified form. `planned_workouts` is never altered by this block, and a marker is not by itself a reason to deload, substitute or cancel.
+
+**Recent markers.** Entries in `recent` are markers whose calendar marking has ended; they carry `days_since_end` and are return-to-training context. They satisfy the illness-or-injury clause under *Negative Triggers (Do NOT Suggest a Test)*, which covers both categories and so matches what `recent` actually contains. They also bear on progression decisions and on interpreting depressed CTL, ACWR and capability values.
+
+**Coverage.** `lookback_days` reports what was actually searched — the full lookback on `source_status: "ok"`, the narrower main-event floor on `"partial"`. A span beginning before that is not visible. Absence of a marker is never proof of no illness; where the question is decision-relevant, ask.
+
+**Not a DOSSIER concern.** Temporary illness and injury belong on the Intervals.icu calendar, which this block imports. `DOSSIER.md` is for stable athlete context and is the wrong place for a passing cold.
+
+**JSON output location:** Top-level `health_context` object in `latest.json`, alongside `readiness_decision` and `alerts`.
+
+---
+
 ### TSB Interpretation
 
 **General Guidance:**
@@ -2127,7 +2174,7 @@ The AI must not suggest a formal test when any of the following apply:
 
 - Readiness decision is not `go`
 - Athlete is within an active recovery week (phase `Recovery` or active deload)
-- Illness within the past 14 days (`alerts` block or athlete-reported)
+- Illness **or injury** within the past 14 days (`health_context` or athlete-reported). Check `health_context.current` and `health_context.recent`, which carry both `SICK` and `INJURED` markers — the `alerts` array has never carried an illness metric. See *Health Context*
 - RI persistent amber across the trailing 2 days
 - Phase is `Peak` or `Taper` — testing disrupts the taper response
 - Race-Week Protocol active (D-7 to D-0, see v11.6) — testing is categorically off-limits during race week
@@ -3210,6 +3257,27 @@ This subsection defines the formal self-validation and audit metadata structure 
 | `alerts[].context`             | string   | Human-readable one-line explanation for the AI layer. |
 | `alerts[].scope`               | string   | **Optional; present only when applicable.** `"live_retrospective"` — the alert fires on a live, today-inclusive value. Currently emitted on the `acwr` alert only. |
 | `alerts[].readiness_eligible`  | boolean  | **Optional; present only when applicable.** `false` means the alert is evaluated and reported as context and must never change a Go/Modify/Skip decision, including a later same-day session and including tomorrow before tomorrow morning's own readiness output. Absence does not imply `true` — where the key is absent, the `tier` rules under *Alert Tiers* govern. See the Alerts Array exception. |
+| `health_context`               | object   | Top-level. Athlete-reported illness / injury context (v11.61). Never a readiness input — `readiness_decision` can read `go` while `clarification_required` is `true`. See *Health Context*. |
+| `health_context.source_status` | string   | `"ok"` — the dedicated filtered health fetch succeeded. `"partial"` — that fetch failed (unreachable, HTTP error, or an unparseable response) and the block was rebuilt from the narrower main event window; coverage is incomplete and an empty list is **not** evidence of no marker. |
+| `health_context.marker_active` | boolean  | **Omitted when `source_status` is `"partial"`** — not established, and `false` would claim a check that did not happen. True when a calendar marker spans today. Strictly calendar; wellness never sets it. |
+| `health_context.recent_marker` | boolean  | **Omitted when `source_status` is `"partial"`.** True when a marker ended inside `recent_window_days` and none spans today. Means recovery status is **unknown**, not that the athlete recovered. |
+| `health_context.clarification_required` | boolean | The consumer trigger. True when `current` or `recent` is non-empty, when `wellness_injury` is `freshness: "current"` with `value` ≥ 3, or when `source_status` is not `"ok"`. Forbids an unqualified full-program recommendation; never forces a Skip. |
+| `health_context.lookback_days` | number/null | Days actually searched back — the full lookback on `"ok"`, the main-event floor on `"partial"`. Null if the fallback floor could not be determined. A span beginning before this is invisible. |
+| `health_context.recent_window_days` | number | How far back a marker whose calendar marking has ended still counts as recent (14). Matches the illness-or-injury clause under *Negative Triggers*. |
+| `health_context.current`       | array    | Markers spanning today (`start_date ≤ today ≤ end_date`), any start date inside the lookback. Sorted by `start_date`, then `category`, then `event_id`. Empty array when none. |
+| `health_context.recent`        | array    | Markers that ended before today but inside `recent_window_days`. Same sort. Empty array when none. |
+| `health_context.upcoming`      | array    | Markers starting after today. Same sort. Rare — illness is not normally pre-marked. Empty array when none. |
+| `health_context.*[].event_id`  | number/null | Intervals.icu event ID. Stable identity for audit and for matching against the calendar. |
+| `health_context.*[].category`  | string   | `"SICK"` or `"INJURED"` — the canonical Intervals.icu category. Event titles are never matched. |
+| `health_context.*[].start_date` | string  | ISO date, first day of the marker. |
+| `health_context.*[].end_date`  | string   | ISO date, **inclusive last calendar-marked day**. Intervals stores an exclusive end (a one-day marker ends at midnight the following day); this field is already converted. It marks the end of the **calendar marking**, not of the illness. |
+| `health_context.*[].marker_active_today` | boolean | `start_date ≤ today ≤ end_date`. Implied by list membership, but retained so a consumer that flattens the three lists does not lose the distinction. |
+| `health_context.recent[].days_since_end` | number | **Present on `recent` entries only.** Whole days since `end_date`. Supports the 14-day illness-or-injury gate without date arithmetic in the AI layer. |
+| `health_context.*[].source`    | string   | `"calendar"`. |
+| `health_context.*[].name`      | string   | **Optional; omitted when empty.** Event title. Never used for classification. |
+| `health_context.*[].description` | string | **Optional; omitted when empty.** Free text the athlete entered. May carry severity or symptoms; its absence is not evidence of mildness. |
+| `health_context.wellness_injury` | object | **Optional; omitted when the current wellness `injury` is null or 1 (NONE).** Keys: `value` (2–4, see `wellness_field_scales`), `date`, `freshness`, `days_old` (omitted when the date cannot be parsed), `series` (pointer to the canonical full series). Current value only — this block never duplicates the series. |
+| `health_context.wellness_injury.freshness` | string | `"current"` when the wellness record is dated today, else `"stale"`. Only `"current"` with `value` ≥ 3 contributes to `clarification_required`. A `"stale"` value is a last-known reading rather than an observation of today, so it is visible context and triggers nothing. |
 | `acwr`                         | number/null | **Live** acute:chronic workload ratio — 7d mean daily TSS / 28d mean daily TSS, today-inclusive. Null when the 28-day chronic mean is zero (no load in the window); there is no minimum-history gate. Not the same metric as `weekly_180d[].acwr`, which uses a 21-day chronic window. Retrospective load reporting; not a readiness input. |
 | `acwr_interpretation`          | string/null | Load-band label for the **live** value, per Gabbett: `"undertraining"` (<0.8), `"optimal"` (0.8–<1.3), `"caution"` (1.3–<1.5), `"danger"` (>=1.5). These are **retrospective load-band labels, not readiness verdicts** — `"danger"` describes where the ratio sits in the band table and never by itself implies a Skip, an injury-risk conclusion, or any decision. Readiness reads `acwr_start_of_day`. |
 | `acwr_scope`                   | string   | `"live_retrospective"` — states the basis of `acwr` explicitly so the raw field is not mistaken for a decision input. |

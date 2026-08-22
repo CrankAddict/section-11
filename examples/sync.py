@@ -4,6 +4,53 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.128 - Calendar illness/injury imported as health context; four non-training
+  category defects fixed.
+  Calendar entries with category SICK or INJURED reached latest.json only as ordinary
+  planned_workouts rows, and only while dated today or later. Intervals stores an
+  EXCLUSIVE end (a one-day marker ends at midnight the following day) and its events
+  query is indexed on start date, so a multi-day marker disappeared from the payload
+  the day after it started, while its calendar marking still spanned that day
+  (issue #27).
+  New top-level health_context block. A dedicated filtered fetch
+  (category=SICK,INJURED, 365d back / 90d ahead) finds markers whose span began long
+  before the main event fetch floor; entries are span-tested and partitioned into
+  current / recent / upcoming. end_date is the INCLUSIVE last CALENDAR-MARKED day.
+  If that fetch fails the builder falls back to the already fetched events list, emits
+  source_status "partial", omits marker_active and recent_marker rather than reporting
+  a false negative, and keeps clarification_required true. requests.RequestException is
+  caught around the fetch call only, so "partial" covers an unreachable endpoint, an
+  HTTP error, and - because JSONDecodeError subclasses RequestException - a response
+  that will not parse. Treating a bad upstream answer as degraded health coverage is
+  deliberate: it must not kill a sync whose other data is sound. Every line that
+  interprets the events sits outside the handler, so a bug in the builder raises and
+  fails the sync loudly instead of masquerading as incomplete coverage.
+  end_date_local is the end of the calendar MARKING, not evidence the illness ended.
+  Illness is normally marked for the current day because recovery cannot be predicted,
+  so the schema carries no "active" field that could be read as "recovered": consumers
+  read marker_active, recent_marker and clarification_required.
+  Wellness injury contributes to clarification_required only when the wellness record
+  is dated today and the value is >= 3; a stale value is emitted with freshness/days_old
+  for visibility and triggers nothing. The full series stays canonical in wellness_data
+  and history.json daily_90d - this block never duplicates it.
+  NOT wired into readiness. readiness_decision stays physiological and may still read
+  "go" while clarification_required is true. No new P0-P3 branch, no automatic Skip.
+  Four defects fixed, all consequences of non-training calendar categories being counted
+  as planned training. Two affect derived values: _phase_stream2_features counted every
+  calendar entry as a planned session, inflating plan_coverage_current_week / _next_week
+  and feeding a wrong session count into phase detection; and a marker dated today
+  selected the decayed CTL/ATL branch, making fitness_source claim planned workouts were
+  not yet completed. Two affect telemetry: data_quality.planned_workouts_7d used
+  len(past_events), counting SICK / INJURED / NOTE / HOLIDAY entries as planned
+  workouts; and _format_events incremented workout_summary_stats.bail_no_workout_doc for
+  any non-training entry carrying a description, inflating the bail rate against a
+  denominator of sessions that were never summarisation candidates. All four now filter
+  to TRAINING_EVENT_CATEGORIES, matching the filter _calculate_consistency_index already
+  applied. No fitness figure changes - the decay and API branches are identical when
+  today carries no planned load - only the source string, the phase inputs and the two
+  telemetry counters.
+  Pairs with SECTION_11.md / SKILL.md v11.61.
+
 Version 3.127 - Start-of-day ACWR for readiness; ACWR loses standalone P1 authority.
   derived_metrics.acwr stays live and today-inclusive for retrospective load reporting.
   readiness_decision now reads a separate derived_metrics.acwr_start_of_day, computed
@@ -232,9 +279,25 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.127"
+    VERSION = "3.128"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
+
+    # --- Health context (v3.128, issue #27) ---
+    # Calendar health markers are matched on the canonical Intervals.icu category,
+    # never on the event title: an ordinary NOTE named "Sick" is not a marker, and a
+    # SICK entry named anything at all is.
+    HEALTH_EVENT_CATEGORIES = {"SICK", "INJURED"}
+    HEALTH_EVENT_LOOKBACK_DAYS = 365    # dedicated filtered fetch: a span still marked
+                                        # today may have started long before the main
+                                        # event fetch floor
+    HEALTH_EVENT_LOOKAHEAD_DAYS = 90    # matches the main event fetch horizon
+    HEALTH_RECENT_WINDOW_DAYS = 14      # matches the 14-day illness-or-injury test gate
+
+    # Categories that represent actual planned training. Everything else on the
+    # calendar (SICK, INJURED, NOTE, HOLIDAY, TARGET, ...) is an annotation and must
+    # not be counted as a planned session or as planned load.
+    TRAINING_EVENT_CATEGORIES = {"WORKOUT", "RACE_A", "RACE_B", "RACE_C"}
 
     # Sport families eligible for interval-level data extraction.
     # Only structured sessions in these families are worth fetching
@@ -3008,10 +3071,28 @@ class IntervalsSync:
         future_events = [e for e in events if e.get("start_date_local", "")[:10] >= today]
         near_future_events = [e for e in future_events if e.get("start_date_local", "")[:10] <= (datetime.now() + timedelta(days=42)).strftime("%Y-%m-%d")]
         
+        # Health context (v3.128, issue #27). Calendar SICK / INJURED markers reach
+        # planned_workouts only while dated today or later, so a multi-day marker
+        # vanishes the day after it starts, while its calendar marking still spans it.
+        # The builder runs its own filtered fetch with a year-long lookback; `events` is
+        # passed as the degraded fallback if that fetch fails.
+        print("Building health context...")
+        health_context = self._build_health_context(
+            fallback_events=events, latest_wellness=latest_wellness,
+            today=today, fallback_oldest=oldest_events
+        )
+        
         # Smart fitness metrics: same logic for CTL, ATL, TSB, and ramp rate
         # API values include planned workouts → inflated if not yet completed
         # Decayed values = yesterday × decay → accurate baseline before any training today
-        todays_planned = [e for e in events if e.get("start_date_local", "")[:10] == today]
+        # v3.128: only load-bearing categories inflate the API's CTL/ATL. A SICK,
+        # INJURED, NOTE or HOLIDAY marker dated today carries no planned load, so it
+        # must not select the decayed branch or make fitness_source claim that planned
+        # workouts are not yet completed. No fitness figure moves: with no planned load
+        # today the decayed and API branches produce the same values.
+        todays_planned = [e for e in events
+                          if e.get("start_date_local", "")[:10] == today
+                          and e.get("category", "") in self.TRAINING_EVENT_CATEGORIES]
         todays_activities = [a for a in activities_display if a.get("start_date_local", "")[:10] == today]
         
         if todays_planned and not todays_activities:
@@ -3250,6 +3331,7 @@ class IntervalsSync:
                 "extended_data_note": f"ACWR and baselines calculated from {days_for_acwr} days of data",
                 "capability_metrics_note": "The 'capability' block in derived_metrics contains durability trend (aggregate decoupling 7d/28d), efficiency factor trend (aggregate EF 7d/28d), HRRc trend (heart rate recovery 7d/28d), TID comparison (7d vs 28d distribution drift), power curve delta (MMP shift at anchor durations across 28d windows — energy system adaptation direction), HR curve delta (max sustained HR shift at anchor durations — cardiac adaptation, cross-sport), sustainability profile (per-sport power/HR sustainability table for race estimation — 42d window, sport-filtered), and DFA a1 profile (per-session non-linear HRV index from AlphaHRV Connect IQ field — latest_session + trailing_by_sport with crossing-band easy_guard / LT1 / LT2 estimates). These measure HOW the athlete expresses fitness, not just load. Use these for coaching context alongside traditional load metrics. Durability and EF trend direction matters more than absolute values. HRRc is display only — higher = better parasympathetic recovery. Power curve delta rotation_index reveals whether gains are sprint-biased (positive) or endurance-biased (negative). HR curve delta is ambiguous — rising max sustained HR may indicate fitness or fatigue; cross-reference with resting HRV/HR and RPE. Sustainability profile provides race estimation lookup: actual MMP, Coggan predicted (cycling only), CP/W' model (cycling only), model_divergence_pct (actual vs CP — divergence IS the coaching signal). CP/W' is primary for durations ≤20min; Coggan duration factors are the established reference for ≥60min. Source flag (observed_outdoor/observed_indoor) matters for cycling race estimation — indoor MMP is typically 3-5% lower. DFA a1 profile: three self-describing markers (each estimate + crossing block carries marker_dfa_a1) — easy_guard (a1 1.0, a conservative easy-state guard, NOT a threshold), lt1 (a1 0.75, HRVT1 / aerobic threshold), lt2 (a1 0.5, HRVT2 / anaerobic threshold). The literature threshold markers (0.75 / 0.5) are cycling-validated only - non-cycling sports get rollups but validated=False. Every estimate requires a SUSTAINED contiguous crossing: each session's easy_guard_crossing / lt1_crossing / lt2_crossing carries a reason (ok / no_samples_in_band / insufficient_total_dwell / no_contiguous_dwell); scattered in-band time does not produce an estimate. v3.122: dwell is not sufficient. Each crossing also carries estimate_eligible / estimate_reason / n_eligible_segments - a1 reflects the prior 200 beats while watts is instantaneous, so a crossing recorded across varying power blends work and recovery into a number that is not usable as a threshold estimate. avg_hr / avg_watts stay populated on a dwell-qualified but estimate-ineligible crossing as descriptive evidence (a dwell-failed crossing has null averages as before); read estimate_eligible, never infer from absence. Compact lt1_/lt2_ summary fields and all trailing rollups consume eligible crossings only. HR is pooled across sessions; watts are split by environment for cycling (watts_outdoor, watts_indoor with per-environment n_sessions) - compare watts_outdoor against ftp, watts_indoor against ftp_indoor. Non-cycling sports keep pooled watts. easy_guard_estimate, lt1_estimate and lt2_estimate are each gated INDEPENDENTLY - null when that marker has fewer than 3 estimate-ELIGIBLE marker-sessions (v3.122 - not merely dwell-qualified; see easy_guard_eligible_sessions / lt1_eligible_sessions / lt2_eligible_sessions alongside the *_crossing_sessions counts, and note that any gap between them means at least one dwell-qualified marker-session was estimate-rejected). An estimate is null whenever minimum estimate-eligible session depth is not met. If at least one eligible session exists, trailing_by_sport.{sport}.easy_guard_reason / lt1_reason / lt2_reason is insufficient_sessions. If none exists, the staged reason identifies the dominant blocker: dwell failure, incomplete coverage, excessive artifacts, non-positive mean power, or non-stationary power. Do NOT read a null estimate as 'the athlete did not sustain that marker' - read the reason. IMPORTANT: easy_guard is a conservative easy-state compliance guard, NOT an LT1/aerobic-threshold estimate - never compare it to dossier zones and never treat it as a calibration or staleness signal; only lt1 (0.75) and lt2 (0.5) inform threshold calibration. lt1 (0.75) populates only on rides that sustain aerobic-threshold intensity, so it is often null on easy/deload riding - that is expected, not a data gap. Sport-level confidence is a coarse max across the THRESHOLD markers only (lt1, lt2; easy_guard excluded) - low is suppressed for calibration delta surfacing, usable at 'moderate' or 'high'; per-marker estimate presence + reason are authoritative. DFA a1 is a Tier-2 interpretive signal - does NOT enter readiness P0-P3 ladder, does NOT auto-update dossier zones; surfaces calibration deltas only (from lt1/lt2, never easy_guard). Quality gate: refuse to interpret any DFA output when latest_session.sufficient=false. Threshold (lt1/lt2) calibration additionally requires trailing confidence != null; when confidence is null, do NOT surface lt1/lt2 calibration deltas. easy_guard is NOT gated on confidence (it is excluded from it) - interpret easy_guard_estimate from its own reason / n_sessions / quality when present, but never as a calibration signal. See SECTION_11.md DFA a1 Protocol for full interpretation rules.",
                 "readiness_decision_note": "The 'readiness_decision' block contains a pre-computed go/modify/skip recommendation with priority level (P0=safety, P1=overload, P2=fatigue, P3=green), individual signal statuses, phase-adjusted thresholds, and structured modification guidance. Use this as the baseline for pre-workout recommendations. Override only under the override rules in SECTION_11.md (Feel/RPE Override): athlete-reported state escalates unconditionally, de-escalation is P2-only, P0/P1 are not overridable. signals.acwr is the START-OF-DAY value from derived_metrics.acwr_start_of_day - the same 7d/28d windows with today's activities excluded - so it does not move when a workout is completed today. derived_metrics.acwr stays live and today-inclusive: retrospective load context only (acwr_readiness_eligible false), never used to approve, modify or veto a later same-day session or tomorrow's. Tomorrow is decided from tomorrow morning's readiness output, whose start-of-day value will include today's training. ACWR alone no longer forces P1 - a Skip needs start-of-day ACWR >= 1.5 plus a corroborating Tier-1 signal, and uncorroborated ACWR counts as an ordinary P2 amber/red. signals.hrv may carry an optional reason: 'rmssd_missing_sdnn_available' means the latest wellness record has no usable rMSSD but does carry SDNN. SDNN is a different metric and is explanatory metadata only - never a readiness input, never treated as HRV. Report HRV as unavailable and name the cause.",
+                "health_context_note": "The 'health_context' block carries athlete-reported illness and injury markers. It is CONTEXT, NOT a readiness input - readiness_decision is physiological only and can legitimately read 'go' while clarification_required is true. Calendar markers are matched on the canonical Intervals.icu category (SICK / INJURED), never on the event title. end_date is already converted to the INCLUSIVE last CALENDAR-MARKED day (not the last day the athlete was unwell); Intervals stores an exclusive end. IMPORTANT: end_date_local is the end of the calendar MARKING, not evidence that the illness or injury ended - illness is normally marked for the current day because recovery cannot be predicted. There is deliberately no 'active' field, because a false value would read as 'recovered'. Read marker_active (a marker spans today), recent_marker (a marker ended within recent_window_days and none spans today - recovery status UNKNOWN), and clarification_required. When clarification_required is true, do not give an unqualified full-program recommendation: acknowledge a current marker and establish severity; after a recent marker, ask whether the athlete has recovered rather than assuming it; this escalates only and is never grounds to relax an existing Skip, and never by itself an automatic Skip. wellness_injury is the CURRENT value only (the full series is in wellness_data[].injury and history.json daily_90d[].injury) and contributes to clarification_required only when freshness is 'current' and value >= 3; a 'stale' value is visible context that triggers nothing. source_status 'partial' means the dedicated health fetch failed and the block was built from the narrower main event fetch - marker_active and recent_marker are OMITTED in that case because they were not established, an empty current/recent list is NOT evidence of no marker, and clarification_required stays true. A span beginning before lookback_days is not visible; absence is never proof of no illness.",
                 "zone_preference": self.zone_preference if self.zone_preference else "default (power preferred, HR fallback)",
                 "wellness_field_scales": {
                     "note": "All categorical wellness fields use a 1-4 positional scale where 1 = best state, 4 = worst state. Labels differ per field but direction is consistent. Fields are null when not reported.",
@@ -3281,6 +3363,7 @@ class IntervalsSync:
             "athlete_notes": athlete_notes,
             "alerts": alerts,
             "readiness_decision": readiness_decision,
+            "health_context": health_context,
             "history": history_info,
             "summary": self._compute_activity_summary(activities_display, days_back, athlete_units),
             "current_status": {
@@ -4107,7 +4190,14 @@ class IntervalsSync:
                 "rhr_data_points": len(rhr_values_7d),
                 "activities_7d": len(activities_7d),
                 "activities_28d": len(activities_28d),
-                "planned_workouts_7d": len(past_events),
+                # v3.128: past_events is every calendar entry in the window. Only
+                # training entries are planned workouts - counting SICK / INJURED /
+                # NOTE / HOLIDAY markers overstated this quality figure. Matches the
+                # filter _calculate_consistency_index already applies to the same list.
+                "planned_workouts_7d": sum(
+                    1 for e in past_events
+                    if e.get("category", "") in self.TRAINING_EVENT_CATEGORIES
+                ),
                 "ftp_history_days": self._get_ftp_history_span()
             }
         }
@@ -6150,6 +6240,13 @@ class IntervalsSync:
         current_week_tss_primary = 0
         
         for pw in planned_workouts:
+            # v3.128: planned_workouts carries every near-future calendar entry,
+            # including SICK / INJURED / NOTE / HOLIDAY markers. Only training entries
+            # are sessions; counting the rest inflated plan_coverage_current_week /
+            # _next_week and fed a wrong session count into phase detection. Matches
+            # the filter _calculate_consistency_index already applies.
+            if (pw.get("type") or "") not in self.TRAINING_EVENT_CATEGORIES:
+                continue
             pw_date_str = (pw.get("date") or "")[:10]
             if not pw_date_str or pw_date_str == "unknown":
                 continue
@@ -9261,7 +9358,12 @@ class IntervalsSync:
                         stats["bail_no_match"] += 1
                 if summary:
                     stats["success"] += 1
-            elif (evt.get("description") or "").strip():
+            elif ((evt.get("description") or "").strip()
+                  and evt.get("category", "") in self.TRAINING_EVENT_CATEGORIES):
+                # v3.128: this telemetry measures workout_summary coverage over planned
+                # training. A SICK / INJURED / NOTE / HOLIDAY description is not a
+                # workout that failed to summarise, and counting it inflated the bail
+                # rate against a denominator of sessions that were never attempted.
                 stats["bail_no_workout_doc"] += 1
 
             # Parse NOTE: lines from description (v0.3 — coach annotations)
@@ -9322,6 +9424,207 @@ class IntervalsSync:
         
         self._summary_stats = stats
         return result
+    
+    def _build_health_context(self, fallback_events: List[Dict], latest_wellness: Dict,
+                              today: str, fallback_oldest: str) -> Dict:
+        """
+        Build the health context block (v3.128, issue #27).
+
+        Calendar markers are matched on the canonical Intervals.icu category, never on
+        the event title. Intervals stores an EXCLUSIVE end: a single-day marker carries
+        end_date_local at midnight of the following day, so the inclusive last
+        CALENDAR-MARKED day is that date minus one. That is the end of the marking, not
+        the last day the athlete was unwell. The events endpoint is indexed on start
+        date and returns nothing for a date inside a multi-day span, so span detection
+        must test the span, not the start date.
+
+        A dedicated filtered fetch (category=SICK,INJURED) with a year-long lookback
+        finds markers whose span began before the main event fetch floor. If that fetch
+        raises a network/HTTP error the already-fetched event list is used instead:
+        source_status becomes "partial", marker_active and recent_marker are OMITTED
+        (they were not established - reporting False would claim a check that did not
+        happen), and clarification_required stays True. Only RequestException is caught,
+        and only around the fetch call itself, so every line that interprets the events
+        sits outside the handler: a bug in this builder raises and fails the sync
+        loudly rather than masquerading as incomplete coverage. Note that
+        requests.exceptions.JSONDecodeError subclasses RequestException, so a malformed
+        API response is treated as a failed fetch and degrades to "partial". That is
+        deliberate - a bad upstream response is an upstream failure, and the whole sync
+        should not die over the health endpoint - but it means "partial" can also mean
+        "the endpoint answered with something unparseable", not only "unreachable".
+
+        end_date_local is the end of the calendar MARKING, not evidence that the illness
+        ended. Illness is normally marked for the current day because recovery cannot be
+        predicted, so there is deliberately no "active" field that could be read as
+        "recovered".
+
+        NOT a readiness input. readiness_decision stays physiological and may read "go"
+        while clarification_required is True. See SECTION_11.md 'Health Context'.
+        """
+        today_dt = datetime.strptime(today, "%Y-%m-%d")
+        recent_cutoff = (today_dt - timedelta(
+            days=self.HEALTH_RECENT_WINDOW_DAYS)).strftime("%Y-%m-%d")
+
+        # Computed before the try block so nothing inside the handler can raise.
+        fallback_lookback_days = None
+        if fallback_oldest:
+            try:
+                fallback_lookback_days = (
+                    today_dt - datetime.strptime(fallback_oldest[:10], "%Y-%m-%d")).days
+            except ValueError:
+                fallback_lookback_days = None
+
+        oldest_health = (today_dt - timedelta(
+            days=self.HEALTH_EVENT_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+        newest_health = (today_dt + timedelta(
+            days=self.HEALTH_EVENT_LOOKAHEAD_DAYS)).strftime("%Y-%m-%d")
+
+        source_status = "ok"
+        lookback_days = self.HEALTH_EVENT_LOOKBACK_DAYS
+        try:
+            source_events = self._intervals_get("events", {
+                "oldest": oldest_health,
+                "newest": newest_health,
+                "category": ",".join(sorted(self.HEALTH_EVENT_CATEGORIES))
+            })
+        except requests.exceptions.RequestException as e:
+            # Degraded, not fatal: fall back to the events already fetched. They cover
+            # a narrower window, so coverage is incomplete and must be reported as such.
+            # JSONDecodeError subclasses RequestException, so an unparseable response
+            # lands here too and is treated as a failed fetch - an upstream failure
+            # should not kill a sync whose other data is fine. Only the fetch call is
+            # inside this try, so a bug in the parsing below raises normally.
+            print(f"   ⚠️  Health event fetch failed ({e}); falling back to main event window")
+            source_events = fallback_events or []
+            source_status = "partial"
+            lookback_days = fallback_lookback_days
+
+        current, recent, upcoming = [], [], []
+        for evt in source_events:
+            cat = evt.get("category", "")
+            if cat not in self.HEALTH_EVENT_CATEGORIES:
+                continue
+            start = (evt.get("start_date_local") or "")[:10]
+            if not start:
+                continue
+
+            # Exclusive end -> inclusive last CALENDAR-MARKED day. A non-midnight end time means
+            # the marker covers that calendar day, so it stays inclusive.
+            end_date = start
+            end_raw = evt.get("end_date_local") or ""
+            if end_raw:
+                end_day = end_raw[:10]
+                end_time = end_raw.split("T")[1][:5] if "T" in end_raw else "00:00"
+                if end_time == "00:00":
+                    try:
+                        end_date = (datetime.strptime(end_day, "%Y-%m-%d")
+                                    - timedelta(days=1)).strftime("%Y-%m-%d")
+                    except ValueError:
+                        end_date = start
+                else:
+                    end_date = end_day
+                if end_date < start:
+                    end_date = start
+
+            entry = {
+                "event_id": evt.get("id"),
+                "category": cat,
+                "start_date": start,
+                "end_date": end_date,
+                "marker_active_today": start <= today <= end_date,
+                "source": "calendar"
+            }
+            name = (evt.get("name") or "").strip()
+            if name:
+                entry["name"] = name
+            desc = (evt.get("description") or "").strip()
+            if desc:
+                entry["description"] = desc
+
+            if start > today:
+                upcoming.append(entry)
+            elif entry["marker_active_today"]:
+                current.append(entry)
+            elif end_date >= recent_cutoff:
+                # days_since_end supports the 14-day illness gate under
+                # 'Negative Triggers (Do NOT Suggest a Test)' without date arithmetic
+                # in the AI layer.
+                entry["days_since_end"] = (
+                    today_dt - datetime.strptime(end_date, "%Y-%m-%d")).days
+                recent.append(entry)
+            # Older than the recent window and not active: outside this block's scope.
+
+        # Deterministic ordering, independent of API return order.
+        for bucket in (current, recent, upcoming):
+            bucket.sort(key=lambda e: (e["start_date"], e["category"], str(e["event_id"])))
+
+        # Wellness injury: CURRENT value only. The full series stays canonical in
+        # wellness_data[] and history.json daily_90d[] - this is a pointer, not a copy.
+        # A stale value is visible but triggers nothing: it is a last-known reading,
+        # not an observation of today. Were it to trigger, an unchanged entry would make
+        # the prompt permanent and therefore ignorable.
+        injury = latest_wellness.get("injury")
+        wellness_injury = None
+        injury_requires_clarification = False
+        if injury is not None and injury >= 2:
+            injury_date = latest_wellness.get("id")
+            days_old = None
+            if injury_date:
+                try:
+                    days_old = (today_dt - datetime.strptime(
+                        str(injury_date)[:10], "%Y-%m-%d")).days
+                except ValueError:
+                    days_old = None
+            freshness = "current" if days_old == 0 else "stale"
+            wellness_injury = {
+                "value": injury,
+                "date": injury_date,
+                "freshness": freshness,
+                "series": "wellness_data[].injury / history.json daily_90d[].injury"
+            }
+            if days_old is not None:
+                wellness_injury["days_old"] = days_old
+            injury_requires_clarification = (freshness == "current" and injury >= 3)
+
+        # Key order is fixed so the conditional booleans sit with source_status and the
+        # emitted JSON stays byte-stable across syncs.
+        context = {"source_status": source_status}
+        if source_status == "ok":
+            # Omitted under partial coverage: not established, and False would claim a
+            # check that did not happen.
+            context["marker_active"] = bool(current)
+            context["recent_marker"] = bool(recent) and not current
+        context["clarification_required"] = bool(
+            current or recent or injury_requires_clarification or source_status != "ok"
+        )
+        context["lookback_days"] = lookback_days
+        context["recent_window_days"] = self.HEALTH_RECENT_WINDOW_DAYS
+        context["current"] = current
+        context["recent"] = recent
+        context["upcoming"] = upcoming
+        if wellness_injury:
+            context["wellness_injury"] = wellness_injury
+        context["note"] = (
+            "Athlete-reported illness / injury context. NOT a readiness input - "
+            "readiness_decision is physiological and may read 'go' while "
+            "clarification_required is true. Calendar markers are matched on the "
+            "Intervals.icu category (SICK / INJURED), never the event title. end_date "
+            "is the INCLUSIVE last CALENDAR-MARKED day (Intervals stores an exclusive "
+            "end) - not the last day the athlete was unwell. "
+            "end_date_local is the end of the calendar MARKING, not evidence the illness "
+            "ended - illness is normally marked for the current day because recovery "
+            "cannot be predicted, so a marker in 'recent' with none in 'current' means "
+            "recovery status is UNKNOWN, not recovered. When clarification_required is "
+            "true, do not give an unqualified full-program recommendation: acknowledge a "
+            "current marker and establish severity, or ask whether the athlete has "
+            "recovered after a recent one. Never an automatic Skip, and never grounds to "
+            "relax an existing Skip. source_status 'partial' means the dedicated health "
+            "fetch failed and this block was built from the narrower main event window: "
+            "marker_active and recent_marker are omitted because they were not "
+            "established, and an empty list is not evidence of no marker. A span "
+            "beginning before lookback_days is not visible."
+        )
+        return context
     
     def _build_race_calendar(self, future_events: List[Dict], current_ctl: float,
                               current_atl: float, current_tsb: float,

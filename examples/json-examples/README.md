@@ -21,6 +21,7 @@ Example output from `sync.py` v3.86 for a fictional cyclist in a Build phase. Us
 These example files were generated from sync.py v3.86 / Section 11 v11.17. Key fields added to the schema since these examples were generated:
 
 - `readiness_decision` — pre-computed go/modify/skip recommendation with signal breakdown
+- `health_context` — calendar SICK / INJURED markers (current / recent / upcoming) plus the current wellness injury value; context only, never a readiness input
 - `workout_summary_stats` — planned-vs-actual matching statistics
 - `race_calendar` — upcoming races and taper/race-week alerts
 - `has_intervals` — boolean flag indicating structured interval segments exist in intervals.json

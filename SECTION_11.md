@@ -1,10 +1,16 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.61  
+**Protocol Version:** 11.62  
 **Last Updated:** 2026-08-22
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.62 — Economical DIY carbohydrate bottle added as an optional starting template (doc-only):**
+- The Nutrition section defined absorption ceilings and kJ-based dosing but offered no worked mix, leaving the AI nothing concrete to suggest to an athlete asking about fuelling cost. A low-cost sucrose/maltodextrin bottle template is now documented under the absorption limits: 90 g carbohydrate per 750 ml as 50 g glucose-equivalent plus 40 g fructose — the 1:0.8 dual-transporter ratio the absorption table already specifies — with ~490 mg sodium. Explicitly a template to adapt, never a universal prescription; the athlete's own mix stays in the dossier
+- **Guardrails against the two ways the recipe can be misread.** 90 g is a full hour only at the gut-trained ceiling, so bottle rate follows the athlete's fluid needs, carbohydrate target and tolerance rather than the bottle — the existing 60 g/h default for unknown absorption capacity lands at roughly one bottle per 1.5 hours. And the mix is not to be concentrated further: additional carbohydrate comes from gels, chews or food, keeping carbohydrate intake independent of drinking needs. A bottle stronger than the base recipe is concentrated fuel and requires plain water carried separately
+- The base recipe is stated to serve as **combined fuelling and hydration**, not as fuel that displaces hydration. It is hypertonic, and fluid delivery is slower than from a dilute drink, but the contribution to hydration is real: Mitchell et al. (1989) and Rowlands et al. (2022) are added to the Route & Terrain evidence base to support this. Where fluid needs rise independently of carbohydrate needs, plain water alongside or a weaker mix are both available — with the note that a weaker mix carries proportionally less carbohydrate, to be accounted for through the remaining planned intake
+- Ingredients are scaled to a 750 ml bottle and stated as such, with water added last to the marked volume and a scaling instruction for other bottle sizes. Citric acid is optional, substitutable with 20–30 ml lemon juice, and carries a dental-rinse note covering both forms
 
 **v11.61 — Calendar illness and injury imported as health context; four non-training category defects fixed (`sync.py` v3.128):**
 - Intervals.icu calendar entries with category `SICK` or `INJURED` reached `latest.json` only as ordinary `planned_workouts[]` rows, and only while dated today or later. Intervals stores an **exclusive** end date and its events query is indexed on start date, so a multi-day marker disappeared from the payload the day after it started, while its calendar marking still spanned that day. Nothing in this document told a consumer that `planned_workouts[].type == "SICK"` was health information — `planned_workouts` was referenced exactly once, for prescription compliance — so an AI reading good physiological metrics could and did recommend the full program to a sick athlete (issue #27). The data was being imported; it was never promoted into anything that reads it
@@ -1849,6 +1855,29 @@ The absorption ceiling constrains what's achievable regardless of expenditure ra
 
 Absorption form does not matter — drinks, gels, and chews produce equivalent exogenous carbohydrate oxidation rates at matched doses (Hearris et al., 2022).
 
+**Economical DIY high-carbohydrate bottle — starting template:**
+
+For athletes seeking a lower-cost alternative to commercial drink mixes, the following is an optional starting template the AI may offer. It is a template to adapt, never a universal prescription.
+
+| Ingredient | Amount |
+|---|---|
+| Table sugar (sucrose) | 80 g |
+| Maltodextrin | 10 g |
+| Table salt | 1.25 g |
+| Citric acid | 1.25 g — or 20–30 ml lemon juice instead (optional, flavour) |
+| Water | Added last, made up to 750 ml total |
+
+Delivers 90 g carbohydrate per bottle as 50 g glucose-equivalent plus 40 g fructose — the 1:0.8 dual-transporter ratio in the absorption table above — and ~490 mg sodium (~655 mg/L); scale ingredients proportionally for other bottle sizes. It is a hypertonic, concentrated carbohydrate drink. Sucrose supplies both monosaccharides in one cheap ingredient; the maltodextrin trims the ratio and cuts sweetness. Weigh the salt; 1.25 g is below reliable spoon accuracy. Omit the citric acid when using lemon juice; acidity varies between lemons, so adjust within the range by taste.
+
+**Rules:**
+
+- Match bottle rate to the athlete's fluid needs, carbohydrate target and tolerance — not to the bottle. One bottle per hour is 90 g/h and requires gut training. Where absorption capacity is unknown the 60 g/h default applies, roughly one bottle per 1.5 hours.
+- This bottle provides both fuel and fluid. The base recipe can serve as combined fuelling and hydration where its intake rate matches the athlete's needs. In hotter conditions or with higher sweat losses, fluid needs rise independently of carbohydrate needs — add plain water alongside, or use a weaker mix. A weaker mix contains proportionally less carbohydrate; account for that through the athlete's remaining planned intake, such as gels, chews or food (Mitchell et al., 1989; Rowlands et al., 2022).
+- Usually do not concentrate the base recipe further. Take additional carbohydrate through gels, chews or food according to preference and tolerance. If a stronger bottle is used, treat it as concentrated fuel and carry plain water separately.
+- Sodium is a starting point — adjust to sweat losses, duration and conditions. A dossier value, where the athlete has set one, governs.
+- Establish tolerance in training before racing on it.
+- Citric acid and lemon juice are both acidic — rinse with plain water after long sessions.
+
 **Glycogen Budget Model:**
 
 The body stores approximately 2,000 kcal of glycogen (liver + muscle combined). Due to human mechanical efficiency (~22.5%), the kJ-to-kcal relationship is approximately 1:1 — kilojoules of work measured by a power meter roughly equal kilocalories burned. This means `kj_total` (or `kcal` from the activity payload) is a direct proxy for energy expenditure.
@@ -1999,6 +2028,8 @@ If multiple triggers fire, chain at most two with a comma; if more than two woul
 | CTS / Rutberg (2025) | kJ-to-carb dosing table linking output (400–800+ kJ/h) to intake recommendations (50–120 g/h) for amateur through elite | kJ-based nutrition dosing by output level |
 | Miura et al. (2000) | W′ reduced ~20% (12.83→10.33 kJ) by glycogen depletion; CP unaffected | Late-ride segment feasibility: W′-dependent efforts degraded by glycogen deficit |
 | Coyle et al. (1986) | CHO ingestion maintains blood glucose (actual fatigue trigger), does not spare muscle glycogen | Fueling prevents bonk via blood glucose, not glycogen sparing |
+| Mitchell et al. (1989) | Over 2 h cycling, 12% and 18% CHO solutions emptied less total fluid than water or 6% (1,050 / 889 ml vs 1,210 / 1,186 ml) while delivering more carbohydrate | A concentrated bottle delivers fluid at a reduced rate, not zero |
+| Rowlands et al. (2022) | Meta-analysis, 28 studies: plasma-volume change during continuous exercise similar across hypertonic (−7.4%), isotonic (−8.7%), hypotonic (−6.3%) and water (−7.5%) at Na⁺ < 50 mmol/L | Hypertonic carbohydrate drinks are not inferior to water for central hydration |
 | Springer Nature (2025) | Power response to wind is non-linear and velocity-dependent; headwind substantially increases power cost at speed | Wind impact scales with speed regime, not gradient directly |
 | Climb classification | UCI/Tour conventional categories — elevation-based thresholds | Industry convention, not a single research finding |
 | Course character heuristic | Section 11 convention — flat/rolling/hilly/mountain boundaries from elevation density (m/km) + climb presence | Engineering decision for route classification |

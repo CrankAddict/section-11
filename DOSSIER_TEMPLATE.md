@@ -1,6 +1,6 @@
 # Athlete Training Dossier & Performance Roadmap
 
-**Dossier Version:** v1.1.1  
+**Template Version:** v1.2.0  
 **Protocol Compatibility:** Section 11 v11.6+  
 **Date:** [YYYY-MM-DD]  
 **Primary Source Systems:** Intervals.icu | [Other platforms]
@@ -205,7 +205,7 @@ This document serves as a reference template for endurance athletes using the de
 ```
 
 **CHO per bottle:** [g]  
-**Target absorption:** [g CHO/h]
+**Target intake:** [g CHO/h]
 
 ### Recovery Drink Recipe
 
@@ -228,6 +228,14 @@ This document serves as a reference template for endurance athletes using the de
 
 **Target:** [ml/hour]  
 **Sodium:** [mg/L] base, + [mg/h] additional for long/hot rides
+
+### Fuel & Drink Cues
+
+**Preferred fuel cue basis:** [time, e.g. every 20 min — or distance, e.g. every 10 km]  
+**Preferred drink reminder basis:** [time or distance interval]  
+**Typical carrying capacity:** [e.g. 2 × 750 ml bottles, 3 gels in pockets]
+
+Restock points are route-specific and supplied per ride, not stored here.
 
 ---
 
@@ -352,6 +360,8 @@ This dossier follows the **Section 11 A/B AI Coach Guidance Protocol** for AI in
 ---
 
 ## Changelog
+
+This log records changes to the athlete's completed dossier, not releases of the template.
 
 ### v1.0 ([Date])
 - Initial dossier creation

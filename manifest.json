@@ -5,38 +5,44 @@
       "hash": "e9637f09b42b974311d5b1b526f2a6992be3b85c7b0e3eadff49ac80e2cd8a52"
     },
     "DOSSIER_TEMPLATE.md": {
-      "hash": "d4b9d9884567af7cdafacce91a35371920333a13225f2cf18e766e7fd8c20158"
+      "hash": "efbd046024672b989b711c994ba9b262e9ecf8f5d0c5a338fa8423778a1f887c"
     },
     "LICENSE": {
       "hash": "0683b6ae3ded5701305dae4114d317d4346c175824d8db87a22d18e05a61ff77"
     },
+    "PROJECT_INSTRUCTIONS_AGENTIC.md": {
+      "hash": "65dbece542d2a529faf69afe3993a0d62495073bd7bbe5e89ae354202ab42625"
+    },
+    "PROJECT_INSTRUCTIONS_WEB.md": {
+      "hash": "b937d13fc1b93f35cabf93d59bd0c0265e4732cdeff52f994d35df9cf5263ead"
+    },
     "README.md": {
-      "hash": "40b078816465a0aad94c3784dec537055465d15267f25ad00f0a032b212f3bd8"
+      "hash": "1de6f452dbcfd9242595652d081ab5092b9922c78568e4770118127039483b5e"
     },
     "SECTION_11.md": {
-      "hash": "554afe9ac0f95a41e2094adf93f9be2080644c27543571dcae751a4c94ef79f1",
+      "hash": "c3bdbd1b3d6fde61a95299fee6d79f8d26c165ecc2813e74e22bf95988ed3fa8",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
       "hash": "47a0b437722547662e2215a759678cccaeb91984734337bfe2392185d71976d5"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "0f252aa5922fae4aaccb5f5e7608ede90f4e8257413b98a0d351d1b8412a52e8"
+      "hash": "df4f571d384d116c404fbde594c08ea33241471572940694adbd6662c132955b"
     },
     "SKILL.md": {
-      "hash": "0ac629b29dacde90eaa3695ae9573ee184c91ffaa53eacfcb99655196884a6dd"
+      "hash": "827822529221cbdd92aa40609f95a3654392434999a97771ae2eca811d35a99f"
     },
     "changelog.json": {
       "hash": "6e62ffe6dcd6dde91b177db10870a95daace1530a737ca3ef2770b47d8292f58"
     },
     "examples/README.md": {
-      "hash": "0e98b41131fff99816de12b51f9d1a48ee7ceafe80ee3881aa30a64c814d376b"
+      "hash": "04974937160851fd6e7036a70e6999634fa683e1439d79fd55ef23facaf7995a"
     },
     "examples/agentic/EXTERNAL_APIS.md": {
       "hash": "650773b06e8eaae82d355d32a6a34c6d15e0b37296747461ef7547d33497e0ce"
     },
     "examples/agentic/README.md": {
-      "hash": "0e6d21bc85b18973e4069e6f3b9954a55fb26318af657b48d51f5266cab738af"
+      "hash": "163405b2d007b1cc69a55bb7545af5f3d77ed16f17efb89f6612273b19f667c2"
     },
     "examples/agentic/openclaw/HEARTBEAT_TEMPLATE.md": {
       "hash": "e8221e569729dab19585ceb9b5783433b6a6a94de6b308307f1699b6d38dc376"
@@ -57,7 +63,7 @@
       "hash": "464615b19c0ad4121a45655d06206b436948693a3799660c49528778990609d0"
     },
     "examples/json-auto-sync/SETUP.md": {
-      "hash": "38838039da247c1ca3dd7a871997c5efee313230ddf1f08366596f41dd1b2e38"
+      "hash": "4ddf29fb8efcd6299726b3e8da3e320f87a256cab93ae2ae75a63ba0b2332d15"
     },
     "examples/json-auto-sync/auto-sync.yml": {
       "hash": "2c42026cf15423cb656b55a086b0c9d87cda2297608a47ba2f4b8d59b95b67e6"
@@ -81,19 +87,19 @@
       "hash": "0ff2ef8770733a9b059154e7305b57510455e0024f3c60cf57eee7b0d67e97ed"
     },
     "examples/json-local-sync/SETUP.md": {
-      "hash": "20da171fdb552b4dfad2bbf14b96011c26d92a7723123592ea01b1e9a0f2edb0"
+      "hash": "d84610dd23899ae334a43e181ec24fd0b2f6d0afcfa282d188d4795b20feef1a"
     },
     "examples/json-manual/SETUP.md": {
-      "hash": "8ab268c6b055ed789bc981f4397414c5088a8af71da14e82045f7bb086aaf91a"
+      "hash": "bfc1e3e8d24bf0edf5ce107c8b22b4a32006d4531a3b3f24a51d6533ba83a50e"
     },
     "examples/json-on-demand/SETUP.md": {
-      "hash": "461e2c1e8cd5a4990e5b142ff5254838729fe8eb496b5193c9ae17fb7d84970a"
+      "hash": "01ea06ddf3e3d14e5a8e90e2a118e35028e5fa23f9d5e6203fb019522608c73c"
     },
     "examples/reports/BLOCK_REPORT_EXAMPLES.md": {
-      "hash": "72c7cb21f5b87f2917f11da6f64fd6344c65292116252d04ad6e9d45dd1f82bd"
+      "hash": "a7233b0654cb97c8c35311415310a43b3a275e46f3d2fe735d59ab90fc941d75"
     },
     "examples/reports/BLOCK_REPORT_TEMPLATE.md": {
-      "hash": "a87eb11235cfb80c23117f90bbb8be620b8b44118daa6269473e4c97843ec753"
+      "hash": "abdfcf633bae3ded5230ffb686519cc98000978c5069274d014d4687bf20da41"
     },
     "examples/reports/POST_WORKOUT_REPORT_EXAMPLES.md": {
       "hash": "2aa7f62e0edf03cb1dd995c73587445be4eb8fbdf7a7c02cdcc825350debdec4"
@@ -126,7 +132,7 @@
       "hash": "b934b16c29d3fafdfe521bebd5fae9b52312d455f2cf193da731ac3d23513c79"
     },
     "examples/sync.py": {
-      "hash": "bdb9610cbd7cd6b98e328fd25f12ac5e4ba3c9442d122585984802626d69ab4c"
+      "hash": "23a3c03ac54e4b2053ca974375985f3ec9da1885aea6a382dc97daf4aa4b1f1b"
     },
     "examples/workout-library/README.md": {
       "hash": "f22d96050da8a601aac627ddb44b717f31daa9adc88b1cedf3f56a0b87dec6f4"

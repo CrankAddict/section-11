@@ -1,6 +1,6 @@
 # Agentic Tools
 
-Read and write tools for AI platforms that can execute code or trigger GitHub Actions (OpenClaw, Claude Code, Cowork, ChatGPT Codex, etc.). Chat-only users cannot use these.
+Read and write tools for runtimes that can execute code or trigger GitHub Actions with verified access and configured credentials — not merely a platform labelled agentic (OpenClaw, Claude Code, Cowork, ChatGPT Codex, Hermes Agent, Grok Bot). Grok Bot and Hermes Agent hold the capability class but are **experimental**: neither is validated end to end against the Section 11 pipeline, and capability class is not a support promise. Chat-only users cannot use these.
 
 | Tool | Purpose |
 |------|---------|
@@ -86,9 +86,11 @@ requests.post(
 
 The agent needs a `GITHUB_TOKEN` with `actions:write` scope on the data repo.
 
-#### Path 2: Local execution (Claude Code, Cowork, ChatGPT Codex App, json-manual users)
+#### Path 2: Local execution (Claude Code, Cowork, ChatGPT Codex App, Hermes Agent, json-manual users)
 
 For agents running locally with direct filesystem access.
+
+**Grok Bot's `/workspace` is not the athlete's machine.** It is a provider-hosted cloud filesystem, so on its own it does not meet Path 2's premise of direct access to the athlete's local files; access to the athlete's local computer is a separate, gated capability.
 
 `push.py` depends on `requests`. Install it into the same Python environment you use for `sync.py`: `pip install requests`.
 

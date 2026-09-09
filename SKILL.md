@@ -1,30 +1,43 @@
 ---
 name: section-11
-description: Evidence-based endurance coaching protocol (v11.63). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
+description: Evidence-based endurance coaching protocol (v11.65). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
 ---
 
 # Section 11 — AI Coaching Protocol
 
 ## File Locations
 
-Data files (`latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, `routes.json`, `DOSSIER.md`, `section11/`) live in the athlete's **data directory** — typically `~/training-data/`. HEARTBEAT.md lives in the **agent workspace** — the directory the agent runs from (e.g., `~/clawd/`). These may or may not be the same directory.
+Data files (`latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, `routes.json`, `DOSSIER.md`, `section11/`) live in the athlete's **data directory** — a runtime-accessible location, typically something like `~/training-data/`. HEARTBEAT.md lives in the **agent workspace** — the directory the agent runs from. These may or may not be the same directory.
+
+The **data directory** is where training data is read. It is not the authority record for the dossier: the authoritative dossier copy is named in the `Official dossier location` field in the dossier's own header block.
 
 ## First Use Setup
 
 On first use:
 
 1. **Check for DOSSIER.md** in the data directory
-   - If found, use it
-   - If not found, check connected repo (if GitHub connector is available)
+   - If found, read its header block first: authority statement, `Official dossier location`, dossier revision, last reviewed
+   - If more than one copy is reachable, do not merge them. Compare revision and last-reviewed date and ask the athlete which is official
+   - If not found, check the connected source (if a connector is available)
    - If not found, check `section11/DOSSIER_TEMPLATE.md`
    - If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/DOSSIER_TEMPLATE.md
-   - Ask the athlete to fill in their data (zones, goals, schedule, etc.)
-   - Save as DOSSIER.md in the data directory root
+   - Offer guided creation first and manual completion second. Ask only for stable private context — long-term goals, health and medication context, allergies and tested fueling, stable constraints, environment and equipment, communication preferences. Do not ask for thresholds, zones, weight or current phase — those come from current JSON. Do not ask for planned training or the weekly schedule — those come from current JSON and calendar data
+   - Ask the athlete where the file should live, and record it as `Official dossier location`. Keep it in a private location: a local data directory, a private repository, or a private document store. Never place a private dossier in a public data mirror
+   - Show the draft and obtain explicit approval before creating the file
 
 2. **Set up JSON data source**
-   - **Local setup (recommended):** Athlete runs sync.py on a timer, producing `latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, and `routes.json` (when events have GPX/TCX attachments) in the data directory. See `examples/json-local-sync/SETUP.md` for the full local pipeline.
-   - **GitHub connector:** If the platform has a GitHub connector (Claude, ChatGPT, Gemini, Mistral, etc.), the athlete connects their private data repo directly. The AI reads files through the connector — no URLs needed. If the athlete also commits `DOSSIER.md` and `SECTION_11.md` to the data repo, the connector provides everything in one connection.
-   - **GitHub URL fetch:** Athlete creates a private or public GitHub repo for training data with automated sync. Save raw URLs in DOSSIER.md under "Data Source".
+   - **Runtime-accessible filesystem (recommended):** Athlete runs sync.py on a timer, producing `latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, and `routes.json` (when events have GPX/TCX attachments) in the data directory. The runtime reads them directly. This may be the athlete's own machine or a provider-hosted computer — "agentic" does not mean "local". See `examples/json-local-sync/SETUP.md` for the full pipeline.
+
+   **Platform routing.** Three surfaces, two contracts:
+
+   | Surface | Contract |
+   |---|---|
+   | Grok (web/app), and other web-chat platforms | `PROJECT_INSTRUCTIONS_WEB.md` |
+   | Grok Bot, Hermes Agent, and other agentic runtimes | `PROJECT_INSTRUCTIONS_AGENTIC.md` |
+
+   Grok Bot and Hermes Agent are **experimental**: the capability class fits, but the Section 11 pipeline is not validated end to end on either. Treat support as unproven rather than assured.
+   - **Connector or authenticated repository:** the athlete's **private** data source reached through a platform connector, an authenticated repository, or an equivalent credentialed connection. The AI reads files directly — no URLs needed. Committing `DOSSIER.md` and `SECTION_11.md` there provides everything in one connection, and is safe only while the source is private. **This delivery path supplies data only.** It confers no write authority, no ability to trigger actions or workflows, and no script execution; each of those capabilities is separate and must be verified before it is used or assumed.
+   - **URL fetch:** Athlete creates a repository for training data with automated sync. If the repository is public it carries JSON only — the private dossier never goes there. Record the raw URLs in the dossier's source configuration.
    - `latest.json` — current 7-day snapshot + 28-day derived metrics
    - `history.json` — longitudinal data (daily 90d, weekly 180d, monthly 3y)
    - `intervals.json` — per-interval segment data for recent structured sessions, plus DFA a1 session rollups when AlphaHRV recorded (14-day retention)
@@ -43,7 +56,7 @@ On first use:
    - Add to the agent's persistent configuration (SOUL.md, system prompt, custom instructions, or equivalent):
    - *"Every training metric cited — watts, duration, TSS, HR, zones — must come from a JSON data read in the current response. No data read = no number. Conversation history, memory, and prior messages are not data sources."*
 
-Do not proceed with coaching until dossier and data source are complete.
+A current JSON read is required before any numeric or prescriptive coaching. A missing or incomplete dossier limits personalization but does not block safe, data-based coaching, and unresolved dossier review items must not block unrelated coaching. Say what is missing rather than inferring it.
 
 ## Protocol
 
@@ -56,7 +69,7 @@ Load the coaching protocol using this precedence:
 
 If both root and `section11/` copies exist, prefer the root copy.
 
-**Current version:** 11.63
+**Current version:** 11.65
 
 ## External Sources
 
@@ -66,7 +79,7 @@ All external files referenced by this skill (`sync.py`, `SECTION_11.md`, templat
 
 1. JSON data (always read latest.json first, then history.json for longitudinal context)
 2. Protocol rules (SECTION_11.md)
-3. Athlete dossier (DOSSIER.md)
+3. Athlete dossier (DOSSIER.md) — stable private context only, never a current metric
 4. Interval data (intervals.json — on-demand, see below)
 5. Route/terrain data (routes.json — on-demand, when events have `has_terrain: true`)
 6. Heartbeat config (HEARTBEAT.md)
@@ -97,7 +110,9 @@ If `push.py` is available (`section11/examples/agentic/push.py` or in the data r
 
 All write operations default to preview mode — nothing is written without `--confirm`. Execution via local CLI or GitHub Actions dispatch. See `examples/agentic/README.md` for full usage, workout syntax, and template ID mappings.
 
-Only available on platforms that can execute code or trigger GitHub Actions (OpenClaw, Claude Code, Cowork, etc.). Web chat users cannot use this. GitHub connectors are read-only — they provide data access but cannot trigger Actions or execute push.py.
+Requires a runtime that can execute code or trigger repository actions, with verified access and configured credentials — not merely a platform labelled agentic. Web chat cannot use this. Grok Bot and Hermes Agent have the required capability class but are **experimental**: neither is validated end to end against the Section 11 pipeline, and capability class is not a support promise. A connector supplies data only: it confers no write authority, no ability to trigger actions or workflows, and no script execution. Each of those capabilities is separate and must be verified before it is used or assumed.
+
+**Verified-write rule.** Apply an approved dossier change only against a location whose write access has actually been verified. Otherwise return the revised file and state plainly that the source was not updated. Never emit a full replacement dossier unless the complete current file is in context; with only an excerpt, return the changed section clearly labelled as a fragment.
 
 ## Report Templates
 
@@ -125,17 +140,21 @@ On each heartbeat, follow the checks and scheduling rules defined in your HEARTB
 ## Security & Privacy
 
 **Data ownership & storage**
-All training data is stored where the user chooses: on their own device or in a Git repository they control. This project does not run any backend service, cloud storage, or third-party infrastructure. Nothing is uploaded anywhere unless the user explicitly configures it.
+Section 11 operates no hosted backend. Data moves only through services the athlete explicitly configures. Any AI, runtime, model, connector, repository or storage providers actually involved have their own processing and retention terms. See the README's Privacy & Security section for the full statement.
 
-The skill reads from: user-configured JSON data sources and DOSSIER.md in the data directory, and HEARTBEAT.md in the agent workspace. It writes to: DOSSIER.md in the data directory and HEARTBEAT.md in the agent workspace (during first-use setup only).
+The skill reads from: user-configured JSON data sources and DOSSIER.md at its recorded location, and HEARTBEAT.md in the agent workspace.
+
+It writes to **DOSSIER.md** only to apply a change the athlete has explicitly approved, against a location whose write access has been verified — at first-use creation and at every subsequent maintenance change alike. See `SECTION_11.md` → Update & Version Guidance for the full lifecycle and approval rules.
+
+It writes to **HEARTBEAT.md** in the agent workspace during first-use setup, following that file's own setup flow. HEARTBEAT is agent configuration, not athlete context, and is not governed by the dossier lifecycle.
 
 **Data Handling**
 `sync.py` redacts `athlete_id` from the output (always on, unconditional). Activity names are passed through as-is — they carry coaching context (route identification, terrain association). All other training data — activities, wellness, intervals, power/HR values, dates — is passed through to the AI coach as-is.
 
 **Network behavior**
-When running locally (files in the data directory), no network requests are needed for protocol, templates, or data. When files are not available locally, the skill performs simple HTTP GET requests to fetch them from configured sources.
+When running locally (files in the data directory), no network requests are needed for protocol, templates, or data. When files are not available locally, the skill fetches them from configured sources.
 
-It does **not** send API keys, LLM chat histories, or any user data to external URLs. All fetched content comes from sources the user has explicitly configured.
+Credentials are sent only to the service they authenticate, and only when that service is configured: `sync.py` sends the Intervals.icu key in an Authorization header to Intervals.icu, and the GitHub token to GitHub when publishing or issue creation is configured. Credentials are never written into exported or published JSON. Fetched content comes from sources the athlete has explicitly configured; published content goes to services the athlete has explicitly configured. Chat retention is governed by the AI platform's terms, not by Section 11.
 
 **Recommended setup: local files**
 The safest and simplest setup is fully local: sync.py on a timer, all files on your device. See `examples/json-local-sync/SETUP.md` for the complete local pipeline. If you use GitHub, use a **private repository**. See `examples/json-auto-sync/SETUP.md` for automated sync setup.
@@ -149,6 +168,7 @@ The heartbeat mechanism is fully opt-in. It is not enabled by default and nothin
 **Private repositories & agent access**
 Section 11 does not implement GitHub authentication. It reads files from whatever locations the runtime environment can already access:
 - Running locally: reads from your filesystem
-- Running in an agent (OpenClaw, Claude Cowork, etc.) with GitHub access configured: can read/write repos that the agent's token/SSH key allows
+- Running in an agent with repository access configured: can read and write repositories that the agent's token or key allows
+- Running on a provider-hosted agent computer: reads and writes that computer's filesystem, which is not the athlete's machine. Where such a computer is shared across the athlete's other agents, a private dossier placed there is reachable by all of them, and deleting an agent does not necessarily remove the file
 
 Access is entirely governed by credentials the user has already configured in their environment.

@@ -103,7 +103,7 @@ See [examples/README.md](../README.md#derived-metrics) for the full derived metr
 
 **Option 2: Push to GitHub + configure AI** — Push to a GitHub repo (private recommended), then follow the [main README setup guide](../../README.md#web-chat-setup). Most AI platforms now have GitHub connectors that can access private repos directly.
 
-**Option 3: Use with agentic platforms** — Claude Code, Claude Cowork, OpenAI Codex CLI, Gemini CLI, and OpenClaw can read files directly from your filesystem — no GitHub needed. Point the agent at the folder containing your exported JSON files. See the [agentic setup guide](../../README.md#agentic-setup).
+**Option 3: Use with agentic platforms** — Claude Code, Claude Cowork, OpenAI Codex CLI, Gemini CLI, OpenClaw, and Hermes read files directly from whatever filesystem their runtime can reach; where that runtime is the machine holding your exported files, no GitHub is needed. Point the agent at the folder containing your exported JSON files. Grok Bot is **experimental** and its filesystem is provider-hosted, so the data reaches it by connector or authenticated repository rather than from your disk; capability class is not a support promise. See the [agentic setup guide](../../README.md#agentic-setup).
 
 ### Automate it
 
@@ -123,7 +123,7 @@ Want sync.py to run automatically on a timer? See [json-local-sync](../json-loca
 
 **Note:** `--week-start` can also be set in `.sync_config.json` (`"week_start": "sun"`) or via `WEEK_START` environment variable. Config file setting persists across runs — no need to pass the flag every time.
 
-**Note:** Only `metadata.athlete_id` is redacted. The output is not anonymized — see [Privacy & Security](https://github.com/CrankAddict/section-11#privacy--security).
+**Note:** Only `metadata.athlete_id` is redacted. The output is not anonymized — see [Privacy & Security](../../README.md#privacy--security).
 
 ---
 

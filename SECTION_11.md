@@ -1,10 +1,16 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.63  
-**Last Updated:** 2026-08-24
+**Protocol Version:** 11.65  
+**Last Updated:** 2026-08-27
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.65 — Dossier lifecycle cutover: stable private context separated from dynamic training state (`sync.py` v3.130):**
+- **The dossier is no longer a source of dynamic training state.** FTP, LTHR, zones, weight and current phase now come from current JSON, and the live schedule from current JSON and calendar data. The dossier holds stable private athlete context: long-term goals, health and medication context, tested fueling, stable constraints and equipment, communication preferences, and source configuration.
+- **Threshold calibration re-sourced, and DFA a1 calibration deltas narrowed.** Every DFA a1 and FTP-test comparison reads `current_status.thresholds.sports[family]`, where it previously read a value recorded in the athlete's private context file. DFA a1 calibration deltas are now cycling LT2-only: `current_status.thresholds.sports.cycling` has no LT1 key, so the empirical LT1 estimate is reported as an observation with no reference value and no delta. The rule that empirical signals never auto-update thresholds is unchanged; only the source of the comparison value moved.
+- **Access methods restated as delivery paths.** The former three-method list equated local files with agentic platforms and omitted uploaded or attached files. Four paths are now defined independently of platform class.
+- **Adverse results must be stated plainly.** A new normative rule in §5 prohibits reframing a missed target or failed validation as acceptable by leading with unrelated positives.
 
 **v11.63 — Fuel and hydration chain audit across nutrition, race-week, W′ reasoning and cue planning (doc-only):**
 - **The glycogen budget was computing a diagnosis it cannot support.** The pre-ride estimate took `duration × expected NP`, but mechanical work is average power × time — NP is a physiological-cost weighting and overstates work on variable rides, so the worked example was valid only where average power happened to equal NP. Post-ride, the model subtracted carbohydrate intake from `kj_total` and read a gap above 1,500–1,800 kcal as proof the athlete "was in or approaching bonk territory". The kJ≈kcal conversion is deliberate and stays; what it cannot do is turn an energy gap into a glycogen deficit, since fat supplies a substantial intensity-dependent share, starting stores vary, and the liver/muscle split is invisible to the calculation. The threshold is removed as a diagnostic and the budget now sizes demand, naming fuelling as a candidate explanation for a late collapse rather than a conclusion. The absolute "without fueling, the athlete bonks" goes with it
@@ -184,15 +190,26 @@
 
 ## Overview
 
-This protocol defines how AI-based coaching systems should reason, query, and provide guidance within an athlete's endurance training ecosystem — ensuring alignment with scientific principles, dossier-defined parameters, and long-term objectives.
+This protocol defines how AI-based coaching systems should reason, query, and provide guidance within an athlete's endurance training ecosystem — ensuring alignment with scientific principles, current athlete data, and the athlete's long-term objectives.
 
 It enables AI systems to interpret, update, and guide an athlete's plan even without automated API access, maintaining evidence-based and deterministic logic.
 
 ---
 
-### Dossier Architecture Note
+### Source Architecture Note
 
-Section 11 operates as a **self-contained AI protocol**. All metric definitions, validation ranges, evaluation hierarchies, and decision logic are defined within this document. The athlete's training dossier (DOSSIER.md) is a separate document containing athlete-specific data, goals, and configuration.
+Section 11 operates as a **self-contained AI protocol**. All metric definitions, validation ranges, evaluation hierarchies, and decision logic are defined within this document.
+
+The athlete's dossier (`DOSSIER.md`) is a separate document holding **stable private athlete context**: long-term goals, health and medication context, allergies and tested fueling, stable constraints, environment and equipment, communication preferences, athlete-approved interpretation notes, and source configuration. It is not a training dashboard and is never a source of current training state.
+
+**Fact/source authority hierarchy:**
+
+1. **Current JSON and calendar data** — current metrics, thresholds, readiness, fitness, weight, phase detection, planned training, recent activities.
+2. **This protocol** — coaching rules, decision logic, schemas, report behaviour.
+3. **The athlete dossier** — stable private athlete context.
+4. **Athlete clarification** — when sources conflict or required context is missing.
+
+The dossier never overrides current JSON for a dynamic fact. Dossier ownership, approval and maintenance rules are normative and live in **Update & Version Guidance**.
 
 | Content Type | Location | Rationale |
 |-------------|----------|-----------|
@@ -211,7 +228,7 @@ Section 11 operates as a **self-contained AI protocol**. All metric definitions,
 | Capability Metrics | Section 11 (11A, subsection 9) | AI capability-layer analysis (durability, TID comparison, power curve delta, HR curve delta, sustainability profile) |
 | Validation Metadata | Section 11 (11C) | AI audit schema |
 
-AI systems should reference the athlete dossier for athlete-specific values (FTP, zones, goals, schedule) and this protocol for all coaching logic, thresholds, and decision rules.
+AI systems read current thresholds, zones, weight and phase from current JSON, and planned training and the live schedule from current JSON and calendar data. Stable private context — long-term goals, health context, constraints — comes from the athlete dossier. All coaching logic and decision rules come from this protocol.
 
 ---
 
@@ -221,15 +238,18 @@ AI systems should reference the athlete dossier for athlete-specific values (FTP
 
 This protocol defines how an AI model should interact with an athlete's training data, apply validated endurance science, and make determinate, auditable recommendations — even without automated data sync from platforms like Intervals.icu, Garmin Connect, or Concept2 Logbook.
 
-If the AI instance does not retain prior context (e.g., new chat or session), it must first reload the dossier, confirm current FTP, HRV, RHR, and phase before providing advice.
+If the AI instance does not retain prior context (e.g., new chat or session), it must perform a fresh read of the current JSON before giving numeric or prescriptive advice, and confirm the fields the current task actually depends on. Where a field the task needs is missing or stale, say so and request it rather than inferring it. It should also read the athlete dossier for stable private context; a missing or stale dossier limits personalization but does not block safe, data-based coaching.
 
 #### Data Mirror Integration
 
-If the AI or LLM system is not directly or indirectly connected to the Intervals.icu API, it may reference an athlete-provided data mirror. There are three access methods — use the first available:
+If the AI or LLM system is not directly or indirectly connected to the Intervals.icu API, it may reference an athlete-provided data mirror.
 
-1. **Local files** — data directory on the same filesystem (agentic platforms)
-2. **GitHub connector** — the athlete's data repo connected via the platform's native GitHub integration. The AI reads `latest.json`, `history.json`, `intervals.json`, and any other committed files (e.g., `DOSSIER.md`, `SECTION_11.md`) directly through the connector. No URLs needed. Connectors are read-only — they cannot trigger GitHub Actions or execute scripts.
-3. **URL fetch** — raw GitHub URLs as defined in the athlete dossier
+Code execution alone is not sufficient — a runtime also needs an accessible data path. There are four delivery paths, independent of platform class. Use the first available:
+
+1. **Runtime-accessible filesystem** — the data directory on whatever filesystem the runtime can reach. This may be the athlete's own machine or a provider-hosted computer; "agentic" does not mean "local".
+2. **Connector or authenticated repository** — the athlete's data source reached through a platform connector, an authenticated repository, or an equivalent credentialed connection. The AI reads `latest.json`, `history.json`, `intervals.json`, and any other committed files (e.g., `DOSSIER.md`, `SECTION_11.md`) directly. No URLs needed. **This path supplies data only.** It confers no write authority, no ability to trigger actions or workflows, and no script execution. Each of those capabilities is separate and must be verified before it is used or assumed.
+3. **Upload or attachment** — the athlete supplies the JSON files directly to the session. Common for web-chat platforms and available to provider-hosted agents.
+4. **URL fetch** — raw repository URLs as recorded in the athlete dossier's source configuration
 
 **Example endpoint format (URL fetch):**
 ```
@@ -250,7 +270,7 @@ https://raw.githubusercontent.com/[username]/[repo]/main/history.json
 
 This file represents a synchronized snapshot of current Intervals.icu metrics and activity summaries, structured for deterministic AI parsing and audit compliance.
 
-The JSON data — whether accessed via local files, GitHub connector, or URL fetch — is considered a **Tier-1 verified mirror** of Intervals.icu and inherits its trust priority in the Data Integrity Hierarchy. All metric sourcing and computation must reference it deterministically, without modification or estimation.
+The JSON data — whichever of the four delivery paths supplied it — is considered a **Tier-1 verified mirror** of Intervals.icu and inherits its trust priority in the Data Integrity Hierarchy. All metric sourcing and computation must reference it deterministically, without modification or estimation.
 
 If the data appears stale or outdated, the AI must explicitly request a data refresh before providing recommendations or generating analyses.
 
@@ -317,7 +337,7 @@ When evaluating an activity or session:
 
 1. Determine its sport family via `SPORT_FAMILIES` mapping
 2. Look up `thresholds.sports[family]`
-3. Use only that entry's values for all zone/threshold-dependent logic (zone boundaries, LT1/LT2 references, intensity classification, workout target conversions)
+3. Use only that entry's values for threshold-dependent logic: LT2/threshold references, intensity classification and workout target conversions. The entry carries no LT1 value; do not derive one from it. It is also not the source of Seiler zone times — those come from each activity's recorded zone distribution (see the polarization section).
 
 If no entry exists for that family: skip all threshold-dependent checks and explicitly flag `"No thresholds configured for [family]"`.
 
@@ -627,7 +647,11 @@ Confidence is downgraded by: poor data quality (HR-only majority in lookback), e
 
 To ensure accurate intensity structure tracking across power and heart-rate data, the protocol aligns with **URF v5.1's Zone Distribution and Polarization Model**.
 
-This system applies Seiler's 3-zone endurance framework (Z1 = < LT1, Z2 = LT1–LT2, Z3 = > LT2) to all recorded sessions and computes both power- and HR-based polarization indices. Zone boundaries and LT1/LT2 proxies MUST be derived from the sport-matched threshold entry (`thresholds.sports[family]`). Cycling sessions use cycling LTHR/FTP; running sessions use running LTHR/threshold pace. Cross-sport threshold application is not permitted.
+This system applies Seiler's 3-zone endurance framework (Z1 = < LT1, Z2 = LT1–LT2, Z3 = > LT2) to sessions having usable zone-time data, and computes both power- and HR-based polarization indices. Sessions without usable zone times are skipped.
+
+**The three zones are not derived from LT1/LT2 values.** Each activity's own recorded zone distribution supplies the input — `icu_zone_times` for power, `icu_hr_zone_times` for HR, typically five bands and sometimes seven — selected per activity by the sport family's configured zone preference, with power preferred and HR as fallback unless the family is configured otherwise. The available zone-time arrays are then mapped to three per Treff et al. 2019: Seiler Z1 = z1 + z2, Seiler Z2 = z3, Seiler Z3 = z4 + z5 + z6 + z7.
+
+The LT1/LT2 labels above describe what those bands approximate physiologically, not how they are computed. `thresholds.sports[family]` is not an input to this path, carries no LT1 value, and no proxy is derived from it. The `zone_basis` field records which stream was used, and mixing power- and HR-based activities within one aggregate is reported as `mixed`.
 
 |**Metric**                        | **Formula / Model**                     | **Source / Theory**                            | **Purpose / Interpretation**                                     |
 | ---------------------------------| --------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
@@ -927,7 +951,7 @@ Reference alongside objective metrics when evaluating readiness, recovery, or ad
 
 ### 3. Context Integrity
 
-All advice must respect current dossier targets and progression logic. No training adjustments should violate:
+All advice must respect the athlete's long-term objectives from the dossier and the current plan's progression logic. No training adjustments should violate:
 - Weekly volume tolerance
 - Polarisation ratio (80/20 intensity)
 - Planned block phasing
@@ -945,6 +969,8 @@ If a conversation occurs outside planned training blocks (e.g., holidays, deload
 AI systems must adopt a professional coach tone — concise, precise, and data-driven. Avoid speculation, filler, or motivational hype.
 
 When uncertain, the AI must ask, not assume.
+
+**Adverse results must be stated plainly.** State results against the prescription or acceptance criterion directly. Do not reframe a missed target, poor execution, or failed validation as acceptable by leading with unrelated positives. Positive observations may follow, but must not alter the verdict. Label uncertainty rather than using it to soften the result.
 
 **Post-Workout Report Structure:**
 
@@ -1060,7 +1086,8 @@ If multiple data sources conflict:
 2. **Intervals.icu JSON Mirror** → Verified Tier-1 mirror source (local files, GitHub connector, or URL fetch — all carry the same trust level)
 3. **Garmin Connect** → Backup for HR, sleep, RHR
 4. **Athlete-provided data** → Valid if recent (<7 days) and stated explicitly
-5. **Dossier Baselines** → Fallback reference
+
+The athlete dossier is **not** a rung in this hierarchy. It holds stable private context, never a current metric — see the Source Architecture Note.
 
 ---
 
@@ -2099,7 +2126,7 @@ Section 11 tracks **three markers**: `easy_guard` (α1 1.0), `lt1` (α1 0.75), `
 **The 0.75 / 0.5 threshold markers are cycling-validated** (Rogers et al. Front Physiol 2020/2021, Gronwald/Rogers/Hoos 2020, Schaffarczyk et al. 2023, Mateo-March et al. 2023); α1 1.0 is Section 11's operational `easy_guard`, not a literature threshold. Other sports get rollups computed but `validated: false` is flagged in `dfa_a1_profile.trailing_by_sport.{sport}` — running has higher movement-induced HRV noise and different autonomic dynamics, and per-sport calibration is not yet established. Treat non-cycling DFA estimates as informational only.
 
 **Important caveats:**
-- Athlete-specific calibration is needed before DFA-derived thresholds replace dossier values. The protocol surfaces deltas; the human decides.
+- Athlete-specific calibration is needed before DFA-derived thresholds replace the current threshold values in `current_status.thresholds.sports[family]`. The protocol surfaces deltas; the human decides.
 - Fatigue shifts the relationship — a fatigued athlete's DFA a1 is depressed at submaximal work, so a "low" reading mid-session may reflect accumulated fatigue rather than true threshold crossing.
 - Heat, dehydration, and glycogen state all push DFA a1 down at constant external load. Cross-reference Environmental Conditions Protocol and nutrition state before interpreting low readings as fitness signal.
 
@@ -2111,9 +2138,9 @@ The AI does not compute DFA a1 statistics — `sync.py` does. The AI reads pre-c
 
 **`latest.json` `derived_metrics.capability.dfa_a1_profile`**:
 - `latest_session` — most recent activity with a sufficient dfa block: avg, tiz_split_pct, drift_delta, drift_interpretable, quality_pct, sufficient flag. If no recent session is sufficient, surfaces the most recent insufficient one with `sufficient: false` so the AI can see "AlphaHRV ran but data unusable".
-- `trailing_by_sport` — keyed by sport family. Per sport: n_sessions (up to 7 most recent sufficient), date_range, avg_dfa_a1, drift_delta_mean, **three self-describing markers** (v3.114) — `easy_guard_estimate` (α1 1.0), `lt1_estimate` (α1 0.75), `lt2_estimate` (α1 0.5), each carrying `marker_dfa_a1` so the JSON states which α1 value it is anchored to; `easy_guard_crossing_sessions` / `lt1_crossing_sessions` / `lt2_crossing_sessions` (diagnostic: how many of n_sessions had a **qualifying contiguous crossing** — `reason == "ok"` — in each band), plus `easy_guard_eligible_sessions` / `lt1_eligible_sessions` / `lt2_eligible_sessions` (v3.122: how many of those crossings were also **estimate-eligible**). Gating, `n_sessions` and `confidence` all key on the eligible count. Any gap between the two counts means at least one dwell-qualified marker-session was estimate-rejected — read `*_reason` for which blocker, `easy_guard_reason` / **`lt1_reason` / `lt2_reason`**, quality_avg_pct, validated flag, confidence. **`easy_guard` (α1 1.0) is a conservative easy-state guard, NOT a threshold — never compare it to dossier zones, never treat it as a calibration or staleness signal.** Only `lt1` (0.75) and `lt2` (0.5) inform threshold calibration.
+- `trailing_by_sport` — keyed by sport family. Per sport: n_sessions (up to 7 most recent sufficient), date_range, avg_dfa_a1, drift_delta_mean, **three self-describing markers** (v3.114) — `easy_guard_estimate` (α1 1.0), `lt1_estimate` (α1 0.75), `lt2_estimate` (α1 0.5), each carrying `marker_dfa_a1` so the JSON states which α1 value it is anchored to; `easy_guard_crossing_sessions` / `lt1_crossing_sessions` / `lt2_crossing_sessions` (diagnostic: how many of n_sessions had a **qualifying contiguous crossing** — `reason == "ok"` — in each band), plus `easy_guard_eligible_sessions` / `lt1_eligible_sessions` / `lt2_eligible_sessions` (v3.122: how many of those crossings were also **estimate-eligible**). Gating, `n_sessions` and `confidence` all key on the eligible count. Any gap between the two counts means at least one dwell-qualified marker-session was estimate-rejected — read `*_reason` for which blocker, `easy_guard_reason` / **`lt1_reason` / `lt2_reason`**, quality_avg_pct, validated flag, confidence. **`easy_guard` (α1 1.0) is a conservative easy-state guard, NOT a threshold — never compare it to the athlete's current thresholds, never treat it as a calibration or staleness signal.** Only `lt2` (0.5) yields a calibration delta: it is the sole marker with a configured counterpart. `lt1` (0.75) is reported as an empirical observation and may motivate a formal retest, but no configured LT1 threshold exists to compare it against.
   - **Per-marker gating (v3.113/v3.114):** `easy_guard_estimate`, `lt1_estimate`, and `lt2_estimate` are each gated **independently** — each is `null` when *that* marker has fewer than 3 estimate-eligible marker-sessions (v3.122 — dwell qualification alone no longer counts). A one-marker-carries-the-other hollow block can no longer occur. `easy_guard_reason` / `lt1_reason` / `lt2_reason` explain the state per marker. **An estimate is null whenever minimum estimate-eligible session depth is not met. If at least one eligible session exists, `*_reason` is `insufficient_sessions`. If none exists, the staged reason identifies the dominant blocker: dwell failure, incomplete coverage, excessive artifacts, non-positive mean power, or non-stationary power.** v3.122 staging: with zero eligible sessions but some that sustained dwell, the reason is the modal *eligibility* blocker among those (`non_stationary_power`, `unknown_artifact`, `excessive_artifact`, `unknown_hr`, `unknown_power`, `non_positive_power_mean`, `lookback_gap`, `lookback_incomplete`) — so a majority of `no_samples_in_band` sessions can no longer bury crossings rejected for stationarity. Only when nothing sustained dwell does it report `no_contiguous_dwell` / `insufficient_total_dwell` / `no_samples_in_band`. **It is no longer safe to read a null estimate as "the athlete did not sustain that marker" — read `*_reason`.** `lt1` (0.75) populates only on rides that sustain aerobic-threshold intensity, so it is frequently null on easy/deload riding — expected, not a data gap. `easy_guard` populates on easy riding; `lt1`/`lt2` rarely.
-  - **`confidence`** (`low` / `moderate` / `high` / null) is a **coarse, max-across-THRESHOLD-markers** signal — computed over `lt1` and `lt2` only; **`easy_guard` is EXCLUDED** so easy rides can't inflate threshold confidence (3 → low, 4–5 → moderate, ≥6 → high). Kept for backward compatibility and section gating. It is NOT per-threshold — a `moderate` confidence can coexist with one threshold's estimate being null. Per-marker `*_estimate` presence + `*_reason` are authoritative. `easy_guard` is interpreted from its own `easy_guard_reason` / n_sessions, never from `confidence`.
+  - **`confidence`** (`low` / `moderate` / `high` / null) is a **coarse, max-across-THRESHOLD-markers** signal — computed over `lt1` and `lt2` only; **`easy_guard` is EXCLUDED** so easy rides can't inflate threshold confidence (3 → low, 4–5 → moderate, ≥6 → high). Kept for backward compatibility and coarse orientation only. **It must not gate LT2 threshold calibration.** LT2 calibration gates on LT2’s own eligible-session depth — see the LT2 depth floor below. LT1 has no calibration gate at all, because it has no configured comparator. It is NOT per-threshold — a `moderate` confidence can coexist with one threshold's estimate being null. Per-marker `*_estimate` presence + `*_reason` are authoritative. `easy_guard` is interpreted from its own `easy_guard_reason` / n_sessions, never from `confidence`.
 
 **Estimate shape — cycling** (applies to each of `easy_guard_estimate` / `lt1_estimate` / `lt2_estimate`)**:** `{marker_dfa_a1, hr, watts_outdoor, watts_indoor, n_sessions, n_sessions_outdoor, n_sessions_indoor}` — **or `null` for the whole block** when that marker has fewer than 3 estimate-eligible marker-sessions (v3.122 — dwell qualification alone no longer counts; check the matching `*_reason`). Within a present block, HR is pooled across all sessions (physiology signal); watts are split by environment because the power-DFA relationship differs meaningfully between indoor (VirtualRide) and outdoor cycling — pooling would blend them unactionably. `watts_outdoor` / `watts_indoor` are null when that environment has no estimate-eligible session.
 
@@ -2121,18 +2148,27 @@ The AI does not compute DFA a1 statistics — `sync.py` does. The AI reads pre-c
 
 #### Zone Validation Use
 
-When `latest.json.derived_metrics.capability.dfa_a1_profile.trailing_by_sport.cycling` has `confidence: "moderate"` or `"high"`, the AI may compare the empirical LT1/LT2 estimates against the dossier-defined cycling thresholds.
+The AI may compare the empirical **LT2** estimate in `latest.json.derived_metrics.capability.dfa_a1_profile.trailing_by_sport.cycling` against the current cycling thresholds in `current_status.thresholds.sports.cycling`.
 
-**Environment-aware comparison (cycling):** Compare `watts_outdoor` against dossier `ftp` (outdoor). Compare `watts_indoor` against dossier `ftp_indoor`. Compare `hr` (pooled) against `lthr`. Use per-environment `n_sessions_outdoor` / `n_sessions_indoor` to assess depth — apply the same 3/4–5/≥6 confidence thresholds per environment before surfacing a watts calibration delta. If only one environment has sufficient data and the dossier lacks a threshold for the other environment, the available estimate may inform the missing context as a directional reference — but note the cross-environment caveat explicitly.
+**Gate on LT2’s own depth, not on profile confidence.** The sport-level `confidence` field is a string derived from `max(lt1_eligible_sessions, lt2_eligible_sessions)`, mapped to `low` / `moderate` / `high` / null — it can read `moderate` or `high` because LT1 has depth while LT2 has almost none. Use `lt2_estimate.n_sessions` (equivalently `lt2_eligible_sessions`) for the HR comparison, and `lt2_estimate.n_sessions_outdoor` / `n_sessions_indoor` for the matching watts comparison. The per-marker estimate presence and its `lt2_reason` are authoritative.
 
-**If the empirical estimate disagrees with the dossier value by >5%:**
+**There is no configured LT1 threshold.** `current_status.thresholds.sports.cycling` carries six keys — `lthr`, `max_hr`, `threshold_pace`, `pace_units`, `ftp` and `ftp_indoor` — and no LT1 key. The empirical `lt1_estimate` is therefore reported as an observation with no reference value and no delta. It may motivate a formal retest or a conversation about aerobic-threshold work; it must never be compared against `ftp`, `ftp_indoor` or `lthr`, none of which is an LT1.
+
+**Environment-aware comparison (cycling), LT2 only:** Compare the LT2 estimate's `watts_outdoor` against `current_status.thresholds.sports.cycling.ftp` (outdoor). Compare `watts_indoor` against `current_status.thresholds.sports.cycling.ftp_indoor`. Compare `hr` (pooled) against `current_status.thresholds.sports.cycling.lthr`. Use LT2’s own per-environment counts — `lt2_estimate.n_sessions_outdoor` / `n_sessions_indoor` — and require ≥ 4 in that environment before surfacing its watts calibration delta. If only one environment has sufficient data and no threshold is recorded for the other environment, the available estimate may inform the missing context as a directional reference — but note the cross-environment caveat explicitly.
+
+**If the empirical estimate disagrees with the current threshold value by >5%:**
 - The AI surfaces a calibration delta as a coaching observation
-- The AI does NOT auto-update dossier zones
+- The AI does NOT auto-update thresholds in the upstream source
 - The AI does NOT modify prescribed workouts based on DFA-derived thresholds
 - The athlete is told the delta exists, the magnitude, the environment, and the underlying N sessions
-- Final decision on whether to retest formally and update dossier rests with the athlete
+- Final decision on whether to retest formally and update the upstream threshold source rests with the athlete
 
-**Confidence floor:** Do not surface calibration deltas at `confidence: "low"` (3 sessions). Single-session noise is too high. Wait for `moderate` or `high`. Per-environment watts deltas additionally require the environment-specific `n_sessions_outdoor` or `n_sessions_indoor` to meet the same thresholds.
+**Depth floor for LT2 calibration deltas.** Gate on LT2’s own eligible-session depth, never on the sport-level `confidence` field:
+
+- **Pooled HR delta** — requires `lt2_estimate.n_sessions` ≥ 4. Below that, report descriptively only: three-session depth remains too shallow for delta surfacing, and fewer than three emits no estimate at all.
+- **Watts delta** — requires the environment-specific `lt2_estimate.n_sessions_outdoor` ≥ 4 for the outdoor comparison against `ftp`, or `n_sessions_indoor` ≥ 4 for the indoor comparison against `ftp_indoor`. Depth in one environment never licenses a delta in the other.
+
+These counts are LT2-specific. A high `lt1_eligible_sessions` count raises the sport-level `confidence` string without raising LT2 depth, which is exactly the case this floor exists to catch.
 
 **Validated sports only:** Only cycling estimates qualify for calibration delta surfacing. Other sports' estimates are descriptive only.
 
@@ -2169,7 +2205,9 @@ The AI must check the quality block before any DFA-based statement:
 | `quality.sufficient: false` | Refuse to interpret. Note "DFA a1 data exists but did not meet quality threshold (X% valid, Y minutes — minimum 20 min required)". Do not invent or infer values. |
 | `quality.sufficient: true`, `quality.valid_pct < 80` | Interpret with reduced confidence; mention quality limitation in the report |
 | `quality.sufficient: true`, `quality.valid_pct ≥ 80` | Standard interpretation |
-| `dfa_a1_profile.trailing_by_sport.{sport}.confidence: null` or `"low"` | Do not surface threshold calibration deltas. Use only for descriptive reporting. |
+| `lt2_estimate` absent, or `lt2_estimate.n_sessions` < 4 | Do not surface an LT2 calibration delta for pooled HR. Use only for descriptive reporting. |
+| `lt2_estimate.n_sessions_outdoor` < 4 or `n_sessions_indoor` < 4 | Do not surface the corresponding environment’s watts calibration delta. The other environment is judged separately. |
+| `lt1_estimate` present at any depth | Report descriptively. Never a calibration delta — no configured LT1 comparator exists. |
 | `dfa` block absent on activity | No AlphaHRV recording — say nothing about DFA for that session. Do not say "no data" as if it were a problem; the data was never expected. |
 
 #### Boundaries
@@ -2177,8 +2215,8 @@ The AI must check the quality block before any DFA-based statement:
 DFA a1 is a **Tier-2 interpretive signal**. The following constraints are absolute:
 
 1. **Does NOT enter the readiness P0–P3 ladder.** No DFA-based readiness override. The readiness decision uses its existing 7 signals only.
-2. **Does NOT auto-update dossier zones.** The AI surfaces deltas, the human decides on retesting and updating.
-3. **Does NOT modify prescribed workout intensity.** A planned threshold session remains threshold even if yesterday's DFA suggested LT2 is 5W lower than dossier — the session is executed as planned, the calibration question is handled separately.
+2. **Does NOT auto-update the athlete's thresholds.** The AI surfaces deltas; the athlete decides on retesting and on updating the upstream threshold source.
+3. **Does NOT modify prescribed workout intensity.** A planned threshold session remains threshold even if yesterday's DFA suggested LT2 is 5W lower than the recorded threshold — the session is executed as planned, the calibration question is handled separately.
 4. **One signal among many.** DFA a1 disagreeing with HR/power/RPE/feel is an observation, not a verdict. The AI cross-references rather than treating DFA as ground truth.
 5. **Quality gates are non-negotiable.** When quality fails, the AI refuses to interpret. No "best guess" from insufficient data.
 
@@ -2208,16 +2246,16 @@ This section codifies those situations — not as a mandate, but as guidance on 
 
 #### When Formal Testing Adds Value
 
-- **New athlete onboarding** — no historical data to extrapolate from. A single baseline test anchors the dossier; subsequent tracking reverts to continuous data.
+- **New athlete onboarding** — no historical data to extrapolate from. A single baseline test anchors the athlete's initial thresholds; subsequent tracking reverts to continuous data.
 - **Athlete confidence** — continuous signals converge on a zone shift, but the athlete wants a concrete number to anchor training on before adjusting.
-- **Contradictory signals** — EF trending up while power curve is flat (or the reverse); Benchmark Index positive while DFA a1 profile suggests LT1 regression. A single test resolves which signal to trust.
+- **Contradictory signals** — EF trending up while power curve is flat (or the reverse); Benchmark Index positive while an environment-matched LT2 power estimate sits well below its comparator — `lt2_estimate.watts_outdoor` against `ftp`, or `watts_indoor` against `ftp_indoor` — at ≥ 4 sessions in that same environment (`n_sessions_outdoor` or `n_sessions_indoor`). A single test resolves which signal to trust.
 - **Post-break return** — returning from injury, illness, or extended layoff where continuous data was interrupted. Pre-break zones are unreliable; a test re-anchors.
 
 #### Data-Driven Staleness Signals
 
 The AI may surface a *test suggestion* (not a requirement) when one or more of the following are true. These are triggers for conversation, not prescriptions:
 
-- **DFA a1 calibration delta** — `dfa_a1_profile.trailing_by_sport.cycling` at `moderate` or `high` confidence reports an LT1 or LT2 estimate >5% away from dossier FTP/LTHR (see `Zone Validation Use` above). This is the primary continuous trigger.
+- **DFA a1 calibration delta** — `dfa_a1_profile.trailing_by_sport.cycling` reports an **LT2** estimate >5% away from the matching value in `current_status.thresholds.sports.cycling`, at an LT2-specific depth of ≥ 4: `lt2_estimate.n_sessions` ≥ 4 for the HR comparison, `n_sessions_outdoor` ≥ 4 or `n_sessions_indoor` ≥ 4 for the environment-matched watts comparison. Do not gate on the sport-level `confidence` field, a string derived from the maximum across LT1 and LT2 eligible depth (see `Zone Validation Use` above). This is the primary continuous trigger. An LT1 estimate never produces a calibration delta: no configured LT1 threshold exists to compare against, and the profile emits a single rolling estimate rather than a trend.
 - **Benchmark Index stall or regression outside seasonal expectation** — sustained flat or negative Benchmark Index when the Seasonal Context table predicts progressive gains (e.g., Late Base / Build showing 0% or negative). See Benchmark Index section above for seasonal baselines.
 - **Sustained power above prescribed zones** — a qualifying session is one where work-interval average power ran ≥3% above prescribed target AND reported RPE landed within or below the expected band for the IF actually achieved. Trigger fires when ≥2 qualifying sessions occur in a rolling 7d window; single-session overshoots are noise and do not trigger.
 - **Power-curve vs HR-curve divergence** — shipped `power_curve_delta` shows improvement at a duration while `hr_curve_delta` is flat or negative at the same duration (same HR now sustaining more power). A test at that duration validates the capability shift.
@@ -2248,7 +2286,7 @@ A test during non-go readiness produces a number that anchors future training on
 
 **Running equivalents** (30-min threshold run, 5K time trial, critical speed test) — deferred to a later version. Owner: pace curve extension when running data becomes available.
 
-All cycling protocols are outdoor-or-indoor; the result inherits the environment. Indoor tests produce an indoor FTP; outdoor tests produce an outdoor FTP. The shipped `ftp_indoor` / `ftp` dossier split already supports this — the athlete's dossier should carry both if both environments are trained.
+All cycling protocols are outdoor-or-indoor; the result inherits the environment. Indoor tests produce an indoor FTP; outdoor tests produce an outdoor FTP. The shipped `ftp_indoor` / `ftp` split in `current_status.thresholds.sports[family]` already supports this — both should be recorded upstream if both environments are trained.
 
 #### Interpretation Rules
 
@@ -2308,7 +2346,7 @@ Report rendering: the post-workout report template emits `Effort response: [valu
 Testing Protocol constraints are absolute:
 
 1. **Does NOT mandate testing.** The AI suggests; the athlete decides. An athlete who never formally tests but has continuous data coverage remains correctly served.
-2. **Does NOT auto-update dossier zones.** A completed test produces a result; the athlete decides whether to update dossier thresholds. The AI surfaces the number and the delta from current dossier, nothing more.
+2. **Does NOT auto-update the athlete's thresholds.** A completed test produces a result; the athlete decides whether to update the upstream threshold source. The AI surfaces the number and the delta from the current recorded value, nothing more.
 3. **Does NOT enter the readiness P0–P3 ladder.** A suggested-or-scheduled test does not modify the readiness decision. The readiness decision uses its existing 6 signals only.
 4. **Does NOT override continuous data.** When continuous signals and a recent test disagree, investigate first (pacing? environment? fueling?). A single test is one data point; the continuous picture accumulates many.
 5. **Does NOT prescribe running or SkiErg tests.** Running equivalents deferred. SkiErg and rowing tests out of current scope.
@@ -2870,10 +2908,21 @@ To ensure AI systems evaluate metrics in the correct order:
 
 ### Update & Version Guidance
 
-The dossier (DOSSIER.md) and SECTION_11.md is the **single source of truth** for all thresholds, metrics, and structural logic.  
-AI systems must **never overwrite base data** — all updates require **explicit athlete confirmation**.  
+Current JSON is the source of truth for thresholds and metrics. SECTION_11.md is the source of truth for structural logic and decision rules. The athlete dossier supplies stable private context only. Where they conflict, apply the Fact/source authority hierarchy in the Source Architecture Note.
 
-When new inputs are provided (e.g., FTP test, updated HRV, weight), the AI must assist with **structured version-control** (e.g., `v0.7.5 → v0.7.6`).
+**New measurements do not belong in the dossier.** An FTP test result, an updated HRV baseline or a new body weight is dynamic state. Each stays in its own authoritative upstream data source and reaches the AI through current JSON. Only an approved change to a training threshold is written back to the upstream threshold source, and only by the athlete. The AI surfaces the value and the delta; it does not decide.
+
+**One official dossier.** Each athlete context has exactly one authoritative dossier, identified by the authority block at the top of the file. Older files, drafts, exports and uploaded copies are superseded. Do not merge copies silently — compare the dossier revision and last-reviewed date and ask the athlete which is official. Marking an older copy superseded, or removing one, requires its own exact approval and is never automatic.
+
+**When a change may be proposed.** A durable, athlete-specific fact that materially affects future coaching, safety, interpretation, privacy, equipment, fueling, goals or communication. Never append an unsolicited dossier proposal to an unrelated answer or to any training report. Batch related changes into one dedicated proposal with separable approvals. Do not resurface a declined proposal without new evidence. Raise a change immediately only for a medication change, an allergy or intolerance change, a health fact that directly affects current advice, an athlete statement that directly contradicts a dossier fact currently being relied upon, or conflicting dossier versions or ambiguous authority.
+
+**Every dossier change is approval-gated.** Propose the exact change: the section affected, the current text, the proposed text, and why the fact belongs in the dossier rather than in JSON, the calendar or the conversation. Approval must authorize that exact change; approval of one change is not approval of adjacent changes, and approval from a reviewer or another AI is never a substitute for the athlete's.
+
+**Write behaviour depends on verified capability, not platform class.** Apply an approved change only against a location whose write access has actually been verified. Otherwise return the revised file and state plainly that the source was not updated. Never emit a full replacement dossier unless the complete current file is in context; with only an excerpt, return the changed section clearly labelled as a fragment.
+
+**Before applying, re-read the current official dossier.** Detect whether it changed since the proposal was made, preserve unrelated athlete edits, and apply only the approved change. Increment the dossier revision and update the last-reviewed date, then re-read and confirm what changed, what was validated and how, and any remaining uncertainty. The dossier carries no embedded changelog; history lives in the athlete's file or repository history.
+
+**AI interpretation notes** are permitted only when durable, evidence-based and athlete-approved. Each carries a visible label marking it as an interpretation, placed inline beside the subject it qualifies, and states four things: the observation, its factual basis in plain language, the coaching implication, and the athlete-approval date. Where a note claims a durable preference revealed consistently across decisions, the factual basis must cite the specific decisions rather than assert that it recurred. A note must never contain a diagnosis, a hidden assessment, a speculative motive, a raw chat quotation, or an unsupported causal claim.
 
 ---
 
@@ -2905,7 +2954,7 @@ If new metrics are imported from external platforms (e.g., Whoop, Oura, HRV4Trai
 ### Goal Alignment Reference
 
 All AI recommendations must remain aligned with the athlete’s **long-term roadmap** (see *Section 3: Training Schedule & Framework*).  
-The dossier’s performance-objective tables define the **authoritative phase structure** and **KPI trajectory** guiding progression and adaptation.
+Long-term objectives come from the athlete dossier. The **current phase** comes from JSON `phase_detection`. **Current milestones and KPI targets** come from the live plan. No single document defines all three.
 
 ---
 
@@ -3071,7 +3120,7 @@ End of Section 11 A. AI Coach Protocol
 ## 11 B. AI Training Plan Protocol
 
 **Purpose:**  
-Define deterministic, phase-aligned rules for AI or automated systems that generate or modify training plans, ensuring consistency with the dossier’s endurance framework, physiological safety, and audit traceability.
+Define deterministic, phase-aligned rules for AI or automated systems that generate or modify training plans, ensuring consistency with the athlete's long-term objectives, physiological safety, and audit traceability.
 
 ---
 

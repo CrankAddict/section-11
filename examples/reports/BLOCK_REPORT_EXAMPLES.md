@@ -309,7 +309,7 @@ Next Block Plan:
 
 ---
 
-## Example 3: Aerobic Base Block — DFA a1 Profile (easy-state guard + LT1 calibration delta)
+## Example 3: Aerobic Base Block — DFA a1 Profile (easy-state guard + descriptive LT1, no complete comparison)
 
 ```
 Block 4 Report (17 Mar – 27 Apr 2026)
@@ -371,22 +371,12 @@ DFA a1 Profile:
   Easy-state guard (α1 1.0) — descriptive / compliance only, NOT a calibration delta:
     145 bpm (from 7 sessions) / outdoor 220 W (from 5 sessions) / indoor 208 W (from 2 sessions)
     Top-of-easy ceiling for recovery/endurance compliance — the well-correlated easy state sits
-    below the aerobic threshold. Not compared to dossier zones; not a calibration or staleness signal.
+    below the aerobic threshold. Never compared to the athlete's current thresholds; not a
+    calibration or staleness signal.
 
-  Calibration deltas (Empirical LT1 α1 0.75 / LT2 α1 0.5):
-    Confidence: moderate (off LT1 estimate-eligible sessions; easy_guard excluded from confidence)
+  Empirical threshold markers (LT1 α1 0.75 / LT2 α1 0.5):
+    Profile confidence (coarse orientation only, NOT calibration confidence): moderate
     Empirical LT1 (α1 0.75): 158 bpm (from 5 sessions) / outdoor 246 W (from 4 sessions) / indoor 232 W (from 1 session)
-    Empirical LT2 (α1 0.5): omitted — base block sustained little time near 0.5 (lt2_estimate null,
-      lt2_reason: insufficient_sessions, lt2_crossing_sessions: 1, lt2_eligible_sessions: 1)
-    Dossier LT1 (cycling): 152 bpm / outdoor 230 W / indoor 220 W
-    Delta: LT1 outdoor +7.0% W (246 vs 230, from 4 sessions — moderate) / +3.9% HR
-      / indoor insufficient depth (1 session — below confidence floor)
-    Coaching note: the empirical LT1 here is the α1 0.75 estimate from the block's tempo/upper-endurance
-    sessions — NOT the α1 1.0 easy-state guard above, which is descriptive only. It is trending above the
-    dossier LT1, consistent with aerobic-base adaptation lifting the aerobic-threshold ceiling; the dossier
-    value may be under-reading current fitness. Outdoor watts delta is at moderate confidence; indoor
-    suppressed (1 estimate-eligible indoor session). This is a calibration observation, not an action. Recommend a formal
-    LT1 retest or step test before the next build block to confirm and update dossier zones if the gap holds.
 
 Polarization (block average):
   Z1+Z2: 89%
@@ -453,39 +443,212 @@ Phase Progression Check:
     - Compliance >85% (actual: 97%)
   Phase recommendation: Progress to Threshold Development
   Rationale: All base phase criteria met with margin. Aerobic engine has clearly built
-  (durability, EF, HRRc all trending favorably). DFA a1 calibration delta on LT1 reinforces
-  the same picture — internal intensity is now lower than dossier zones predict, which is
-  the fingerprint of aerobic base work paying off. Athlete is ready for threshold-targeted
+  (durability, EF, HRRc all trending favorably). The empirical LT1 estimate is descriptive only:
+  there is no configured LT1 comparator, so it yields no delta and does not enter this
+  progression decision. Athlete is ready for threshold-targeted
   stimulus.
 
 Interpretation:
 Strong base block. CTL rose 9.2 points at a sustainable 1.18/week ramp. Every aerobic
 quality metric moved in the right direction: durability 3.8% → 2.0%, EF 1.42 → 1.52, HRRc
-+4 bpm, wellness uniformly improving. The DFA a1 Profile section is the new addition this block, and it now separates the
-α1 1.0 easy_guard from threshold calibration. The easy-state guard sits at 145 bpm /
-outdoor 220 W / indoor 208 W — a top-of-easy compliance ceiling, descriptive only, never
-compared to dossier zones. The genuine empirical LT1 at α1 0.75 came in higher, at 158 bpm
-/ outdoor 246 W, against dossier 152 bpm / 230 W — a +7.0% outdoor watts gap at moderate
-confidence (from 4 estimate-eligible outdoor LT1 sessions). That direction — empirical threshold above a
-stale dossier — is what a productive base block should produce, and it argues for a formal
-LT1 retest before the threshold block to confirm, not an automatic zone update. Indoor LT1
-(232 W from 1 session) stayed below the per-environment confidence floor and was correctly
-suppressed. LT2 is omitted for insufficient eligible depth — one dwell-qualified marker-session
-near DFA a1 = 0.5, which was itself estimate-eligible, against a minimum of three. Where the
-crossing and eligible counts disagree the reading differs: dwell-qualified marker-sessions were
-estimate-rejected, and the reason names the blocker. Block ends fresh (TSB +24.6) with the aerobic
-base in good shape.
++4 bpm, wellness uniformly improving. The DFA a1 Profile section is the new addition this
+block, and it separates the α1 1.0 easy_guard from the empirical threshold markers. The
+easy-state guard sits at 145 bpm / outdoor 220 W / indoor 208 W — a top-of-easy compliance
+ceiling, descriptive only, never compared to the athlete's current thresholds. The empirical
+LT1 at α1 0.75 reads 158 bpm / outdoor 246 W / indoor 232 W. That is a description, not a
+comparison: `current_status.thresholds.sports.cycling` has no LT1 key, so there is no
+configured value to measure it against and no prior empirical LT1 to trend it from. It yields
+no delta and does not enter the progression decision. Both environment values render because
+both are present; the single estimate-eligible indoor session is thin evidence, which is worth
+saying rather than hiding. `lt2_estimate` is null at one estimate-eligible marker-session
+against a minimum of three, so the empirical LT2 line is omitted from the output entirely
+rather than printed as an absence. With nothing complete, neither the comparator row nor the
+delta row renders — the absence of a valid comparison, not "no notable delta". A formal step
+test remains the way to refresh the configured thresholds. Block ends fresh (TSB +24.6) with
+the aerobic base in good shape.
 
 Next Block Plan:
   Phase: Threshold Development
   Duration: 4 weeks
   Focus: Sweet spot and threshold intervals on existing aerobic base
   Key changes: Add 2 quality sessions per week (sweet spot Tue, threshold Fri),
-    maintain long ride volume, schedule formal LT1 step test in week 1 to
-    validate the DFA calibration delta
-  Targets: FTP test week 4 (expect 287–292W from eFTP trend), CTL maintenance
-    82–85, durability holds <3%, validate or update LT1 dossier zones from
-    week 1 step test
+    maintain long ride volume, schedule a formal step test to refresh the
+    configured cycling thresholds
+  Targets: FTP test week 4 or early in the following block (expect 287–292W from
+    eFTP trend), CTL maintenance 82–85, durability holds <3%, refresh the configured
+    cycling thresholds from the step test rather than from DFA output
+```
+
+---
+
+## Example 4: Threshold Block — LT2 Comparison (one qualifying outdoor delta; HR complete within 5%; indoor below comparison depth)
+
+```
+Block 5 Report (28 Apr – 25 May 2026)
+Weeks in block: 4
+Phase: Threshold Development
+Phase Timeline:
+  Wk 1: Build (confidence: high)
+  Wk 2: Build (confidence: high)
+  Wk 3: Build (confidence: high)
+  Wk 4: Build (confidence: high)
+
+Volume Progression:
+  Wk 1: 14.2h / 498 TSS | CTL 84.4
+  Wk 2: 14.6h / 512 TSS | CTL 85.6
+  Wk 3: 15.0h / 528 TSS | CTL 86.9
+  Wk 4: 15.4h / 545 TSS | CTL 88.3
+  Block total: 59h12m / 2083 TSS
+
+Compliance:
+  Sessions: 23/24 completed (96%)
+  Missed/modified: Wk 3 Sat endurance ride shortened (weather)
+
+Fitness Progression:
+  CTL: 83.0 → 88.3 (Δ +5.3)
+  ATL: 58.4 → 92.5
+  TSB: +24.6 → -4.2
+  Avg ramp rate: 1.33/week
+  FTP: 282W → 282W (unchanged — test deferred to after the next deload)
+  eFTP: 289W → 297W
+
+Key Performance Markers:
+  Sweetspot power: 256W → 264W (target: 262W — hit ✅)
+  VO2max power: 305W → 318W (target: 315W — hit ✅)
+  Long ride duration: 5h00m → 4h30m
+  Long ride decoupling trend: 2.4% → 2.8% → slightly regressed
+  Best 20-min power: 297W (week 3)
+  Best 5-min power: 334W (week 3)
+  Power curve rotation: +0.5 (sprint-biased)
+  Strongest adaptation: 20min (+4.2%)
+  HR curve rotation: -0.2 (endurance-biased)
+  HR context: HRV 55 ms and RHR 49 bpm — the shift is small and not directionally informative on its own
+
+Sustainability Ceilings:
+  Coverage: 7/7 anchors observed (100%) — cycling
+  5min: 334W (4.74 W/kg) — observed_outdoor | Coggan 338W | CP model 340W | divergence -1.8%
+  10min: 318W (4.51 W/kg) — observed_outdoor | Coggan 320W | CP model 322W | divergence -1.2%
+  20min: 297W (4.21 W/kg) — observed_outdoor | Coggan 296W | CP model 299W | divergence -0.7%
+  30min: 285W (4.04 W/kg) — observed_outdoor | Coggan 288W | CP model 290W | divergence -1.7%
+  60min: 272W (3.86 W/kg) — observed_outdoor | Coggan 271W | CP model 282W | divergence -3.5%
+  90min: 259W (3.67 W/kg) — observed_outdoor | Coggan 260W | CP model 279W | divergence -7.2%
+  120min: 250W (3.55 W/kg) — observed_outdoor | Coggan 251W | CP model 277W | divergence -9.7%
+  FTP used: 282W | W′: 21500J | FTP staleness: 66 days
+  Model trust: CP/W′ primary ≤20min, Coggan reference ≥60min
+  Block-over-block: Ceilings rose at every observed anchor (20min +4.2%, 60min +1.5%). Coverage improved from 86% to 100%. Divergence narrowed at ≤30min; the ≥90min gap tracks FTP staleness at 66 days rather than a change in the athlete.
+
+DFA a1 Profile:
+  Sessions in window: 7 sufficient (easy_guard: 6 crossings / 6 eligible; LT1: 5 / 5; LT2: 7 / 7)
+  Average DFA a1: 0.79 (drift mean: -0.12)
+
+  Easy-state guard (α1 1.0) — descriptive / compliance only, NOT a calibration delta:
+    148 bpm (from 6 sessions) / outdoor 232 W (from 4 sessions) / indoor 224 W (from 2 sessions)
+    Top-of-easy ceiling for recovery and endurance riding. Never compared to the athlete's current
+    thresholds; not a calibration or staleness signal.
+
+  Empirical threshold markers (LT1 α1 0.75 / LT2 α1 0.5):
+    Profile confidence (coarse orientation only, NOT calibration confidence): high
+    Empirical LT1 (α1 0.75): 162 bpm (from 5 sessions) / outdoor 268 W (from 3 sessions) / indoor 258 W (from 2 sessions)
+    Empirical LT2 (α1 0.5): 168 bpm (from 7 sessions) / outdoor 301 W (from 4 sessions) / indoor 288 W (from 3 sessions)
+    Current LT2 thresholds (cycling): 165 bpm / outdoor 282 W
+    Delta: LT2 outdoor +6.7% W (301 vs 282, from 4 estimate-eligible outdoor sessions)
+    Coaching note: the outdoor LT2 estimate sits 6.7% above the configured outdoor FTP, on four
+    estimate-eligible outdoor sessions. This is a coaching observation, not an auto-update —
+    recommend a formal FTP test before changing the configured threshold. eFTP (297 W) points the
+    same way, though the two are distinct calculations over the same activity power data, so their
+    agreement is partly structural. Pooled HR compared complete at seven sessions and landed within
+    5% of the configured LTHR (168 vs 165), so it contributes no delta of its own; because the
+    outdoor difference exceeds 5%, "no notable delta" does not describe this block. Indoor LT2
+    (288 W) is an empirical DFA observation, not an FTP estimate: it renders descriptively but
+    reached only three estimate-eligible indoor sessions, below the four required for comparison,
+    so it is not compared against the configured indoor FTP even though that value is known. Depth
+    in one environment never licenses a delta in the other. LT1 renders descriptively above and
+    produces no delta — there is no configured LT1 comparator.
+
+Polarization (block average):
+  Z1+Z2: 78%
+  Z3 (Grey Zone): 4% (target <5%)
+  Z4+ (Quality): 18% (target ~20% of intensity sessions)
+  TID 28d (block-scale): Polarized (PI: 2.62)
+  Hard days/week avg: 2.5
+
+Polarization by Week:
+  Wk 1: Z1+Z2 82%, Z3 4%, Z4+ 14%
+  Wk 2: Z1+Z2 79%, Z3 4%, Z4+ 17%
+  Wk 3: Z1+Z2 77%, Z3 4%, Z4+ 19%
+  Wk 4: Z1+Z2 76%, Z3 4%, Z4+ 20%
+
+Durability by Week:
+  Wk 1: mean(3) dec 2.2%, 0 high-drift
+  Wk 2: mean(3) dec 2.4%, 0 high-drift
+  Wk 3: mean(3) dec 2.6%, 0 high-drift
+  Wk 4: mean(3) dec 2.8%, 0 high-drift
+  Block trend: stable
+
+Efficiency Factor by Week:
+  Wk 1: mean(3) EF 1.52
+  Wk 2: mean(4) EF 1.53
+  Wk 3: mean(4) EF 1.54
+  Wk 4: mean(3) EF 1.52
+  Block trend: stable
+
+HRRc by Week (block total: 8 qualifying sessions):
+  Wk 1: mean(2) 36 bpm
+  Wk 2: mean(2) 37 bpm
+  Wk 3: mean(2) 35 bpm
+  Wk 4: mean(2) 34 bpm
+  Block trend: stable
+
+Wellness (block avg vs previous block):
+  HRV: 55 ms (prev block: 58 ms) ↓ declining — monitor
+  RHR: 49 bpm (prev block: 47 bpm) → stable — no concern
+  Sleep: 7h08m (prev block: 7h22m) → stable — no concern
+  Avg Feel: 2.7/5 (23 sessions) (prev block: 2.2/5)
+  Avg RPE: 5.2/10 (23 sessions) (prev block: 4.2/10)
+  Avg RI: 0.89 (prev block: 0.94)
+  Avg Monotony: 1.88 (normal)
+
+Section 11 Flags During Block:
+  None
+
+Phase Progression Check:
+  Block objective: Convert the aerobic base into threshold power
+  Criteria met: Yes
+    - Sweetspot and VO2max power targets both hit
+    - eFTP trending up (+8W to 297W)
+    - Compliance >85% (actual: 96%)
+    - Durability held <3% throughout
+    - Wellness drift mild and within the monitor band
+  Phase recommendation: Deload, then progress to Peak / Race Specificity
+  Rationale: Threshold criteria met — both key sessions hit target, eFTP is trending up, compliance
+  is 96%, and durability held under added intensity. The block was planned as four loading weeks,
+  so it ends at TSB -4.2 with wellness drifting mildly; expected for that design, and no Section 11
+  flag triggered. The configured FTP is 66 days stale, so the next block opens with a scheduled
+  deload and a formal test before any threshold change.
+
+Interpretation:
+A productive threshold block, planned as four loading weeks with the deload scheduled at the start
+of the next block. CTL rose 5.3 points at a sustainable 1.33/week ramp, both quality targets were
+hit, and durability and EF held steady — intensity was added without eroding aerobic efficiency.
+The DFA a1 Profile is the section worth attention. The outdoor LT2 estimate (301 W from four
+estimate-eligible outdoor sessions) sits 6.7% above the configured 282 W FTP, and eFTP moved to
+297 W. Those are distinct calculations over the same activity power data, so their agreement is
+partly structural rather than corroboration from a second source — but both read the configured
+value as low. Pooled HR told a different story: complete at seven sessions and within 5% of the
+configured LTHR, so it produced no delta — a complete comparison that agrees is silent, not absent,
+and that is why this block is not reported as "no notable delta". Indoor LT2 (288 W) stopped at
+three estimate-eligible sessions and stays descriptive; the configured indoor FTP is known, but
+depth governs comparison and outdoor depth does not license an indoor delta. No Section 11 flag
+triggered. None of this changes a threshold; it schedules a test.
+
+Next Block Plan:
+  Phase: Deload, then Peak / Race Specificity
+  Duration: 1 week deload + 3 weeks
+  Focus: Restore form, test, then race-pace work off the tested threshold
+  Key changes: Deload in week 1; formal FTP test in week 2 before any threshold change; then
+    over-unders replacing sweet spot, with race-simulation efforts on the long ride
+  Targets: FTP test week 2 (expect 295–302W from eFTP and the empirical LT2 estimate), CTL
+    maintenance 86–89, durability holds <3%, race-ready TSB of +15-25 by target date
 ```
 
 ---
@@ -494,7 +657,8 @@ Next Block Plan:
 
 - **Example 1** shows a clean, successful block — all criteria met, clear progression
 - **Example 2** shows how the template handles real-world disruption — illness, regression, and the protocol's decision to NOT progress
-- **Example 3** shows the DFA a1 Profile section in action under three-marker semantics — the α1 1.0 `easy_guard` renders as a descriptive top-of-easy compliance line (independent of threshold confidence, never part of a delta), while a genuine α1 0.75 empirical LT1 (from the block's tempo/upper-endurance sessions) surfaces an empirical-vs-dossier calibration delta as a coaching observation (not an auto-update). Confidence is moderate off the LT1 estimate-eligible sessions (easy_guard excluded); watts are split by environment (outdoor at moderate confidence, indoor suppressed below the per-environment floor); and lt2_estimate is omitted for insufficient eligible depth — base work produced one dwell-qualified marker-session near DFA a1 = 0.5, itself eligible, against a minimum of three
+- **Example 3** shows the DFA a1 Profile section under three-marker semantics with **no complete comparison** — the α1 1.0 `easy_guard` renders as a descriptive top-of-easy compliance line (independent of profile confidence, never part of a delta), and a genuine α1 0.75 empirical LT1 renders descriptively with no comparator and no delta, because `current_status.thresholds.sports.cycling` has no LT1 key. LT1 is descriptive only and does not enter the progression decision. Profile confidence is moderate off the LT1 estimate-eligible sessions (easy_guard excluded) and is coarse orientation only, never a rendering gate; environment values render whenever present. `lt2_estimate` is null for insufficient eligible depth, so the empirical LT2 line is **omitted entirely** rather than printed as "omitted". With nothing complete, the comparator and delta rows are omitted rather than rendered as "no notable delta", and no in-block coaching note is written — that note is conditional on a surfaced delta, so the explanation belongs in Interpretation
+- **Example 4** shows the LT2 comparison path with **exactly one qualifying delta** — pooled HR complete at seven estimate-eligible sessions but within 5% of the configured LTHR, so it is silent; outdoor complete at four estimate-eligible sessions and 6.7% above the configured `ftp`, so it is the one delta reported; indoor descriptive at three estimate-eligible sessions, below the comparison depth, so no indoor delta despite a known configured `ftp_indoor`. `lt2_estimate.watts_indoor` is an empirical DFA observation, not an FTP estimate — FTP and zones are always read from the configured API/JSON fields, never estimated or inferred
 - **Polarization by Week** caught the grey zone creep in Example 2 that the block average partially masked
 - **Durability by Week** caught the aerobic efficiency regression in Example 2 before wellness metrics crashed — the aggregate trend is a leading indicator of fatigue
 - **Week-by-week CTL** in Volume Progression tells the trajectory story — Example 2's dip-and-partial-recovery is immediately visible

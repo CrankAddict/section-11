@@ -8,7 +8,7 @@ Working implementations for Section 11 integrations.
 |--------|-------------|--------|
 | [SETUP_ASSISTANT.md](../SETUP_ASSISTANT.md) | Interactive AI-guided setup — paste into any AI chat | ✅ Ready |
 | [json-auto-sync](json-auto-sync/) | Automated GitHub Actions sync (every 15 min) | ✅ Ready |
-| [json-local-sync](json-local-sync/) | Automated local sync for agentic platforms (no GitHub) | ✅ Ready |
+| [json-local-sync](json-local-sync/) | Automated local sync, read via runtime filesystem or cloud connector (no GitHub) | ✅ Ready |
 | [json-on-demand](json-on-demand/) | On-demand sync from phone or browser — no local Python | ✅ Ready |
 | [json-manual](json-manual/) | Manual export from Mac/PC | ✅ Ready |
 | [reports](reports/) | Pre/post/weekly/block/season report templates | ✅ Ready |
@@ -34,7 +34,7 @@ Best for: One-off exports, different time ranges, no GitHub needed.
 
 ### Option C: Local Automated Sync
 
-Best for: Agentic platforms (OpenClaw, Claude Code, Cowork, etc.) running on the same machine as your data. Always-fresh data, no GitHub needed, maximum privacy.
+Best for: Agentic platforms (OpenClaw, Claude Code, Cowork, Hermes, etc.) whose runtime can reach your data directory; where it cannot, the AI reads a cloud-synced copy via connector. Always-fresh data, no GitHub needed. See [Privacy & Security](../README.md#privacy--security).
 
 → [json-local-sync/SETUP.md](json-local-sync/SETUP.md)
 

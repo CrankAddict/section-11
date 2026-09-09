@@ -1,368 +1,332 @@
-# Athlete Training Dossier & Performance Roadmap
+# Private Athlete Context Dossier
 
-**Template Version:** v1.2.0  
-**Protocol Compatibility:** Section 11 v11.6+  
-**Date:** [YYYY-MM-DD]  
-**Primary Source Systems:** Intervals.icu | [Other platforms]
+**Template version:** 2.0.0
 
-This document serves as a reference template for endurance athletes using the deterministic AI-coaching framework defined in Section 11.
+**Dossier revision:** [1.0 — increment when an approved change is applied]
 
----
+**Last reviewed:** [YYYY-MM-DD]
 
-## Quick Start
+**Protocol compatibility:** Section 11 JSON-first coaching workflow
 
-1. Fill in your athlete profile (Section 1)
-2. Document your equipment (Section 2)
-3. Define your training schedule and goals (Section 3)
-4. Enter your current performance metrics (Section 4)
-5. Set up your nutrition/fueling protocol (Section 5)
-6. Link this dossier to your JSON data mirror (see Section 11 for protocol)
+**Athlete:** [Name or alias]
 
----
+**Privacy:** [Private local file / private repository / private document store]
 
-## 1. Athlete Overview
+**Official dossier location:** [Absolute path, private repository path, or "not applicable — uploaded manually"]
 
-### Athlete Profile
+**Authority:** This is the current official dossier and the single source of truth for stable private athlete context. All older dossier files, drafts, exports, and uploaded copies are superseded and must not be used as current context. If more than one copy is present, do not merge them — identify this authority block, compare the dossier revision and last-reviewed date, and ask the athlete which copy is official.
 
-| Field | Value |
-|-------|-------|
-| Name | [Your name or alias] |
-| Age | [Age] |
-| Height | [cm] |
-| Current Weight | [kg] |
-| Target Weight | [kg] |
-| Location | [City, Country] |
+**The official dossier is private.** A sanitized or shareable copy is a separate, non-authoritative artifact: it never carries this authority statement, never replaces the private original, and requires its own explicit sharing approval.
 
-**Weigh-in Protocol:** [e.g., Once weekly, Friday morning, after bathroom, before food/drink]
+This dossier is a portable context file for AI coaches. It stores stable, athlete-specific information that does not belong in the public Section 11 protocol or in a live training-data feed.
 
-### Medications & Supplements (Optional)
+It is deliberately **not** a training dashboard. Current fitness, readiness, body weight, zones, thresholds, planned workouts, recent activities, load, and race state should come from the current JSON data.
 
-| Time | Items |
-|------|-------|
-| [Time] | [List medications/supplements] |
-| [Time] | [List medications/supplements] |
+> Keep this completed dossier private unless you deliberately create a sanitized copy. Never put passwords, API keys, access tokens, private repository credentials, or other secrets in it.
 
-### Sport Focus
+## Quick start
 
-| Type | Description |
-|------|-------------|
-| Primary | [e.g., Cycling performance (Endurance)] |
-| Secondary | [e.g., Running, SkiErg, Walking] |
+1. Fill in only information that materially changes coaching advice.
+2. Replace bracketed prompts and delete unused rows or sections.
+3. Keep exact medication, supplement, allergy, and tested-fueling details when you want an AI to account for them.
+4. Link the current JSON data and Section 11 protocol under **Data and protocol sources** (§9).
+5. Change this file only through the maintenance rule in §1 — a durable change in health, medication, supplements, goals, equipment, environment, constraints, or coaching preference is what triggers a proposal, not a change in fitness, fatigue, phase, schedule, or planned training.
 
-### Goals
+### What belongs here
 
-| Goal | Target Date |
-|------|-------------|
-| [Primary goal] | [Year] |
-| [Secondary goal] | [Year] |
-| [Tertiary goal] | [Year] |
+- Stable personal and sport context.
+- Long-term goals, priorities, and trade-offs.
+- Health context the athlete chooses to disclose.
+- Medications, supplements, allergies, intolerances, and tested fueling.
+- Stable availability, environment, equipment, and carrying constraints.
+- Athlete-specific interpretation notes and communication preferences.
+- Pointers to authoritative data and protocol sources.
 
-**Current Phase:** [e.g., Aerobic build + threshold development]  
-**Training Style:** [e.g., High-volume polarized (~15h/week)]
+### What does not belong here
 
----
+- Current FTP, zones, threshold estimates, weight, fitness, fatigue, or readiness.
+- Current phase, weekly schedule, planned workouts, or temporary transition plans.
+- Copies of Section 11 decision rules, recovery thresholds, or report instructions.
+- Generic training or fueling tables.
+- Activity logs, calibration logs, incident timelines, or long release histories.
+- Credentials or secrets.
 
-## 2. Equipment & Environment
+## 1. How an AI should use this file
 
-### Indoor Training Setup
+1. Read the current JSON before citing or acting on dynamic training information.
+2. Use Section 11 for coaching policy, decision logic, and report formats.
+3. Use this dossier for stable personal context and constraints.
+4. When this dossier conflicts with current JSON, use JSON for dynamic facts and ask the athlete before changing a stable personal fact.
+5. Treat medications and supplements as context, not as permission to prescribe or change treatment.
+6. Distinguish athlete-reported facts, measured data, interpretation, and uncertainty.
 
-| Component | Details |
-|-----------|---------|
-| Trainer/Bike | [Model] |
-| Platform | [e.g., Zwift, TrainerRoad, Tacx App] |
-| Cooling | [Fans, AC, etc.] |
-| Sensors | [HRM, power meter, cadence] |
-| Pedals | [Model] |
+### Maintaining this file
 
-### Outdoor Setup
+An AI may propose changes to this dossier. It may never make them unilaterally.
 
-| Component | Details |
-|-----------|---------|
-| Bike | [Model, size] |
-| Power Meter | [Model] |
-| Head Unit | [Model] |
-| HRM | [Model] |
+1. **Propose the exact change** — the section affected, the current text, the proposed text, and why the fact belongs here rather than in JSON, the calendar, or the conversation.
+2. **Obtain the athlete's exact approval.** Approval of one change authorizes that change only. General agreement with an analysis is not approval, and approval from a reviewer or another AI is never a substitute for the athlete's.
+3. **Verify write access before applying.** Apply an approved change only against a location whose write access has actually been verified. Otherwise return the revised artifact and say plainly that the source was not updated.
+4. **Never emit a full replacement dossier unless the complete current file is in context.** With only an excerpt available, return the changed section clearly labelled as a fragment, not as a replacement.
+5. **Increment the dossier revision and update the last-reviewed date** when an approved change is applied, then re-read and confirm what changed.
 
-### Other Modalities
+## 2. Interaction contract
 
-| Modality | Equipment | Purpose |
-|----------|-----------|---------|
-| [e.g., SkiErg] | [Model] | [e.g., Upper-body aerobic] |
-| [e.g., Running] | [Shoes, watch] | [e.g., Active recovery] |
-| [e.g., Strength] | [Equipment] | [e.g., Core stability] |
+Apply these defaults whenever this dossier is current context. Explicit current athlete instructions and task-specific Section 11 requirements take precedence where they conflict; otherwise this contract fills the gaps. Where a stored preference conflicts materially with a safety or report requirement, surface the conflict once, when it first affects the current task.
+
+### Portable defaults
+
+- Be direct, calm, data-driven, and concise; lead with the recommendation or verdict.
+- Do not invent missing metrics or carry old numbers forward from memory.
+- Distinguish athlete-reported facts, measured data, interpretation, and uncertainty.
+- Be a focused, critical expert partner; challenge weak reasoning rather than agreeing reflexively.
+- Surface material risks, assumptions, missing context, and missing validation.
+- Answer the question asked, without appending unrelated analysis, life advice, or tangents.
+- Treat athlete-reported feel and lived training experience as real evidence alongside device data.
+
+Coaching decision rules, report structure, and threshold logic are **not** here — they belong in Section 11. The compact maintenance rule is in §1; the full dossier lifecycle and approval policy lives in Section 11.
+
+### Athlete-specific overrides
+
+These override the portable defaults above and apply whenever this dossier is current context. They remain subordinate to platform safety rules, the athlete's explicit current request, and task-specific Section 11 requirements.
+
+- Tone: [Direct / supportive / technical / concise / other].
+- Preferred answer shape: [Verdict first / short explanation / detailed analysis / report template].
+- Technical depth: [Minimal / moderate / expert].
+- Motivation style: [What helps; what does not help].
+- Repetition tolerance: [Preference].
+- Questions and uncertainty: [When the AI should ask rather than assume].
+
+### Decision preferences
+
+- Risk tolerance: [Conservative / balanced / aggressive, with context].
+- Preference when evidence is mixed: [Describe].
+- Role of athlete-reported feel: [Describe].
+- Live pacing preference: [Power / pace / HR / RPE / mixed; source values from JSON].
+- Data the athlete prefers hidden during training: [Optional].
+- Topics the athlete does not want unsolicited commentary about: [Optional].
+
+## 3. Open review items / facts needing confirmation
+
+- [Missing medication or supplement label details].
+- [Fuel recipe or tolerance detail to confirm].
+- [Goal, equipment, health, or preference item to confirm].
+- [Data-source path or privacy choice to confirm].
+
+Delete this section when no facts need confirmation. List only unresolved facts here; standing maintenance guidance lives under **Quick start**, not in the athlete's open items.
+
+## 4. Private profile
+
+| Field | Context |
+|---|---|
+| Name or alias | [Name] |
+| Birth year or age range | [Optional; prefer birth year so the file does not become stale annually] |
+| Sex | [Optional; include when relevant to health, medication, nutrition, or performance interpretation] |
+| Height | [Optional] |
+| Home region | [City/region/country; include only the precision useful for weather, terrain, travel, or altitude context] |
+| Primary sport | [Sport and focus] |
+| Secondary sports/activities | [Optional] |
+| Occupation/lifestyle context | [Only stable facts that affect recovery, schedule, travel, or stress] |
+
+Do not store current body weight or current training status here when those are available in JSON.
+
+### Stable measurement routines (optional)
+
+Record the method and timing of measurements when consistency affects interpretation. Keep current values and targets in JSON.
+
+| Measurement | Stable routine | Last confirmed |
+|---|---|---|
+| [Body weight / blood pressure / other] | [Example: day, time, fasting state, device, protocol] | [Date] |
+
+### Long-term goals
+
+| Goal | Target date | Priority | Why it matters / success definition |
+|---|---|---|---|
+| [Goal] | [Date/year/ongoing] | [Primary/secondary] | [Context] |
+| [Goal] | [Date/year/ongoing] | [Primary/secondary] | [Context] |
+
+### Priorities and trade-offs
+
+- Primary priority: [Performance / health / event completion / consistency / other].
+- Acceptable trade-offs: [Examples: lower short-term performance for sustainability; indoor training for precision].
+- Unacceptable trade-offs: [Examples: injury risk, disrupted sleep, excessive travel burden].
+- What a successful season looks like: [Plain-language definition].
+
+Event dates, current priority tags, and race-week state belong in the live calendar/JSON.
+
+## 5. Health and interpretation context
+
+This section is optional and private. Include only what the athlete wants an AI coach to know. Confirm clinically important details with the athlete when they matter to a decision.
+
+### Relevant health context
+
+| Topic | Athlete-provided context | Coaching implication | Last confirmed |
+|---|---|---|---|
+| [Diagnosis, recurring issue, past injury, mental-health context, sleep issue, etc.] | [Context] | [How advice or interpretation should change] | [Date] |
+
+### Allergies, intolerances, and restrictions
+
+| Type | Item | Reaction/restriction | Last confirmed |
+|---|---|---|---|
+| [Allergy/intolerance/dietary/clinician restriction] | [Item] | [Context] | [Date] |
+
+### Medication
+
+| Time/frequency | Medication | Dose/formulation | Relevant context | Last confirmed |
+|---|---|---|---|---|
+| [Time] | [Name] | [Exact dose and formulation] | [Optional; do not speculate about effects] | [Date] |
+
+### Athlete-specific data interpretation
+
+Each note needs all four columns. A note without a stated basis is an assumption; a note without an approval date cannot be reviewed. Place a note beside the subject it qualifies where that is clearer than listing it here.
+
+Where a note claims a durable preference revealed consistently across decisions, the factual basis must **cite the specific decisions**. "It recurred" is not a basis.
+
+| Observation | Factual basis | Coaching implication | Approved |
+|---|---|---|---|
+| [Example: live HR may be elevated by anxiety rather than load] | [Athlete-reported, recurring across sessions] | [Interpret decoupling with athlete-reported context; prefer power as the live pacing signal when valid] | [Date] |
+| [Example: barometric and derived elevation disagree] | [Device comparison across the same rides] | [Compare local profile shape within one source; do not treat cross-source ascent equality as a quality target] | [Date] |
+| [Example: indoor and outdoor power differ] | [Measured on both setups] | [Use environment-specific values from JSON; do not treat them as interchangeable] | [Date] |
+
+A note must not contain a diagnosis, a hidden personality assessment, a speculative motive, a raw chat quotation, or an unsupported causal claim.
+
+## 6. Stable constraints and practical context
+
+### Availability
+
+Record durable constraints, not this week's plan.
+
+| Constraint | Context |
+|---|---|
+| Typical available days/times | [Stable pattern or “variable—use calendar”] |
+| Maximum practical session window | [Only if genuinely stable] |
+| Work/family/travel constraints | [Context] |
+| Preferred rest day(s) | [Optional] |
+| Indoor/outdoor preference | [Context] |
 
 ### Environment
 
-| Factor | Details |
-|--------|---------|
-| Indoor | [Description of training space, ventilation, temperature] |
-| Outdoor | [Typical terrain, climate, temperature range] |
-| Calibration | [Routine for power meter calibration] |
-
----
-
-## 3. Training Schedule & Framework
-
-### Weekly Volume Target
-
-**Baseline:** [X] hours/week (± [Y] hours)  
-**Peak phases:** Up to [Z] hours (requires RI ≥ 0.8, HRV within 10%)
-
-### Normal Weekly Schedule
+| Factor | Context that changes advice |
+|---|---|
+| Local terrain | [Flat/rolling/mountainous; road/trail access; traffic constraints] |
+| Typical weather | [Heat, cold, rain, wind, altitude, seasonality] |
+| Indoor environment | [Cooling, ventilation, heat limitations] |
+| Route constraints | [Safe roads, lighting, restock access, technical terrain] |
 
-| Day | Primary Session | Duration | Secondary |
-|-----|-----------------|----------|-----------|
-| Sunday | [Workout type] | [Duration] | [Optional] |
-| Monday | [Workout type] | [Duration] | [Optional] |
-| Tuesday | [Workout type] | [Duration] | [Optional] |
-| Wednesday | [Workout type] | [Duration] | [Optional] |
-| Thursday | [Workout type] | [Duration] | [Optional] |
-| Friday | [Workout type] | [Duration] | [Optional] |
-| Saturday | [Workout type] | [Duration] | [Optional] |
-
-### Session Details
-
-| Session Type | Target Power/HR | Duration | Purpose |
-|--------------|-----------------|----------|---------|
-| VO₂Max | [W or % FTP] | [Duration] | [Purpose] |
-| Endurance | [W or % FTP] | [Duration] | [Purpose] |
-| Sweetspot | [W or % FTP] | [Duration] | [Purpose] |
-| Long Ride | [W or % FTP] | [Duration] | [Purpose] |
-| Recovery | [W or % FTP] | [Duration] | [Purpose] |
+### Established routines (optional)
 
-### Recovery Protocol
+Record only durable routines that an AI may need to recall or adapt. Current workout prescriptions still belong in the live plan or JSON.
 
-**Recovery Triggers (Auto-Deload):**
-- HRV ↓ > 20% → [Response]
-- RHR ↑ ≥ 5 bpm → [Response]
-- Feel ≥ 4 → [Response]
-- Two+ triggers → [Response]
+| Routine | Exact steps or reference | When used | Flexibility/status | Last confirmed |
+|---|---|---|---|---|
+| [Pre-session activation] | [Exercises, sets, repetitions, duration] | [Use case] | [Default / optional / symptom-dependent] | [Date] |
+| [Post-session mobility] | [Exercises and duration] | [Use case] | [Default / optional / symptom-dependent] | [Date] |
+| [Other stable routine] | [Details] | [Use case] | [Status] | [Date] |
 
-**Feel Scale:**
-| Score | Meaning |
-|-------|---------|
-| 1 | Excellent (fully recovered) |
-| 2 | Good (normal fatigue) |
-| 3 | Moderate (manageable tiredness) |
-| 4 | Fatigued (reduced readiness, deload trigger) |
-| 5 | Exhausted (complete rest required) |
+### Calibration and setup habits (optional)
 
-### Performance Objectives
+- Indoor/outdoor fit relationship: [How closely setups match and any durable caveats].
+- Power-meter/trainer calibration routine: [Stable practice; do not store a rolling calibration log here].
+- Sensor-specific interpretation notes: [Sidedness, known offsets, environmental sensitivities, or other durable context].
 
-| Year | Phase | Focus | Primary KPI |
-|------|-------|-------|-------------|
-| [Year] | [Phase name] | [Focus area] | [Target metrics] |
-| [Year] | [Phase name] | [Focus area] | [Target metrics] |
-| [Year] | [Phase name] | [Focus area] | [Target metrics] |
+### Essential equipment
 
----
+List only equipment that changes workout prescription, data interpretation, safety, route choice, or fueling logistics.
 
-## 4. Performance Metrics
+| Use | Equipment/context |
+|---|---|
+| Indoor training | [Trainer/bike/platform/cooling] |
+| Outdoor training | [Bike/shoes/power meter/head unit] |
+| Sensors | [HR, power, temperature, glucose, etc.] |
+| Safety/navigation | [Radar, lights, emergency equipment] |
+| Other modalities | [Equipment and purpose] |
+| Carrying capacity | [Bottles, hydration pack, food/storage limits] |
 
-### Current Power Zones
+Keep this table concise. Record only what changes advice — a full equipment inventory is not the purpose of this file.
 
-| Zone | % of FTP | Power (W) | Notes |
-|------|----------|-----------|-------|
-| Z1 | 0–55% | [Calculate] | Active Recovery |
-| Z2 | 56–75% | [Calculate] | Endurance (Base) |
-| Z3 | 76–90% | [Calculate] | Tempo |
-| Z4 | 91–105% | [Calculate] | Threshold |
-| Z5 | 106–120% | [Calculate] | VO₂max |
-| Z6 | 121–150% | [Calculate] | Anaerobic |
-| Z7 | 151%+ | [Calculate] | Neuromuscular |
-| SS | 84–97% | [Calculate] | Sweetspot |
+## 7. Fueling and hydration context
 
-**Current FTP:** [W] (Indoor: [W])  
-**Max HR:** [bpm]  
-**Threshold HR:** [bpm]
+Store the athlete's **tested personal practice**, tolerances, and logistics here. Generic targets and protocol rules belong in Section 11.
 
-### Current Fitness Markers
+### Tested training fuel
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| FTP (Outdoor) | [W] | |
-| FTP (Indoor) | [W] | Adjusted for indoor conditions |
-| LT2 Power (MLSS) | [W] | ≈[%] of FTP |
-| LT2 HR | [bpm] | |
-| LT1 (AeT) | [W] | HR ≈[bpm] |
-| VO₂max Interval Power | [W] | |
-| Sweetspot Target | [W] | |
-| Weekly Volume | [hours] | [TSS range] |
+| Use case | Exact recipe/product | Amount carried | How it is used | Tolerance/result | Last confirmed |
+|---|---|---|---|---|---|
+| [Routine training drink] | [Ingredients and quantities] | [Bottle/serving details] | [Personal routine] | [GI tolerance, taste, practicality] | [Date] |
+| [Long-event fuel] | [Products/food] | [Capacity] | [Personal routine] | [Result] | [Date] |
 
-### Weight Tracking
+### Recovery food/drink
 
-**Protocol:** [Frequency, conditions]  
-**Adjustment Control:** Weight adjustments only permitted during readiness-positive periods (DI ≥ 0.95, HR drift ≤ 3%, RI ≥ 0.8)
+| Recipe/product | Exact ingredients and quantities | When used | Purpose/tolerance | Last confirmed |
+|---|---|---|---|---|
+| [Recovery drink/meal] | [Details] | [Use case] | [Context] | [Date] |
 
----
+### Hydration and practical preferences
 
-## 5. Nutrition / Fueling
+- Typical carrying capacity: [Bottles/bladder/storage].
+- Preferred drink reminder basis: [Time/distance/thirst/no reminder].
+- Preferred fuel reminder basis: [Time/distance/no reminder].
+- Heat/cold considerations: [Athlete-specific observations].
+- Known GI limits or disliked products: [Context].
+- Restock preference: [No-stop / planned stops / route-dependent].
 
-### Training Fuel Recipe
+## 8. Supplements
 
-```
-[Your carb mix recipe]
-```
+Keep the full known stack here if supplement review is one reason for maintaining a private dossier. Record exact label doses when possible; “two capsules” is not enough if the active dose per capsule is unknown.
 
-**CHO per bottle:** [g]  
-**Target intake:** [g CHO/h]
+| Time/frequency | Product | Exact active ingredients and total dose | Purpose claimed/experienced | Status | Last reviewed |
+|---|---|---|---|---|---|
+| [Time] | [Product] | [Label details] | [Why used] | [Keep / review / situational / stopped] | [Date] |
 
-### Recovery Drink Recipe
+### Supplement audit notes
 
-```
-[Your recovery drink recipe]
-```
+- Combined-dose concerns: [Overlapping ingredients or “not yet checked”].
+- Medication interactions to verify: [Items or “not yet checked”].
+- Cost/value notes: [Context].
+- Products awaiting exact label photos: [List].
 
-### Fueling by Workout Type
+Do not change prescribed medication or add/drop supplements solely because an AI suggests it. Use the dossier to make the stack visible and auditable.
 
-| Workout Type | Duration | CHO Target | Setup |
-|--------------|----------|------------|-------|
-| Recovery / Z1–Z2 | < 1.5 h | [g/h] | [Description] |
-| Endurance | 1.5–3 h | [g/h] | [Description] |
-| Long Endurance | 3–6 h | [g/h] | [Description] |
-| Threshold / SS | 1–2 h | [g/h] | [Description] |
-| VO₂ / High Intensity | 1–1.5 h | [g/h] | [Description] |
-| Race / Event | 4–6 h | [g/h] | [Description] |
+## 9. Data and protocol sources
 
-### Hydration
+### Configuration
 
-**Target:** [ml/hour]  
-**Sodium:** [mg/L] base, + [mg/h] additional for long/hot rides
+Fill in the method(s) the athlete actually uses. Delete unused examples.
 
-### Fuel & Drink Cues
+| Purpose | Source/path/repository |
+|---|---|
+| Current snapshot | [Local path, private connector path, or URL to `latest.json`] |
+| Longitudinal history | [Path/URL to `history.json`] |
+| Recent interval detail | [Path/URL to `intervals.json`] |
+| FTP history | [Path/URL to `ftp_history.json`] |
+| Planned route terrain | [Path/URL to `routes.json`] |
+| Section 11 protocol | [Path or official repository URL] |
+| Report templates | [Path or official repository URL] |
 
-**Preferred fuel cue basis:** [time, e.g. every 20 min — or distance, e.g. every 10 km]  
-**Preferred drink reminder basis:** [time or distance interval]  
-**Typical carrying capacity:** [e.g. 2 × 750 ml bottles, 3 gels in pockets]
+**Data directory:** [Runtime-accessible location where training data is read — local path, provider-hosted path, mounted folder, connector root — or "not applicable"]
 
-Restock points are route-specific and supplied per ride, not stored here.
+This is where a runtime reads training data. It is **not** the authoritative dossier copy — that is recorded as **Official dossier location** in the header block at the top of this file.
 
----
+**Last data-source check:** [Date]
 
-## 6. Adaptation & Current Focus
+### Privacy choices
 
-### Current Adaptation Focus
+- Recommended local setup: keep the completed dossier outside the public Section 11 repository and point the AI to its path.
+- Connector setup: store it only in a private repository or private document source if the athlete accepts that access model.
+- Manual handoff: upload the dossier directly to the AI for the task or conversation.
+- Public sharing: create a sanitized copy rather than publishing the private original.
 
-- [ ] [Focus item 1]
-- [ ] [Focus item 2]
-- [ ] [Focus item 3]
-- [ ] [Focus item 4]
+Never store API credentials in this file, even when the data source requires authentication.
 
-### Next-Phase Options
+## 10. External-AI handoff
 
-[Description of upcoming phase transition criteria and options]
+For a fresh AI coach, provide:
 
----
+1. The completed private dossier.
+2. The current JSON files needed for the task.
+3. The current Section 11 protocol or relevant report template.
+4. The date, timezone, and specific request.
 
-## 7. Outdoor Transition Plan (if applicable)
+Suggested handoff prompt:
 
-### Transition Timeline
-
-| Month | Changes | Notes |
-|-------|---------|-------|
-| [Month] | [Transition step] | [Details] |
-| [Month] | [Transition step] | [Details] |
-| [Month] | [Transition step] | [Details] |
-
-**General Rules:**
-- Outdoor rides replace indoor 1:1
-- HR < 85% of threshold = aerobic
-- Use HR to guide intensity early season
-
----
-
-## 8. Long-Term Performance Roadmap
-
-### Primary Objective
-
-[Your main goal with target time/performance]
-
-### Progression Overview
-
-| Year | Focus | FTP Target | W/kg Target | Key Metrics |
-|------|-------|------------|-------------|-------------|
-| [Year] | [Focus] | [W] | [W/kg] | [Metrics] |
-| [Year] | [Focus] | [W] | [W/kg] | [Metrics] |
-| [Year] | [Focus] | [W] | [W/kg] | [Metrics] |
-
-### Event-Specific Targets (Optional)
-
-| Event/Segment | Year | Priority | Target Time | Target Power |
-|---------------|------|----------|-------------|--------------|
-| [Event] | [Year] | [A/B/C] | [Time] | [W] |
-| [Event] | [Year] | [A/B/C] | [Time] | [W] |
-
-> **Race tagging for automated protocol activation:** Tag races in Intervals.icu as `RACE_A`, `RACE_B`, or `RACE_C` using the event category selector. The race-week protocol (Section 11A) activates automatically for A and B races within 7 days. C races are training races — no taper adjustments. For best results, also set expected duration (`moving_time`) in the event to enable event-type modifiers (carb loading, opener intensity, TSB targets).
-
----
-
-## 9. Coach Notes
-
-[Space for coach observations, athlete-specific considerations, or important reminders]
-
----
-
-## 10. Operational & Data Integrity Log
-
-### Training Timeline & Event Log
-
-| Date | Event | Notes |
-|------|-------|-------|
-| [Date] | [Event] | [Details] |
-| [Date] | [Event] | [Details] |
-
-### Calibration & Data Log
-
-| Date | Item | Action |
-|------|------|--------|
-| [Date] | [Equipment] | [Action taken] |
-| [Date] | [Equipment] | [Action taken] |
-
----
-
-## Data Mirror Configuration
-
-### JSON Endpoint (for AI coaches)
-
-**URL:** `https://raw.githubusercontent.com/[username]/[repo]/main/latest.json`
-
-**Archive:** `https://github.com/[username]/[repo]/tree/main/archive`
-
-**— OR (GitHub connector) —**
-
-**Repo:** `[username]/[repo]` (connected via platform's GitHub integration — AI reads files directly, no URLs needed)
-
-> **Tip:** If you commit `DOSSIER.md` to your data repo alongside `latest.json`, `history.json`, and `intervals.json`, connecting the repo gives the AI both your data and your profile in one connection. The only remaining piece is `SECTION_11.md`, which the AI can fetch from the public CrankAddict/section-11 repo or a second connector.
-
-**— OR (local setup) —**
-
-**Path:** `latest.json` (data directory root, alongside this dossier)
-
-**History:** `history.json` (data directory root)
-
-**Intervals:** `intervals.json` (data directory root — on-demand, for structured session analysis)
-
-**Data Path (optional):** `[/path/to/training-data/]`
-Only needed if the AI agent's working directory is different from where data files live (e.g., OpenClaw workspace is `~/clawd/` but data is in `~/training-data/`). Leave blank if they are the same directory.
-
-For local setups where sync.py runs on the same machine as the AI agent, files are read directly from the filesystem — no URLs needed. See `examples/json-local-sync/SETUP.md` for the complete local pipeline.
-
-This endpoint provides synchronized Intervals.icu metrics for deterministic AI parsing. See **Section 11** for the full AI Coach Guidance Protocol.
-
----
-
-## Protocol Reference
-
-This dossier follows the **Section 11 A/B AI Coach Guidance Protocol** for AI integration.
-
-**Protocol Location:** [Link to your Section 11 document or repo]
-
----
-
-## Changelog
-
-This log records changes to the athlete's completed dossier, not releases of the template.
-
-### v1.0 ([Date])
-- Initial dossier creation
-
+> Use the attached dossier only for stable personal context. Use the current JSON files for all dynamic training facts and metrics. Follow the attached/current Section 11 protocol for coaching decisions and report structure. If the sources conflict, distinguish the conflict and ask before changing a stable personal fact.

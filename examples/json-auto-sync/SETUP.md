@@ -4,7 +4,7 @@ This guide explains how to create an automated JSON data mirror of your Interval
 
 > **Prefer an interactive guide?** Paste [SETUP_ASSISTANT.md](../../SETUP_ASSISTANT.md) into any AI chat and it will walk you through this entire setup step by step.
 
-> **Running an agentic platform locally?** If your AI coach runs on the same machine as your data (OpenClaw, Claude Code, Cowork, etc.), consider [local sync](../json-local-sync/SETUP.md) instead — simpler setup, no GitHub needed, data never leaves your machine.
+> **Running an agentic platform locally?** If your AI coach runs on the same machine as your data (OpenClaw, Claude Code, Cowork, etc.), consider [local sync](../json-local-sync/SETUP.md) instead — simpler setup, and no GitHub repository in the path. Where your data goes still depends on what you configure and which AI you point at it; see [Privacy & Security](../../README.md#privacy--security).
 
 ---
 
@@ -187,7 +187,9 @@ Benchmark Index = (Current FTP - FTP 8 weeks ago) / FTP 8 weeks ago
 
 Once set up, configure your AI platform using the instructions in the [main README](../../README.md#web-chat-setup).
 
-**GitHub connector users:** If your AI platform has a GitHub connector, connect your data repo directly — the AI reads `latest.json`, `history.json`, `intervals.json`, `routes.json`, and any other committed files through the connector. No URLs needed. If you commit `DOSSIER.md` and `SECTION_11.md` to the repo, the connector provides everything in one connection.
+**GitHub connector users:** If your AI platform has a GitHub connector, connect your data repo directly — the AI reads `latest.json`, `history.json`, `intervals.json`, `routes.json`, and any other committed files through the connector. No URLs needed. If you commit `DOSSIER.md` and `SECTION_11.md` to the repo as well, one connection covers your data, your dossier and the protocol. Check what the connector is actually scoped to — where it exposes only the JSON, supply `SECTION_11.md` and the dossier separately.
+
+A GitHub connector is normally read-only. Where its write access is unavailable or unverified, your AI cannot update `DOSSIER.md` in place: it returns the revised dossier as an artifact and says plainly that the source was not updated. You then commit that file over the official `DOSSIER.md`, or replace the official copy with it — as would a repository writer whose access you have verified separately. Nothing in the automated pipeline does this for you. The sync workflow commits only the generated data files and the repository README; it never touches your dossier.
 
 **URL fetch users:** Provide these URLs to your AI coach:
 ```
@@ -253,7 +255,7 @@ run: python sync.py --days 14
 
 ## Privacy Notes
 
-The script does not anonymize your data. Only `metadata.athlete_id` is redacted — activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through. See [Privacy & Security](https://github.com/CrankAddict/section-11#privacy--security).
+The script does not anonymize your data. Only `metadata.athlete_id` is redacted — activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through. See [Privacy & Security](../../README.md#privacy--security).
 
 Activity and event IDs are always real (opaque database keys, not PII) to enable features like coach annotations and planned-vs-actual pairing. Indoor/virtual ride names are preserved for workout identification.
 
@@ -274,6 +276,11 @@ For additional privacy, use a **private repository** and a separate GitHub accou
 
 ## Update Notifications
 
-The sync script checks for upstream updates using `manifest.json` from the [Section 11 repository](https://github.com/CrankAddict/section-11). When new versions are available, a GitHub Issue is created in your data repo listing the changed files. No action is needed — just watch your Issues tab.
+**This setup does not notify you of upstream updates.** Two separate mechanisms exist, and neither reaches you here. The one that opens a GitHub Issue runs only when `sync.py` publishes to GitHub itself, using a token and repository you have configured; this workflow deliberately avoids that path, invoking `sync.py` in output-only mode so the workflow does the committing. The other is a local notice that prints a single line during a sync run and creates no GitHub Issue or other notification artifact; it looks for a `section11/` directory beside your data, and a data mirror built from this guide has none. Nothing will appear in your Issues tab.
+
+Staying current is manual, and the three files you copied in Step 2 are not updated the same way. Watching the [Section 11 repository](https://github.com/CrankAddict/section-11) will tell you that something changed, but it is not the update itself.
+
+- **`sync.py`** and **`.github/workflows/auto-sync.yml`** are verbatim copies. Compare them against the hashes in the repository's `manifest.json` and replace either one outright when it differs.
+- **`README.md`** is not comparable that way. You replaced its placeholders during setup, and the workflow rewrites its **Last successful sync** line on every run, so it will always differ from the template. Read what changed in `DATA_REPO_README_TEMPLATE.md` and merge anything that applies into your own README by hand. Do not overwrite it from the template, and do not read a hash mismatch as an update.
 
 For local setups (non-GitHub), see [json-local-sync](../json-local-sync/SETUP.md#staying-up-to-date) for the local update mechanism.

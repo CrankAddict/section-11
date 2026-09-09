@@ -130,7 +130,7 @@ Download the **training-data** artifact ZIP from the completed run, then attach 
 
 ## Security
 
-All data stays behind GitHub authentication. No public pages, no tokens stored in the browser. Private repos remain private. This is the same security model as auto-sync — the only difference is you trigger the workflow manually.
+Downloading the artifact ZIP and attaching the JSON to a chat takes your data outside GitHub authentication. A connector reads the repository directly, so processing and retention there are governed by that AI platform's terms rather than by Section 11. Where the files go from there depends on what you configure and which AI you point them at. This workflow publishes no GitHub Pages site. Private repos remain private. The workflow and required-secret handling are identical to auto-sync apart from the manual trigger. See [Privacy & Security](../../README.md#privacy--security) for the full policy.
 
 ---
 

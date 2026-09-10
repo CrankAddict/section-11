@@ -1,4 +1,4 @@
-# Section 11 — AI Coaching Protocol
+# Section 11: AI Coaching Protocol
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -12,10 +12,10 @@ An open protocol for deterministic, auditable AI-powered endurance coaching. Bui
 
 ### Core Principles
 
-- **Deterministic** — Same inputs produce same outputs
-- **Auditable** — Every recommendation cites specific data and frameworks
-- **Evidence-based** — Grounded in 15+ peer-reviewed endurance science models
-- **Athlete-controlled** — Your data, your thresholds, your goals
+- **Deterministic**: Same inputs produce same outputs
+- **Auditable**: Every recommendation cites specific data and frameworks
+- **Evidence-based**: Grounded in 15+ peer-reviewed endurance science models
+- **Athlete-controlled**: Your data, your thresholds, your goals
 
 ---
 
@@ -24,15 +24,15 @@ An open protocol for deterministic, auditable AI-powered endurance coaching. Bui
 | File | Description |
 |------|-------------|
 | [SECTION_11.md](SECTION_11.md) | Complete protocol: AI Coach Guidance (11 A), Training Plan Protocol (11 B), Validation Protocol (11 C) |
-| [examples/workout-library/](examples/workout-library/) | Workout Reference Library — 26 session templates that Section 11 B §8 requires AI systems to select from |
-| [examples/agentic/](examples/agentic/) | Agentic tools — calendar writes, raw activity stream reads, external API reference — for runtimes with verified access, configured credentials and a tested execution path |
-| [examples/json-local-sync/](examples/json-local-sync/) | Local automated sync for runtimes that can reach your filesystem — no GitHub needed |
-| [examples/dfa_a1/NON_GARMIN.md](examples/dfa_a1/NON_GARMIN.md) | DFA a1 platform support status — documents that the feature requires Garmin + AlphaHRV today, plus discovery commands for Suunto / Karoo / phone-fallback verification |
-| [DOSSIER_TEMPLATE.md](DOSSIER_TEMPLATE.md) | Template for your athlete dossier — the stable private context your AI cannot read from your data |
+| [examples/workout-library/](examples/workout-library/) | Workout Reference Library: 26 session templates that Section 11 B §8 requires AI systems to select from |
+| [examples/agentic/](examples/agentic/) | Agentic tools (calendar writes, raw activity stream reads, external API reference) for runtimes with verified access, configured credentials and a tested execution path |
+| [examples/json-local-sync/](examples/json-local-sync/) | Local automated sync for runtimes that can reach your filesystem (no GitHub needed) |
+| [examples/dfa_a1/NON_GARMIN.md](examples/dfa_a1/NON_GARMIN.md) | DFA a1 platform support status: documents that the feature requires Garmin + AlphaHRV today, plus discovery commands for Suunto / Karoo / phone-fallback verification |
+| [DOSSIER_TEMPLATE.md](DOSSIER_TEMPLATE.md) | Template for your athlete dossier: the stable private context your AI cannot read from your data |
 | [examples/](examples/) | Full examples directory |
-| [SETUP_ASSISTANT.md](SETUP_ASSISTANT.md) | Interactive AI-guided setup — paste into any AI chat to get started |
-| [manifest.json](manifest.json) | Version tracking — consumed by sync.py for update notifications |
-| [LICENSE](LICENSE) | MIT — permissive license, commercial use allowed with attribution |
+| [SETUP_ASSISTANT.md](SETUP_ASSISTANT.md) | Interactive AI-guided setup: paste into any AI chat to get started |
+| [manifest.json](manifest.json) | Version tracking (consumed by sync.py for update notifications) |
+| [LICENSE](LICENSE) | MIT: permissive license, commercial use allowed with attribution |
 
 ---
 
@@ -44,7 +44,7 @@ Section 11 operates no hosted backend. Data moves only through services you expl
 
 ---
 
-The setup paths documented here are proven starting points — not the only ways to use Section 11. The protocol is open, and the data is yours. Build what fits you.
+The setup paths documented here are proven starting points, not the only ways to use Section 11. The protocol is open, and the data is yours. Build what fits you.
 
 An AI with persistent memory and a runtime that can execute code reaches more of the project. Filesystem reach, code execution and write access are separate capabilities, each verified per target; none of them follows from a platform's label. See [Agentic Setup](#agentic-setup).
 
@@ -56,28 +56,28 @@ An AI with persistent memory and a runtime that can execute code reaches more of
 
 You can also follow the step-by-step guides below.
 
-### 1. Create Your Dossier — your stable private context
+### 1. Create Your Dossier: your stable private context
 
-Copy `DOSSIER_TEMPLATE.md` and fill in the context your AI cannot read from your data: background, equipment, stable constraints, health and injury history, tested fueling, and how you prefer to be coached. Current thresholds and load always come from your JSON. You can start coaching before the dossier exists — a missing dossier limits personalisation, not safety.
+Copy `DOSSIER_TEMPLATE.md` and fill in the context your AI cannot read from your data: background, equipment, stable constraints, health and injury history, tested fueling, and how you prefer to be coached. Current thresholds and load always come from your JSON. You can start coaching before the dossier exists; a missing dossier limits personalisation, not safety.
 
 ### 2. Set Up Your Data Sync
 
 Keep your Intervals.icu data fresh for your AI coach automatically.
 
-**[Local sync](examples/json-local-sync/SETUP.md)** — a script on a machine you control syncs your data on a 60-second timer. An AI whose runtime can reach that filesystem reads the files directly; otherwise it reads them through a cloud connector (Google Drive, OneDrive — [platform support varies](#platform-setup)).
+**[Local sync](examples/json-local-sync/SETUP.md)**: a script on a machine you control syncs your data on a 60-second timer. An AI whose runtime can reach that filesystem reads the files directly; otherwise it reads them through a cloud connector (Google Drive, OneDrive; [platform support varies](#platform-setup)).
 
-**[GitHub sync](examples/json-auto-sync/SETUP.md)** — GitHub Actions syncs every 15 minutes to a private repo. Your AI reads via GitHub connector or raw URL.
+**[GitHub sync](examples/json-auto-sync/SETUP.md)**: GitHub Actions syncs every 15 minutes to a private repo. Your AI reads via GitHub connector or raw URL.
 
-**[On-demand sync](examples/json-on-demand/SETUP.md)** — trigger a fresh sync from your phone or browser via your repo's README. Download the data as a ZIP artifact. No schedule, no local Python.
+**[On-demand sync](examples/json-on-demand/SETUP.md)**: trigger a fresh sync from your phone or browser via your repo's README. Download the data as a ZIP artifact. No schedule, no local Python.
 
-**[Manual export](examples/json-manual/SETUP.md)** — run once, upload the file. No automation. Custom ranges available. Remember the upload is frozen — re-export and replace it before a report if your data has moved on.
+**[Manual export](examples/json-manual/SETUP.md)**: run once, upload the file. No automation. Custom ranges available. Remember the upload is frozen. Re-export and replace it before a report if your data has moved on.
 
 ### 3. Configure Your AI Platform
 
 Choose your path:
 
-- **[Agentic Platforms](#agentic-setup)** — OpenClaw, Claude Code, Claude Cowork, ChatGPT Codex, Gemini CLI (code execution, push workouts to calendar). Grok Bot and Hermes Agent have the capability class but are **experimental** — capability class is not a support promise. Calendar writes need verified access, configured credentials and a tested integration.
-- **[Web Chat Platforms](#web-chat-setup)** — ChatGPT Projects, Claude Projects, Gemini Gems, Grok (web/app), Mistral Vibe
+- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, Claude Cowork, ChatGPT Codex, Gemini CLI (code execution, push workouts to calendar). Grok Bot and Hermes Agent have the capability class but are **experimental**; capability class is not a support promise. Calendar writes need verified access, configured credentials and a tested integration.
+- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT Projects, Claude Projects, Gemini Gems, Grok (web/app), Mistral Vibe
 
 ### 4. Make Files Available to Your AI
 
@@ -85,9 +85,9 @@ Your AI needs access to `SECTION_11.md` (the protocol) and `DOSSIER.md` (your pr
 
 - **Local/agentic:** Where the runtime can reach your filesystem, the AI reads the files directly.
 - **GitHub connector:** If these files are in your connected repo, the AI reads them directly. If only `DOSSIER.md` is in your data repo, upload `SECTION_11.md` separately (or connect the CrankAddict/section-11 repo too).
-- **Cloud connector (Google Drive, OneDrive — [platform support varies](#platform-setup)):** If these files are in your synced folder, the AI reads them through the connector.
+- **Cloud connector (Google Drive, OneDrive; [platform support varies](#platform-setup)):** If these files are in your synced folder, the AI reads them through the connector.
 - **URL fetch (no connector):** If your data repo is public, the AI can fetch raw URLs directly.
-- **Manual upload:** Upload both files to your AI platform or project. Uploaded files are frozen at upload — replace the old copy when you update one, and don't leave two versions in the store.
+- **Manual upload:** Upload both files to your AI platform or project. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 ---
 
@@ -99,7 +99,7 @@ For runtimes that can execute code, access the filesystem, and run shell command
 
 > **Alternative: GitHub sync.** A private repo with GitHub Actions gives you multi-device access and backup. Follow the per-platform instructions below.
 
-Your agent needs `SECTION_11.md` (the protocol) and your `DOSSIER.md`. If you cloned the repos locally, the agent reads them from the filesystem. If using GitHub sync, the agent reads them from the repo — no manual upload needed.
+Your agent needs `SECTION_11.md` (the protocol) and your `DOSSIER.md`. If you cloned the repos locally, the agent reads them from the filesystem. If using GitHub sync, the agent reads them from the repo (no manual upload needed).
 
 ### OpenClaw (formerly ClawdBot/MoltBot)
 
@@ -122,35 +122,35 @@ Cowork is a desktop app that can read files directly from your filesystem.
 
 ### ChatGPT Codex
 
-1. Connect your GitHub account at [chatgpt.com/codex](https://chatgpt.com/codex) and authorize your data repo — web and desktop app connect directly
-2. Or install the CLI: `npm install -g @openai/codex` — reads from local filesystem
+1. Connect your GitHub account at [chatgpt.com/codex](https://chatgpt.com/codex) and authorize your data repo; web and desktop app connect directly
+2. Or install the CLI: `npm install -g @openai/codex` (reads from local filesystem)
 
 ### Gemini CLI
 
 1. Install: `npm install -g @google/gemini-cli` (or `npx @google/gemini-cli`)
-2. Clone your data repo locally — Gemini CLI has full filesystem access
+2. Clone your data repo locally; Gemini CLI has full filesystem access
 
 ### Grok Bot (experimental)
 
 Runs on a user-scoped shared computer and authenticates through Cursor. It has the agentic capability class, but it is **experimental**: it is not validated end to end against the Section 11 pipeline, and capability class is not a support promise. Any write must be verified against the specific target before it is used or assumed.
 
-All Bots on your account share one cloud computer: files, browser sessions and command-line credentials are not isolated. Deleting a Bot does not clear shared files or browser sessions. Cloud storage is required and Legacy Privacy Mode is unavailable — check your [xAI](https://docs.x.ai/) and Cursor privacy settings before adding a sensitive dossier.
+All Bots on your account share one cloud computer: files, browser sessions and command-line credentials are not isolated. Deleting a Bot does not clear shared files or browser sessions. Cloud storage is required and Legacy Privacy Mode is unavailable. Check your [xAI](https://docs.x.ai/) and Cursor privacy settings before adding a sensitive dossier.
 
 ### Hermes Agent (experimental)
 
 Reads the filesystem of its runtime host, not your machine. It has the agentic capability class, but it is **experimental** and not validated end to end against the Section 11 pipeline.
 
-Point it at your data with a pointer file rather than copying files onto the host. Its working directory is not guaranteed to be where you think it is — set paths explicitly and check the resolved working directory before relying on a relative path.
+Point it at your data with a pointer file rather than copying files onto the host. Its working directory is not guaranteed to be where you think it is. Set paths explicitly and check the resolved working directory before relying on a relative path.
 
 ### Agentic Tools
 
 Runtimes with verified access, configured credentials and a tested execution path can use the tools in [examples/agentic/](examples/agentic/) for:
 
-- **`push.py`** — write planned workouts to your Intervals.icu calendar (push, list, move, delete), update sport-specific thresholds, annotate activities
-- **`pull.py`** — fetch raw per-second activity streams (GPS, altitude, watts, HR, …) when `terrain_summary`/`weather_summary` in `latest.json` aren't enough and the AI needs the underlying track
-- **`EXTERNAL_APIS.md`** — endpoint reference for Strava, MET Norway, Open-Meteo, and Intervals.icu streams + weather, used by agentic flows for pre-ride enrichment
+- **`push.py`**: write planned workouts to your Intervals.icu calendar (push, list, move, delete), update sport-specific thresholds, annotate activities
+- **`pull.py`**: fetch raw per-second activity streams (GPS, altitude, watts, HR, …) when `terrain_summary`/`weather_summary` in `latest.json` aren't enough and the AI needs the underlying track
+- **`EXTERNAL_APIS.md`**: endpoint reference for Strava, MET Norway, Open-Meteo, and Intervals.icu streams + weather, used by agentic flows for pre-ride enrichment
 
-These all require code execution — web chat platforms cannot use them.
+These all require code execution; web chat platforms cannot use them.
 
 See [examples/agentic/README.md](examples/agentic/README.md) for setup, commands, and workout syntax.
 
@@ -166,9 +166,9 @@ Copy the block between the fences in [`PROJECT_INSTRUCTIONS_WEB.md`](PROJECT_INS
 
 That file is the canonical web and connector contract. It states which sessions it covers, what a delivery path does and does not confer, and how to handle stale or conflicting copies. If your AI runs on a filesystem it can read, use [`PROJECT_INSTRUCTIONS_AGENTIC.md`](PROJECT_INSTRUCTIONS_AGENTIC.md) instead.
 
-**Running local sync?** A runtime that reads your filesystem is agentic, not web chat — use [`PROJECT_INSTRUCTIONS_AGENTIC.md`](PROJECT_INSTRUCTIONS_AGENTIC.md) and see [local sync setup](examples/json-local-sync/SETUP.md).
+**Running local sync?** A runtime that reads your filesystem is agentic, not web chat; use [`PROJECT_INSTRUCTIONS_AGENTIC.md`](PROJECT_INSTRUCTIONS_AGENTIC.md) and see [local sync setup](examples/json-local-sync/SETUP.md).
 
-**If using a connector (GitHub, Google Drive, OneDrive — [platform support varies](#platform-setup)):** The AI reads files through the connector — no URL editing needed. Refresh behavior varies by platform; follow the [Platform Setup](#platform-setup) guidance and refresh or re-import when required. A connector supplies data only — it confers no write authority, and every further capability is separate and must be verified. Committing `DOSSIER.md` to your data repo provides your data and dossier in one connection, and is safe only while that repo stays private. `SECTION_11.md` can be uploaded separately or accessed via a second connector to the CrankAddict/section-11 repo.
+**If using a connector (GitHub, Google Drive, OneDrive; [platform support varies](#platform-setup)):** The AI reads files through the connector (no URL editing needed). Refresh behavior varies by platform; follow the [Platform Setup](#platform-setup) guidance and refresh or re-import when required. A connector supplies data only; it confers no write authority, and every further capability is separate and must be verified. Committing `DOSSIER.md` to your data repo provides your data and dossier in one connection, and is safe only while that repo stays private. `SECTION_11.md` can be uploaded separately or accessed via a second connector to the CrankAddict/section-11 repo.
 
 **If using URL fetch:** Replace `[USERNAME]/[REPO]` with your GitHub data mirror path.
 
@@ -176,7 +176,7 @@ That file is the canonical web and connector contract. It states which sessions 
 
 Most major web-chat platforms can access private GitHub repositories, but access and freshness are separate questions. Some connectors query live data, some maintain an index, and some require a manual sync or re-import. A private connector replaces a public repo only when its refresh model keeps `latest.json` and `history.json` current enough for your workflow.
 
-**GitHub connector status for web-chat platforms.** A runtime with verified repository access, configured credentials and a tested integration may also use authenticated GitHub tools and workflow dispatch — see [Agentic Setup](#agentic-setup). This table covers the web-chat connector experience.
+**GitHub connector status for web-chat platforms.** A runtime with verified repository access, configured credentials and a tested integration may also use authenticated GitHub tools and workflow dispatch; see [Agentic Setup](#agentic-setup). This table covers the web-chat connector experience.
 
 *Both tables verified 2026-08-16 using vendor documentation and, where available, hands-on testing. Plans, interfaces, permissions, and regional availability can change.*
 
@@ -207,7 +207,7 @@ Most major web-chat platforms can access private GitHub repositories, but access
 1. Create a Project
 2. Add instructions to Project settings
 3. **GitHub connector:** Open the Plugin/App directory → GitHub → Connect → authorize repositories. Availability and refresh behavior vary by plan and chat experience. The connector is read-only; confirm that the connected experience has fetched the current files before requesting a report.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Files". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too). Uploaded files are frozen at upload — replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Files". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too). Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 #### ChatGPT (CustomGPT)
 
@@ -221,7 +221,7 @@ Most major web-chat platforms can access private GitHub repositories, but access
 1. Create a Project
 2. Add instructions to "Project Instructions"
 3. **GitHub connector:** Click **+** in a chat or the project's Files section → **Add from GitHub** → select files. Private repositories are supported. Click **Sync now** before a report when the repository has changed.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Knowledge". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too). Uploaded files are frozen at upload — replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Knowledge". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too). Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 5. Enable "Web search" in settings if using URL-based fetch instead of the connector
 
 #### Gemini (Gems)
@@ -229,7 +229,7 @@ Most major web-chat platforms can access private GitHub repositories, but access
 1. Create Gem
 2. Paste instructions in instructions field
 3. **GitHub connector:** On desktop web, click **+** → **Import code**, paste the repo URL, and authorize. This also works for Gems. Private repositories are supported, but the imported repository is frozen: changes do not sync, so re-import it before the next report.
-4. **No connector?** Paste Section 11 content into the instructions field and upload the dossier separately. If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately. Uploaded files are frozen at upload — replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Paste Section 11 content into the instructions field and upload the dossier separately. If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 > **Note:** Not all Google accounts have the same access. Gemini's capabilities vary by account type, Workspace edition, and region. If Gemini can't access your repo, see [Troubleshooting](#troubleshooting).
 
@@ -238,21 +238,21 @@ Most major web-chat platforms can access private GitHub repositories, but access
 1. Create Project
 2. Add instructions to Project configuration
 3. **GitHub connector:** Open `grok.com/connectors` → **New Connector** → GitHub → authorize. Connectors are available to all Grok (web/app) users; Business and Enterprise workspaces require an administrator to provision them first.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Sources". If using the connector but some files aren't in your data repo, upload those separately. Uploaded files are frozen at upload — replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Sources". If using the connector but some files aren't in your data repo, upload those separately. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 #### Mistral (Vibe)
 
 1. Create New Project
 2. Add instructions
 3. **GitHub connector:** Switch to **Work** → **Connectors** → **GitHub App** → Connect and authorize. Vibe can manage pull requests as well as read repository data, and asks for approval before actions.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md during project creation. If using the connector but some files aren't in your connected repo, upload those separately. Uploaded files are frozen at upload — replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md during project creation. If using the connector but some files aren't in your connected repo, upload those separately. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 #### Perplexity
 
 1. Create a Space (or use standard chat)
 2. Add instructions
 3. **GitHub connector:** **Settings** → **Connectors** → GitHub. Available on Pro, Max, Enterprise Pro, and Enterprise Max. Review the OAuth grant before authorizing: it includes broad administrative scopes, repository deletion, and GitHub Actions workflow updates.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md to the Space. Free users without connector access can use URL-based fetch, which requires a public repo — see [Privacy & Security](#privacy--security) for what publishing exposes — or upload files manually. Uploaded files are frozen at upload — replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Upload SECTION_11.md and DOSSIER.md to the Space. Free users without connector access can use URL-based fetch, which requires a public repo (see [Privacy & Security](#privacy--security) for what publishing exposes), or upload files manually. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 ---
 
@@ -303,7 +303,7 @@ After configuration, test with:
 
 - Verify web search/browsing is enabled for your platform
 - Check your JSON URL is correct and publicly accessible (or that your GitHub connector is properly authorized)
-- Try starting a fresh conversation — some platforms cache instructions per-session
+- Try starting a fresh conversation (some platforms cache instructions per-session)
 - If using a GitHub connector, verify the connector shows as "Connected" in your platform's settings
 
 ### 404 error on JSON URLs / Private repo access
@@ -317,7 +317,7 @@ If your platform doesn't support connectors or you can't get them working: use a
 - Try a fresh conversation (some platforms cache per-session)
 - Manually append a different query param: `...latest.json?v=2`
 - If using a GitHub connector, click "Sync now" or re-import to pull latest changes
-- If you uploaded the files, they are frozen at upload — re-export and replace them; the AI cannot see changes made after the upload
+- If you uploaded the files, they are frozen at upload. Re-export and replace them; the AI cannot see changes made after the upload
 
 ### Sync workflow not updating JSON
 
@@ -328,7 +328,7 @@ If your platform doesn't support connectors or you can't get them working: use a
 
 ### Activities show null or missing fields
 
-If your device syncs through Strava, the API returns stripped data. Strava's API terms restrict detailed fields when accessed through third-party APIs — Intervals.icu shows everything in the UI, but the API returns empty fields.
+If your device syncs through Strava, the API returns stripped data. Strava's API terms restrict detailed fields when accessed through third-party APIs; Intervals.icu shows everything in the UI, but the API returns empty fields.
 
 **Fix:** Connect your device (Garmin, Wahoo, etc.) directly to Intervals.icu in Settings → Connections. Keep Strava connected if you want, but the training data needs to come in direct.
 
@@ -336,40 +336,40 @@ If your device syncs through Strava, the API returns stripped data. Strava's API
 
 Apple Watch exports **SDNN**; Section 11's readiness HRV signal is **rMSSD**, which Intervals.icu keeps in a different field. Your Apple value is passed through as context, but readiness never uses it. When your Intervals.icu wellness record contains native Apple SDNN but no usable rMSSD, `readiness_decision.signals.hrv` stays `unavailable` with `reason: "rmssd_missing_sdnn_available"` until an upstream tool supplies rMSSD.
 
-**Fix:** it has to happen before Intervals.icu — an app that derives rMSSD from beat-to-beat data and writes it to the `hrv` field. Community iOS apps do this; see the [Intervals.icu forum's External Projects category](https://forum.intervals.icu/c/external-projects/14). None is verified or supported by Section 11, and one may carry no historical data, so don't count on a historically established or stable baseline immediately.
+**Fix:** it has to happen before Intervals.icu: an app that derives rMSSD from beat-to-beat data and writes it to the `hrv` field. Community iOS apps do this; see the [Intervals.icu forum's External Projects category](https://forum.intervals.icu/c/external-projects/14). None is verified or supported by Section 11, and one may carry no historical data, so don't count on a historically established or stable baseline immediately.
 
 ### Gemini can't access your repo or ignores data
 
 - Import the repo on desktop web: **+** → **Import code**, paste the repo URL, and authorize
-- If it's a private repo, make sure your GitHub account is linked — you'll be prompted during import, or check Connected Apps settings
-- Remember the import is frozen — re-import before a report if the repo has changed
-- Gemini capabilities vary by Google account type, Workspace edition, and region — not all accounts have the same access
+- If it's a private repo, make sure your GitHub account is linked; you'll be prompted during import, or check Connected Apps settings
+- Remember the import is frozen. Re-import before a report if the repo has changed
+- Gemini capabilities vary by Google account type, Workspace edition, and region; not all accounts have the same access
 
 ### Grok (web/app) can't connect to GitHub
 
-Connectors are available to all Grok (web/app) users — add GitHub at `grok.com/connectors` → **New Connector**. In Business and Enterprise workspaces an administrator must provision connectors first. If it's still unavailable, upload files manually, or use a public repo with URL-based fetch — see [Privacy & Security](#privacy--security) for what publishing exposes.
+Connectors are available to all Grok (web/app) users. Add GitHub at `grok.com/connectors` → **New Connector**. In Business and Enterprise workspaces an administrator must provision connectors first. If it's still unavailable, upload files manually, or use a public repo with URL-based fetch; see [Privacy & Security](#privacy--security) for what publishing exposes.
 
 ### AI fabricates metrics or ignores synced data
 
 This can happen when the AI fails to fetch or parse your JSON data, when the context window overflows, or when the platform's web search doesn't reliably retrieve raw JSON.
 
-**Nuclear option:** Download the full [section-11 repo](https://github.com/CrankAddict/section-11) as a zip and upload it directly into your AI Project, Gem, Space, or chat. This bypasses all fetch/connector issues and gives the AI the protocol and templates in one package. You'll still need to provide your own `latest.json`, `history.json`, `intervals.json`, `routes.json` (if present), and `DOSSIER.md` separately. The protocol zip is frozen at upload too — replace it when you update Section 11, and don't leave two copies in the store.
+**Nuclear option:** Download the full [section-11 repo](https://github.com/CrankAddict/section-11) as a zip and upload it directly into your AI Project, Gem, Space, or chat. This bypasses all fetch/connector issues and gives the AI the protocol and templates in one package. You'll still need to provide your own `latest.json`, `history.json`, `intervals.json`, `routes.json` (if present), and `DOSSIER.md` separately. The protocol zip is frozen at upload too. Replace it when you update Section 11, and don't leave two copies in the store.
 
 ---
 
 ## How It Works
 
-### Section 11 A — AI Coach Guidance Protocol
+### Section 11 A: AI Coach Guidance Protocol
 
 Defines behavioral rules for AI coaches:
 
-- **No virtual math** — AI must use your actual logged values, not estimates
-- **Explicit data requests** — If data is missing, AI asks rather than assumes
-- **Tolerance compliance** — Recommendations stay within ±3W / ±1bpm / ±1% variance
-- **Framework citations** — Every recommendation references specific science
-- **11-point validation checklist** — AI self-validates before responding (Step 0–10)
+- **No virtual math**: AI must use your actual logged values, not estimates
+- **Explicit data requests**: If data is missing, AI asks rather than assumes
+- **Tolerance compliance**: Recommendations stay within ±3W / ±1bpm / ±1% variance
+- **Framework citations**: Every recommendation references specific science
+- **11-point validation checklist**: AI self-validates before responding (Step 0–10)
 
-### Section 11 B — AI Training Plan Protocol
+### Section 11 B: AI Training Plan Protocol
 
 Defines rules for AI systems generating or modifying training plans:
 
@@ -379,7 +379,7 @@ Defines rules for AI systems generating or modifying training plans:
 - Session composition rules
 - Audit metadata requirements
 
-### Section 11 C — AI Validation Protocol
+### Section 11 C: AI Validation Protocol
 
 Standardized metadata schema for audit trails:
 
@@ -465,7 +465,7 @@ The protocol is designed to work with [Intervals.icu](https://intervals.icu) as 
 
 The sync script pre-calculates Section 11-compliant metrics so AI doesn't need to compute them. Key metrics include ACWR, Recovery Index, Monotony/Strain, Grey Zone %, Quality Intensity %, Easy Time Ratio, Benchmark Index, Phase Detection, Seiler TID, Aggregate Durability, and TID Drift.
 
-Zone aggregations (TID, polarization, grey zone %) default to power zones with HR fallback. Configure `ZONE_PREFERENCE` to override per sport — e.g. `run:hr,cycling:power` for runners who prefer HR-based zone analysis. See [auto-sync setup](examples/json-auto-sync/SETUP.md) or [local sync setup](examples/json-local-sync/SETUP.md) for configuration.
+Zone aggregations (TID, polarization, grey zone %) default to power zones with HR fallback. Configure `ZONE_PREFERENCE` to override per sport, e.g. `run:hr,cycling:power` for runners who prefer HR-based zone analysis. See [auto-sync setup](examples/json-auto-sync/SETUP.md) or [local sync setup](examples/json-local-sync/SETUP.md) for configuration.
 
 See [examples/README.md](examples/README.md) for the full derived metrics table and data output structure.
 
@@ -479,11 +479,11 @@ The script maintains `ftp_history.json` to track indoor and outdoor FTP changes 
 
 ### Interval-Level Data
 
-The script generates `intervals.json` with per-interval segment data (power, HR incl. min, cadence, zone, timing, W'bal start/end) for recent structured sessions, plus per-session DFA a1 rollups when AlphaHRV recorded. Activities in `latest.json` carry two independent flags: `has_intervals: true` (structured segments) and `has_dfa: true` (AlphaHRV session). Either flag indicates an entry in `intervals.json`. Incrementally cached with a 72h scan window and 14-day retention. Only activities in whitelisted sport families (cycling, run, ski, rowing, swim) with either detected interval structure or AlphaHRV data are included. Note that Intervals.icu emits a whole-session `RECOVERY` placeholder on many unstructured activities, which counts as "detected structure" for inclusion but sets neither flag — follow `has_intervals` / `has_dfa`, not the presence of an entry.
+The script generates `intervals.json` with per-interval segment data (power, HR incl. min, cadence, zone, timing, W'bal start/end) for recent structured sessions, plus per-session DFA a1 rollups when AlphaHRV recorded. Activities in `latest.json` carry two independent flags: `has_intervals: true` (structured segments) and `has_dfa: true` (AlphaHRV session). Either flag indicates an entry in `intervals.json`. Incrementally cached with a 72h scan window and 14-day retention. Only activities in whitelisted sport families (cycling, run, ski, rowing, swim) with either detected interval structure or AlphaHRV data are included. Note that Intervals.icu emits a whole-session `RECOVERY` placeholder on many unstructured activities, which counts as "detected structure" for inclusion but sets neither flag; follow `has_intervals` / `has_dfa`, not the presence of an entry.
 
 ### Route & Terrain Data
 
-The script generates `routes.json` with terrain analysis for planned events that have GPX/TCX file attachments. Includes total distance, elevation, course character classification, climb detection (Cat 4 through HC), descent detection, and a 500m-downsampled polyline with elevation. Events with terrain data are flagged with `has_terrain: true` in `latest.json`. Cached by attachment ID — files are only downloaded and parsed once.
+The script generates `routes.json` with terrain analysis for planned events that have GPX/TCX file attachments. Includes total distance, elevation, course character classification, climb detection (Cat 4 through HC), descent detection, and a 500m-downsampled polyline with elevation. Events with terrain data are flagged with `has_terrain: true` in `latest.json`. Cached by attachment ID. Files are only downloaded and parsed once.
 
 ### Update Notifications
 
@@ -523,10 +523,10 @@ Also compatible with any platform that exports structured training data.
 
 ## Limitations
 
-- **AI still makes mistakes** — This protocol reduces errors but doesn't eliminate them
-- **Not a replacement for human coaches** — Best used alongside professional guidance for serious athletes
-- **Requires honest data** — Garbage in, garbage out
-- **No medical advice** — Consult professionals for health concerns
+- **AI still makes mistakes**: This protocol reduces errors but doesn't eliminate them
+- **Not a replacement for human coaches**: Best used alongside professional guidance for serious athletes
+- **Requires honest data**: Garbage in, garbage out
+- **No medical advice**: Consult professionals for health concerns
 
 ---
 
@@ -534,16 +534,16 @@ Also compatible with any platform that exports structured training data.
 
 This is an open protocol. Contributions welcome:
 
-- **Bug reports** — Found an inconsistency? Open an issue
-- **Framework additions** — Know a validated model that should be included? Propose it
-- **Translation** — Help make this accessible in other languages
-- **Integration guides** — Built a tool that uses this? Share it
+- **Bug reports**: Found an inconsistency? Open an issue
+- **Framework additions**: Know a validated model that should be included? Propose it
+- **Translation**: Help make this accessible in other languages
+- **Integration guides**: Built a tool that uses this? Share it
 
 ---
 
 ## License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License; see [LICENSE](LICENSE) for details.
 
 You can:
 - Use it for personal or commercial projects
@@ -560,8 +560,8 @@ The software is provided "as is", without warranty of any kind.
 
 ## Acknowledgments
 
-- **[David Tinker](https://intervals.icu)** — Creator of Intervals.icu
-- **[Clive King](https://www.cliveking.net/)** — Pioneer of GPT-based endurance coaching and URF
+- **[David Tinker](https://intervals.icu)**: Creator of Intervals.icu
+- **[Clive King](https://www.cliveking.net/)**: Pioneer of GPT-based endurance coaching and URF
 - **[Intervals.icu Forum](https://forum.intervals.icu)** community
 - **Researchers** behind the scientific frameworks cited in Section 11
 

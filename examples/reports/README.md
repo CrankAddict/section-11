@@ -111,9 +111,9 @@ Generated **end of each 3-5 week block**. Includes:
 ## Brevity Rule
 
 These templates follow Section 11's brevity principle:
-- **Normal metrics:** Brief — 2-3 sentence interpretation + key data
-- **Threshold breach:** Detailed — full analysis with recommendations
-- **Rest day:** Minimal — confirm recovery status, preview next session
+- **Normal metrics:** Brief (2-3 sentence interpretation + key data)
+- **Threshold breach:** Detailed (full analysis with recommendations)
+- **Rest day:** Minimal (confirm recovery status, preview next session)
 - **Athlete asks "why":** Deep dive on specific area
 
 ---
@@ -131,7 +131,7 @@ Some fields appear only when relevant:
 
 ## Notes
 
-- All examples use anonymized/placeholder data — replace with actual values from your JSON feed
+- All examples use anonymized/placeholder data; replace with actual values from your JSON feed
 - Zone percentages round to nearest whole number (see rounding convention in POST_WORKOUT_REPORT_TEMPLATE.md)
 - Data flows upward between reports: post-workout → weekly → block (see REPORT_HIERARCHY.md)
 - Section 11 flags surface at the weekly level and are summarized with resolution in block reports

@@ -1,10 +1,10 @@
 # Workout Reference Library
 
-Companion document to **Section 11 B — AI Training Plan Protocol**.
+Companion document to **Section 11 B: AI Training Plan Protocol**.
 
 ## What This Is
 
-A catalog of structured workout templates that AI coaching systems can select from when prescribing sessions. It provides the *how* — Section 11 provides the *when* and *why*.
+A catalog of structured workout templates that AI coaching systems can select from when prescribing sessions. It provides the *how*; Section 11 provides the *when* and *why*.
 
 ## Relationship to Section 11
 
@@ -19,14 +19,14 @@ Section 11 B §8 defines the formal interface between the plan protocol and this
 
 ## Contents
 
-**`WORKOUT_REFERENCE.md`** — The full library, containing:
+**`WORKOUT_REFERENCE.md`**: The full library, containing:
 
-1. **Workout Type Catalog** — 26 session templates across 6 adaptation categories (Endurance, Tempo/Sweet Spot/Threshold, VO₂max, Anaerobic, Race-Specific, Strength-Endurance)
-2. **Warm-Up & Cool-Down Protocols** — Standard, progressive, abbreviated, and intensity-specific variants
-3. **Session Sequencing Rules** — Spacing, ordering, and non-cycling integration
-4. **Block Periodisation Sketches** — Build:deload ratios, volume trajectories, phase transitions
-5. **Interval Format Selection Guide** — Decision matrix, progression logic, format change criteria
-6. **Adaptation & Customisation Notes** — How to modify for your needs
+1. **Workout Type Catalog**: 26 session templates across 6 adaptation categories (Endurance, Tempo/Sweet Spot/Threshold, VO₂max, Anaerobic, Race-Specific, Strength-Endurance)
+2. **Warm-Up & Cool-Down Protocols**: Standard, progressive, abbreviated, and intensity-specific variants
+3. **Session Sequencing Rules**: Spacing, ordering, and non-cycling integration
+4. **Block Periodisation Sketches**: Build:deload ratios, volume trajectories, phase transitions
+5. **Interval Format Selection Guide**: Decision matrix, progression logic, format change criteria
+6. **Adaptation & Customisation Notes**: How to modify for your needs
 
 ## Customisation
 

@@ -6,10 +6,10 @@ Working implementations for Section 11 integrations.
 
 | Folder | Description | Status |
 |--------|-------------|--------|
-| [SETUP_ASSISTANT.md](../SETUP_ASSISTANT.md) | Interactive AI-guided setup — paste into any AI chat | ✅ Ready |
+| [SETUP_ASSISTANT.md](../SETUP_ASSISTANT.md) | Interactive AI-guided setup: paste into any AI chat | ✅ Ready |
 | [json-auto-sync](json-auto-sync/) | Automated GitHub Actions sync (every 15 min) | ✅ Ready |
 | [json-local-sync](json-local-sync/) | Automated local sync, read via runtime filesystem or cloud connector (no GitHub) | ✅ Ready |
-| [json-on-demand](json-on-demand/) | On-demand sync from phone or browser — no local Python | ✅ Ready |
+| [json-on-demand](json-on-demand/) | On-demand sync from phone or browser (no local Python) | ✅ Ready |
 | [json-manual](json-manual/) | Manual export from Mac/PC | ✅ Ready |
 | [reports](reports/) | Pre/post/weekly/block/season report templates | ✅ Ready |
 | [agentic](agentic/) | Write planned workouts to Intervals.icu calendar (code execution required) | ✅ Ready |
@@ -53,7 +53,7 @@ Both methods use the same `sync.py` script and produce these files:
 | File | Purpose | Auto-created |
 |------|---------|--------------|
 | `latest.json` | Current 7-day training data for AI consumption | Yes |
-| `history.json` | Longitudinal data — daily (90d), weekly (180d), monthly (3y) | Yes |
+| `history.json` | Longitudinal data: daily (90d), weekly (180d), monthly (3y) | Yes |
 | `intervals.json` | Per-interval segment data for recent structured sessions | Yes |
 | `routes.json` | Route/terrain data for events with GPX/TCX attachments | When attachments exist |
 | `ftp_history.json` | FTP tracking for Benchmark Index | Yes |
@@ -133,20 +133,20 @@ routes.json (on-demand — load when planned events have has_terrain: true)
         └── descents[]   → Recovery windows with position, gradient, coords
 ```
 
-> **Note on terrain data location:** `routes.json` holds **planned-route** terrain (events with GPX/TCX attachments). **Completed-activity** terrain — what was actually ridden — lives embedded on each outdoor activity in `latest.json`'s `recent_activities[]` as `terrain_summary` and `weather_summary`. Same base schema, different time direction. See SECTION_11.md "Completed-Activity Terrain & Weather" for interpretation rules.
+> **Note on terrain data location:** `routes.json` holds **planned-route** terrain (events with GPX/TCX attachments). **Completed-activity** terrain (what was actually ridden) lives embedded on each outdoor activity in `latest.json`'s `recent_activities[]` as `terrain_summary` and `weather_summary`. Same base schema, different time direction. See SECTION_11.md "Completed-Activity Terrain & Weather" for interpretation rules.
 
 ### Derived Metrics
 
-Pre-calculated values for Section 11 compliance — AI should use these, not calculate its own:
+Pre-calculated values for Section 11 compliance: AI should use these, not calculate its own:
 
 | Metric | Description |
 |--------|-------------|
 | `acwr` | Acute:Chronic Workload Ratio (0.8–1.3 optimal) |
 | `recovery_index` | HRV/RHR composite (>1.0 = good recovery) |
 | `monotony` / `strain` | Training variability (Foster) |
-| `grey_zone_percentage` | Z3 time % — minimize in polarized training |
-| `quality_intensity_percentage` | Z4+ time % — target ~20% |
-| `easy_time_ratio` | Easy time ratio — target ~0.80 |
+| `grey_zone_percentage` | Z3 time %: minimize in polarized training |
+| `quality_intensity_percentage` | Z4+ time %: target ~20% |
+| `easy_time_ratio` | Easy time ratio: target ~0.80 |
 | `consistency_index` | Plan adherence (completed/planned) |
 | `phase_detected` | Auto-detected: Build, Base, Peak, Taper, Deload, Recovery, Overreached, null |
 | `phase_detection` | Full phase detection object: phase, confidence, reason_codes, basis (dual-stream), phase_duration_weeks |

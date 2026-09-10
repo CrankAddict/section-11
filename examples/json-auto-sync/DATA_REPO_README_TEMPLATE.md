@@ -21,7 +21,7 @@ Built on the [Section 11 Protocol](https://github.com/CrankAddict/section-11).
 
 ## Sync Now
 
-[🔄 Sync Now](../../actions/workflows/auto-sync.yml) — tap **Run workflow** to trigger a fresh sync. When the run completes, download the **training-data** artifact ZIP from the run page.
+[🔄 Sync Now](../../actions/workflows/auto-sync.yml): tap **Run workflow** to trigger a fresh sync. When the run completes, download the **training-data** artifact ZIP from the run page.
 
 ## Data URLs
 
@@ -50,4 +50,4 @@ For best results, pair with the [Section 11 instruction set](https://github.com/
 
 ## License
 
-[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) — Free for personal and non-commercial use. Attribution required.
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): Free for personal and non-commercial use. Attribution required.

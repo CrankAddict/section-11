@@ -11,9 +11,9 @@
       "note": "All categorical wellness fields use a 1-4 positional scale where 1 = best state, 4 = worst state. Labels differ per field but direction is consistent. Fields are null when not reported.",
       "sleep_quality": {
         "1": "GREAT",
-        "2": "OK",
-        "3": "POOR",
-        "4": "WORST"
+        "2": "GOOD",
+        "3": "AVERAGE",
+        "4": "POOR"
       },
       "fatigue": {
         "1": "None",

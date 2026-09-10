@@ -4,6 +4,17 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.131 - Sleep quality scale labels corrected to match Intervals.icu.
+  READ_THIS_FIRST.wellness_field_scales.sleep_quality labelled the 1-4 scale
+  GREAT / OK / POOR / WORST, while Intervals.icu labels the same positions Great,
+  Good, Average, Poor. Labels at positions 2-4 differed from Intervals.icu;
+  notably, position 3 was labelled POOR instead of AVERAGE, so a recorded 3 reached
+  the AI layer as POOR. Raw values and scale direction are unchanged: 1 is best and
+  4 is worst in both. Labels only; JSON keys, readiness scoring and every other
+  field's labels are untouched. The matching legend in
+  examples/json-examples/latest.json is aligned to the corrected wording.
+  Pairs with SECTION_11.md / SKILL.md v11.66.
+
 Version 3.130 - Runtime capability note reconciled with the closed threshold-source
   protocol.
   READ_THIS_FIRST.capability_metrics_note still instructed the AI layer with the
@@ -296,7 +307,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.130"
+    VERSION = "3.131"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
 
@@ -3352,7 +3363,7 @@ class IntervalsSync:
                 "zone_preference": self.zone_preference if self.zone_preference else "default (power preferred, HR fallback)",
                 "wellness_field_scales": {
                     "note": "All categorical wellness fields use a 1-4 positional scale where 1 = best state, 4 = worst state. Labels differ per field but direction is consistent. Fields are null when not reported.",
-                    "sleep_quality": {"1": "GREAT", "2": "OK", "3": "POOR", "4": "WORST"},
+                    "sleep_quality": {"1": "GREAT", "2": "GOOD", "3": "AVERAGE", "4": "POOR"},
                     "fatigue": {"1": "None", "2": "Some", "3": "High", "4": "Extreme", "ui_note": "Labeled 'Pre training' in Intervals.icu"},
                     "soreness": {"1": "None", "2": "Some", "3": "High", "4": "Extreme", "ui_note": "Labeled 'Pre training' in Intervals.icu"},
                     "stress": {"1": "LOW", "2": "AVG", "3": "HIGH", "4": "EXTREME"},

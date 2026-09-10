@@ -20,7 +20,7 @@
       "hash": "1de6f452dbcfd9242595652d081ab5092b9922c78568e4770118127039483b5e"
     },
     "SECTION_11.md": {
-      "hash": "c3bdbd1b3d6fde61a95299fee6d79f8d26c165ecc2813e74e22bf95988ed3fa8",
+      "hash": "bbc5f6d2d836b51d80165a4f9c24142425637c8c10e32cf8e6272d7b5ebcd6a3",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
@@ -30,7 +30,7 @@
       "hash": "df4f571d384d116c404fbde594c08ea33241471572940694adbd6662c132955b"
     },
     "SKILL.md": {
-      "hash": "827822529221cbdd92aa40609f95a3654392434999a97771ae2eca811d35a99f"
+      "hash": "ff0fb4bd7ba1bdcc0353aaba547a1dc70c6231a5f570dcd67cf0b228c0551075"
     },
     "changelog.json": {
       "hash": "6e62ffe6dcd6dde91b177db10870a95daace1530a737ca3ef2770b47d8292f58"
@@ -81,7 +81,7 @@
       "hash": "e11384942f006b3959d61ceb0ecacd0d5d5722622212b0f217543b0308d9bf9c"
     },
     "examples/json-examples/latest.json": {
-      "hash": "e08ccc23a92ad0296f53716885f35e989e3bda16d3f7efe1835b06e3f13c7a77"
+      "hash": "17b425e1069c03a124a750ea0f28f71b90d37b6021f9464a68b7afe86ecb6389"
     },
     "examples/json-examples/routes.json": {
       "hash": "0ff2ef8770733a9b059154e7305b57510455e0024f3c60cf57eee7b0d67e97ed"
@@ -132,7 +132,7 @@
       "hash": "b934b16c29d3fafdfe521bebd5fae9b52312d455f2cf193da731ac3d23513c79"
     },
     "examples/sync.py": {
-      "hash": "23a3c03ac54e4b2053ca974375985f3ec9da1885aea6a382dc97daf4aa4b1f1b"
+      "hash": "fd2e6f05d55a7c548616764638cd0e3a92de408ac46fe8425485047466ff805c"
     },
     "examples/workout-library/README.md": {
       "hash": "f22d96050da8a601aac627ddb44b717f31daa9adc88b1cedf3f56a0b87dec6f4"

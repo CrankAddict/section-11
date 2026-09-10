@@ -1,10 +1,14 @@
 # Section 11 — AI Coach Protocol
 
-**Protocol Version:** 11.65  
-**Last Updated:** 2026-08-27
+**Protocol Version:** 11.66  
+**Last Updated:** 2026-09-10
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.66 — Sleep quality scale labels corrected, and the quality/score exclusion rationale restated (`sync.py` v3.131):**
+- **The exporter's sleep quality labels did not match Intervals.icu.** `wellness_field_scales.sleep_quality` labelled the 1–4 scale GREAT / OK / POOR / WORST, while Intervals.icu labels the same positions Great, Good, Average, Poor. Labels at positions 2–4 differed from Intervals.icu; notably, position 3 was labelled POOR instead of AVERAGE, so a recorded 3 reached the AI layer as POOR. Raw values and scale direction are unchanged: 1 is best and 4 is worst in both. Labels only — JSON keys, readiness scoring and every other field's labels are untouched, and the legend in `examples/json-examples/latest.json` is aligned to match.
+- **Sleep quality and sleep score are no longer described as device-derived composites of HRV + HR.** `sleepQuality` may be entered by the athlete or derived by Intervals.icu from a device sleep score using fixed provider cutoffs, so it must not be assumed subjective; `sleepScore` is a 0–100 device value whose algorithm varies by provider. Their source and computation vary, and device-derived summaries may overlap with duration and autonomic signals already considered, so Section 11 keeps them as coaching context without assigning additional readiness weight. Sleep duration remains the readiness input, and the exclusion decision itself (v11.21) is unchanged.
 
 **v11.65 — Dossier lifecycle cutover: stable private context separated from dynamic training state (`sync.py` v3.130):**
 - **The dossier is no longer a source of dynamic training state.** FTP, LTHR, zones, weight and current phase now come from current JSON, and the live schedule from current JSON and calendar data. The dossier holds stable private athlete context: long-term goals, health and medication context, tested fueling, stable constraints and equipment, communication preferences, and source configuration.
@@ -1477,7 +1481,7 @@ It governs acute, session-level performance safety, ensuring localized overreach
 - HRV (ms): 7-day rolling baseline comparison
 - RHR (bpm): 7-day rolling baseline comparison
 - Sleep Hours: Objective duration. Classified as readiness signal (Green ≥ 7h, Amber 5–7h, Red < 5h)
-- Sleep Quality / Sleep Score: Excluded from readiness classification (v11.21). These are device-derived composites of HRV + HR during sleep — signals already captured independently. Downstream impact of poor sleep surfaces in HRV and RHR. Quality/score remain in wellness data as coaching context.
+- Sleep Quality / Sleep Score: Excluded from readiness classification (v11.21). Two distinct fields. `sleepQuality` is a 1–4 positional value that may be entered by the athlete or derived by Intervals.icu from a device sleep score using fixed provider cutoffs — never assume which. `sleepScore` is a 0–100 device value whose algorithm varies by provider; some overlap with HRV and RHR, but not every score is an HRV + HR composite. Their source and computation vary, and device-derived summaries may overlap with duration and autonomic signals already considered. Section 11 therefore keeps them as coaching context without assigning additional readiness weight. Sleep duration remains the readiness input (see Sleep Hours above). Excluded is not ignored: both stay in the wellness overview as coaching context and may inform discussion alongside athlete-reported tiredness and other evidence, without becoming a scored signal or an automatic veto.
 - Feel (1–5): Manual subjective entry (1=Strong, 2=Good, 3=Normal, 4=Poor, 5=Weak)
 
 **Extended Wellness Fields (v3.85+):** sync.py passes through all Intervals.icu wellness fields — subjective state (stress, mood, motivation, injury, fatigue, soreness, hydration), vitals (spO2, blood glucose, blood pressure, Baevsky SI, lactate, respiration), body composition (body fat, abdomen), nutrition (kcal, carbs, protein, fat), lifestyle (steps, hydration volume), and cycle tracking (menstrual phase). All categorical fields use a 1→4 positional scale where **1 = best state, 4 = worst state**. Per-field labels are in `wellness_field_scales` in READ_THIS_FIRST. Fields are null when not reported. These are coaching context — none are wired into the automated readiness_decision pipeline.

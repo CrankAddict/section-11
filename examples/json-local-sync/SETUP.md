@@ -1,6 +1,6 @@
 # Local Sync Setup Guide
 
-Run Section 11 from a machine you control — no GitHub needed. A script syncs your training data from Intervals.icu on a timer, and your AI coach reads the output — either directly from a filesystem its runtime can reach (agentic platforms) or via a cloud connector (AI chats with no runtime filesystem — [platform support varies](../../README.md#platform-setup)).
+Run Section 11 from a machine you control: no GitHub needed. A script syncs your training data from Intervals.icu on a timer, and your AI coach reads the output, either directly from a filesystem its runtime can reach (agentic platforms) or via a cloud connector (AI chats with no runtime filesystem; [platform support varies](../../README.md#platform-setup)).
 
 > **Other setup paths:** If you prefer GitHub-based sync, see [json-auto-sync](../json-auto-sync/SETUP.md). For one-off manual exports, see [json-manual](../json-manual/SETUP.md).
 
@@ -8,7 +8,7 @@ Run Section 11 from a machine you control — no GitHub needed. A script syncs y
 
 ## What is "Local Sync"
 
-sync.py runs on a machine or service you control, pulling your data from Intervals.icu on a timer. The output reaches your AI coach either directly (agentic platforms whose runtime can reach the data directory) or via a connector (Google Drive, OneDrive, etc.). "Local" doesn't mean the machine has to be next to you — it just means you control it:
+sync.py runs on a machine or service you control, pulling your data from Intervals.icu on a timer. The output reaches your AI coach either directly (agentic platforms whose runtime can reach the data directory) or via a connector (Google Drive, OneDrive, etc.). "Local" doesn't mean the machine has to be next to you; it just means you control it:
 
 - Your Mac, PC, or laptop
 - A Linux VPS (Hetzner, DigitalOcean, etc.)
@@ -17,20 +17,20 @@ sync.py runs on a machine or service you control, pulling your data from Interva
 
 The machine doesn't need to be on 24/7. sync.py runs when the machine is on, and the timer picks up automatically after a restart or wake. If you close your laptop at night, data refreshes within minutes of opening it.
 
-For always-fresh data (agentic coaches, heartbeat checks), a machine that stays on is ideal — but not required.
+For always-fresh data (agentic coaches, heartbeat checks), a machine that stays on is ideal, but not required.
 
 ### How the AI reads your data
 
-- **Agentic platforms** (OpenClaw, Claude Code, Cowork, Codex CLI, Gemini CLI, Hermes) — read files directly from whatever filesystem their runtime can reach. Where that runtime is this machine, it is the simplest path. Some run on a provider-hosted computer instead, which cannot see your data directory; check before assuming.
-- **Sessions with no runtime filesystem** (ChatGPT, Gemini, Perplexity and similar chat apps) — sync.py writes to a cloud-synced folder (Google Drive, OneDrive, Dropbox), and the AI reads via its connector. Your computer or server does the syncing; the AI just reads the result. A provider-hosted agentic runtime uses the same bridge for the same reason. Note: cloud connector support for `.json` varies by platform — see the [connector table](../../README.md#platform-setup).
+- **Agentic platforms** (OpenClaw, Claude Code, Cowork, Codex CLI, Gemini CLI, Hermes): read files directly from whatever filesystem their runtime can reach. Where that runtime is this machine, it is the simplest path. Some run on a provider-hosted computer instead, which cannot see your data directory; check before assuming.
+- **Sessions with no runtime filesystem** (ChatGPT, Gemini, Perplexity and similar chat apps): sync.py writes to a cloud-synced folder (Google Drive, OneDrive, Dropbox), and the AI reads via its connector. Your computer or server does the syncing; the AI just reads the result. A provider-hosted agentic runtime uses the same bridge for the same reason. Note: cloud connector support for `.json` varies by platform; see the [connector table](../../README.md#platform-setup).
 
 ### Why local
 
-- **Cheapest reliable path** — sync.py runs on your machine for free. No GitHub Actions minutes, no compute costs.
-- **Most reliable** — no GitHub raw URL caching issues (AI platforms cache aggressively and serve stale data), no rate limiting, no fetch failures
-- **Privacy** — your data goes only where you send it: the machine you run sync.py on, and any cloud storage or repository you configure
-- **Speed** — a runtime that can reach the files reads them directly with zero latency. A connector read is slower than that but faster than URL fetching.
-- **Works everywhere** — any machine that runs Python. Any AI whose runtime can reach the files, or that has a cloud connector.
+- **Cheapest reliable path**: sync.py runs on your machine for free. No GitHub Actions minutes, no compute costs.
+- **Most reliable**: no GitHub raw URL caching issues (AI platforms cache aggressively and serve stale data), no rate limiting, no fetch failures
+- **Privacy**: your data goes only where you send it: the machine you run sync.py on, and any cloud storage or repository you configure
+- **Speed**: a runtime that can reach the files reads them directly with zero latency. A connector read is slower than that but faster than URL fetching.
+- **Works everywhere**: any machine that runs Python. Any AI whose runtime can reach the files, or that has a cloud connector.
 
 ---
 
@@ -63,7 +63,7 @@ python3 sync.py --setup
 python3 sync.py --init
 ```
 
-After `--init`, the bootstrap `sync.py` in the data directory root is removed — it's now at `section11/examples/sync.py`. All commands from here use the repo copy:
+After `--init`, the bootstrap `sync.py` in the data directory root is removed. It's now at `section11/examples/sync.py`. All commands from here use the repo copy:
 
 ```bash
 # Create your athlete profile from the template. -n refuses to overwrite an existing one
@@ -105,7 +105,7 @@ python3 section11/examples/sync.py --output latest.json
 └── ftp_history.json            # auto-generated by sync.py
 ```
 
-Key principle: `section11/` is the repo, exactly as it appears on GitHub. Your personal files live at the data directory root. Updates replace files inside `section11/` — your dossier, config, and data are never touched.
+Key principle: `section11/` is the repo, exactly as it appears on GitHub. Your personal files live at the data directory root. Updates replace files inside `section11/`; your dossier, config, and data are never touched.
 
 **Alternative to `--init`:** If you prefer git, `git clone https://github.com/CrankAddict/section-11.git section11` produces the same result. Run `--update` once afterward to check the copy against the current manifest.
 
@@ -113,13 +113,13 @@ Key principle: `section11/` is the repo, exactly as it appears on GitHub. Your p
 
 ## Connect Your Agent
 
-Point your agent at `~/training-data/` — this is your data directory. The agent sees personal files (dossier, JSON data) at the root, and the full protocol, templates, and tools in `section11/`.
+Point your agent at `~/training-data/`; this is your data directory. The agent sees personal files (dossier, JSON data) at the root, and the full protocol, templates, and tools in `section11/`.
 
 On platforms where the agent workspace is separate from the data directory (e.g., OpenClaw's workspace is typically `~/clawd/`), set the `Data directory` field in DOSSIER.md so the skill knows where to find files.
 
 ### OpenClaw
 
-OpenClaw's agent workspace (e.g., `~/clawd/`) is typically separate from the data directory (`~/training-data/`). Set the `Data directory` field in DOSSIER.md to `~/training-data/` so the Section 11 skill can locate your data files. HEARTBEAT.md stays in the agent workspace — that's where OpenClaw looks for it. Configure `HEARTBEAT.md` data sources with local file paths instead of URLs.
+OpenClaw's agent workspace (e.g., `~/clawd/`) is typically separate from the data directory (`~/training-data/`). Set the `Data directory` field in DOSSIER.md to `~/training-data/` so the Section 11 skill can locate your data files. HEARTBEAT.md stays in the agent workspace; that's where OpenClaw looks for it. Configure `HEARTBEAT.md` data sources with local file paths instead of URLs.
 
 ### Claude Code
 
@@ -127,7 +127,7 @@ OpenClaw's agent workspace (e.g., `~/clawd/`) is typically separate from the dat
 cd ~/training-data && claude
 ```
 
-Claude Code has full filesystem access — it reads `latest.json`, `DOSSIER.md`, and `section11/SECTION_11.md` directly.
+Claude Code has full filesystem access: it reads `latest.json`, `DOSSIER.md`, and `section11/SECTION_11.md` directly.
 
 ### Claude Cowork
 
@@ -156,16 +156,16 @@ Point it at your data with a pointer file rather than copying files onto the hos
 
 Grok Bot's filesystem is provider-hosted, so it cannot read this machine. It still has the agentic capability class and uses the agentic contract named under [Project instructions](#project-instructions) below; the data reaches it by connector or authenticated repository rather than from your disk. It is **experimental**: not validated end to end against the Section 11 pipeline, and capability class is not a support promise. Verify any write against the specific target before relying on it.
 
-All Bots on your account share one cloud computer, cloud storage is required, and Legacy Privacy Mode is unavailable — check your xAI and Cursor privacy settings before pointing it at a dossier carrying medication or health context.
+All Bots on your account share one cloud computer, cloud storage is required, and Legacy Privacy Mode is unavailable. Check your xAI and Cursor privacy settings before pointing it at a dossier carrying medication or health context.
 
 ### Project instructions
 
-Your coach's instructions live in one canonical contract, not in this guide. Which one you use depends on whether the AI has a runtime filesystem at all — not on which sync method you chose, and not on the platform's name. If it has one, whether that is this machine or a provider-hosted computer, it is an agentic session: copy the block between the fences in [`PROJECT_INSTRUCTIONS_AGENTIC.md`](../../PROJECT_INSTRUCTIONS_AGENTIC.md) into the agent's project settings. That holds even when the data itself arrives through a connector.
+Your coach's instructions live in one canonical contract, not in this guide. Which one you use depends on whether the AI has a runtime filesystem at all, not on which sync method you chose, and not on the platform's name. If it has one, whether that is this machine or a provider-hosted computer, it is an agentic session: copy the block between the fences in [`PROJECT_INSTRUCTIONS_AGENTIC.md`](../../PROJECT_INSTRUCTIONS_AGENTIC.md) into the agent's project settings. That holds even when the data itself arrives through a connector.
 
-Two resources that contract does not name by path. Where the agent can actually reach them — a provider-hosted computer often cannot — point it at these as well:
+Two resources that contract does not name by path. Where the agent can actually reach them (a provider-hosted computer often cannot), point it at these as well:
 
-- `section11/examples/reports/` — report templates
-- `section11/examples/workout-library/WORKOUT_REFERENCE.md` — session templates for planning
+- `section11/examples/reports/`: report templates
+- `section11/examples/workout-library/WORKOUT_REFERENCE.md`: session templates for planning
 
 ---
 
@@ -177,11 +177,11 @@ For a session with no runtime filesystem, the canonical contract is [`PROJECT_IN
 
 An agent on a provider-hosted computer is a different case. It has a runtime filesystem, just not this machine's, so it uses the same bridge to receive the data but stays on the agentic contract.
 
-**The simplest version:** sync.py outputs to your Google Drive folder. Google Drive desktop app syncs it to the cloud. Your AI reads it through its Google Drive connector. That's it. (Support and refresh behavior vary by platform — see the [connector table](../../README.md#platform-setup).)
+**The simplest version:** sync.py outputs to your Google Drive folder. Google Drive desktop app syncs it to the cloud. Your AI reads it through its Google Drive connector. That's it. (Support and refresh behavior vary by platform; see the [connector table](../../README.md#platform-setup).)
 
 ### How to set it up
 
-1. Install [Google Drive for Desktop](https://www.google.com/drive/download/) (or OneDrive, Dropbox — whatever your AI platform has a connector for)
+1. Install [Google Drive for Desktop](https://www.google.com/drive/download/) (or OneDrive, Dropbox, whatever your AI platform has a connector for)
 2. Set your data directory inside the synced folder:
    ```
    ~/Google Drive/My Drive/training-data/
@@ -189,20 +189,20 @@ An agent on a provider-hosted computer is a different case. It has a runtime fil
 3. Point your timer's `--output` at that folder (same as the regular local setup, just a different path)
 4. Connect the AI platform's Drive connector to the folder
 
-Your AI coach now reads your data from the synced folder — no URLs, no GitHub, no manual uploads. Refresh behavior varies by platform; see the [connector table](../../README.md#platform-setup).
+Your AI coach now reads your data from the synced folder: no URLs, no GitHub, no manual uploads. Refresh behavior varies by platform; see the [connector table](../../README.md#platform-setup).
 
-> **Tip:** If your data directory already contains `DOSSIER.md` and `section11/`, and you sync the whole directory rather than the JSON alone, one connection gives the AI your data, your dossier and the protocol files together. Check what the connector is actually scoped to — where it exposes only the JSON, supply `SECTION_11.md` and the dossier separately.
+> **Tip:** If your data directory already contains `DOSSIER.md` and `section11/`, and you sync the whole directory rather than the JSON alone, one connection gives the AI your data, your dossier and the protocol files together. Check what the connector is actually scoped to; where it exposes only the JSON, supply `SECTION_11.md` and the dossier separately.
 
 ### Many ways to do this
 
 Google Drive is just one example. The principle is: **sync.py writes files → something syncs them to the cloud → the AI reads via a connector.** A few other setups that work:
 
-- **OneDrive** — same pattern, works with platforms that have OneDrive connectors
-- **Dropbox** — same pattern
-- **VPS + rclone** — a server runs sync.py and pushes files to Google Drive (or any cloud storage) using [rclone](https://rclone.org). Good if your main computer isn't always on.
-- **NAS with cloud sync** — Synology and QNAP have built-in Google Drive/Dropbox sync
+- **OneDrive**: same pattern, works with platforms that have OneDrive connectors
+- **Dropbox**: same pattern
+- **VPS + rclone**: a server runs sync.py and pushes files to Google Drive (or any cloud storage) using [rclone](https://rclone.org). Good if your main computer isn't always on.
+- **NAS with cloud sync**: Synology and QNAP have built-in Google Drive/Dropbox sync
 
-We can't list every combination — there are many. The pattern is always the same: a machine runs sync.py, the output reaches a place the AI can read.
+We can't list every combination; there are many. The pattern is always the same: a machine runs sync.py, the output reaches a place the AI can read.
 
 ---
 
@@ -210,7 +210,7 @@ We can't list every combination — there are many. The pattern is always the sa
 
 Set up a timer to run sync.py every **60 seconds** so your data is always fresh when you open your AI coach.
 
-All four timer methods below (launchd, systemd, cron, Task Scheduler) **survive reboots and wake from sleep**. If you close your laptop at night and open it in the morning, sync picks up automatically — data refreshes within a minute.
+All four timer methods below (launchd, systemd, cron, Task Scheduler) **survive reboots and wake from sleep**. If you close your laptop at night and open it in the morning, sync picks up automatically; data refreshes within a minute.
 
 API limits are generous (Intervals.icu allows 30 requests/second, sync.py makes ~5-8 calls per run). Data only changes a few times a day (after workouts, wellness logging).
 
@@ -255,7 +255,7 @@ Create `~/Library/LaunchAgents/com.section11.sync.plist`:
 </plist>
 ```
 
-**Replace `/usr/local/bin/python3` with your actual Python path** (`which python3`) — launchd doesn't inherit your shell PATH.
+**Replace `/usr/local/bin/python3` with your actual Python path** (`which python3`); launchd doesn't inherit your shell PATH.
 
 **Replace `YOUR_USERNAME` with your macOS username.**
 
@@ -388,13 +388,13 @@ This shows what changed, then asks for confirmation before downloading:
    Pull 2 updates? [y/N]
 ```
 
-Only changed files are downloaded. Personal files at the data directory root (dossier, config, data) are never touched. Nothing changes without your confirmation — same principle as `--confirm` on push.py writes.
+Only changed files are downloaded. Personal files at the data directory root (dossier, config, data) are never touched. Nothing changes without your confirmation. Same principle as `--confirm` on push.py writes.
 
 ---
 
 ## Write Side (push.py)
 
-push.py uses the same `.sync_config.json` credentials — no extra setup needed.
+push.py uses the same `.sync_config.json` credentials: no extra setup needed.
 
 ```bash
 cd ~/training-data
@@ -411,14 +411,14 @@ That gate lives in the command line, not in the library. An agent that imports `
 
 ## Read Side (pull.py)
 
-pull.py fetches raw per-second activity streams (lat/lng, altitude, watts, HR, …) on demand. Used only when the AI needs detail beyond the precomputed `terrain_summary` / `weather_summary` already present on outdoor activities in `latest.json` — for example, locating a specific power spike or wind segment within the GPS track.
+pull.py fetches raw per-second activity streams (lat/lng, altitude, watts, HR, …) on demand. Used only when the AI needs detail beyond the precomputed `terrain_summary` / `weather_summary` already present on outdoor activities in `latest.json`, for example, locating a specific power spike or wind segment within the GPS track.
 
 ```bash
 cd ~/training-data
 python3 section11/examples/agentic/pull.py trace --activity-id i142557875 --types latlng,altitude
 ```
 
-Same `.sync_config.json` credentials. Read-only — no `--confirm` gate. Don't reach for pull.py if `latest.json` already answers the question; the streams payload is several MB per ride.
+Same `.sync_config.json` credentials. Read-only: no `--confirm` gate. Don't reach for pull.py if `latest.json` already answers the question; the streams payload is several MB per ride.
 
 ---
 
@@ -442,30 +442,30 @@ tail -f ~/training-data/sync.log
 
 ### Common gotchas
 
-**`--init` zip download fails** — corporate firewalls or proxies may block GitHub's archive endpoint. Alternative: `git clone https://github.com/CrankAddict/section-11.git section11` produces the same result, then run `--update` once to check it against the current manifest.
+**`--init` zip download fails**: corporate firewalls or proxies may block GitHub's archive endpoint. Alternative: `git clone https://github.com/CrankAddict/section-11.git section11` produces the same result, then run `--update` once to check it against the current manifest.
 
-**macOS launchd doesn't inherit shell PATH** — specify the full Python path in the plist (e.g., `/usr/local/bin/python3`). Find yours with `which python3`.
+**macOS launchd doesn't inherit shell PATH**: specify the full Python path in the plist (e.g., `/usr/local/bin/python3`). Find yours with `which python3`.
 
-**`.sync_config.json` must be in the working directory** — the data directory root (`~/training-data/`), not inside `section11/`. If sync.py can't find credentials, check that your timer's `WorkingDirectory` is set correctly.
+**`.sync_config.json` must be in the working directory**: the data directory root (`~/training-data/`), not inside `section11/`. If sync.py can't find credentials, check that your timer's `WorkingDirectory` is set correctly.
 
 **Optional config fields** (add manually to `.sync_config.json` or re-run `--setup`):
-- `week_start` — training week start day (`mon`–`sun`, default: `mon`)
-- `zone_preference` — per-sport zone override for aggregations, e.g. `"run:hr,cycling:power"`. Only override what you need; unspecified sports default to power-preferred with HR fallback.
+- `week_start`: training week start day (`mon`–`sun`, default: `mon`)
+- `zone_preference`: per-sport zone override for aggregations, e.g. `"run:hr,cycling:power"`. Only override what you need; unspecified sports default to power-preferred with HR fallback.
 
-**Permissions** — the timer runs as your user. Ensure the output directory is writable.
+**Permissions**: the timer runs as your user. Ensure the output directory is writable.
 
-**history.json regeneration** — the first run after a long gap may take longer than usual (up to 30 seconds for 3 years of data). Use `--lockfile` to prevent overlap during regeneration.
+**history.json regeneration**: the first run after a long gap may take longer than usual (up to 30 seconds for 3 years of data). Use `--lockfile` to prevent overlap during regeneration.
 
-**Empty or missing data** — verify your Intervals.icu API key is valid and you have activities in the last 7 days. Run with `--debug` for detailed API output.
+**Empty or missing data**: verify your Intervals.icu API key is valid and you have activities in the last 7 days. Run with `--debug` for detailed API output.
 
 ---
 
 ## Privacy Notes
 
-sync.py does not anonymize your data. Only `metadata.athlete_id` is redacted — activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through. See [Privacy & Security](../../README.md#privacy--security).
+sync.py does not anonymize your data. Only `metadata.athlete_id` is redacted; activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through. See [Privacy & Security](../../README.md#privacy--security).
 
 Activity and event IDs are always real (opaque database keys, not PII) to enable features like coach annotations and planned-vs-actual pairing.
 
-Your data stays on this machine unless you send it somewhere: cloud storage for connector access, or a repository you configure. Where you do, it lands in an account you control, and Section 11 does not share it with anyone else — but the provider's own terms then apply to it.
+Your data stays on this machine unless you send it somewhere: cloud storage for connector access, or a repository you configure. Where you do, it lands in an account you control, and Section 11 does not share it with anyone else, but the provider's own terms then apply to it.
 
 sync.py reaches the network in more places than the data path alone, and which calls happen depends on what you ran. A normal sync run calls the Intervals.icu API, and checks `raw.githubusercontent.com` for a newer manifest at most once a day. `--setup`, `--init`, `--update` and `--generate-manifest` return before that data path, so they make no Intervals.icu call: `--init` downloads the repository from GitHub's archive endpoint, and `--update` downloads each changed file from raw content, once per file. Where a planned event carries a route file, sync.py fetches that attachment from whatever host Intervals.icu records for it. Where you configure GitHub publishing, it also calls `api.github.com` to read and write your repository. After publishing, and only when you have configured both a GitHub token and a repository, it reads the upstream changelog and may open an issue. The `api.github.com` calls carry the token you supply; the changelog read carries none, though it happens only because both are set. On that publish path sync.py applies no cadence gate of its own, unlike the once-a-day manifest check.

@@ -1,7 +1,7 @@
 # External API Reference
 
 **Version:** 1.0  
-**Purpose:** Operational setup and endpoint reference for external APIs used by the agentic platform. Section 11 protocol defines the reasoning rules for what to do with this data — this document covers how to get it.
+**Purpose:** Operational setup and endpoint reference for external APIs used by the agentic platform. Section 11 protocol defines the reasoning rules for what to do with this data. This document covers how to get it.
 
 ---
 
@@ -32,7 +32,7 @@ Strava API uses OAuth 2.0.
      &code={AUTHORIZATION_CODE}
      &grant_type=authorization_code
    ```
-5. Store the refresh token — access tokens expire every 6 hours. Refresh before they expire:
+5. Store the refresh token. Access tokens expire every 6 hours. Refresh before they expire:
    ```
    POST https://www.strava.com/oauth/token
      client_id={CLIENT_ID}
@@ -40,7 +40,7 @@ Strava API uses OAuth 2.0.
      &refresh_token={REFRESH_TOKEN}
      &grant_type=refresh_token
    ```
-   Returns a new access token and may return a new refresh token — always store the latest refresh token.
+   Returns a new access token and may return a new refresh token. Always store the latest refresh token.
 
 ### Rate Limits
 
@@ -52,14 +52,14 @@ Strava API uses OAuth 2.0.
 |---|---|---|
 | `GET /segments/explore?bounds={sw_lat},{sw_lng},{ne_lat},{ne_lng}&activity_type=riding` | Find segments in bounding boxes along the route | Segment ID, name, distance, average grade, elevation difference, start/end coordinates, climb category |
 | `GET /segments/{id}` | Full segment detail | Polyline, total elevation gain, effort count, athlete count, star count. Use polyline to confirm segment lies on the route |
-| `GET /athlete/segments/starred` | Athlete's starred segments — automatic priority targets | All starred segments. Cross-reference with route to find today's priorities |
+| `GET /athlete/segments/starred` | Athlete's starred segments (automatic priority targets) | All starred segments. Cross-reference with route to find today's priorities |
 | `GET /segment_efforts?segment_id={id}` | Athlete's effort history on a segment | Times, dates, average power (if available). PR context |
 
 Base URL: `https://www.strava.com/api/v3`
 
 ### Route Segment Discovery
 
-Walk bounding boxes along the GPX track (e.g., 2 km wide boxes every 5 km of route) using `/segments/explore`. Deduplicate results. Filter by proximity to the GPS track (within 100m of any trackpoint) — not all results will be exactly on the route.
+Walk bounding boxes along the GPX track (e.g., 2 km wide boxes every 5 km of route) using `/segments/explore`. Deduplicate results. Filter by proximity to the GPS track (within 100m of any trackpoint); not all results will be exactly on the route.
 
 ### Segment Data Compilation
 
@@ -68,11 +68,11 @@ For each segment on the route, compile for the coaching layer:
 - **ID and name**
 - **Distance** (km) and **elevation gain** (m)
 - **Average gradient** (%)
-- **Bearing** — direction of the segment (degrees), calculated from start to end coordinates. Critical for wind comparison (see Section 11 Wind Overlay)
-- **Position in ride** (km from start) — fatigue context
-- **Athlete's PR** — best time, date, average power if available
-- **Expected duration** — estimate from distance and gradient, refined by the athlete's power curve
-- **Priority** — starred on Strava or explicitly chosen by the athlete
+- **Bearing**: direction of the segment (degrees), calculated from start to end coordinates. Critical for wind comparison (see Section 11 Wind Overlay)
+- **Position in ride** (km from start): fatigue context
+- **Athlete's PR**: best time, date, average power if available
+- **Expected duration**: estimate from distance and gradient, refined by the athlete's power curve
+- **Priority**: starred on Strava or explicitly chosen by the athlete
 
 ---
 
@@ -98,23 +98,23 @@ Returns JSON forecast for the next ~9 days at the specified coordinates. The `co
 
 From the `timeseries` array, each entry contains `data.instant.details`:
 
-- **wind_from_direction** — degrees, meteorological convention (direction wind comes FROM, 0° = north, 90° = east). Feeds directly into Section 11 Wind Overlay headwind/tailwind calculation
-- **wind_speed** — m/s
-- **wind_speed_of_gust** — m/s
-- **air_temperature** — °C. Cross-reference with Section 11 Environmental Conditions Protocol for heat stress tier
-- **relative_humidity** — %
+- **wind_from_direction**: degrees, meteorological convention (direction wind comes FROM, 0° = north, 90° = east). Feeds directly into Section 11 Wind Overlay headwind/tailwind calculation
+- **wind_speed**: m/s
+- **wind_speed_of_gust**: m/s
+- **air_temperature**: °C. Cross-reference with Section 11 Environmental Conditions Protocol for heat stress tier
+- **relative_humidity**: %
 
 From `data.next_1_hours`:
 
-- **details.precipitation_amount** — mm
-- **details.probability_of_precipitation** — % (only available on the `complete` endpoint)
-- **summary.symbol_code** — weather descriptor (e.g., `rain`, `cloudy`, `partlycloudy_day`), not a probability
+- **details.precipitation_amount**: mm
+- **details.probability_of_precipitation**: % (only available on the `complete` endpoint)
+- **summary.symbol_code**: weather descriptor (e.g., `rain`, `cloudy`, `partlycloudy_day`), not a probability
 
 ### Usage Notes
 
 - Fetch for the ride area at the planned ride time. For long routes, consider fetching for multiple points along the course
-- Cache responses — MET Norway returns `Expires` and `Last-Modified` headers. Do not re-fetch until the cached response expires
-- Creative Commons 4.0 BY license — attribution required: "Data from MET Norway"
+- Cache responses; MET Norway returns `Expires` and `Last-Modified` headers. Do not re-fetch until the cached response expires
+- Creative Commons 4.0 BY license. Attribution required: "Data from MET Norway"
 
 ---
 
@@ -142,19 +142,19 @@ Returns JSON with hourly forecasts up to 16 days.
 
 From the `hourly` array:
 
-- **wind_direction_10m** — degrees, meteorological convention (direction wind comes FROM, 0° = north, 90° = east). Feeds directly into Section 11 Wind Overlay headwind/tailwind calculation
-- **wind_speed_10m** — m/s
-- **wind_gusts_10m** — m/s
-- **temperature_2m** — °C. Cross-reference with Section 11 Environmental Conditions Protocol for heat stress tier
-- **precipitation_probability** — %
-- **precipitation** — mm
-- **cloud_cover** — %
-- **weather_code** — WMO weather interpretation codes
+- **wind_direction_10m**: degrees, meteorological convention (direction wind comes FROM, 0° = north, 90° = east). Feeds directly into Section 11 Wind Overlay headwind/tailwind calculation
+- **wind_speed_10m**: m/s
+- **wind_gusts_10m**: m/s
+- **temperature_2m**: °C. Cross-reference with Section 11 Environmental Conditions Protocol for heat stress tier
+- **precipitation_probability**: %
+- **precipitation**: mm
+- **cloud_cover**: %
+- **weather_code**: WMO weather interpretation codes
 
 ### Usage Notes
 
 - No `User-Agent` header required, but caching responses is recommended
-- `precipitation_probability` is provided directly as a percentage — no need to derive it from symbol codes
+- `precipitation_probability` is provided directly as a percentage: no need to derive it from symbol codes
 - Combines multiple weather models; the default selection is the best available for the queried location
 
 ---
@@ -165,7 +165,7 @@ Intervals.icu exposes per-second sensor data ("streams") and pre-computed weathe
 
 ### Authentication
 
-HTTP Basic auth with username `API_KEY` (literal string) and password = the athlete's Intervals API key. Same credentials as sync.py — see the project README for setup. The shared `.sync_config.json` file is read by sync.py, push.py, and pull.py.
+HTTP Basic auth with username `API_KEY` (literal string) and password = the athlete's Intervals API key. Same credentials as sync.py. See the project README for setup. The shared `.sync_config.json` file is read by sync.py, push.py, and pull.py.
 
 ### Streams Endpoint
 
@@ -187,7 +187,7 @@ Returns a JSON list of stream objects. Each object:
 }
 ```
 
-**Important shape gotcha — `latlng` uses dual parallel arrays:**
+**Important shape gotcha: `latlng` uses dual parallel arrays.**
 
 - `data` holds latitudes
 - `data2` holds longitudes
@@ -204,7 +204,7 @@ Verified from a real outdoor cycling activity. Specific streams may vary by acti
 |------|-------|
 | `time` | Seconds from start (1Hz) |
 | `distance` | Cumulative meters |
-| `latlng` | Dual array — see gotcha above |
+| `latlng` | Dual array (see gotcha above) |
 | `altitude` | Meters, smoothed barometric |
 | `velocity_smooth` | m/s |
 | `watts` | Power, when paired with a meter |
@@ -224,7 +224,7 @@ Verified from a real outdoor cycling activity. Specific streams may vary by acti
 GET https://intervals.icu/api/v1/activity/{activity_id}/file
 ```
 
-Returns the original uploaded activity file (FIT, TCX, or GPX), gzipped. Full device fidelity — no resampling. Useful if the streams downsampling is ever a concern. Section 11 sync.py uses streams; this endpoint is documented for completeness.
+Returns the original uploaded activity file (FIT, TCX, or GPX), gzipped. Full device fidelity (no resampling). Useful if the streams downsampling is ever a concern. Section 11 sync.py uses streams; this endpoint is documented for completeness.
 
 ### Weather Fields on the Activity List Endpoint
 
@@ -234,18 +234,18 @@ For Pro/supporter accounts, weather data is pre-computed and attached to each ou
 GET https://intervals.icu/api/v1/athlete/0/activities?oldest=YYYY-MM-DD&newest=YYYY-MM-DD
 ```
 
-No extra streams call needed — these fields appear directly on each activity in the response. sync.py reads them to populate `weather_summary` in latest.json.
+No extra streams call needed. These fields appear directly on each activity in the response. sync.py reads them to populate `weather_summary` in latest.json.
 
 | Field | Meaning |
 |-------|---------|
-| `has_weather` | bool — whether weather has been computed for this activity (re-evaluated each sync; may flip false→true if Intervals catches up later) |
+| `has_weather` | bool: whether weather has been computed for this activity (re-evaluated each sync; may flip false→true if Intervals catches up later) |
 | `average_wind_speed` | In account's wind unit (see units endpoint) |
 | `average_wind_gust` | Same unit as wind_speed |
 | `prevailing_wind_deg` | 0-359, meteorological convention (direction wind comes FROM) |
 | `headwind_percent` | % of moving time with relative headwind |
 | `tailwind_percent` | % of moving time with relative tailwind |
 | `average_weather_temp` | Ambient air temp from Open-Meteo (°C or °F per account) |
-| `average_temp` | Device sensor temp — typically higher in direct sun |
+| `average_temp` | Device sensor temp (typically higher in direct sun) |
 | `average_feels_like`, `min_feels_like`, `max_feels_like` | Apparent temp |
 | `min_weather_temp`, `max_weather_temp` | Ambient range over the ride |
 | `average_clouds` | % cloud cover |
@@ -291,5 +291,5 @@ python pull.py units
 - **Strava-sourced activities don't fire Intervals webhooks.** sync.py polling discovers them anyway; only matters if you ever build webhook-triggered processing.
 - **Weather is a Pro/supporter feature.** If the subscription lapses, `has_weather` may stop populating on new activities. Existing summaries already in `latest.json` are unaffected.
 - **`has_weather` is re-evaluated every sync.** sync.py never copies forward `weather_status: "unavailable"` from the previous latest.json, because Intervals sometimes computes weather data minutes-to-hours after upload. Letting it re-check ensures a delayed weather computation gets picked up on the next sync.
-- **Pre-April-2021 activities have no weather data** — outside Open-Meteo coverage on Intervals' side. Outside any reasonable display window for sync.py anyway.
+- **Pre-April-2021 activities have no weather data**: outside Open-Meteo coverage on Intervals' side. Outside any reasonable display window for sync.py anyway.
 

@@ -1,4 +1,4 @@
-# DFA a1 — Non-Garmin Platforms
+# DFA a1: Non-Garmin Platforms
 
 > **Status: Documentation only.** Section 11's DFA a1 features currently work with one source: AlphaHRV on Garmin. This file tracks what other platforms could plausibly support, what's been verified, and what we'd need from a non-Garmin user to confirm.
 
@@ -6,7 +6,7 @@
 
 ## Why this exists
 
-The DFA a1 Protocol in `SECTION_11.md` requires the [AlphaHRV](https://apps.garmin.com/en-US/apps/40fd5e67-1ed0-457b-944b-19fdb3aae7e7) Connect IQ data field by Marco Altini, recording on a Garmin head unit, syncing directly to Intervals.icu (Strava strips developer fields). Other head units have varying paths to DFA a1 — some plausible, none currently verified end-to-end against the Section 11 pipeline.
+The DFA a1 Protocol in `SECTION_11.md` requires the [AlphaHRV](https://apps.garmin.com/en-US/apps/40fd5e67-1ed0-457b-944b-19fdb3aae7e7) Connect IQ data field by Marco Altini, recording on a Garmin head unit, syncing directly to Intervals.icu (Strava strips developer fields). Other head units have varying paths to DFA a1: some plausible, none currently verified end-to-end against the Section 11 pipeline.
 
 This file:
 
@@ -15,7 +15,7 @@ This file:
 3. Provides **discovery commands** that a user on the relevant platform can run and paste back to us
 4. Explains how to **contribute** verification or fixes via GitHub issues / PRs
 
-If you're on a non-Garmin platform and want DFA a1 to work, this file is for you. We'd like to help, but we need a user on the relevant device to run the commands — none of the maintainers own Wahoo, Karoo, Coros, or Suunto hardware.
+If you're on a non-Garmin platform and want DFA a1 to work, this file is for you. We'd like to help, but we need a user on the relevant device to run the commands. None of the maintainers own Wahoo, Karoo, Coros, or Suunto hardware.
 
 ---
 
@@ -24,8 +24,8 @@ If you're on a non-Garmin platform and want DFA a1 to work, this file is for you
 | Platform | Path | Status | Notes |
 |---|---|---|---|
 | **Garmin** + AlphaHRV | Connect IQ data field → FIT developer field → Intervals.icu `dfa_a1` stream → `sync.py` | ✅ **Supported** | The reference path. Validated end-to-end. See `SECTION_11.md` DFA a1 Protocol §Overview. |
-| **Suunto** + Zone Sense (DDFA) | SuuntoPlus app → FIT developer field → ? | ⚠️ **Investigational** | Suunto records DDFA (Dynamic DFA) via Zone Sense / Monicardi partnership. **Different algorithm than DFA a1** — values are not directly comparable, threshold mapping (1.0/0.5) may not apply. Even if Intervals.icu surfaces the field, Section 11 would need a separate protocol section to interpret it. |
-| **Hammerhead Karoo** + [veloVigil](https://github.com/velovigil/velovigil-karoo) | Karoo extension (Android sideload) → ? | ⚠️ **Investigational, gaps known** | veloVigil is an open-source Karoo extension (MIT licensed) that connects to Polar H10 over BLE and computes HRV (RMSSD, SDNN, pNN50). **Currently does NOT compute or write DFA a1** — that would require a contribution upstream. Hammerhead's own "log RR to FIT" is on the roadmap but not shipped as of late 2025. |
+| **Suunto** + Zone Sense (DDFA) | SuuntoPlus app → FIT developer field → ? | ⚠️ **Investigational** | Suunto records DDFA (Dynamic DFA) via Zone Sense / Monicardi partnership. **Different algorithm than DFA a1**. Values are not directly comparable, threshold mapping (1.0/0.5) may not apply. Even if Intervals.icu surfaces the field, Section 11 would need a separate protocol section to interpret it. |
+| **Hammerhead Karoo** + [veloVigil](https://github.com/velovigil/velovigil-karoo) | Karoo extension (Android sideload) → ? | ⚠️ **Investigational, gaps known** | veloVigil is an open-source Karoo extension (MIT licensed) that connects to Polar H10 over BLE and computes HRV (RMSSD, SDNN, pNN50). **Currently does NOT compute or write DFA a1**. That would require a contribution upstream. Hammerhead's own "log RR to FIT" is on the roadmap but not shipped as of late 2025. |
 | **Phone fallback** (FatMaxxer / HRV Logger) | Phone app records on a separate device → CSV export → manual reconciliation with the ride activity | ❌ **Evaluated, not supported** | Both apps output CSV from a phone running in parallel with the head unit. Neither writes into the ride's FIT, so the alpha1 record is always a separate file that has to be time-aligned and merged per ride. Even with Intervals.icu's Supporter-only streams.csv upload, the workflow is manual, fragile, and architecturally distinct from AlphaHRV's "just record the ride" path. See *Phone fallback (evaluated, not supported)* below. |
 | **Wahoo** (ELEMNT, BOLT, ROAM) | — | ❌ **No supported path** | Wahoo's ELEMNT firmware does not log RR intervals to the FIT file, and Wahoo has no third-party app platform analogous to Connect IQ. DFA a1 in Section 11 currently requires Garmin + AlphaHRV. |
 | **Coros** | — | ❌ **No supported path** | Coros watches do not log in-activity HRV/RR. DFA a1 in Section 11 currently requires Garmin + AlphaHRV. |
@@ -37,7 +37,7 @@ If you're on a non-Garmin platform and want DFA a1 to work, this file is for you
 
 Two phone apps can record DFA a1 in parallel with a ride: [FatMaxxer](https://github.com/IanPeake/FatMaxxer) on Android (Polar H10 only, Apache 2.0, [formally validated against Kubios in EJAP, October 2025](https://link.springer.com/article/10.1007/s00421-025-06037-0)) and [HRV Logger](https://www.hrv.tools/) on iOS (paid, by Marco Altini, works with any BLE strap broadcasting RR). Both have been evaluated for Section 11 and **neither is supported**.
 
-The reason is architectural, not algorithmic. Both apps run on a phone, on a device separate from the bike computer that records the ride. Both output CSV — neither writes into the ride's FIT file. That means the alpha1 record is always a second file that has to be time-aligned and merged with the ride per session. Even with Intervals.icu's Supporter-only `streams.csv` upload (added October 2025), the user workflow is: record on two devices, export from the phone, download the activity's stream CSV, manually align timestamps, add an `dfa_a1` column, re-upload. Per ride. Forever. The algorithmic accuracy of FatMaxxer (validated by EJAP) is real but orthogonal — it doesn't make the integration story any less fragile.
+The reason is architectural, not algorithmic. Both apps run on a phone, on a device separate from the bike computer that records the ride. Both output CSV; neither writes into the ride's FIT file. That means the alpha1 record is always a second file that has to be time-aligned and merged with the ride per session. Even with Intervals.icu's Supporter-only `streams.csv` upload (added October 2025), the user workflow is: record on two devices, export from the phone, download the activity's stream CSV, manually align timestamps, add an `dfa_a1` column, re-upload. Per ride. Forever. The algorithmic accuracy of FatMaxxer (validated by EJAP) is real but orthogonal; it doesn't make the integration story any less fragile.
 
 By contrast, AlphaHRV runs *on* the Garmin head unit, writes alpha1 as a FIT developer field into the same file as the ride, and Intervals.icu picks it up natively on upload. Zero user steps after recording. That's the bar Section 11 requires of any supported DFA a1 source: alpha1 must arrive time-aligned with the ride without manual reconciliation.
 
@@ -126,13 +126,13 @@ curl -s -u "API_KEY:$KEY" "https://intervals.icu/api/v1/activity/$ACT" \
 ```
 
 **What we're looking for:**
-- A `hrv` stream → Karoo + veloVigil is writing per-second HRV to the FIT and Intervals.icu picks it up. (This wouldn't be DFA a1 directly — it'd be RMSSD or similar — but it confirms the dev-field path works on Karoo.)
+- A `hrv` stream → Karoo + veloVigil is writing per-second HRV to the FIT and Intervals.icu picks it up. (This wouldn't be DFA a1 directly; it'd be RMSSD or similar, but it confirms the dev-field path works on Karoo.)
 - A `dfa_a1` stream → veloVigil (or another Karoo extension) is writing DFA a1 directly. **If this exists, sync.py works on Karoo with zero changes.**
 - Nothing → no Karoo extension is currently writing HRV-related fields that Intervals.icu surfaces. The path is theoretically viable but no app fills it yet.
 
 ### Phone fallback verification
 
-Not applicable — phone fallback is not supported. See *Phone fallback (evaluated, not supported)* above for the architectural reason.
+Not applicable. Phone fallback is not supported. See *Phone fallback (evaluated, not supported)* above for the architectural reason.
 
 ---
 
@@ -142,8 +142,8 @@ If you're on Suunto, Karoo, Wahoo, Coros, Polar, or trying the phone fallback, a
 
 1. **Run the relevant discovery commands above.**
 2. **Open a [GitHub issue](https://github.com/CrankAddict/section-11/issues)** with title `DFA a1 verification: <platform>`.
-3. **Paste the full command output** (sanitized — no API keys, no athlete IDs you don't want public).
-4. **Tell us your setup**: head unit model, strap, app versions, sync path to Intervals.icu (direct or via Strava — direct is required for any of this to work).
+3. **Paste the full command output** (sanitized: no API keys, no athlete IDs you don't want public).
+4. **Tell us your setup**: head unit model, strap, app versions, sync path to Intervals.icu (direct or via Strava). Direct is required for any of this to work.
 
 If the verification reveals a path that needs a small `sync.py` change (e.g. new stream name to map), we'll do it. If it reveals a contribution upstream is needed (e.g. veloVigil could write DFA a1), we'll either help draft the upstream PR or document what's needed clearly enough for someone else to.
 
@@ -156,4 +156,4 @@ We don't own non-Garmin hardware, so we can't verify any of this ourselves. Your
 - **None of the non-Garmin paths are currently verified end-to-end.** Section 11 supports Garmin + AlphaHRV. Everything else in this file is plausible-but-unverified, clearly labeled.
 - **The Suunto DDFA path may never produce identical numbers to DFA a1.** Different algorithm. Even if Intervals.icu exposes Suunto DDFA, Section 11 would need a separate `DDFA a1 Protocol` section with its own threshold validation before it could be interpreted. We're not building that speculatively.
 - **Phone fallback (FatMaxxer / HRV Logger) was evaluated and is not supported.** Both apps record on a separate device from the bike computer and output CSV, requiring per-ride manual time alignment and merge into the activity stream. AlphaHRV records into the ride's FIT directly, so it has no equivalent reconciliation cost. See *Phone fallback (evaluated, not supported)* above.
-- **Wahoo, Coros, and Polar have no supported DFA a1 path.** Section 11 currently requires Garmin + AlphaHRV. That's a hardware/firmware limitation on those platforms, not a Section 11 design choice — we'd happily support any head unit that records alpha1 (or RR with a recognized alpha1 developer field) into the ride's FIT.
+- **Wahoo, Coros, and Polar have no supported DFA a1 path.** Section 11 currently requires Garmin + AlphaHRV. That's a hardware/firmware limitation on those platforms, not a Section 11 design choice; we'd happily support any head unit that records alpha1 (or RR with a recognized alpha1 developer field) into the ride's FIT.

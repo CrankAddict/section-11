@@ -14,7 +14,7 @@ Copy this file to your agent workspace as `HEARTBEAT.md` and fill in the bracket
 | Notification channel | [CHANNEL, e.g., "telegram"] |
 | Notification ID | [CHANNEL_ID] |
 
-> Weather is configured separately — see [Weather — moved to cron](#weather--moved-to-cron) below.
+> Weather is configured separately. See [Weather: moved to cron](#weather-moved-to-cron) below.
 
 ### Data Sources
 
@@ -33,7 +33,7 @@ Copy this file to your agent workspace as `HEARTBEAT.md` and fill in the bracket
 - Look for patterns and trends over time, good and bad
 - Flag anything per Section 11 protocol
 - Reference goals from DOSSIER.md
-- Share observations even if minor — athlete wants to hear your thinking
+- Share observations even if minor: athlete wants to hear your thinking
 
 ---
 
@@ -52,13 +52,13 @@ Copy this file to your agent workspace as `HEARTBEAT.md` and fill in the bracket
 ### Open Topics (when active topics exist)
 - Read `topics.md`
 - Pick 1 active topic and advance it with fresh data or new context
-- Don't force progress — skip if nothing new to add
+- Don't force progress. Skip if nothing new to add
 - When a topic reaches conclusion, message athlete and move to Resolved
 - New topics are seeded during weekly background analysis
 
 ---
 
-## Weather — moved to cron
+## Weather: moved to cron
 
 Weather checks are best handled by separate scheduled jobs (morning + evening), not the heartbeat. Only message the athlete if conditions are rideable. **Silence = not rideable.**
 

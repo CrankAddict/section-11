@@ -9,8 +9,8 @@
 
 ```
 Week 2 Summary (27 Jan – 02 Feb 2026)
-Block: Threshold Development — Week 2/4
-Phase: Build — week 4 (confidence: high)
+Block: Threshold Development, Week 2/4
+Phase: Build, week 4 (confidence: high)
   Basis: Rising CTL, 2-3 hard days sustained
 
 Compliance: 6/6 sessions completed
@@ -18,13 +18,13 @@ Planned TSS: 520 | Actual TSS: 537 (103%)
 Hours: 14h12m (prev week: 13h48m)
 
 Session Breakdown:
-  Mon: Recovery spin — 32 TSS ✅
-  Tue: Sweetspot 2x20 — 89 TSS ✅
-  Wed: Endurance 2h30m — 78 TSS ✅
-  Thu: VO2max 5x4min — 95 TSS ✅
-  Fri: Endurance 3h + SkiErg — 112 TSS ✅
-  Sat: Rest — 0 TSS ✅
-  Sun: Long ride 4h — 131 TSS ✅
+  Mon: Recovery spin: 32 TSS ✅
+  Tue: Sweetspot 2x20: 89 TSS ✅
+  Wed: Endurance 2h30m: 78 TSS ✅
+  Thu: VO2max 5x4min: 95 TSS ✅
+  Fri: Endurance 3h + SkiErg: 112 TSS ✅
+  Sat: Rest: 0 TSS ✅
+  Sun: Long ride 4h: 131 TSS ✅
 
 Quality Session Detail:
   Sweetspot 2x20:
@@ -44,7 +44,7 @@ Polarization:
   Z3 (Grey Zone): 3% (target <5%)
   Z4+ (Quality): 14% (target ~20% of intensity sessions)
   TID 7d: Polarized (PI: 2.92)
-  TID 28d: Polarized (PI: 3.05) — drift: consistent
+  TID 28d: Polarized (PI: 3.05), drift: consistent
 
 Durability (steady-state sessions, VI ≤ 1.05, ≥ 90min):
   7d mean(3): 2.10% | 28d mean(11): 2.65%
@@ -85,7 +85,7 @@ Wellness Trends:
 Section 11 Flags: None
 
 Interpretation:
-Strong compliance week — all six sessions completed as planned. Both
+Strong compliance week: all six sessions completed as planned. Both
 quality sessions hit targets: sweetspot power slightly above target with
 excellent pacing (VI 1.01), and VO2max intervals within 2% of target
 despite being end of a build week. Grey zone well controlled at 3%.
@@ -94,7 +94,7 @@ TSB drifting slightly negative but manageable heading into week 3.
 Next Week Preview:
 Week 3 is peak load before deload. Tuesday sweetspot extends to 2x25,
 Thursday VO2max adds a 6th interval. Sunday long ride targets 4h30m.
-Monitor HRV early in the week — if it drops below 45ms, consider
+Monitor HRV early in the week; if it drops below 45ms, consider
 modifying Thursday's session.
 ```
 
@@ -104,8 +104,8 @@ modifying Thursday's session.
 
 ```
 Week 3 Summary (03 Feb – 09 Feb 2026)
-Block: Aerobic Base — Week 3/5
-Phase: Base — week 7 (confidence: high)
+Block: Aerobic Base, Week 3/5
+Phase: Base, week 7 (confidence: high)
   Basis: Sustained endurance focus, no intensity progression
 
 Compliance: 5/7 sessions completed (1 modified, 1 missed)
@@ -113,13 +113,13 @@ Planned TSS: 480 | Actual TSS: 392 (82%)
 Hours: 12h6m (prev week: 14h48m)
 
 Session Breakdown:
-  Mon: Recovery spin — 28 TSS ✅
-  Tue: Tempo 3x15 — 76 TSS ⚠️ (cut to 2x15, fatigue)
-  Wed: Endurance 2h — 62 TSS ✅
-  Thu: Rest (unplanned) — 0 TSS ❌ (poor sleep, HRV drop)
-  Fri: Endurance 3h — 98 TSS ✅
-  Sat: Yoga/mobility — 0 TSS ✅
-  Sun: Long ride 3h30m — 128 TSS ✅
+  Mon: Recovery spin: 28 TSS ✅
+  Tue: Tempo 3x15: 76 TSS ⚠️ (cut to 2x15, fatigue)
+  Wed: Endurance 2h: 62 TSS ✅
+  Thu: Rest (unplanned): 0 TSS ❌ (poor sleep, HRV drop)
+  Fri: Endurance 3h: 98 TSS ✅
+  Sat: Yoga/mobility: 0 TSS ✅
+  Sun: Long ride 3h30m: 128 TSS ✅
 
 Quality Session Detail:
   Tempo 3x15 (modified to 2x15):
@@ -133,7 +133,7 @@ Polarization:
   Z3 (Grey Zone): 7% (target <5%) ⚠️
   Z4+ (Quality): 2%
   TID 7d: Pyramidal (PI: 1.85)
-  TID 28d: Polarized (PI: 2.90) — drift: acute_depolarization ⚠️
+  TID 28d: Polarized (PI: 2.90), drift: acute_depolarization ⚠️
 
 Durability (steady-state sessions, VI ≤ 1.05, ≥ 90min):
   7d mean(2): 4.80% | 28d mean(9): 2.90%
@@ -144,7 +144,7 @@ Efficiency Factor (steady-state cycling, VI ≤ 1.05, ≥ 20min):
   Trend: declining
 
 HRRc:
-  22 bpm 28d mean(3) — 7d: no data
+  22 bpm 28d mean(3); 7d: no data
 
 Power Curve Delta (28d vs prior 28d):
   Rotation: -0.8 (endurance-biased)
@@ -153,7 +153,7 @@ Power Curve Delta (28d vs prior 28d):
 HR Curve Delta (28d vs prior 28d):
   Rotation: +0.5 (intensity-biased)
   Notable shifts: 5min +3.1%, 20min +2.6%
-  Cross-reference: HRV declining, RHR elevated — rising HR likely fatigue, not fitness
+  Cross-reference: HRV declining, RHR elevated; rising HR likely fatigue, not fitness
 
 Fitness:
   CTL: 72.4 → 71.1 (Δ -1.3)
@@ -165,11 +165,11 @@ Fitness:
     Acute (7d): 392 TSS | Chronic (28d avg): 441 TSS
 
 Wellness Trends:
-  HRV: 39–51 ms (avg 44, prev week 52) ↓ declining — monitor
-  RHR: 50–56 bpm (avg 53, prev week 49) ↑ elevated — monitor
-  Sleep: 6h6m avg, quality 3.2/4 avg ↓ declining — monitor
-  Avg Feel: 3.6/5 (4 sessions) ↓ declining — monitor
-  Avg RPE: 6.8/10 (4 sessions) ↑ elevated — monitor
+  HRV: 39–51 ms (avg 44, prev week 52) ↓ declining; monitor
+  RHR: 50–56 bpm (avg 53, prev week 49) ↑ elevated; monitor
+  Sleep: 6h6m avg, quality 3.2/4 avg ↓ declining; monitor
+  Avg Feel: 3.6/5 (4 sessions) ↓ declining; monitor
+  Avg RPE: 6.8/10 (4 sessions) ↑ elevated; monitor
 
 Section 11 Flags:
   - HRV below 7-day baseline by >15% on Thu → triggered rest day
@@ -179,20 +179,20 @@ Section 11 Flags:
 
 Interpretation:
 Fatigue accumulated from weeks 1-2 surfaced mid-week. HRV dropped 15%
-Thursday morning, prompting an unplanned rest day — correct decision per
-Section 11 Tier 1 readiness hierarchy. Tuesday's tempo was modified
+Thursday morning, prompting an unplanned rest day (correct decision per
+Section 11 Tier 1 readiness hierarchy). Tuesday's tempo was modified
 mid-session (cut third interval) due to elevated perceived effort, and
 grey zone crept to 7% as a result of pacing drift. Durability declined
 noticeably (4.8% vs 2.9% 28d average) and TID shifted from Polarized to
-Pyramidal — both consistent with accumulated fatigue rather than a training
+Pyramidal, both consistent with accumulated fatigue rather than a training
 design issue. TSB recovering from -16 to -7, which was needed. Sleep
-quality was the likely root cause — address sleep hygiene before next week.
+quality was the likely root cause. Address sleep hygiene before next week.
 
 Next Week Preview:
 Week 4 was planned as continued base build but recommending a partial
 deload given wellness trends. Reduce planned TSS by ~15%, keep Sunday
 long ride but drop Thursday intensity session to endurance. Reassess
-HRV trend by Wednesday — if restored to baseline, resume normal load
+HRV trend by Wednesday; if restored to baseline, resume normal load
 for week 5.
 ```
 
@@ -200,8 +200,8 @@ for week 5.
 
 ## Notes
 
-- **Example 1** shows a clean week — brief flags section, concise overall
-- **Example 2** shows how the template handles real-world disruptions — modifications, flags, and adaptive planning
-- **Quality Session Detail** only appears for intensity sessions; endurance/recovery rides are covered in the Session Breakdown. Cap at 2–3 per week — if 4+ hard days occurred, prioritize the most notable sessions
+- **Example 1** shows a clean week: brief flags section, concise overall
+- **Example 2** shows how the template handles real-world disruptions: modifications, flags, and adaptive planning
+- **Quality Session Detail** only appears for intensity sessions; endurance/recovery rides are covered in the Session Breakdown. Cap at 2–3 per week; if 4+ hard days occurred, prioritize the most notable sessions
 - **Wellness arrows with labels** make trends immediately actionable without requiring the athlete to interpret raw numbers
 - **Section 11 Flags** surfaced in the weekly report, not deferred to block report

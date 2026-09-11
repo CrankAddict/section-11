@@ -47,8 +47,8 @@ Phase: Build Wk2
 Polarization: Z1+Z2 97%, Z3 1%, Z4+ 3%
 Durability: 2.14% 7d mean(3) / 2.50% 28d mean(11) (stable)
 EF: 1.45 7d mean(4) / 1.42 28d mean(14) (stable)
-HRRc: 36 bpm 28d mean(5) — 7d: no data
-TID 28d: Polarized (PI: 3.18) — drift: consistent
+HRRc: 36 bpm 28d mean(5); 7d: no data
+TID 28d: Polarized (PI: 3.18); drift: consistent
 TSB: -4.85
 CTL: 71.20
 ATL: 76.05
@@ -60,7 +60,7 @@ TSS: 410
 
 Interpretation:
 Both sessions compliant with plan. Bike decoupling 2.14% over 2h30m shows solid aerobic control.
-Rowing stayed in Z1-Z2 as prescribed. Load tracking well — TSB manageable heading into Thursday.
+Rowing stayed in Z1-Z2 as prescribed. Load tracking well. TSB manageable heading into Thursday.
 
 Tomorrow: Endurance 2h15m, 1h30m @173W + SkiErg 10m Z2 HR
 ```
@@ -129,11 +129,11 @@ TSS: 5
 
 Weekly totals (rolling 7d):
 Phase: Base Wk3
-Polarization: Z1+Z2 88%, Z3 7%, Z4+ 5% — Polarized (PI: 1.85)
+Polarization: Z1+Z2 88%, Z3 7%, Z4+ 5%: Polarized (PI: 1.85)
 Durability: 3.20% 7d mean(3) / 2.75% 28d mean(12) (stable)
 EF: 1.38 7d mean(4) / 1.42 28d mean(15) (stable)
 HRRc: 32 bpm 7d mean(2) / 31 bpm 28d mean(8) (stable)
-TID 28d: Polarized (PI: 2.42) — drift: consistent
+TID 28d: Polarized (PI: 2.42); drift: consistent
 TSB: -3.75
 CTL: 68.40
 ATL: 72.15
@@ -144,8 +144,8 @@ Hours: 11h48m
 TSS: 445
 
 Interpretation:
-Main ride overshot planned TSS (95 vs 65) — expected given the rolling terrain, with VI and grey
-zone confirming the outdoor premium — but HR stayed fully in Z1-Z2 and negative decoupling
+Main ride overshot planned TSS (95 vs 65), expected given the rolling terrain, with VI and grey
+zone confirming the outdoor premium, but HR stayed fully in Z1-Z2 and negative decoupling
 (-4.12%) shows aerobic response was clean. Short 5m ride logged separately; no `description` or `chat_notes`
 attached, reported as-is. SkiErg and walk executed as easy secondary sessions. Load tracking
 normally at ACWR 1.04.
@@ -192,7 +192,7 @@ Polarization: Z1+Z2 84%, Z3 2%, Z4+ 13%
 Durability: 2.95% 7d mean(3) / 2.50% 28d mean(11) (stable)
 EF: 1.46 7d mean(4) / 1.43 28d mean(14) (stable)
 HRRc: 34 bpm 7d mean(1) / 36 bpm 28d mean(5) (stable)
-TID 28d: Polarized (PI: 3.10) — drift: consistent
+TID 28d: Polarized (PI: 3.10); drift: consistent
 TSB: -11.40
 CTL: 72.80
 ATL: 84.20
@@ -203,7 +203,7 @@ Hours: 14h45m
 TSS: 485
 
 Interpretation:
-Interval targets met — all three efforts within ±3W of prescribed power. Z3 at 3% is
+Interval targets met: all three efforts within ±3W of prescribed power. Z3 at 3% is
 from warm-up/cool-down transitions, not drift. Decoupling 3.82% across interval session is
 acceptable. TSB at -11.40 reflects build week loading. Recovery spin tomorrow. 🔄
 ```
@@ -238,14 +238,14 @@ Carbs used: 153 g
 TSS: 47 (planned 78)
 
 Skipped workout: VirtualSki Training Session
-Reason: Precautionary — knee discomfort from ride
+Reason: Precautionary (knee discomfort from ride)
 
 Weekly totals (rolling 7d):
 Phase: Base Wk4
 Polarization: Z1+Z2 98%, Z3 0%, Z4+ 2%
 Durability: 1.92% 7d mean(2) / 2.40% 28d mean(10) (improving)
 EF: 1.41 7d mean(3) / 1.42 28d mean(12) (stable)
-TID 28d: Polarized (PI: 3.15) — drift: consistent
+TID 28d: Polarized (PI: 3.15); drift: consistent
 TSB: +2.35
 CTL: 70.50
 ATL: 68.15
@@ -256,7 +256,7 @@ Hours: 4h15m
 TSS: 132
 
 Interpretation:
-Session cut short — right call given the knee discomfort. Aerobic quality during the 1h30m
+Session cut short. Right call given the knee discomfort. Aerobic quality during the 1h30m
 was excellent (decoupling 1.92%, VI 1.01). TSS 47 vs planned 78 means a lighter day than
 intended. Monitor knee before tomorrow's session. If persistent, consider swapping to
 upper-body only. 🩹
@@ -285,7 +285,7 @@ Phase: Base Wk2
 Polarization: Z1+Z2 97%, Z3 0%, Z4+ 3%
 Durability: 2.30% 7d mean(3) / 2.55% 28d mean(11) (stable)
 EF: 1.44 7d mean(4) / 1.43 28d mean(13) (stable)
-TID 28d: Polarized (PI: 3.22) — drift: consistent
+TID 28d: Polarized (PI: 3.22); drift: consistent
 TSB: +0.85
 CTL: 73.10
 ATL: 72.25
@@ -296,7 +296,7 @@ Hours: 15h30m
 TSS: 498
 
 Interpretation:
-Easy recovery walk, entirely in Z1 as expected on a rest day. TSB positive at +0.85 —
+Easy recovery walk, entirely in Z1 as expected on a rest day. TSB positive at +0.85,
 recovering well heading into tomorrow's interval session. Braved the rain at 4°C too. 🌧️
 ```
 
@@ -307,7 +307,7 @@ recovering well heading into tomorrow's interval session. Braved the rain at 4°
 ```
 Data (last_updated UTC: 2026-02-08T16:30:00)
 
-Long Z2 ride completed at planned duration but DFA a1 drifted negative across the second half — fueling/heat signal worth noting.
+Long Z2 ride completed at planned duration but DFA a1 drifted negative across the second half: fueling/heat signal worth noting.
 
 Outdoor context: rolling route (8 m/km), calm cool conditions; variability likely terrain-driven.
 
@@ -342,7 +342,7 @@ Polarization: Z1+Z2 92%, Z3 5%, Z4+ 3%
 Durability: 4.50% 7d mean(3) / 3.20% 28d mean(13) (declining)
 EF: 1.36 7d mean(4) / 1.41 28d mean(15) (declining)
 HRRc: 30 bpm 7d mean(2) / 33 bpm 28d mean(9) (declining)
-TID 28d: Polarized (PI: 2.95) — drift: consistent
+TID 28d: Polarized (PI: 2.95); drift: consistent
 TSB: -8.20
 CTL: 78.40
 ATL: 86.60
@@ -356,13 +356,13 @@ Interpretation:
 Duration and external load on plan, but multiple internal signals point to a costly session.
 DFA a1 averaged 0.94, split across `tiz_easy` (38%) and `tiz_endurance` (52%). For a long
 endurance ride, time in the endurance band (0.75–1.0, working toward LT1) is acceptable in
-itself — it is not the flag. The flag is the drift: -0.31 across the session, and interpretable
+itself; it is not the flag. The flag is the drift: -0.31 across the session, and interpretable
 (no time above LT2 to distort it). DFA a1 falling toward LT1 as the ride wore on points to
-rising internal cost — fueling state, accumulated heat, or fatigue — rather than a steady
+rising internal cost (fueling state, accumulated heat, or fatigue) rather than a steady
 aerobic effort, and crosses the threshold for fueling/heat/fatigue cross-reference per DFA a1
 Protocol §Session Interpretation. Decoupling 6.85% and HRRc dropping to 28 bpm reinforce the
 same picture. Carbs in (412g, ~98g/h) were on the lower bound for a 4h+ ride at this
-intensity — raise to 110–120g/h on the next long ride and see if DFA holds. Easy day tomorrow
+intensity; raise to 110–120g/h on the next long ride and see if DFA holds. Easy day tomorrow
 regardless. 🥵
 
 Tomorrow: Recovery 1h, Z1 only
@@ -408,7 +408,7 @@ Polarization: Z1+Z2 81%, Z3 6%, Z4+ 13%
 Durability: 2.80% 7d mean(2) / 2.95% 28d mean(12) (stable)
 EF: 1.48 7d mean(3) / 1.45 28d mean(14) (improving)
 HRRc: 33 bpm 7d mean(2) / 32 bpm 28d mean(8) (stable)
-TID 28d: Polarized (PI: 3.05) — drift: consistent
+TID 28d: Polarized (PI: 3.05); drift: consistent
 TSB: -6.50
 CTL: 76.20
 ATL: 82.70
@@ -421,7 +421,7 @@ TSS: 295
 Interpretation:
 Clean sweet spot session. Power on target across all four intervals, DFA a1 sat predominantly
 in the 0.5–0.75 tempo band (44%) where sweet spot work should land per the protocol
-threshold mapping — internal intensity matched prescription. Drift was slightly positive but
+threshold mapping; internal intensity matched prescription. Drift was slightly positive but
 flagged structural (work above LT2 present), so no autonomic drift signal. Decoupling 2.45%
 and stable HRRc round out a session that did exactly what it was meant to do.
 
@@ -435,7 +435,7 @@ Tomorrow: Endurance 2h, Z2 steady
 ```
 Data (last_updated UTC: 2026-02-17T10:30:00)
 
-Post-deload threshold session executed to prescription — RPE came in notably low for the IF achieved. Fitness/freshness tell.
+Post-deload threshold session executed to prescription; RPE came in notably low for the IF achieved. Fitness/freshness tell.
 
 Outdoor context: flat route (3 m/km), breezy cold conditions; thermal cost notable.
 
@@ -469,7 +469,7 @@ Polarization: Z1+Z2 84%, Z3 4%, Z4+ 12%
 Durability: 2.30% 7d mean(2) / 2.65% 28d mean(11) (improving)
 EF: 1.58 7d mean(3) / 1.50 28d mean(13) (improving)
 HRRc: 38 bpm 7d mean(2) / 34 bpm 28d mean(9) (improving)
-TID 28d: Polarized (PI: 3.12) — drift: consistent
+TID 28d: Polarized (PI: 3.12); drift: consistent
 TSB: 3.20
 CTL: 72.50
 ATL: 69.30
@@ -480,7 +480,7 @@ Hours: 7h48m
 TSS: 312
 
 Interpretation:
-Threshold work at IF 0.88 with RPE 5 — below the 6–8 band for this intensity, and notable on a
+Threshold work at IF 0.88 with RPE 5, below the 6–8 band for this intensity, and notable on a
 cold day where RPE typically runs higher rather than lower. Coming off a deload week with positive
 TSB (+3.2) and improving HRRc trend, this reads as fitness showing through rather than a
 measurement error. Decoupling 2.10% and EF 1.61 (7d mean improving vs

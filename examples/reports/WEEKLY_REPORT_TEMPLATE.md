@@ -1,10 +1,10 @@
 # Weekly Report Template
 
-**Structure only — no data. Replace `[placeholders]` with actual values.**
+**Structure only: no data. Replace `[placeholders]` with actual values.**
 
-**Data Freshness:** Every numeric value in a report must come from a current read of its source JSON file. Do not carry forward values from earlier reports or earlier in the conversation — re-read before quoting.
+**Data Freshness:** Every numeric value in a report must come from a current read of its source JSON file. Do not carry forward values from earlier reports or earlier in the conversation. Re-read before quoting.
 
-**Display Units:** For distance / elevation / weight / height / position / speed, quote `display.*` fields from the source JSON — they're pre-converted to the athlete's Intervals.icu preferences. Use canonical metric (`*_km`, `*_m`, `*_kg`) only for calculations. See SECTION_11.md §Display Unit Semantics.
+**Display Units:** For distance / elevation / weight / height / position / speed, quote `display.*` fields from the source JSON; they're pre-converted to the athlete's Intervals.icu preferences. Use canonical metric (`*_km`, `*_m`, `*_kg`) only for calculations. See SECTION_11.md §Display Unit Semantics.
 
 Generated at end of training week (Saturday or Sunday morning).
 
@@ -14,8 +14,8 @@ Generated at end of training week (Saturday or Sunday morning).
 
 ```
 Week [X] Summary ([date range])
-Block: [Name] — Week [X/Y]
-Phase: [Phase] — week [phase_duration_weeks] (confidence: [confidence])
+Block: [Name], Week [X/Y]
+Phase: [Phase], week [phase_duration_weeks] (confidence: [confidence])
   [If previous_phase differs: "Transitioned from [previous_phase]"]
   [If key reason_codes: "[1-2 codes in plain English]"]
 
@@ -24,13 +24,13 @@ Planned TSS: [XXX] | Actual TSS: [XXX] ([XX]%)
 Hours: [XhYm] (prev week: [XhYm])
 
 Session Breakdown:
-  Mon: [workout name] — [XXX] TSS ✅/⚠️/❌
-  Tue: [workout name] — [XXX] TSS ✅/⚠️/❌
-  Wed: [workout name] — [XXX] TSS ✅/⚠️/❌
-  Thu: [workout name] — [XXX] TSS ✅/⚠️/❌
-  Fri: [workout name] — [XXX] TSS ✅/⚠️/❌
-  Sat: [workout name] — [XXX] TSS ✅/⚠️/❌
-  Sun: [workout name] — [XXX] TSS ✅/⚠️/❌
+  Mon: [workout name]: [XXX] TSS ✅/⚠️/❌
+  Tue: [workout name]: [XXX] TSS ✅/⚠️/❌
+  Wed: [workout name]: [XXX] TSS ✅/⚠️/❌
+  Thu: [workout name]: [XXX] TSS ✅/⚠️/❌
+  Fri: [workout name]: [XXX] TSS ✅/⚠️/❌
+  Sat: [workout name]: [XXX] TSS ✅/⚠️/❌
+  Sun: [workout name]: [XXX] TSS ✅/⚠️/❌
 
 Quality Session Detail:
   [Session 1 name]:
@@ -49,7 +49,7 @@ Polarization:
   Z3 (Grey Zone): [X]% (target <5%)
   Z4+ (Quality): [X]% (target ~20% of intensity sessions)
   TID 7d: [Classification] (PI: [X.XX])
-  TID 28d: [Classification] (PI: [X.XX]) — drift: [consistent/shifting/acute_depolarization]
+  TID 28d: [Classification] (PI: [X.XX]), drift: [consistent/shifting/acute_depolarization]
 
 Durability (steady-state sessions, VI ≤ 1.05, ≥ 90min):
   7d mean([X]): [X.XX]% | 28d mean([X]): [X.XX]%
@@ -61,19 +61,19 @@ Efficiency Factor (steady-state cycling, VI ≤ 1.05, ≥ 20min):
 
 HRRc:
   [28d ≥ 3 and 7d ≥ 1]: [XX] bpm 7d mean([X]) / [XX] bpm 28d mean([X]) ([trend])
-  [28d ≥ 3 and 7d = 0]: [XX] bpm 28d mean([X]) — 7d: no data
-  [28d < 3 and 7d ≥ 1]: [XX] bpm 7d mean([X]) — 28d: insufficient data
+  [28d ≥ 3 and 7d = 0]: [XX] bpm 28d mean([X]); 7d: no data
+  [28d < 3 and 7d ≥ 1]: [XX] bpm 7d mean([X]); 28d: insufficient data
   [28d < 3 and 7d = 0]: omit entire section
 
-Power Curve Delta (28d vs prior 28d — omit section if null):
+Power Curve Delta (28d vs prior 28d; omit section if null):
   Rotation: [+/-X.X] ([sprint-biased/endurance-biased/balanced])
   Notable shifts: [anchor] [+/-X.X]%, [anchor] [+/-X.X]% (list anchors with |pct_change| ≥ 2%)
   [If all |pct_change| < 2%]: No significant shifts
 
-HR Curve Delta (28d vs prior 28d — omit section if null):
+HR Curve Delta (28d vs prior 28d; omit section if null):
   Rotation: [+/-X.X] ([intensity-biased/endurance-biased/balanced])
   Notable shifts: [anchor] [+/-X.X]%, [anchor] [+/-X.X]% (list anchors with |pct_change| ≥ 2%)
-  [If rising HR]: Cross-reference with HRV/RHR trends — rising HR is ambiguous
+  [If rising HR]: Cross-reference with HRV/RHR trends; rising HR is ambiguous
   [If all |pct_change| < 2%]: No significant shifts
 
 Fitness:
@@ -102,7 +102,7 @@ Wellness Trends:
 Section 11 Flags: [list any triggered flags, or "None"]
 
 Interpretation:
-[2-4 sentences — week assessment, compliance, what went well, any flags,
+[2-4 sentences: week assessment, compliance, what went well, any flags,
 recovery status. Reference Section 11 flag triggers if any were hit.]
 
 Next Week Preview:
@@ -118,17 +118,17 @@ focus areas. Reference load targets and phase progression.]
 |-------|--------|-------|
 | **Compliance** | Planned vs completed activities | ✅ completed as planned, ⚠️ modified, ❌ missed |
 | **Quality Session Detail** | Hard/intensity sessions only | Matches post-workout report metrics for consistency |
-| **Grey Zone %** | Z3 time / total time | Per Seiler — minimize; target <5% of weekly volume |
+| **Grey Zone %** | Z3 time / total time | Per Seiler: minimize; target <5% of weekly volume |
 | **Quality Intensity %** | Z4+ time / total time | The work that drives adaptation |
 | **TID 7d vs 28d** | Seiler classification comparison | Consistent = stable, shifting = classification changed, acute_depolarization = PI dropped |
 | **Durability** | Aggregate decoupling from steady-state sessions | VI ≤ 1.05, ≥ 90min, power data. Trend direction matters more than absolute values |
 | **Efficiency Factor** | Aggregate EF from steady-state cycling | VI ≤ 1.05, ≥ 20min, power+HR. Rising EF = improving aerobic fitness. Compare like-for-like only |
 | **HRRc** | Aggregate heart rate recovery from capability.hrrc | Largest 60s HR drop after threshold. Higher = better. See Notes below for 4-case display rules. Display only when `hrrc` is non-null per activity |
 | **Power Curve Delta** | MMP comparison from capability.power_curve_delta | Rotation index + notable anchor shifts (≥2% change). Omit section if power_curve_delta.anchors is null. Sprint-biased (positive rotation) vs endurance-biased (negative) |
-| **HR Curve Delta** | Max sustained HR comparison from capability.hr_curve_delta | Rotation index + notable shifts (≥2%). Omit if null. AMBIGUOUS: rising HR may be fitness or fatigue — cross-reference with HRV/RHR/RPE required |
+| **HR Curve Delta** | Max sustained HR comparison from capability.hr_curve_delta | Rotation index + notable shifts (≥2%). Omit if null. AMBIGUOUS: rising HR may be fitness or fatigue; cross-reference with HRV/RHR/RPE required |
 | **ACWR breakdown** | 7d acute / 28d chronic | Show components so athlete understands the ratio |
 | **Wellness arrows** | Week-over-week comparison | ↑ improving, ↓ declining, → stable |
-| **Weight Trend** | `current_status.weight.{weight_7d_avg_kg, weight_28d_slope_kg_per_week, display.weight_7d_avg, display.weight_28d_slope_per_week}` | Omit entire section when `weight_7d_avg_kg` null (gate: <4 weigh-ins in trailing 7d). 28d slope line omitted independently when `weight_28d_slope_kg_per_week` null (gate: <14 weigh-ins in trailing 28d). Narrate values from `display.*` per Display Unit Semantics — never from canonical `*_kg` fields. Use functional language only — no moral framing. See SECTION_11.md §Body Weight Handling |
+| **Weight Trend** | `current_status.weight.{weight_7d_avg_kg, weight_28d_slope_kg_per_week, display.weight_7d_avg, display.weight_28d_slope_per_week}` | Omit entire section when `weight_7d_avg_kg` null (gate: <4 weigh-ins in trailing 7d). 28d slope line omitted independently when `weight_28d_slope_kg_per_week` null (gate: <14 weigh-ins in trailing 28d). Narrate values from `display.*` per Display Unit Semantics, never from canonical `*_kg` fields. Use functional language only: no moral framing. See SECTION_11.md §Body Weight Handling |
 | **Avg Feel** | Activity-level average from `weekly_180d.avg_feel` | 1=Strong to 5=Weak. Count = sessions with feel populated. Omit line if 0 sessions. Lower is better |
 | **Avg RPE** | Activity-level average from `weekly_180d.avg_rpe` | 1–10 Borg scale. Count = sessions with RPE populated. Omit line if 0 sessions |
 | **Section 11 Flags** | Protocol flag triggers | Surface mid-week flags here, don't wait for block report |
@@ -153,12 +153,12 @@ focus areas. Reference load targets and phase progression.]
 
 - **Session Breakdown** starts on Monday (or user's configured week start)
 - **Phase narrative** is constructed from `phase_detection` fields: `phase_detection.phase` + `phase_detection.phase_duration_weeks` + `phase_detection.confidence`. If `phase_detection.previous_phase` differs from current phase, add transition note. Optionally surface 1-2 key `reason_codes` in plain English (e.g., `BUILD_HISTORY_REDUCED_LOAD_REBOUND_CONFIRMED` → "load resumed after deload")
-- **Quality Session Detail** only includes hard/intensity sessions — omit recovery/endurance rides unless metrics were notable. Cap at 2–3 key sessions per week; if 4+ hard days occurred, prioritize sessions with the most notable targets, flags, or breakthroughs
-- **HRRc** — four display cases: (1) 28d ≥ 3 and 7d ≥ 1: full trend line `[XX] bpm 7d mean([X]) / [XX] bpm 28d mean([X]) ([trend])`; (2) 28d ≥ 3 and 7d = 0: `[XX] bpm 28d mean([X]) — 7d: no data`; (3) 28d < 3 and 7d ≥ 1: `[XX] bpm 7d mean([X]) — 28d: insufficient data`; (4) 28d < 3 and 7d = 0: omit entire section. Per-session HRRc can still appear in Quality Session Detail when present. HRRc is context-dependent: varies with exercise intensity, type, and when recording stopped. Trend direction over multiple sessions matters; single-session values are noisy
+- **Quality Session Detail** only includes hard/intensity sessions. Omit recovery/endurance rides unless metrics were notable. Cap at 2–3 key sessions per week; if 4+ hard days occurred, prioritize sessions with the most notable targets, flags, or breakthroughs
+- **HRRc**: four display cases: (1) 28d ≥ 3 and 7d ≥ 1: full trend line `[XX] bpm 7d mean([X]) / [XX] bpm 28d mean([X]) ([trend])`; (2) 28d ≥ 3 and 7d = 0: `[XX] bpm 28d mean([X]) — 7d: no data`; (3) 28d < 3 and 7d ≥ 1: `[XX] bpm 7d mean([X]) — 28d: insufficient data`; (4) 28d < 3 and 7d = 0: omit entire section. Per-session HRRc can still appear in Quality Session Detail when present. HRRc is context-dependent: varies with exercise intensity, type, and when recording stopped. Trend direction over multiple sessions matters; single-session values are noisy
 - **Section 11 Flags** should surface immediately in weekly reports, not deferred to block reports
 - **Wellness arrows** use simple thresholds: >5% change from previous week = ↑ or ↓, otherwise →
-- Keep "Interpretation" concise — this is coaching interpretation, not data repetition
+- Keep "Interpretation" concise; this is coaching interpretation, not data repetition
 
 ## Formatting Rule
 
-- **Durations and sleep:** Always use `_formatted` fields from JSON (e.g., `sleep_formatted`, `duration_formatted`, `total_training_formatted`). Never convert decimal `_hours` fields to display format — the formatted values are pre-calculated from raw seconds and avoid rounding errors.
+- **Durations and sleep:** Always use `_formatted` fields from JSON (e.g., `sleep_formatted`, `duration_formatted`, `total_training_formatted`). Never convert decimal `_hours` fields to display format; the formatted values are pre-calculated from raw seconds and avoid rounding errors.

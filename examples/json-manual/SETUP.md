@@ -69,7 +69,7 @@ The script creates/maintains these files:
 | File | Purpose | When created |
 |------|---------|--------------|
 | `latest.json` | Training data export | Every run with `--output` |
-| `history.json` | Longitudinal data — daily (90d), weekly (180d), monthly (3y) | First run, regenerates when outdated |
+| `history.json` | Longitudinal data: daily (90d), weekly (180d), monthly (3y) | First run, regenerates when outdated |
 | `intervals.json` | Per-interval data for structured sessions | Every run (incremental, 14-day retention) |
 | `routes.json` | Route/terrain data for events with GPX/TCX attachments | When attachments exist |
 | `ftp_history.json` | FTP progression tracking | Automatically on first run |
@@ -93,17 +93,17 @@ Also includes period summaries, FTP timeline, and data gap detection. Generated 
 
 ## What's Included
 
-The export includes pre-calculated **derived metrics** for Section 11 compliance — AI should use these, not calculate its own. Key metrics: ACWR, Recovery Index, Monotony/Strain, Grey Zone %, Quality Intensity %, Easy Time Ratio, Benchmark Index, Phase Detection, Seiler TID, Aggregate Durability, and TID Drift.
+The export includes pre-calculated **derived metrics** for Section 11 compliance. AI should use these, not calculate its own. Key metrics: ACWR, Recovery Index, Monotony/Strain, Grey Zone %, Quality Intensity %, Easy Time Ratio, Benchmark Index, Phase Detection, Seiler TID, Aggregate Durability, and TID Drift.
 
 See [examples/README.md](../README.md#derived-metrics) for the full derived metrics table.
 
 ## Use with AI
 
-**Option 1: Upload files** — Upload `latest.json` and `history.json` to your AI platform for a complete analysis with longitudinal context. Upload `intervals.json` when you want detailed post-workout analysis of structured sessions. Upload `routes.json` (if present) when you want terrain-aware coaching for planned events.
+**Option 1: Upload files**: Upload `latest.json` and `history.json` to your AI platform for a complete analysis with longitudinal context. Upload `intervals.json` when you want detailed post-workout analysis of structured sessions. Upload `routes.json` (if present) when you want terrain-aware coaching for planned events.
 
-**Option 2: Push to GitHub + configure AI** — Push to a GitHub repo (private recommended), then follow the [main README setup guide](../../README.md#web-chat-setup). Most AI platforms now have GitHub connectors that can access private repos directly.
+**Option 2: Push to GitHub + configure AI**: Push to a GitHub repo (private recommended), then follow the [main README setup guide](../../README.md#web-chat-setup). Most AI platforms now have GitHub connectors that can access private repos directly.
 
-**Option 3: Use with agentic platforms** — Claude Code, Claude Cowork, OpenAI Codex CLI, Gemini CLI, OpenClaw, and Hermes read files directly from whatever filesystem their runtime can reach; where that runtime is the machine holding your exported files, no GitHub is needed. Point the agent at the folder containing your exported JSON files. Grok Bot is **experimental** and its filesystem is provider-hosted, so the data reaches it by connector or authenticated repository rather than from your disk; capability class is not a support promise. See the [agentic setup guide](../../README.md#agentic-setup).
+**Option 3: Use with agentic platforms**: Claude Code, Claude Cowork, OpenAI Codex CLI, Gemini CLI, OpenClaw, and Hermes read files directly from whatever filesystem their runtime can reach; where that runtime is the machine holding your exported files, no GitHub is needed. Point the agent at the folder containing your exported JSON files. Grok Bot is **experimental** and its filesystem is provider-hosted, so the data reaches it by connector or authenticated repository rather than from your disk; capability class is not a support promise. See the [agentic setup guide](../../README.md#agentic-setup).
 
 ### Automate it
 
@@ -121,9 +121,9 @@ Want sync.py to run automatically on a timer? See [json-local-sync](../json-loca
 | `--week-start DAY` | Training week start day (mon/tue/wed/thu/fri/sat/sun) | mon |
 | `--debug` | Show API field debug info | off |
 
-**Note:** `--week-start` can also be set in `.sync_config.json` (`"week_start": "sun"`) or via `WEEK_START` environment variable. Config file setting persists across runs — no need to pass the flag every time.
+**Note:** `--week-start` can also be set in `.sync_config.json` (`"week_start": "sun"`) or via `WEEK_START` environment variable. Config file setting persists across runs: no need to pass the flag every time.
 
-**Note:** Only `metadata.athlete_id` is redacted. The output is not anonymized — see [Privacy & Security](../../README.md#privacy--security).
+**Note:** Only `metadata.athlete_id` is redacted. The output is not anonymized. See [Privacy & Security](../../README.md#privacy--security).
 
 ---
 

@@ -1,10 +1,10 @@
 # On-Demand Sync
 
-Trigger a fresh Intervals.icu sync from your phone or browser, then download the data files. No local Python, no scheduled runs — you sync when you want to.
+Trigger a fresh Intervals.icu sync from your phone or browser, then download the data files. No local Python, no scheduled runs. You sync when you want to.
 
 > **Want automatic sync on a schedule?** See [json-auto-sync](../json-auto-sync/SETUP.md) instead.
 
-> **Running an agentic platform locally?** See [json-local-sync](../json-local-sync/SETUP.md) — no GitHub needed.
+> **Running an agentic platform locally?** See [json-local-sync](../json-local-sync/SETUP.md). No GitHub needed.
 
 ---
 
@@ -14,7 +14,7 @@ Uses the same GitHub Actions workflow as auto-sync, but without the cron schedul
 
 **Flow:** Tap Sync Now → Run workflow → Download artifact ZIP → Attach to AI chat.
 
-**GitHub connector users:** If your AI platform has a GitHub connector, you can skip the download — but refresh, sync, or re-import after the workflow commits, since not all connectors pick up changes automatically. See the [connector table](../../README.md#platform-setup).
+**GitHub connector users:** If your AI platform has a GitHub connector, you can skip the download, but refresh, sync, or re-import after the workflow commits, since not all connectors pick up changes automatically. See the [connector table](../../README.md#platform-setup).
 
 ---
 
@@ -49,7 +49,7 @@ Then add these files:
 | `auto-sync.yml` | `.github/workflows/` | [examples/json-auto-sync/auto-sync.yml](../json-auto-sync/auto-sync.yml) |
 | `README.md` | Root (replace default) | [DATA_REPO_README_TEMPLATE.md](../json-auto-sync/DATA_REPO_README_TEMPLATE.md) |
 
-**Important:** Edit `auto-sync.yml` after copying — remove the `schedule` block so only `workflow_dispatch` remains:
+**Important:** Edit `auto-sync.yml` after copying. Remove the `schedule` block so only `workflow_dispatch` remains:
 
 ```yaml
 on:
@@ -77,7 +77,7 @@ This prevents automatic runs. The workflow only runs when you trigger it.
 | `ATHLETE_ID` | Your Intervals.icu athlete ID (e.g., `i123456`) |
 | `INTERVALS_KEY` | Your Intervals.icu API key |
 
-**Optional secrets** — see [auto-sync SETUP](../json-auto-sync/SETUP.md#step-3-add-repository-secrets) for `WEEK_START` and `ZONE_PREFERENCE`.
+**Optional secrets**: see [auto-sync SETUP](../json-auto-sync/SETUP.md#step-3-add-repository-secrets) for `WEEK_START` and `ZONE_PREFERENCE`.
 
 ---
 
@@ -105,7 +105,7 @@ Replace `YOUR_GITHUB_USER` and `YOUR_REPO_NAME` in `README.md` with your actual 
 5. Wait 30–60 seconds for the run to complete
 
 After the run completes:
-- **Connector users:** Refresh, sync, or re-import so your AI picks up the new files — see the [connector table](../../README.md#platform-setup).
+- **Connector users:** Refresh, sync, or re-import so your AI picks up the new files. See the [connector table](../../README.md#platform-setup).
 - **Download users:** Click the completed run → scroll to **Artifacts** → download **training-data** ZIP.
 
 From now on, just tap **🔄 Sync Now** in your repo's README.
@@ -120,7 +120,7 @@ Open your repo in a browser → tap **🔄 Sync Now** → **Run workflow**. When
 
 ### With an AI connector
 
-AI platforms with GitHub connectors can read the repo directly, but refresh behavior varies — some need a manual sync or re-import before they see the new files. Check the [connector table](../../README.md#platform-setup) for your platform, then refresh accordingly. No download needed once the connector has the current files.
+AI platforms with GitHub connectors can read the repo directly, but refresh behavior varies; some need a manual sync or re-import before they see the new files. Check the [connector table](../../README.md#platform-setup) for your platform, then refresh accordingly. No download needed once the connector has the current files.
 
 ### Without a connector
 
@@ -136,4 +136,4 @@ Downloading the artifact ZIP and attaching the JSON to a chat takes your data ou
 
 ## Troubleshooting
 
-See the [auto-sync troubleshooting guide](../json-auto-sync/SETUP.md#troubleshooting) — the same workflow runs in both paths.
+See the [auto-sync troubleshooting guide](../json-auto-sync/SETUP.md#troubleshooting). The same workflow runs in both paths.

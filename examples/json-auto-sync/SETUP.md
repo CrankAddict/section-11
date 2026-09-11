@@ -4,7 +4,7 @@ This guide explains how to create an automated JSON data mirror of your Interval
 
 > **Prefer an interactive guide?** Paste [SETUP_ASSISTANT.md](../../SETUP_ASSISTANT.md) into any AI chat and it will walk you through this entire setup step by step.
 
-> **Running an agentic platform locally?** If your AI coach runs on the same machine as your data (OpenClaw, Claude Code, Cowork, etc.), consider [local sync](../json-local-sync/SETUP.md) instead — simpler setup, and no GitHub repository in the path. Where your data goes still depends on what you configure and which AI you point at it; see [Privacy & Security](../../README.md#privacy--security).
+> **Running an agentic platform locally?** If your AI coach runs on the same machine as your data (OpenClaw, Claude Code, Cowork, etc.), consider [local sync](../json-local-sync/SETUP.md) instead (simpler setup, and no GitHub repository in the path). Where your data goes still depends on what you configure and which AI you point at it; see [Privacy & Security](../../README.md#privacy--security).
 
 ---
 
@@ -41,11 +41,11 @@ The data mirror automatically syncs your Intervals.icu metrics to a GitHub repos
 
 ### Create a new private repo
 
-> **Don't fork Section 11 for this.** Forks of a public repository are always public and their visibility cannot be changed — a forked data repo would publish your training data.
+> **Don't fork Section 11 for this.** Forks of a public repository are always public and their visibility cannot be changed. A forked data repo would publish your training data.
 
 1. Go to [github.com/new](https://github.com/new)
 2. Name it something like `training-data`
-3. Set to **Private** — see the [connector table](../../README.md#platform-setup) for platform support.
+3. Set to **Private**. See the [connector table](../../README.md#platform-setup) for platform support.
 4. Check Add a README file
 5. Click **Create repository**
 
@@ -82,7 +82,7 @@ Then add these files to your repository:
 |-------------|-------|
 | `WEEK_START` | Training week start day: `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, or `sun` |
 
-If not set, defaults to `mon` (ISO week). This controls phase detection windows — ensures deload/build classification aligns with your actual training week structure.
+If not set, defaults to `mon` (ISO week). This controls phase detection windows (ensures deload/build classification aligns with your actual training week structure).
 
 **Optional:** If you want HR zones used for aggregations in specific sports (e.g., running with auto-generated watch power):
 
@@ -90,7 +90,7 @@ If not set, defaults to `mon` (ISO week). This controls phase detection windows 
 |-------------|-------|
 | `ZONE_PREFERENCE` | Per-sport zone override, e.g. `run:hr,cycling:power` |
 
-Only override what you need — unspecified sports default to power-preferred with HR fallback. Valid values per sport are `power` or `hr`. Sport families: `cycling`, `run`, `ski`, `rowing`, `swim`, `walk`, `strength`, `other`.
+Only override what you need. Unspecified sports default to power-preferred with HR fallback. Valid values per sport are `power` or `hr`. Sport families: `cycling`, `run`, `ski`, `rowing`, `swim`, `walk`, `strength`, `other`.
 
 **Note:** `GITHUB_TOKEN` is provided automatically by GitHub Actions.
 
@@ -130,12 +130,12 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/ftp_history.j
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/intervals.json
 ```
 
-Test by opening the URLs in your browser — you should see your training data as JSON.
+Test by opening the URLs in your browser. You should see your training data as JSON.
 
-- `latest.json` — current 7-day snapshot with activities, wellness, fitness metrics, and derived Section 11 values
-- `history.json` — longitudinal data with tiered granularity: daily (90 days), weekly (180 days), and monthly (up to 3 years). Generated automatically on first run, regenerated when outdated.
-- `intervals.json` — per-interval segment data for recent structured sessions (14-day retention). Generated automatically for activities with detected interval structure.
-- `routes.json` — route/terrain data for planned events with GPX/TCX attachments. Includes climb/descent detection, course character, and polyline. Generated when attachments exist, cached by attachment ID.
+- `latest.json`: current 7-day snapshot with activities, wellness, fitness metrics, and derived Section 11 values
+- `history.json`: longitudinal data with tiered granularity: daily (90 days), weekly (180 days), and monthly (up to 3 years). Generated automatically on first run, regenerated when outdated.
+- `intervals.json`: per-interval segment data for recent structured sessions (14-day retention). Generated automatically for activities with detected interval structure.
+- `routes.json`: route/terrain data for planned events with GPX/TCX attachments. Includes climb/descent detection, course character, and polyline. Generated when attachments exist, cached by attachment ID.
 
 ---
 
@@ -177,7 +177,7 @@ Benchmark Index = (Current FTP - FTP 8 weeks ago) / FTP 8 weeks ago
 | +2% to +5% | Normal build phase gains |
 | 0% to +2% | Maintenance |
 | -2% to 0% | Minor regression (may be normal in recovery) |
-| < -2% | Significant regression — investigate |
+| < -2% | Significant regression. Investigate |
 
 **Note:** Requires ~8 weeks of data before Benchmark Index becomes available.
 
@@ -187,9 +187,9 @@ Benchmark Index = (Current FTP - FTP 8 weeks ago) / FTP 8 weeks ago
 
 Once set up, configure your AI platform using the instructions in the [main README](../../README.md#web-chat-setup).
 
-**GitHub connector users:** If your AI platform has a GitHub connector, connect your data repo directly — the AI reads `latest.json`, `history.json`, `intervals.json`, `routes.json`, and any other committed files through the connector. No URLs needed. If you commit `DOSSIER.md` and `SECTION_11.md` to the repo as well, one connection covers your data, your dossier and the protocol. Check what the connector is actually scoped to — where it exposes only the JSON, supply `SECTION_11.md` and the dossier separately.
+**GitHub connector users:** If your AI platform has a GitHub connector, connect your data repo directly. The AI reads `latest.json`, `history.json`, `intervals.json`, `routes.json`, and any other committed files through the connector. No URLs needed. If you commit `DOSSIER.md` and `SECTION_11.md` to the repo as well, one connection covers your data, your dossier and the protocol. Check what the connector is actually scoped to. Where it exposes only the JSON, supply `SECTION_11.md` and the dossier separately.
 
-A GitHub connector is normally read-only. Where its write access is unavailable or unverified, your AI cannot update `DOSSIER.md` in place: it returns the revised dossier as an artifact and says plainly that the source was not updated. You then commit that file over the official `DOSSIER.md`, or replace the official copy with it — as would a repository writer whose access you have verified separately. Nothing in the automated pipeline does this for you. The sync workflow commits only the generated data files and the repository README; it never touches your dossier.
+A GitHub connector is normally read-only. Where its write access is unavailable or unverified, your AI cannot update `DOSSIER.md` in place: it returns the revised dossier as an artifact and says plainly that the source was not updated. You then commit that file over the official `DOSSIER.md`, or replace the official copy with it, as would a repository writer whose access you have verified separately. Nothing in the automated pipeline does this for you. The sync workflow commits only the generated data files and the repository README; it never touches your dossier.
 
 **URL fetch users:** Provide these URLs to your AI coach:
 ```
@@ -212,7 +212,7 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/routes.json
 
 ### Workflow fails with "untracked working tree files would be overwritten"
 - This happens when generated files (like `history.json`) conflict during `git pull`
-- Use the latest `auto-sync.yml` from this folder — it stages all generated files before pulling
+- Use the latest `auto-sync.yml` from this folder. It stages all generated files before pulling
 
 ### No data in latest.json
 - Verify your Intervals.icu API key is valid
@@ -226,7 +226,7 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/routes.json
 ### history.json not generated
 - History generates automatically on first run, then regenerates when outdated
 - Delete `history.json` from your repo and re-run to force regeneration
-- Check workflow logs — history generation is non-critical and won't fail the sync
+- Check workflow logs. History generation is non-critical and won't fail the sync
 
 ### 404 error on JSON URL
 - Ensure `latest.json` exists in repo root
@@ -255,7 +255,7 @@ run: python sync.py --days 14
 
 ## Privacy Notes
 
-The script does not anonymize your data. Only `metadata.athlete_id` is redacted — activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through. See [Privacy & Security](../../README.md#privacy--security).
+The script does not anonymize your data. Only `metadata.athlete_id` is redacted; activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through. See [Privacy & Security](../../README.md#privacy--security).
 
 Activity and event IDs are always real (opaque database keys, not PII) to enable features like coach annotations and planned-vs-actual pairing. Indoor/virtual ride names are preserved for workout identification.
 
@@ -268,7 +268,7 @@ For additional privacy, use a **private repository** and a separate GitHub accou
 | File | Purpose | Auto-created |
 |------|---------|--------------|
 | `latest.json` | Current 7-day training data for AI consumption | Yes |
-| `history.json` | Longitudinal data — daily (90d), weekly (180d), monthly (3y) | Yes |
+| `history.json` | Longitudinal data: daily (90d), weekly (180d), monthly (3y) | Yes |
 | `intervals.json` | Per-interval segment data for recent structured sessions | Yes |
 | `routes.json` | Route/terrain data for events with GPX/TCX attachments | When attachments exist |
 | `ftp_history.json` | FTP progression tracking for Benchmark Index | Yes |

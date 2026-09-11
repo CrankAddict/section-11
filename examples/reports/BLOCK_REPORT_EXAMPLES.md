@@ -21,7 +21,7 @@ Volume Progression:
   Wk 1: 13.8h / 498 TSS | CTL 74.5
   Wk 2: 14.2h / 537 TSS | CTL 78.2
   Wk 3: 15.1h / 568 TSS | CTL 82.0
-  Wk 4: deload — 8.6h / 285 TSS | CTL 80.1
+  Wk 4: deload, 8.6h / 285 TSS | CTL 80.1
   Block total: 51h42m / 1888 TSS
 
 Compliance:
@@ -33,12 +33,12 @@ Fitness Progression:
   ATL: 68.4 → 52.3
   TSB: +2.8 → +27.8
   Avg ramp rate: 1.12/week
-  FTP: 275W → 275W (unchanged — test scheduled next block)
+  FTP: 275W → 275W (unchanged: test scheduled next block)
   eFTP: 271W → 282W
 
 Key Performance Markers:
-  Sweetspot power: 241W → 253W (target: 248W — hit ✅)
-  VO2max power: 298W → 312W (target: 305W — hit ✅)
+  Sweetspot power: 241W → 253W (target: 248W, hit ✅)
+  VO2max power: 298W → 312W (target: 305W, hit ✅)
   Long ride duration: 3h30m → 4h30m
   Long ride decoupling trend: 4.8% → 2.1% ↑ improving
   Best 20-min power: 278W (week 3)
@@ -46,20 +46,20 @@ Key Performance Markers:
   Power curve rotation: +0.6 (sprint-biased)
   Strongest adaptation: 5min (+4.2%)
   HR curve rotation: -0.3 (endurance-biased)
-  HR context: Stable HRV/RHR — lower sustained HR at endurance durations = aerobic efficiency gain
+  HR context: Stable HRV/RHR. Lower sustained HR at endurance durations = aerobic efficiency gain
 
 Sustainability Ceilings:
-  Coverage: 7/7 anchors observed (100%) — cycling
-  5min: 326W (4.35 W/kg) — observed_indoor | Coggan 330W | CP model 335W | divergence -2.7%
-  10min: 301W (4.01 W/kg) — observed_indoor | Coggan 303W | CP model 301W | divergence 0.0%
-  20min: 281W (3.75 W/kg) — observed_indoor | Coggan 289W | CP model 285W | divergence -1.4%
-  30min: 270W (3.60 W/kg) — observed_indoor | Coggan 275W | CP model 280W | divergence -3.6%
-  60min: 256W (3.41 W/kg) — observed_indoor | Coggan 256W | CP model 274W | divergence -6.6%
-  90min: 247W (3.29 W/kg) — observed_indoor | Coggan 248W | CP model 272W | divergence -9.2%
-  120min: 241W (3.21 W/kg) — observed_indoor | Coggan 242W | CP model 271W | divergence -11.1%
+  Coverage: 7/7 anchors observed (100%), cycling
+  5min: 326W (4.35 W/kg), observed_indoor | Coggan 330W | CP model 335W | divergence -2.7%
+  10min: 301W (4.01 W/kg), observed_indoor | Coggan 303W | CP model 301W | divergence 0.0%
+  20min: 281W (3.75 W/kg), observed_indoor | Coggan 289W | CP model 285W | divergence -1.4%
+  30min: 270W (3.60 W/kg), observed_indoor | Coggan 275W | CP model 280W | divergence -3.6%
+  60min: 256W (3.41 W/kg), observed_indoor | Coggan 256W | CP model 274W | divergence -6.6%
+  90min: 247W (3.29 W/kg), observed_indoor | Coggan 248W | CP model 272W | divergence -9.2%
+  120min: 241W (3.21 W/kg), observed_indoor | Coggan 242W | CP model 271W | divergence -11.1%
   FTP used: 275W | W′: 20000J | FTP staleness: 14 days
   Model trust: CP/W′ primary ≤20min, Coggan reference ≥60min
-  Block-over-block: Ceilings rose at 5min (+3.8%) and 20min (+2.4%), consistent with threshold focus. Coverage maintained at 100%. Model divergence stable — inputs current.
+  Block-over-block: Ceilings rose at 5min (+3.8%) and 20min (+2.4%), consistent with threshold focus. Coverage maintained at 100%. Model divergence stable: inputs current.
 
 Polarization (block average):
   Z1+Z2: 85%
@@ -97,7 +97,7 @@ HRRc by Week (block total: 6 qualifying sessions):
 
 Wellness (block avg vs previous block):
   HRV: 53 ms (prev block: 51 ms) ↑ improving
-  RHR: 49 bpm (prev block: 50 bpm) → stable — no concern
+  RHR: 49 bpm (prev block: 50 bpm) → stable: no concern
   Sleep: 7h6m (prev block: 6h48m) ↑ improving
   Avg Feel: 2.4/5 (18 sessions) (prev block: 2.6/5) → stable
   Avg RPE: 4.5/10 (18 sessions) (prev block: 4.2/10) → stable
@@ -123,9 +123,9 @@ Phase Progression Check:
 
 Interpretation:
 Textbook threshold block. CTL rose 8.9 points at a sustainable 1.12/week
-ramp — well within the <1.5 guideline. Both key performance markers hit
+ramp, well within the <1.5 guideline. Both key performance markers hit
 targets, with VO2max power exceeding by 7W. The standout metric is long
-ride decoupling dropping from 4.8% to 2.1% — the aerobic engine is
+ride decoupling dropping from 4.8% to 2.1%: the aerobic engine is
 building nicely, confirmed by the aggregate durability trend improving
 steadily across all four weeks (3.2% → 1.8%). Efficiency Factor tracked
 upward in parallel (1.42 → 1.50), reinforcing the aerobic fitness gains. Grey zone stayed well
@@ -172,7 +172,7 @@ Compliance:
   Missed/modified:
     Wk 3 Thu: missed (HRV crash, poor sleep)
     Wk 3 Tue: modified (cut intensity, elevated RPE)
-    Wk 4 Tue, Thu: missed (illness — upper respiratory)
+    Wk 4 Tue, Thu: missed (illness: upper respiratory)
     Wk 4 Sat: missed (illness recovery)
     Wk 5 Tue: modified (reduced intensity on return)
     Wk 5 Thu: modified (endurance sub for intervals)
@@ -182,29 +182,29 @@ Fitness Progression:
   ATL: 52.3 → 74.8
   TSB: +27.8 → +2.3
   Avg ramp rate: -0.60/week
-  FTP: 275W → 275W (unchanged — test postponed)
+  FTP: 275W → 275W (unchanged: test postponed)
   eFTP: 282W → 276W
 
 Key Performance Markers:
-  Sweetspot power: 253W → 245W (target: 248W — below ❌)
+  Sweetspot power: 253W → 245W (target: 248W, below ❌)
   VO2max power: 312W → N/A (no VO2max sessions completed post-illness)
   Long ride duration: 4h30m → 3h30m (reduced during recovery)
   Long ride decoupling trend: 2.1% → 3.8% → slightly regressed
   Best 20-min power: 272W (week 2)
   Best 5-min power: 308W (week 2)
   Power curve rotation: -1.2 (endurance-biased)
-  Strongest adaptation: 20min (-5.1%) — regression across all anchors post-illness
+  Strongest adaptation: 20min (-5.1%), regression across all anchors post-illness
   HR curve rotation: +0.6 (intensity-biased)
-  HR context: HRV declining 11%, RHR elevated — rising HR reflects fatigue, not fitness
+  HR context: HRV declining 11%, RHR elevated. Rising HR reflects fatigue, not fitness
 
 Sustainability Ceilings:
-  Coverage: 3/7 anchors observed (43%) — cycling ⚠️ heavily model-dependent
-  5min: 312W (4.16 W/kg) — observed_indoor | Coggan 330W | CP model 335W | divergence -6.9%
-  20min: 268W (3.57 W/kg) — observed_indoor | Coggan 289W | CP model 285W | divergence -6.0%
-  60min: 244W (3.25 W/kg) — observed_indoor | Coggan 256W | CP model 274W | divergence -10.9%
+  Coverage: 3/7 anchors observed (43%), cycling ⚠️ heavily model-dependent
+  5min: 312W (4.16 W/kg), observed_indoor | Coggan 330W | CP model 335W | divergence -6.9%
+  20min: 268W (3.57 W/kg), observed_indoor | Coggan 289W | CP model 285W | divergence -6.0%
+  60min: 244W (3.25 W/kg), observed_indoor | Coggan 256W | CP model 274W | divergence -10.9%
   FTP used: 275W | W′: 20000J | FTP staleness: 38 days
   Model trust: CP/W′ primary ≤20min, Coggan reference ≥60min
-  Block-over-block: Ceilings dropped across all observed anchors (5min -4.3%, 20min -4.6%, 60min -4.7%). Coverage fell from 100% to 43% — missing durations due to no sprint or long efforts during illness weeks. Model divergence widened — FTP staleness 38 days means model inputs may be stale; defer ceiling interpretation until FTP retested.
+  Block-over-block: Ceilings dropped across all observed anchors (5min -4.3%, 20min -4.6%, 60min -4.7%). Coverage fell from 100% to 43%: missing durations due to no sprint or long efforts during illness weeks. Model divergence widened: FTP staleness 38 days means model inputs may be stale; defer ceiling interpretation until FTP retested.
 
 Polarization (block average):
   Z1+Z2: 89%
@@ -214,8 +214,8 @@ Polarization (block average):
   Hard days/week avg: 1.4
 
 Polarization by Week:
-  Wk 1: Z1+Z2 84%, Z3 4%, Z4+ 13% — Polarized (PI: 2.95)
-  Wk 2: Z1+Z2 82%, Z3 4%, Z4+ 14% — Polarized (PI: 2.88)
+  Wk 1: Z1+Z2 84%, Z3 4%, Z4+ 13%, Polarized (PI: 2.95)
+  Wk 2: Z1+Z2 82%, Z3 4%, Z4+ 14%, Polarized (PI: 2.88)
   Wk 3: Z1+Z2 91%, Z3 7%, Z4+ 2%
   Wk 4: Z1+Z2 96%, Z3 3%, Z4+ 1%
   Wk 5: Z1+Z2 88%, Z3 6%, Z4+ 6%
@@ -245,18 +245,18 @@ HRRc by Week (block total: 4 qualifying sessions):
   Block trend: declining (illness-driven)
 
 Wellness (block avg vs previous block):
-  HRV: 47 ms (prev block: 53 ms) ↓ declining — flag
-  RHR: 52 bpm (prev block: 49 bpm) ↑ elevated — monitor
-  Sleep: 6h24m (prev block: 7h6m) ↓ declining — monitor
-  Avg Feel: 3.8/5 (14 sessions) (prev block: 2.4/5) ↓ declining — flag
-  Avg RPE: 7.2/10 (14 sessions) (prev block: 4.5/10) ↑ elevated — flag
+  HRV: 47 ms (prev block: 53 ms) ↓ declining: flag
+  RHR: 52 bpm (prev block: 49 bpm) ↑ elevated: monitor
+  Sleep: 6h24m (prev block: 7h6m) ↓ declining: monitor
+  Avg Feel: 3.8/5 (14 sessions) (prev block: 2.4/5) ↓ declining: flag
+  Avg RPE: 7.2/10 (14 sessions) (prev block: 4.5/10) ↑ elevated: flag
   Avg RI: 0.79 (prev block: 0.91)
   Avg Monotony: 2.10 (elevated during illness recovery)
 
 Section 11 Flags During Block:
   Wk 3 Thu: HRV >15% below baseline → rest day inserted
   Wk 3: Grey Zone >5% → pacing review (fatigue-related drift)
-  Wk 3: Durability declining — 5.1% mean dec vs 2.5% wk 1 → fatigue impact on aerobic efficiency
+  Wk 3: Durability declining: 5.1% mean dec vs 2.5% wk 1 → fatigue impact on aerobic efficiency
   Wk 4: 3 consecutive missed sessions → illness protocol activated
   Wk 4: CTL drop >3 points in 1 week → load management flag
   Wk 5: Return-to-training protocol → reduced intensity for 5 days
@@ -272,7 +272,7 @@ Phase Progression Check:
     - HRV has not returned to pre-block baseline
     - Durability regressed (wk 3 mean 5.1% vs wk 1-2 avg 2.65%)
     - Block-scale TID dropped to Pyramidal (PI 1.90)
-  Phase recommendation: Extend Base phase — do NOT progress to Build
+  Phase recommendation: Extend Base phase. Do NOT progress to Build
   Rationale: Illness cost ~2 weeks of productive training and fitness
   markers have not recovered to pre-block levels. Progressing to higher
   intensity with suppressed HRV, reduced CTL, and regressed durability
@@ -280,14 +280,14 @@ Phase Progression Check:
   and restore aerobic efficiency before advancing.
 
 Interpretation:
-A disrupted block. Weeks 1-2 were tracking well — strong compliance,
+A disrupted block. Weeks 1-2 were tracking well: strong compliance,
 good polarization, CTL rising on target, durability solid at 2.5-2.8%.
 The mid-block illness (week 3-4) cost approximately 2 weeks of productive
 training and 5 CTL points at the nadir. Durability spiked to 5.1% in
-week 3 as fatigue set in before the illness fully manifested — the
+week 3 as fatigue set in before the illness fully manifested: the
 aggregate decoupling trend caught the problem before wellness metrics
 crashed in week 4. Return-to-training in week 5 was handled
-conservatively, which was the right call — durability partially recovered
+conservatively, which was the right call: durability partially recovered
 (3.8%) but hasn't returned to pre-illness levels. The block-scale TID
 shifting to Pyramidal (PI 1.90) reflects the loss of quality volume
 during weeks 3-5. Key concern: HRV has dropped 11% block-over-block
@@ -309,7 +309,7 @@ Next Block Plan:
 
 ---
 
-## Example 3: Aerobic Base Block — DFA a1 Profile (easy-state guard + descriptive LT1, no complete comparison)
+## Example 3: Aerobic Base Block: DFA a1 Profile (easy-state guard + descriptive LT1, no complete comparison)
 
 ```
 Block 4 Report (17 Mar – 27 Apr 2026)
@@ -329,7 +329,7 @@ Volume Progression:
   Wk 3: 14.8h / 510 TSS | CTL 80.6
   Wk 4: 15.5h / 538 TSS | CTL 83.1
   Wk 5: 15.8h / 545 TSS | CTL 85.4
-  Wk 6: deload — 9.2h / 305 TSS | CTL 83.0
+  Wk 6: deload, 9.2h / 305 TSS | CTL 83.0
   Block total: 82h30m / 2838 TSS
 
 Compliance:
@@ -341,11 +341,11 @@ Fitness Progression:
   ATL: 70.5 → 58.4
   TSB: -3.3 → +24.6
   Avg ramp rate: 1.18/week
-  FTP: 282W → 282W (unchanged — test scheduled next block)
+  FTP: 282W → 282W (unchanged: test scheduled next block)
   eFTP: 280W → 289W
 
 Key Performance Markers:
-  Sweetspot power: 248W → 256W (target: 252W — hit ✅)
+  Sweetspot power: 248W → 256W (target: 252W, hit ✅)
   Long ride duration: 3h45m → 5h00m
   Long ride decoupling trend: 4.2% → 2.4% ↑ improving
   Best 20-min power: 285W (week 5)
@@ -354,12 +354,12 @@ Key Performance Markers:
   Strongest adaptation: 60min (+3.8%)
 
 Sustainability Ceilings:
-  Coverage: 6/7 anchors observed (86%) — cycling
-  10min: 312W (4.42 W/kg) — observed_outdoor | Coggan 314W | CP model 316W | divergence -1.3%
-  20min: 285W (4.04 W/kg) — observed_outdoor | Coggan 290W | CP model 287W | divergence -0.7%
-  60min: 268W (3.80 W/kg) — observed_outdoor | Coggan 265W | CP model 270W | divergence -0.7%
-  90min: 252W (3.57 W/kg) — observed_outdoor | Coggan 252W | CP model 268W | divergence -6.0%
-  120min: 244W (3.46 W/kg) — observed_outdoor | Coggan 244W | CP model 266W | divergence -8.3%
+  Coverage: 6/7 anchors observed (86%), cycling
+  10min: 312W (4.42 W/kg), observed_outdoor | Coggan 314W | CP model 316W | divergence -1.3%
+  20min: 285W (4.04 W/kg), observed_outdoor | Coggan 290W | CP model 287W | divergence -0.7%
+  60min: 268W (3.80 W/kg), observed_outdoor | Coggan 265W | CP model 270W | divergence -0.7%
+  90min: 252W (3.57 W/kg), observed_outdoor | Coggan 252W | CP model 268W | divergence -6.0%
+  120min: 244W (3.46 W/kg), observed_outdoor | Coggan 244W | CP model 266W | divergence -8.3%
   FTP used: 282W | W′: 21500J | FTP staleness: 38 days
   Model trust: CP/W′ primary ≤20min, Coggan reference ≥60min
   Block-over-block: 60min ceiling rose 6W, 90min rose 5W. Aerobic ceilings tracking up.
@@ -368,9 +368,9 @@ DFA a1 Profile:
   Sessions in window: 7 sufficient (easy_guard: 7 crossings / 7 eligible; LT1: 5 / 5; LT2: 1 / 1)
   Average DFA a1: 1.18 (drift mean: -0.08)
 
-  Easy-state guard (α1 1.0) — descriptive / compliance only, NOT a calibration delta:
+  Easy-state guard (α1 1.0), descriptive / compliance only, NOT a calibration delta:
     145 bpm (from 7 sessions) / outdoor 220 W (from 5 sessions) / indoor 208 W (from 2 sessions)
-    Top-of-easy ceiling for recovery/endurance compliance — the well-correlated easy state sits
+    Top-of-easy ceiling for recovery/endurance compliance: the well-correlated easy state sits
     below the aerobic threshold. Never compared to the athlete's current thresholds; not a
     calibration or staleness signal.
 
@@ -453,7 +453,7 @@ Strong base block. CTL rose 9.2 points at a sustainable 1.18/week ramp. Every ae
 quality metric moved in the right direction: durability 3.8% → 2.0%, EF 1.42 → 1.52, HRRc
 +4 bpm, wellness uniformly improving. The DFA a1 Profile section is the new addition this
 block, and it separates the α1 1.0 easy_guard from the empirical threshold markers. The
-easy-state guard sits at 145 bpm / outdoor 220 W / indoor 208 W — a top-of-easy compliance
+easy-state guard sits at 145 bpm / outdoor 220 W / indoor 208 W, a top-of-easy compliance
 ceiling, descriptive only, never compared to the athlete's current thresholds. The empirical
 LT1 at α1 0.75 reads 158 bpm / outdoor 246 W / indoor 232 W. That is a description, not a
 comparison: `current_status.thresholds.sports.cycling` has no LT1 key, so there is no
@@ -463,7 +463,7 @@ both are present; the single estimate-eligible indoor session is thin evidence, 
 saying rather than hiding. `lt2_estimate` is null at one estimate-eligible marker-session
 against a minimum of three, so the empirical LT2 line is omitted from the output entirely
 rather than printed as an absence. With nothing complete, neither the comparator row nor the
-delta row renders — the absence of a valid comparison, not "no notable delta". A formal step
+delta row renders: the absence of a valid comparison, not "no notable delta". A formal step
 test remains the way to refresh the configured thresholds. Block ends fresh (TSB +24.6) with
 the aerobic base in good shape.
 
@@ -481,7 +481,7 @@ Next Block Plan:
 
 ---
 
-## Example 4: Threshold Block — LT2 Comparison (one qualifying outdoor delta; HR complete within 5%; indoor below comparison depth)
+## Example 4: Threshold Block: LT2 Comparison (one qualifying outdoor delta; HR complete within 5%; indoor below comparison depth)
 
 ```
 Block 5 Report (28 Apr – 25 May 2026)
@@ -509,12 +509,12 @@ Fitness Progression:
   ATL: 58.4 → 92.5
   TSB: +24.6 → -4.2
   Avg ramp rate: 1.33/week
-  FTP: 282W → 282W (unchanged — test deferred to after the next deload)
+  FTP: 282W → 282W (unchanged: test deferred to after the next deload)
   eFTP: 289W → 297W
 
 Key Performance Markers:
-  Sweetspot power: 256W → 264W (target: 262W — hit ✅)
-  VO2max power: 305W → 318W (target: 315W — hit ✅)
+  Sweetspot power: 256W → 264W (target: 262W, hit ✅)
+  VO2max power: 305W → 318W (target: 315W, hit ✅)
   Long ride duration: 5h00m → 4h30m
   Long ride decoupling trend: 2.4% → 2.8% → slightly regressed
   Best 20-min power: 297W (week 3)
@@ -522,17 +522,17 @@ Key Performance Markers:
   Power curve rotation: +0.5 (sprint-biased)
   Strongest adaptation: 20min (+4.2%)
   HR curve rotation: -0.2 (endurance-biased)
-  HR context: HRV 55 ms and RHR 49 bpm — the shift is small and not directionally informative on its own
+  HR context: HRV 55 ms and RHR 49 bpm. The shift is small and not directionally informative on its own
 
 Sustainability Ceilings:
-  Coverage: 7/7 anchors observed (100%) — cycling
-  5min: 334W (4.74 W/kg) — observed_outdoor | Coggan 338W | CP model 340W | divergence -1.8%
-  10min: 318W (4.51 W/kg) — observed_outdoor | Coggan 320W | CP model 322W | divergence -1.2%
-  20min: 297W (4.21 W/kg) — observed_outdoor | Coggan 296W | CP model 299W | divergence -0.7%
-  30min: 285W (4.04 W/kg) — observed_outdoor | Coggan 288W | CP model 290W | divergence -1.7%
-  60min: 272W (3.86 W/kg) — observed_outdoor | Coggan 271W | CP model 282W | divergence -3.5%
-  90min: 259W (3.67 W/kg) — observed_outdoor | Coggan 260W | CP model 279W | divergence -7.2%
-  120min: 250W (3.55 W/kg) — observed_outdoor | Coggan 251W | CP model 277W | divergence -9.7%
+  Coverage: 7/7 anchors observed (100%), cycling
+  5min: 334W (4.74 W/kg), observed_outdoor | Coggan 338W | CP model 340W | divergence -1.8%
+  10min: 318W (4.51 W/kg), observed_outdoor | Coggan 320W | CP model 322W | divergence -1.2%
+  20min: 297W (4.21 W/kg), observed_outdoor | Coggan 296W | CP model 299W | divergence -0.7%
+  30min: 285W (4.04 W/kg), observed_outdoor | Coggan 288W | CP model 290W | divergence -1.7%
+  60min: 272W (3.86 W/kg), observed_outdoor | Coggan 271W | CP model 282W | divergence -3.5%
+  90min: 259W (3.67 W/kg), observed_outdoor | Coggan 260W | CP model 279W | divergence -7.2%
+  120min: 250W (3.55 W/kg), observed_outdoor | Coggan 251W | CP model 277W | divergence -9.7%
   FTP used: 282W | W′: 21500J | FTP staleness: 66 days
   Model trust: CP/W′ primary ≤20min, Coggan reference ≥60min
   Block-over-block: Ceilings rose at every observed anchor (20min +4.2%, 60min +1.5%). Coverage improved from 86% to 100%. Divergence narrowed at ≤30min; the ≥90min gap tracks FTP staleness at 66 days rather than a change in the athlete.
@@ -541,7 +541,7 @@ DFA a1 Profile:
   Sessions in window: 7 sufficient (easy_guard: 6 crossings / 6 eligible; LT1: 5 / 5; LT2: 7 / 7)
   Average DFA a1: 0.79 (drift mean: -0.12)
 
-  Easy-state guard (α1 1.0) — descriptive / compliance only, NOT a calibration delta:
+  Easy-state guard (α1 1.0), descriptive / compliance only, NOT a calibration delta:
     148 bpm (from 6 sessions) / outdoor 232 W (from 4 sessions) / indoor 224 W (from 2 sessions)
     Top-of-easy ceiling for recovery and endurance riding. Never compared to the athlete's current
     thresholds; not a calibration or staleness signal.
@@ -553,8 +553,8 @@ DFA a1 Profile:
     Current LT2 thresholds (cycling): 165 bpm / outdoor 282 W
     Delta: LT2 outdoor +6.7% W (301 vs 282, from 4 estimate-eligible outdoor sessions)
     Coaching note: the outdoor LT2 estimate sits 6.7% above the configured outdoor FTP, on four
-    estimate-eligible outdoor sessions. This is a coaching observation, not an auto-update —
-    recommend a formal FTP test before changing the configured threshold. eFTP (297 W) points the
+    estimate-eligible outdoor sessions. This is a coaching observation, not an auto-update.
+    Recommend a formal FTP test before changing the configured threshold. eFTP (297 W) points the
     same way, though the two are distinct calculations over the same activity power data, so their
     agreement is partly structural. Pooled HR compared complete at seven sessions and landed within
     5% of the configured LTHR (168 vs 165), so it contributes no delta of its own; because the
@@ -563,7 +563,7 @@ DFA a1 Profile:
     reached only three estimate-eligible indoor sessions, below the four required for comparison,
     so it is not compared against the configured indoor FTP even though that value is known. Depth
     in one environment never licenses a delta in the other. LT1 renders descriptively above and
-    produces no delta — there is no configured LT1 comparator.
+    produces no delta: there is no configured LT1 comparator.
 
 Polarization (block average):
   Z1+Z2: 78%
@@ -600,9 +600,9 @@ HRRc by Week (block total: 8 qualifying sessions):
   Block trend: stable
 
 Wellness (block avg vs previous block):
-  HRV: 55 ms (prev block: 58 ms) ↓ declining — monitor
-  RHR: 49 bpm (prev block: 47 bpm) → stable — no concern
-  Sleep: 7h08m (prev block: 7h22m) → stable — no concern
+  HRV: 55 ms (prev block: 58 ms) ↓ declining: monitor
+  RHR: 49 bpm (prev block: 47 bpm) → stable: no concern
+  Sleep: 7h08m (prev block: 7h22m) → stable: no concern
   Avg Feel: 2.7/5 (23 sessions) (prev block: 2.2/5)
   Avg RPE: 5.2/10 (23 sessions) (prev block: 4.2/10)
   Avg RI: 0.89 (prev block: 0.94)
@@ -620,7 +620,7 @@ Phase Progression Check:
     - Durability held <3% throughout
     - Wellness drift mild and within the monitor band
   Phase recommendation: Deload, then progress to Peak / Race Specificity
-  Rationale: Threshold criteria met — both key sessions hit target, eFTP is trending up, compliance
+  Rationale: Threshold criteria met: both key sessions hit target, eFTP is trending up, compliance
   is 96%, and durability held under added intensity. The block was planned as four loading weeks,
   so it ends at TSB -4.2 with wellness drifting mildly; expected for that design, and no Section 11
   flag triggered. The configured FTP is 66 days stale, so the next block opens with a scheduled
@@ -629,13 +629,13 @@ Phase Progression Check:
 Interpretation:
 A productive threshold block, planned as four loading weeks with the deload scheduled at the start
 of the next block. CTL rose 5.3 points at a sustainable 1.33/week ramp, both quality targets were
-hit, and durability and EF held steady — intensity was added without eroding aerobic efficiency.
+hit, and durability and EF held steady: intensity was added without eroding aerobic efficiency.
 The DFA a1 Profile is the section worth attention. The outdoor LT2 estimate (301 W from four
 estimate-eligible outdoor sessions) sits 6.7% above the configured 282 W FTP, and eFTP moved to
 297 W. Those are distinct calculations over the same activity power data, so their agreement is
-partly structural rather than corroboration from a second source — but both read the configured
+partly structural rather than corroboration from a second source, but both read the configured
 value as low. Pooled HR told a different story: complete at seven sessions and within 5% of the
-configured LTHR, so it produced no delta — a complete comparison that agrees is silent, not absent,
+configured LTHR, so it produced no delta: a complete comparison that agrees is silent, not absent,
 and that is why this block is not reported as "no notable delta". Indoor LT2 (288 W) stopped at
 three estimate-eligible sessions and stays descriptive; the configured indoor FTP is known, but
 depth governs comparison and outdoor depth does not license an indoor delta. No Section 11 flag
@@ -655,13 +655,13 @@ Next Block Plan:
 
 ## Notes
 
-- **Example 1** shows a clean, successful block — all criteria met, clear progression
-- **Example 2** shows how the template handles real-world disruption — illness, regression, and the protocol's decision to NOT progress
-- **Example 3** shows the DFA a1 Profile section under three-marker semantics with **no complete comparison** — the α1 1.0 `easy_guard` renders as a descriptive top-of-easy compliance line (independent of profile confidence, never part of a delta), and a genuine α1 0.75 empirical LT1 renders descriptively with no comparator and no delta, because `current_status.thresholds.sports.cycling` has no LT1 key. LT1 is descriptive only and does not enter the progression decision. Profile confidence is moderate off the LT1 estimate-eligible sessions (easy_guard excluded) and is coarse orientation only, never a rendering gate; environment values render whenever present. `lt2_estimate` is null for insufficient eligible depth, so the empirical LT2 line is **omitted entirely** rather than printed as "omitted". With nothing complete, the comparator and delta rows are omitted rather than rendered as "no notable delta", and no in-block coaching note is written — that note is conditional on a surfaced delta, so the explanation belongs in Interpretation
-- **Example 4** shows the LT2 comparison path with **exactly one qualifying delta** — pooled HR complete at seven estimate-eligible sessions but within 5% of the configured LTHR, so it is silent; outdoor complete at four estimate-eligible sessions and 6.7% above the configured `ftp`, so it is the one delta reported; indoor descriptive at three estimate-eligible sessions, below the comparison depth, so no indoor delta despite a known configured `ftp_indoor`. `lt2_estimate.watts_indoor` is an empirical DFA observation, not an FTP estimate — FTP and zones are always read from the configured API/JSON fields, never estimated or inferred
+- **Example 1** shows a clean, successful block: all criteria met, clear progression
+- **Example 2** shows how the template handles real-world disruption: illness, regression, and the protocol's decision to NOT progress
+- **Example 3** shows the DFA a1 Profile section under three-marker semantics with **no complete comparison**: the α1 1.0 `easy_guard` renders as a descriptive top-of-easy compliance line (independent of profile confidence, never part of a delta), and a genuine α1 0.75 empirical LT1 renders descriptively with no comparator and no delta, because `current_status.thresholds.sports.cycling` has no LT1 key. LT1 is descriptive only and does not enter the progression decision. Profile confidence is moderate off the LT1 estimate-eligible sessions (easy_guard excluded) and is coarse orientation only, never a rendering gate; environment values render whenever present. `lt2_estimate` is null for insufficient eligible depth, so the empirical LT2 line is **omitted entirely** rather than printed as "omitted". With nothing complete, the comparator and delta rows are omitted rather than rendered as "no notable delta", and no in-block coaching note is written: that note is conditional on a surfaced delta, so the explanation belongs in Interpretation
+- **Example 4** shows the LT2 comparison path with **exactly one qualifying delta**: pooled HR complete at seven estimate-eligible sessions but within 5% of the configured LTHR, so it is silent; outdoor complete at four estimate-eligible sessions and 6.7% above the configured `ftp`, so it is the one delta reported; indoor descriptive at three estimate-eligible sessions, below the comparison depth, so no indoor delta despite a known configured `ftp_indoor`. `lt2_estimate.watts_indoor` is an empirical DFA observation, not an FTP estimate. FTP and zones are always read from the configured API/JSON fields, never estimated or inferred
 - **Polarization by Week** caught the grey zone creep in Example 2 that the block average partially masked
-- **Durability by Week** caught the aerobic efficiency regression in Example 2 before wellness metrics crashed — the aggregate trend is a leading indicator of fatigue
-- **Week-by-week CTL** in Volume Progression tells the trajectory story — Example 2's dip-and-partial-recovery is immediately visible
-- **Phase Progression Check** is the most important section — it makes the coaching decision transparent and auditable
-- **Wellness labels** ("declining — flag" vs "declining — monitor") give actionable context, not just arrows
-- Block reports should be the longest report type (45-60 lines) — this is where comprehensive analysis is warranted
+- **Durability by Week** caught the aerobic efficiency regression in Example 2 before wellness metrics crashed: the aggregate trend is a leading indicator of fatigue
+- **Week-by-week CTL** in Volume Progression tells the trajectory story: Example 2's dip-and-partial-recovery is immediately visible
+- **Phase Progression Check** is the most important section: it makes the coaching decision transparent and auditable
+- **Wellness labels** ("declining: flag" vs "declining: monitor") give actionable context, not just arrows
+- Block reports should be the longest report type (45-60 lines): this is where comprehensive analysis is warranted

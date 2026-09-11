@@ -39,7 +39,7 @@ Pre-Workout → Post-Workout → Weekly → Block → Season
   - **Post-Workout:** Per-session EF. Durability 7d/28d mean(X) + trend in weekly totals. EF 7d/28d mean(X) + trend in weekly totals. TID 28d classification + drift
   - **Weekly:** Durability subsection with mean(X) counts + high-drift count. EF subsection with mean(X) counts + trend. TID 7d + TID 28d on separate lines
   - **Block:** Durability by Week with mean(X) (trajectory across block). EF by Week with mean(X) (trajectory across block). TID 28d as block-scale classification. Per-week classification conditional (only when diverging from block TID)
-  - **Season:** Capability metrics (durability, EF, HRRc, sustainability) intentionally absent in v1 — `weekly_180d` rows do not carry rolled-up capability means. Adding them requires a separate weekly capability rollup; parked for v2
+  - **Season:** Capability metrics (durability, EF, HRRc, sustainability) intentionally absent in v1: `weekly_180d` rows do not carry rolled-up capability means. Adding them requires a separate weekly capability rollup; parked for v2
 
 ---
 
@@ -47,13 +47,13 @@ Pre-Workout → Post-Workout → Weekly → Block → Season
 
 All report types share these formatting principles:
 
-1. **Data first, prose for interpretation only** — structured line-by-line, not bullet summaries
-2. **Scannable in 30 seconds** — most important info at the top
-3. **Assessment labels in parentheses** — (good), (optimal), (flag) after metrics
-4. **Directional arrows** — ↑/↓/→ for trends with threshold-based labels
-5. **Section 11 flags surface immediately** — never deferred to a later report
-6. **Capability metrics scale with report scope** — one-liner in pre/post, subsection in weekly, by-week breakdown in block
-7. **Interpretation at the end** — 2-5 sentences of coaching interpretation
+1. **Data first, prose for interpretation only**: structured line-by-line, not bullet summaries
+2. **Scannable in 30 seconds**: most important info at the top
+3. **Assessment labels in parentheses**: (good), (optimal), (flag) after metrics
+4. **Directional arrows**: ↑/↓/→ for trends with threshold-based labels
+5. **Section 11 flags surface immediately**: never deferred to a later report
+6. **Capability metrics scale with report scope**: one-liner in pre/post, subsection in weekly, by-week breakdown in block
+7. **Interpretation at the end**: 2-5 sentences of coaching interpretation
 
 ---
 

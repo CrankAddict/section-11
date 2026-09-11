@@ -2,7 +2,7 @@
 
 **Template version:** 2.1.0
 
-**Dossier revision:** [1.0 — increment when an approved change is applied]
+**Dossier revision:** [1.0: increment when an approved change is applied]
 
 **Last reviewed:** [YYYY-MM-DD]
 
@@ -14,7 +14,7 @@
 
 **Official dossier location:** [Absolute path, private repository path, or "not applicable — uploaded manually"]
 
-**Authority:** This is the current official dossier and the single source of truth for stable private athlete context. All older dossier files, drafts, exports, and uploaded copies are superseded and must not be used as current context. If more than one copy is present, do not merge them — identify this authority block, compare the dossier revision and last-reviewed date, and ask the athlete which copy is official.
+**Authority:** This is the current official dossier and the single source of truth for stable private athlete context. All older dossier files, drafts, exports, and uploaded copies are superseded and must not be used as current context. If more than one copy is present, do not merge them; identify this authority block, compare the dossier revision and last-reviewed date, and ask the athlete which copy is official.
 
 **The official dossier is private.** A sanitized or shareable copy is a separate, non-authoritative artifact: it never carries this authority statement, never replaces the private original, and requires its own explicit sharing approval.
 
@@ -30,7 +30,7 @@ It is deliberately **not** a training dashboard. Current fitness, readiness, bod
 2. Replace bracketed prompts and delete unused rows or sections.
 3. Keep exact medication, supplement, allergy, and tested-fueling details when you want an AI to account for them.
 4. Link the current JSON data and Section 11 protocol under **Data and protocol sources** (§8).
-5. Change this file only through the maintenance rule in §1 — a durable change in health, medication, supplements, goals, equipment, environment, constraints, or coaching preference is what triggers a proposal, not a change in fitness, fatigue, phase, schedule, or planned training.
+5. Change this file only through the maintenance rule in §1: a durable change in health, medication, supplements, goals, equipment, environment, constraints, or coaching preference is what triggers a proposal, not a change in fitness, fatigue, phase, schedule, or planned training.
 
 These five steps are completion help for a blank template. Delete this **Quick start** section, including this line, once the dossier is filled in. Retain the scope lists below, the authority and privacy block in the header, and the applicable per-section rules.
 
@@ -67,13 +67,13 @@ These five steps are completion help for a blank template. Delete this **Quick s
 
 An AI may propose changes to this dossier. It may never make them unilaterally.
 
-1. **Propose the exact change** — the section affected, the current text, the proposed text, and why the fact belongs here rather than in JSON, the calendar, or the conversation.
+1. **Propose the exact change**: the section affected, the current text, the proposed text, and why the fact belongs here rather than in JSON, the calendar, or the conversation.
 2. **Obtain the athlete's exact approval.** Approval of one change authorizes that change only. General agreement with an analysis is not approval, and approval from a reviewer or another AI is never a substitute for the athlete's.
 3. **Verify write access before applying.** Apply an approved change only against a location whose write access has actually been verified. Otherwise return the revised artifact and say plainly that the source was not updated.
 4. **Never emit a full replacement dossier unless the complete current file is in context.** With only an excerpt available, return the changed section clearly labelled as a fragment, not as a replacement.
 5. **Increment the dossier revision and update the last-reviewed date** when an approved change is applied, then re-read and confirm what changed.
 
-Review this dossier after a durable change in health, medication, supplements, goals, equipment, environment, constraints, or coaching preference — not after ordinary fluctuations in fitness, fatigue, phase, or scheduling.
+Review this dossier after a durable change in health, medication, supplements, goals, equipment, environment, constraints, or coaching preference, not after ordinary fluctuations in fitness, fatigue, phase, or scheduling.
 
 ## 2. Coaching and communication preferences
 
@@ -91,7 +91,7 @@ Apply these defaults whenever this dossier is current context. Explicit current 
 - Do not repeat an observation unless it is asked for, has materially changed, or is required by the report; stop when asked to stop.
 - Ask a question only when the missing information materially affects the answer; otherwise state the assumption being made.
 
-Coaching decision rules, report structure, and threshold logic are **not** here — they belong in Section 11. The compact maintenance rule is in §1; the full dossier lifecycle and approval policy lives in Section 11.
+Coaching decision rules, report structure, and threshold logic are **not** here; they belong in Section 11. The compact maintenance rule is in §1; the full dossier lifecycle and approval policy lives in Section 11.
 
 ### Athlete-specific overrides
 
@@ -202,7 +202,7 @@ Do not change prescribed medication or add/drop supplements solely because an AI
 
 ### Athlete-specific data interpretation
 
-Interpretation notes are optional. Whenever one is recorded — in this table or beside the subject it qualifies — the four-column and provenance requirements below apply in full.
+Interpretation notes are optional. Whenever one is recorded (in this table or beside the subject it qualifies), the four-column and provenance requirements below apply in full.
 
 Each note needs all four columns. A note without a stated basis is an assumption; a note without an approval date cannot be reviewed. Place a note beside the subject it qualifies where that is clearer than listing it here.
 
@@ -249,7 +249,7 @@ Record durable constraints, not this week's plan.
 
 | Constraint | Context |
 |---|---|
-| Typical available days/times | [Stable pattern or “variable—use calendar”] |
+| Typical available days/times | [Stable pattern or “variable; use calendar”] |
 | Maximum practical session window | [Only if genuinely stable] |
 | Work/family/travel constraints | [Context] |
 | Preferred rest day(s) | [Optional] |
@@ -311,9 +311,9 @@ Fill in the method(s) the athlete actually uses. Delete unused examples.
 | Section 11 protocol | [Path or official repository URL] |
 | Report templates | [Path or official repository URL] |
 
-**Data directory:** [Runtime-accessible location where training data is read — local path, provider-hosted path, mounted folder, connector root — or "not applicable"]
+**Data directory:** [Runtime-accessible location where training data is read (local path, provider-hosted path, mounted folder, connector root) or "not applicable"]
 
-This is where a runtime reads training data. It is **not** the authoritative dossier copy — that is recorded as **Official dossier location** in the header block at the top of this file.
+This is where a runtime reads training data. It is **not** the authoritative dossier copy; that is recorded as **Official dossier location** in the header block at the top of this file.
 
 **Last data-source check:** [Date]
 

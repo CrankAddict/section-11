@@ -56,6 +56,7 @@ Both methods use the same `sync.py` script and produce these files:
 | `history.json` | Longitudinal data: daily (90d), weekly (180d), monthly (3y) | Yes |
 | `intervals.json` | Per-interval segment data for recent structured sessions | Yes |
 | `routes.json` | Route/terrain data for events with GPX/TCX attachments | When attachments exist |
+| `saved_workouts.json` | Read-only mirror of the athlete's Intervals.icu saved workouts | Every sync (refreshed on its own 6h throttle) |
 | `ftp_history.json` | FTP tracking for Benchmark Index | Yes |
 | `archive/` | Timestamped snapshots (auto-sync only) | Yes |
 
@@ -110,18 +111,18 @@ history.json
 ├── weekly_180d          → Week-by-week (last 180 days)
 └── monthly_1y/2y/3y     → Month-by-month (up to 3 years)
 
-intervals.json (on-demand — load when analyzing activities with has_intervals: true or has_dfa: true)
+intervals.json (on-demand: load when analyzing activities with has_intervals: true or has_dfa: true)
 ├── generated_at         → Timestamp
 ├── schema_version       → intervals.json contract version (integer)
 ├── version              → sync.py version
-├── fetch_state{}        → INTERNAL retry/fetch bookkeeping — not a consumer contract
+├── fetch_state{}        → INTERNAL retry/fetch bookkeeping; not a consumer contract
 └── activities[]         → Per-activity interval segments
     ├── activity_id      → Matches id in latest.json recent_activities
     ├── interval_summary → Group summary (e.g., "4x 9m56s 259w")
     ├── zone_basis       → What `zone` refers to: power | hr | pace (omitted if unresolved)
     └── intervals[]      → WORK + RECOVERY segments with power, HR, cadence, zone, timing
 
-routes.json (on-demand — load when planned events have has_terrain: true)
+routes.json (on-demand: load when planned events have has_terrain: true)
 ├── generated_at         → Timestamp
 ├── sync_version         → sync.py version
 ├── script_hash          → Cache invalidation hash
@@ -131,7 +132,27 @@ routes.json (on-demand — load when planned events have has_terrain: true)
     └── terrain_summary  → Distance, elevation, course character, polyline
         ├── climbs[]     → Cat 4–HC with position, gradient, coords
         └── descents[]   → Recovery windows with position, gradient, coords
+
+saved_workouts.json (on-demand: load when selecting, reusing, or discussing a saved workout)
+├── generated_at         → Timestamp
+├── schema_version       → saved_workouts.json contract version (integer)
+├── version              → sync.py version
+├── script_hash          → Producer identity hash
+├── target_resolution    → "as_stored"; targets exactly as Intervals.icu holds them
+├── refresh{}            → status (ok/stale/unavailable), consistency, last_success_at,
+│                          last_content_change_at, refresh_interval_secs
+├── counts{}             → folders, workouts (null when status is unavailable)
+├── fetch_state{}        → INTERNAL throttle/retry bookkeeping; not a consumer contract
+├── folders[]            → id, type, name, visibility, can_edit, read_only_workouts,
+│                          upstream_num_workouts, num_workouts, workout_ids[]
+└── workouts[]           → Complete saved workout definitions
+    ├── id/name/type/sub_type/indoor/description/tags
+    ├── moving_time, icu_training_load, icu_intensity, target, targets
+    ├── folder_id/folder_name → canonical membership (null when unfiled)
+    └── workout_doc      → Full structure as received; targets may be relative or absolute
 ```
+
+> **Note on the two libraries:** `saved_workouts.json` mirrors the athlete's own saved workouts in Intervals.icu. It is **not** the [Workout Reference Library](workout-library/), which is the normative catalogue of session templates Section 11 designs plans from. Full description: [Saved Workouts Mirror](json-examples/README.md#saved-workouts-mirror).
 
 > **Note on terrain data location:** `routes.json` holds **planned-route** terrain (events with GPX/TCX attachments). **Completed-activity** terrain (what was actually ridden) lives embedded on each outdoor activity in `latest.json`'s `recent_activities[]` as `terrain_summary` and `weather_summary`. Same base schema, different time direction. See SECTION_11.md "Completed-Activity Terrain & Weather" for interpretation rules.
 

@@ -1,0 +1,254 @@
+{
+  "generated_at": "2026-09-12T06:00:00+00:00",
+  "schema_version": 1,
+  "version": "3.132",
+  "script_hash": "859f7e9caa4b",
+  "source": "intervals.icu",
+  "target_resolution": "as_stored",
+  "refresh": {
+    "status": "ok",
+    "consistency": "consistent",
+    "last_success_at": "2026-09-12T06:00:00+00:00",
+    "last_content_change_at": "2026-08-30T11:12:40+00:00",
+    "refresh_interval_secs": 21600
+  },
+  "counts": {
+    "folders": 1,
+    "workouts": 3
+  },
+  "folders": [
+    {
+      "id": 407721,
+      "type": "FOLDER",
+      "name": "Cycling",
+      "description": null,
+      "visibility": "PRIVATE",
+      "read_only_workouts": false,
+      "can_edit": true,
+      "upstream_num_workouts": 3,
+      "start_date_local": null,
+      "activity_types": [
+        "Ride",
+        "VirtualRide"
+      ],
+      "num_workouts": 3,
+      "workout_ids": [
+        52840311,
+        52840312,
+        52840313
+      ]
+    }
+  ],
+  "workouts": [
+    {
+      "id": 52840311,
+      "name": "SS 3x15",
+      "type": "Ride",
+      "sub_type": "NONE",
+      "indoor": true,
+      "description": "Sweet spot block. Hold cadence 85-95.",
+      "moving_time": 4500,
+      "distance": null,
+      "icu_training_load": 78,
+      "icu_intensity": 0.82,
+      "target": "POWER",
+      "targets": [
+        "POWER"
+      ],
+      "tags": [
+        "build",
+        "sweet spot"
+      ],
+      "carbs_per_hour": null,
+      "day": null,
+      "days": null,
+      "for_week": false,
+      "hide_from_athlete": false,
+      "folder_id": 407721,
+      "folder_name": "Cycling",
+      "updated": "2026-08-30T11:04:12+00:00",
+      "source_endpoint": "workouts",
+      "has_workout_doc": true,
+      "workout_doc": {
+        "steps": [
+          {
+            "duration": 900,
+            "power": {
+              "value": 58,
+              "units": "%ftp"
+            },
+            "text": "Warm up"
+          },
+          {
+            "reps": 3,
+            "steps": [
+              {
+                "duration": 900,
+                "power": {
+                  "value": 90,
+                  "units": "%ftp"
+                },
+                "text": "Sweet spot"
+              },
+              {
+                "duration": 300,
+                "power": {
+                  "value": 50,
+                  "units": "%ftp"
+                },
+                "text": "Recover"
+              }
+            ]
+          },
+          {
+            "duration": 600,
+            "power": {
+              "value": 50,
+              "units": "%ftp"
+            },
+            "text": "Cool down"
+          }
+        ]
+      }
+    },
+    {
+      "id": 52840312,
+      "name": "VO2 5x3",
+      "type": "Ride",
+      "sub_type": "NONE",
+      "indoor": true,
+      "description": "Short VO2max intervals.",
+      "moving_time": 3900,
+      "distance": null,
+      "icu_training_load": 95,
+      "icu_intensity": 0.94,
+      "target": "POWER",
+      "targets": [
+        "POWER"
+      ],
+      "tags": [
+        "intensity",
+        "vo2max"
+      ],
+      "carbs_per_hour": null,
+      "day": null,
+      "days": null,
+      "for_week": false,
+      "hide_from_athlete": false,
+      "folder_id": 407721,
+      "folder_name": "Cycling",
+      "updated": "2026-08-30T11:04:12+00:00",
+      "source_endpoint": "workouts",
+      "has_workout_doc": true,
+      "workout_doc": {
+        "steps": [
+          {
+            "duration": 1200,
+            "power": {
+              "value": 60,
+              "units": "%ftp"
+            },
+            "text": "Warm up"
+          },
+          {
+            "reps": 5,
+            "steps": [
+              {
+                "duration": 180,
+                "power": {
+                  "value": 118,
+                  "units": "%ftp"
+                },
+                "text": "VO2max"
+              },
+              {
+                "duration": 180,
+                "power": {
+                  "value": 45,
+                  "units": "%ftp"
+                },
+                "text": "Recover"
+              }
+            ]
+          },
+          {
+            "duration": 600,
+            "power": {
+              "value": 48,
+              "units": "%ftp"
+            },
+            "text": "Cool down"
+          }
+        ]
+      }
+    },
+    {
+      "id": 52840313,
+      "name": "Endurance 1h50 ramp",
+      "type": "Ride",
+      "sub_type": "NONE",
+      "indoor": false,
+      "description": "Outdoor steady ride, progressive.",
+      "moving_time": 6600,
+      "distance": null,
+      "icu_training_load": 112,
+      "icu_intensity": 0.68,
+      "target": "POWER",
+      "targets": [
+        "POWER"
+      ],
+      "tags": [
+        "base",
+        "endurance"
+      ],
+      "carbs_per_hour": null,
+      "day": null,
+      "days": null,
+      "for_week": false,
+      "hide_from_athlete": false,
+      "folder_id": 407721,
+      "folder_name": "Cycling",
+      "updated": "2026-08-30T11:04:12+00:00",
+      "source_endpoint": "workouts",
+      "has_workout_doc": true,
+      "workout_doc": {
+        "steps": [
+          {
+            "duration": 600,
+            "power": {
+              "value": 55,
+              "units": "%ftp"
+            },
+            "text": "Warm up"
+          },
+          {
+            "duration": 5400,
+            "power": {
+              "start": 60,
+              "end": 72,
+              "units": "%ftp"
+            },
+            "text": "Steady endurance"
+          },
+          {
+            "duration": 600,
+            "power": {
+              "value": 50,
+              "units": "%ftp"
+            },
+            "text": "Cool down"
+          }
+        ]
+      }
+    }
+  ],
+  "fetch_state": {
+    "last_attempt_at": "2026-09-12T06:00:00+00:00",
+    "consecutive_failures": 0,
+    "next_attempt_after": "2026-09-12T12:00:00+00:00",
+    "last_error": null,
+    "content_digest": "sha256:40409784baf1f63b655e2cd0f45b6302555d07dabb8e1c961db3a2657afb64f6",
+    "endpoint_mismatch_count": 0,
+    "endpoint_mismatch_ids": []
+  }
+}

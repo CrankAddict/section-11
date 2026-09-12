@@ -38,7 +38,7 @@ An open protocol for deterministic, auditable AI-powered endurance coaching. Bui
 
 ## Privacy & Security
 
-`sync.py` always redacts `metadata.athlete_id`, but it does not anonymize the exported dataset. Output may include activity names and IDs, date of birth, age, sex, height, location, timezone, athlete notes, wellness and training data, and route coordinates/polylines. Store the output in a private location. Publishing the files in a public repository exposes that information.
+`sync.py` always redacts `metadata.athlete_id`, but it does not anonymize the exported dataset. Output may include activity names and IDs, date of birth, age, sex, height, location, timezone, athlete notes, wellness and training data, route coordinates/polylines, and your saved workouts: their names, descriptions, folder names and full structures, which reveal planning intent such as goal events, target adaptations and prescribed intensities. Store the output in a private location. Publishing the files in a public repository exposes that information.
 
 Section 11 operates no hosted backend. Data moves only through services you explicitly configure. Credentials are sent only to the service they authenticate, and only when that service is configured: `sync.py` sends your Intervals.icu key in an Authorization header to Intervals.icu, and your GitHub token to GitHub when publishing or issue creation is configured. Credentials are never included in exported or published JSON. Any AI, runtime, model, connector, repository or storage providers actually involved have their own processing and retention terms, which Section 11 neither sets nor can promise.
 
@@ -310,7 +310,7 @@ After configuration, test with:
 
 Most AI platforms now have GitHub connectors that can access private repos directly. Check the [Platform Setup](#platform-setup) table for your platform's connector path.
 
-If your platform doesn't support connectors or you can't get them working: use a public repo (see [Privacy & Security](#privacy--security) for what that exposes), upload `latest.json`, `history.json`, `intervals.json`, and `routes.json` (if present) manually to your AI Project/Space, replacing any older copy, or use an [agentic platform](#agentic-setup) with GitHub access configured.
+If your platform doesn't support connectors or you can't get them working: use a public repo (see [Privacy & Security](#privacy--security) for what that exposes), upload `latest.json`, `history.json`, `intervals.json`, `routes.json` (if present), and `saved_workouts.json` manually to your AI Project/Space, replacing any older copy, or use an [agentic platform](#agentic-setup) with GitHub access configured.
 
 ### Data appears stale after sync
 
@@ -353,7 +353,7 @@ Connectors are available to all Grok (web/app) users. Add GitHub at `grok.com/co
 
 This can happen when the AI fails to fetch or parse your JSON data, when the context window overflows, or when the platform's web search doesn't reliably retrieve raw JSON.
 
-**Nuclear option:** Download the full [section-11 repo](https://github.com/CrankAddict/section-11) as a zip and upload it directly into your AI Project, Gem, Space, or chat. This bypasses all fetch/connector issues and gives the AI the protocol and templates in one package. You'll still need to provide your own `latest.json`, `history.json`, `intervals.json`, `routes.json` (if present), and `DOSSIER.md` separately. The protocol zip is frozen at upload too. Replace it when you update Section 11, and don't leave two copies in the store.
+**Nuclear option:** Download the full [section-11 repo](https://github.com/CrankAddict/section-11) as a zip and upload it directly into your AI Project, Gem, Space, or chat. This bypasses all fetch/connector issues and gives the AI the protocol and templates in one package. You'll still need to provide your own `latest.json`, `history.json`, `intervals.json`, `routes.json` (if present), and `DOSSIER.md` separately, plus `saved_workouts.json` on demand when you want to select, reuse, or discuss a saved workout. The protocol zip is frozen at upload too. Replace it when you update Section 11, and don't leave two copies in the store.
 
 ---
 
@@ -484,6 +484,10 @@ The script generates `intervals.json` with per-interval segment data (power, HR 
 ### Route & Terrain Data
 
 The script generates `routes.json` with terrain analysis for planned events that have GPX/TCX file attachments. Includes total distance, elevation, course character classification, climb detection (Cat 4 through HC), descent detection, and a 500m-downsampled polyline with elevation. Events with terrain data are flagged with `has_terrain: true` in `latest.json`. Cached by attachment ID. Files are only downloaded and parsed once.
+
+### Saved Workouts Mirror
+
+The script generates `saved_workouts.json`, a read-only mirror of your saved workouts from Intervals.icu: folders and complete workout definitions, including each workout's structure exactly as Intervals.icu stores it. Intervals.icu remains the source of truth and the only write path; the mirror never writes back. It exists as a faster, cheaper read path than repeated API retrieval, and it makes your saved workouts available to platforms without API access through connectors, repositories, URLs and file uploads. It refreshes on its own 6-hour throttle rather than on every sync, keeps the last good copy when a refresh fails, and reports whether what you are reading was just verified or is a retained older snapshot. See [`examples/json-examples/README.md`](examples/json-examples/README.md#saved-workouts-mirror) for the full description.
 
 ### Update Notifications
 

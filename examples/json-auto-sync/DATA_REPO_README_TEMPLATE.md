@@ -31,6 +31,7 @@ Built on the [Section 11 Protocol](https://github.com/CrankAddict/section-11).
 | `history.json` | Longitudinal data (daily/weekly/monthly) | [View](https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/history.json) |
 | `intervals.json` | Per-interval data for structured sessions | [View](https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/intervals.json) |
 | `routes.json` | Route/terrain data (when GPX/TCX attachments exist) | [View](https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/routes.json) |
+| `saved_workouts.json` | Read-only mirror of your Intervals.icu saved workouts | [View](https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/saved_workouts.json) |
 
 ## Auto-Sync
 
@@ -44,6 +45,7 @@ Analyze my training using these data files:
 - History: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/history.json
 - Intervals: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/intervals.json
 - Routes: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/routes.json
+- Saved workouts: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/saved_workouts.json
 ```
 
 For best results, pair with the [Section 11 instruction set](https://github.com/CrankAddict/section-11).

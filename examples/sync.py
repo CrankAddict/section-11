@@ -4,6 +4,60 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.132 - Saved Workouts Mirror: read-only saved_workouts.json.
+  A read-only mirror of the user's saved workouts from Intervals.icu, written beside
+  latest.json, history.json, intervals.json and routes.json. Intervals.icu remains the
+  source of truth and the only write path; the mirror never grants write authority.
+  One refresh is both library endpoints, /athlete/{id}/folders and /athlete/{id}/workouts,
+  and both must succeed: a partial success is a failed refresh with no partial merge.
+  Neither endpoint accepts a query parameter and neither returns ETag or Last-Modified,
+  and Folder objects carry no timestamp at all, so change detection compares a SHA-256
+  digest of the reconciled snapshot rather than trusting the upstream `updated` field,
+  which is mirrored for the reader but never gates a fetch. Membership is canonical:
+  a workout's folder_id from /workouts, or the containing folder for a folder-child-only
+  fallback, with folder_name, folder.workout_ids and the derived num_workouts all built
+  from that one value so they cannot contradict one another when the endpoints disagree.
+  Refresh is throttled at 6h independently of the sync cadence and backs off 30m/2h/6h
+  on failure, honouring Retry-After on 429 and 503. A failure retains the last good
+  snapshot and reports status stale; a first-ever failure reports unavailable with null
+  collections, which a successfully empty library (status ok, empty arrays) can never be
+  mistaken for. Output is a deny-by-default allowlist: shareToken, owner, sharedWithCount,
+  athlete_id and attachments are never exported, and last_error carries only endpoint,
+  kind and status. workout_doc is stored exactly as received with array order preserved
+  at every depth; the library endpoints offer no resolve option and the sync performs no
+  target resolution, so _summarize_workout_doc is never run over a saved workout. This
+  file is the only output using timezone-aware UTC timestamps; every existing output
+  contract is unchanged. New --refresh-saved-workouts bypasses the throttle for one run.
+  A complete HTTP 200 is structurally validated before reconciliation - both roots must
+  be lists of objects carrying unique ids, and folder children likewise - because
+  reconciliation silently ignores entries it cannot key, so malformed content would
+  otherwise overwrite a valid cache with an apparently successful smaller or empty
+  library. Malformed content is a failed refresh with kind schema. A cached file is
+  validated the same way before its throttle or its snapshot is trusted. Every failure
+  path, transport, HTTP status, malformed payload or an unexpected internal exception
+  anywhere in fetch, validation or reconciliation, persists the same retained stale (or
+  first-run unavailable) state, so the file never keeps reporting a success that did not
+  happen; an internal failure records only kind internal, never exception text. tags and
+  targets are normalised identically for output and for endpoint comparison, so an
+  order-only difference is not a disagreement. Ids are canonical throughout: one helper
+  serves endpoint validation, cache validation and reconciliation, accepting only a
+  non-boolean int or a string normalising to an int or a non-empty string, and comparing
+  canonical values rather than their string forms, so 1, "1", 1.0 and True cannot slip
+  past one another and an unhashable id is rejected as schema rather than surfacing as
+  an internal error. Cache validation covers the same canonical-id and membership
+  invariants the producer guarantees, and accepts a cache only if this producer could
+  have emitted it at this schema version: exact key sets against the output allowlist,
+  UTC-aware producer timestamps, status coherent with the failure counters and last_error,
+  folder_name checked against the canonical folder, has_workout_doc against the document,
+  and content_digest recomputed and matched, so altered content carrying a stale digest is
+  rejected. A malformed file can therefore never suppress refreshes through its own
+  next_attempt_after, nor stay consumable as ok. Producer version and script_hash are
+  deliberately not pinned there, so an upgrade keeps the previous snapshot as last-good
+  while _sw_refresh_due forces the refresh;
+  the failure path additionally coerces retained counters, since it is also the recovery
+  path for an unexpected exception and must not itself raise.
+  Pairs with SECTION_11.md / SKILL.md v11.67.
+
 Version 3.131 - Sleep quality scale labels corrected to match Intervals.icu.
   READ_THIS_FIRST.wellness_field_scales.sleep_quality labelled the 1-4 scale
   GREAT / OK / POOR / WORST, while Intervals.icu labels the same positions Great,
@@ -283,7 +337,7 @@ import requests
 import json
 import os
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 import base64
 import math
@@ -307,9 +361,45 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.131"
+    VERSION = "3.132"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
+    SAVED_WORKOUTS_FILE = "saved_workouts.json"
+
+    # --- Saved Workouts Mirror (v3.132) ---
+    # Read-only mirror of the athlete's Intervals.icu saved workouts. Intervals.icu
+    # remains the source of truth and the only write path; this file is never a
+    # write authority. Refreshed on its own throttle, independent of the sync
+    # cadence, because the sync timer runs every minute and the library changes
+    # rarely.
+    SAVED_WORKOUTS_SCHEMA_VERSION = 1
+    SAVED_WORKOUTS_REFRESH_INTERVAL_SECS = 21600     # 6h; matches the INTERVAL_RETRY_LADDER tail
+    SAVED_WORKOUTS_RETRY_LADDER = ((2, 1800), (5, 7200), (None, 21600))
+    SAVED_WORKOUTS_MISMATCH_ID_CAP = 50
+    SAVED_WORKOUTS_TIMEOUT_SECS = 30
+    # Output allowlist: deny-by-default. Anything upstream returns that is not named
+    # here is dropped, including fields Intervals.icu adds in future. shareToken,
+    # owner, sharedWithCount, athlete_id and attachments are never exported.
+    SAVED_WORKOUTS_FOLDER_FIELDS = (
+        ("type", "type"),
+        ("name", "name"),
+        ("description", "description"),
+        ("visibility", "visibility"),
+        ("read_only_workouts", "read_only_workouts"),
+        ("canEdit", "can_edit"),
+        ("num_workouts", "upstream_num_workouts"),
+        ("start_date_local", "start_date_local"),
+        ("activity_types", "activity_types"),
+    )
+    SAVED_WORKOUTS_WORKOUT_FIELDS = (
+        "name", "type", "sub_type", "indoor", "description", "moving_time",
+        "distance", "icu_training_load", "icu_intensity", "target", "targets",
+        "tags", "carbs_per_hour", "day", "days", "for_week", "hide_from_athlete",
+    )
+    SAVED_WORKOUTS_SET_LIKE_FIELDS = ("tags", "targets")
+    # Sentinel for a value that cannot serve as a canonical id. Distinct from None,
+    # which is a valid folder reference meaning "unfiled".
+    SW_ID_INVALID = object()
 
     # --- Health context (v3.128, issue #27) ---
     # Calendar health markers are matched on the canonical Intervals.icu category,
@@ -2037,6 +2127,799 @@ class IntervalsSync:
     
     # ── Route & Terrain Intelligence (v3.93) ─────────────────────────────
     
+    # ==================== SAVED WORKOUTS MIRROR (v3.132) ====================
+    # A read-only mirror of the user's saved workouts from Intervals.icu.
+    #
+    # Intervals.icu exposes no change-detection mechanism on the library endpoints:
+    # no ETag, no Last-Modified, no "changed since" filter, and Folder objects carry
+    # no timestamp at all. Change detection therefore compares a content digest of a
+    # full snapshot; the upstream `updated` field is mirrored for the reader but is
+    # never an input to any freshness or skip decision.
+
+    def _sw_now(self) -> datetime:
+        """Timezone-aware UTC now. The mirror is the only output using aware timestamps."""
+        return datetime.now(timezone.utc)
+
+    @staticmethod
+    def _sw_iso(dt: datetime) -> str:
+        return dt.isoformat()
+
+    @staticmethod
+    def _sw_sort_key(value):
+        """
+        Total order over ids. Integers (and integer-valued strings) sort numerically
+        and ahead of everything else; anything else sorts by string. Never raises on
+        a mixed-type collection.
+        """
+        if isinstance(value, bool):
+            return (1, str(value))
+        if isinstance(value, int):
+            return (0, value, "")
+        try:
+            return (0, int(str(value).strip()), "")
+        except (TypeError, ValueError):
+            return (1, 0, str(value))
+
+    @staticmethod
+    def _sw_canonical_id(value):
+        """
+        Strict canonical id, or SW_ID_INVALID.
+
+        One helper serves endpoint validation, cache validation and reconciliation, so
+        the collision rule and the dictionary key are the same value. Accepts only a
+        non-boolean int, or a string that normalizes to an int or a non-empty string.
+        Booleans, floats, None, lists and dicts are invalid: a float would collide with
+        an int under equality, a bool hashes equal to 0/1, and an unhashable value
+        cannot key reconciliation at all.
+        """
+        if isinstance(value, bool) or value is None:
+            return IntervalsSync.SW_ID_INVALID
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return IntervalsSync.SW_ID_INVALID
+            try:
+                return int(text)
+            except ValueError:
+                return text
+        return IntervalsSync.SW_ID_INVALID
+
+    @staticmethod
+    def _sw_canonical_ref(value):
+        """Canonical id for an optional reference (a workout's folder_id). None is valid."""
+        if value is None:
+            return None
+        return IntervalsSync._sw_canonical_id(value)
+
+    @classmethod
+    def _sw_id_ok(cls, value) -> bool:
+        return cls._sw_canonical_id(value) is not cls.SW_ID_INVALID
+
+    @classmethod
+    def _sw_ref_ok(cls, value) -> bool:
+        return value is None or cls._sw_id_ok(value)
+
+    def _sw_digest(self, folders: List[Dict], workouts: List[Dict]) -> str:
+        """
+        Content digest over the reconciled snapshot only — mirror metadata excluded.
+        Object keys are sorted for the digest; array order is preserved everywhere,
+        so workout_doc step order participates in the digest exactly as ordered.
+        """
+        payload = json.dumps({"folders": folders, "workouts": workouts},
+                             sort_keys=True, separators=(",", ":"),
+                             ensure_ascii=False, default=str)
+        return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    def _sw_backoff_secs(self, attempts: int, retry_after_secs: Optional[int] = None) -> int:
+        """Failure backoff, same shape as _schedule_refresh: no deadline, self-heals."""
+        delay = self.SAVED_WORKOUTS_RETRY_LADDER[-1][1]
+        for through, secs in self.SAVED_WORKOUTS_RETRY_LADDER:
+            if through is None or attempts <= through:
+                delay = secs
+                break
+        if retry_after_secs is not None:
+            delay = max(delay, int(retry_after_secs))
+        return delay
+
+    def _sw_normalize_set_like(self, value):
+        """
+        Deterministic normalization for set-like fields. Applied identically to output
+        and to endpoint comparison, so an order-only difference in tags or targets is
+        not a disagreement. Never applied inside workout_doc, where order is semantic.
+        """
+        if isinstance(value, list):
+            return sorted(value, key=self._sw_sort_key)
+        return value
+
+    def _sw_fields_differ(self, primary: Dict, child: Dict) -> bool:
+        """True when any mirrored field disagrees between the two endpoints."""
+        for key in self.SAVED_WORKOUTS_WORKOUT_FIELDS:
+            a, b = primary.get(key), child.get(key)
+            if key in self.SAVED_WORKOUTS_SET_LIKE_FIELDS:
+                a, b = self._sw_normalize_set_like(a), self._sw_normalize_set_like(b)
+            if a != b:
+                return True
+        for key in ("updated", "workout_doc"):
+            if primary.get(key) != child.get(key):
+                return True
+        if self._sw_canonical_ref(primary.get("folder_id")) != self._sw_canonical_ref(child.get("folder_id")):
+            return True
+        return False
+
+    def _sw_reconcile(self, folders_raw: List[Dict], workouts_raw: List[Dict]) -> Tuple[List[Dict], List[Dict], int, List]:
+        """
+        Build the output snapshot from one canonical membership model.
+
+        /workouts is the primary source of workout objects; /folders supplies folder
+        metadata and is the fallback source for a workout /workouts omits. Canonical
+        membership is the /workouts object's own folder_id, or — for a folder-child-only
+        fallback — the containing folder. folder_id, folder_name, folder.workout_ids and
+        folder.num_workouts are all derived from that single value, so they can never
+        contradict one another even when the endpoints disagree. Raw children are used
+        only for comparison and fallback, never as a competing output relationship.
+
+        Returns (folders, workouts, findings, flagged_workout_ids). findings counts every
+        disagreement, workout-level and folder-level; flagged ids are workout ids only.
+
+        Every id reaching this method has already passed _sw_validate_payloads, so it is
+        a hashable canonical id and no collision is possible.
+        """
+        findings = 0
+        flagged = []
+
+        def flag(wid):
+            nonlocal findings
+            findings += 1
+            if wid is not None and wid not in flagged:
+                flagged.append(wid)
+
+        folder_meta = {}
+        folder_children = {}
+        for f in (folders_raw or []):
+            if not isinstance(f, dict) or f.get("id") is None:
+                continue
+            fid = self._sw_canonical_id(f.get("id"))
+            meta = {"id": fid}
+            for src_key, out_key in self.SAVED_WORKOUTS_FOLDER_FIELDS:
+                meta[out_key] = f.get(src_key)
+            folder_meta[fid] = meta
+            kids = {}
+            for child in (f.get("children") or []):
+                if isinstance(child, dict) and child.get("id") is not None:
+                    kids[self._sw_canonical_id(child.get("id"))] = child
+            folder_children[fid] = kids
+
+        child_folders = {}
+        child_objects = {}
+        for fid, kids in folder_children.items():
+            for wid, obj in kids.items():
+                child_folders.setdefault(wid, []).append(fid)
+                child_objects[(fid, wid)] = obj
+
+        primary = {}
+        for w in (workouts_raw or []):
+            if isinstance(w, dict) and w.get("id") is not None:
+                primary[self._sw_canonical_id(w.get("id"))] = w
+
+        canonical = {}
+        source = {}
+        objects = {}
+        upstream_folder_id = {}
+
+        for wid, w in primary.items():
+            objects[wid] = w
+            source[wid] = "workouts"
+            canonical[wid] = self._sw_canonical_ref(w.get("folder_id"))
+
+        for wid, fids in child_folders.items():
+            if wid in primary:
+                continue
+            ordered = sorted(fids, key=self._sw_sort_key)
+            chosen = ordered[0]
+            obj = child_objects[(chosen, wid)]
+            objects[wid] = obj
+            source[wid] = "folders"
+            canonical[wid] = chosen
+            raw_fid = self._sw_canonical_ref(obj.get("folder_id"))
+            if raw_fid is not None and raw_fid != chosen:
+                upstream_folder_id[wid] = raw_fid
+            flag(wid)                                   # trigger 4: fallback required
+            if len(ordered) > 1:
+                flag(wid)                               # trigger 3: several folders
+
+        for wid, w in primary.items():
+            fid = canonical[wid]
+            appears = child_folders.get(wid, [])
+            if fid is not None and fid not in appears:
+                flag(wid)                               # trigger 1: absent from its folder
+            if any(a != fid for a in appears):
+                flag(wid)                               # trigger 2: under a different folder
+            if len(appears) > 1:
+                flag(wid)                               # trigger 3: several folders
+            for a in appears:
+                if self._sw_fields_differ(w, child_objects[(a, wid)]):
+                    flag(wid)                           # trigger 5: field conflict
+                    break
+
+        membership = {}
+        for wid, fid in canonical.items():
+            if fid is not None:
+                membership.setdefault(fid, []).append(wid)
+
+        folders_out = []
+        for fid in sorted(folder_meta, key=self._sw_sort_key):
+            meta = dict(folder_meta[fid])
+            ids = sorted(membership.get(fid, []), key=self._sw_sort_key)
+            meta["num_workouts"] = len(ids)
+            meta["workout_ids"] = ids
+            upstream_count = meta.get("upstream_num_workouts")
+            raw_count = len(folder_children.get(fid, {}))
+            if isinstance(upstream_count, int) and not isinstance(upstream_count, bool):
+                if upstream_count != raw_count or upstream_count != len(ids):
+                    flag(None)                          # trigger 6: folder count divergence
+            folders_out.append(meta)
+
+        workouts_out = []
+        for wid in sorted(objects, key=self._sw_sort_key):
+            src = objects[wid]
+            fid = canonical[wid]
+            entry = {"id": wid}
+            for key in self.SAVED_WORKOUTS_WORKOUT_FIELDS:
+                value = src.get(key)
+                if key in self.SAVED_WORKOUTS_SET_LIKE_FIELDS:
+                    value = self._sw_normalize_set_like(value)
+                entry[key] = value
+            entry["folder_id"] = fid
+            entry["folder_name"] = (folder_meta.get(fid) or {}).get("name") if fid is not None else None
+            if wid in upstream_folder_id:
+                entry["upstream_folder_id"] = upstream_folder_id[wid]
+            entry["updated"] = src.get("updated")
+            entry["source_endpoint"] = source[wid]
+            doc = src.get("workout_doc")
+            entry["has_workout_doc"] = bool(isinstance(doc, dict) and doc)
+            entry["workout_doc"] = doc
+            workouts_out.append(entry)
+
+        return folders_out, workouts_out, findings, flagged
+
+    def _fetch_saved_workouts(self) -> Tuple[bool, Optional[List], Optional[List], Optional[Dict]]:
+        """
+        One refresh = both library endpoints, both of which must succeed and decode to
+        a list. A partial success is a failed refresh: there is no partial merge.
+
+        Deliberately not routed through _intervals_get, which passes no timeout.
+        Returns (ok, folders, workouts, error). The error dict carries retry_after for
+        scheduling; only endpoint/kind/status are ever written to the file.
+        """
+        headers = {
+            "Authorization": f"Basic {self.intervals_auth}",
+            "Accept": "application/json"
+        }
+        payloads = {}
+        for endpoint in ("folders", "workouts"):
+            url = f"{self.INTERVALS_BASE_URL}/athlete/{self.athlete_id}/{endpoint}"
+            try:
+                response = requests.get(url, headers=headers,
+                                        timeout=self.SAVED_WORKOUTS_TIMEOUT_SECS)
+            except requests.exceptions.Timeout:
+                return False, None, None, {"endpoint": endpoint, "kind": "timeout",
+                                           "status": None, "retry_after": None}
+            except requests.exceptions.RequestException:
+                return False, None, None, {"endpoint": endpoint, "kind": "connection",
+                                           "status": None, "retry_after": None}
+            if response.status_code != 200:
+                retry_after = None
+                if response.status_code in (429, 503):
+                    retry_after = self._parse_retry_after(response.headers.get("Retry-After"))
+                return False, None, None, {"endpoint": endpoint, "kind": "http_status",
+                                           "status": response.status_code,
+                                           "retry_after": retry_after}
+            try:
+                payload = response.json()
+            except ValueError:
+                return False, None, None, {"endpoint": endpoint, "kind": "decode",
+                                           "status": response.status_code, "retry_after": None}
+            if not isinstance(payload, list):
+                return False, None, None, {"endpoint": endpoint, "kind": "schema",
+                                           "status": response.status_code, "retry_after": None}
+            payloads[endpoint] = payload
+        return True, payloads["folders"], payloads["workouts"], None
+
+    def _sw_validate_payloads(self, folders_raw, workouts_raw) -> Optional[Dict]:
+        """
+        Structural validation of a complete successful response, run before any
+        reconciliation. Returns a sanitized error dict on failure, or None.
+
+        Reconciliation silently ignores entries it cannot key and would raise on an
+        unhashable one, so without this a malformed HTTP 200 could overwrite a valid
+        cache with an apparently successful smaller library, or surface as an internal
+        error rather than the schema error it is. Ids are compared as canonical values,
+        never as strings: `1`, `"1"`, `1.0` and `True` must not slip past each other.
+        """
+        def bad(endpoint):
+            return {"endpoint": endpoint, "kind": "schema", "status": 200, "retry_after": None}
+
+        def check_entry(item, seen):
+            if not isinstance(item, dict):
+                return False
+            cid = self._sw_canonical_id(item.get("id"))
+            if cid is self.SW_ID_INVALID or cid in seen:
+                return False
+            seen.add(cid)
+            return True
+
+        for endpoint, payload in (("folders", folders_raw), ("workouts", workouts_raw)):
+            if not isinstance(payload, list):
+                return bad(endpoint)
+            seen = set()
+            for item in payload:
+                if not check_entry(item, seen):
+                    return bad(endpoint)
+                if endpoint == "workouts" and not self._sw_ref_ok(item.get("folder_id")):
+                    return bad(endpoint)
+            if endpoint == "folders":
+                for folder in payload:
+                    children = folder.get("children")
+                    if children is None:
+                        continue
+                    if not isinstance(children, list):
+                        return bad(endpoint)
+                    child_seen = set()
+                    for child in children:
+                        if not check_entry(child, child_seen):
+                            return bad(endpoint)
+                        if not self._sw_ref_ok(child.get("folder_id")):
+                            return bad(endpoint)
+        return None
+
+    SAVED_WORKOUTS_ROOT_KEYS = ("generated_at", "schema_version", "version", "script_hash",
+                                "source", "target_resolution", "refresh", "counts",
+                                "folders", "workouts", "fetch_state")
+    SAVED_WORKOUTS_REFRESH_KEYS = ("status", "consistency", "last_success_at",
+                                   "last_content_change_at", "refresh_interval_secs")
+    SAVED_WORKOUTS_STATE_KEYS = ("last_attempt_at", "consecutive_failures", "next_attempt_after",
+                                 "last_error", "content_digest", "endpoint_mismatch_count",
+                                 "endpoint_mismatch_ids")
+    SAVED_WORKOUTS_ERROR_KINDS = ("http_status", "timeout", "connection", "decode",
+                                  "schema", "internal")
+
+    @staticmethod
+    def _sw_is_utc_stamp(value) -> bool:
+        """A producer timestamp: parseable ISO-8601, timezone-aware, zero UTC offset."""
+        if not isinstance(value, str) or not value:
+            return False
+        try:
+            parsed = datetime.fromisoformat(value)
+        except (TypeError, ValueError):
+            return False
+        return parsed.tzinfo is not None and parsed.utcoffset() == timedelta(0)
+
+    @staticmethod
+    def _sw_is_digest(value) -> bool:
+        if not isinstance(value, str) or not value.startswith("sha256:"):
+            return False
+        body = value[7:]
+        return len(body) == 64 and all(c in "0123456789abcdef" for c in body)
+
+    def _sw_cache_is_valid(self, data) -> bool:
+        """
+        A cached mirror is accepted only when it could have been emitted by this
+        producer at this schema version.
+
+        Its own next_attempt_after decides whether a refresh runs at all, so anything
+        this method waves through stays consumable, and stays retained as last-good,
+        until the throttle expires. Presence-and-type checking is not enough for that:
+        the file has to be internally coherent too, which is why folder_name is checked
+        against the canonical folder, has_workout_doc against the document, the status
+        against the failure counters, and content_digest by recomputation.
+
+        Producer version and script_hash are deliberately NOT pinned. A snapshot written
+        by an earlier sync.py is still valid data; _sw_refresh_due already forces a
+        refresh when script_hash moves, while keeping that snapshot as last-good. Pinning
+        here would throw away a good snapshot on every upgrade. schema_version IS pinned,
+        because a different contract version is not something this code can read.
+        """
+        def nonneg_int(value):
+            return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+        def opt(value, *types):
+            return value is None or isinstance(value, types)
+
+        if not isinstance(data, dict) or set(data) != set(self.SAVED_WORKOUTS_ROOT_KEYS):
+            return False
+        if data.get("schema_version") != self.SAVED_WORKOUTS_SCHEMA_VERSION:
+            return False
+        if data.get("source") != "intervals.icu" or data.get("target_resolution") != "as_stored":
+            return False
+        if not isinstance(data.get("version"), str) or not data["version"]:
+            return False
+        if not isinstance(data.get("script_hash"), str) or not data["script_hash"]:
+            return False
+        if not self._sw_is_utc_stamp(data.get("generated_at")):
+            return False
+
+        refresh, state = data.get("refresh"), data.get("fetch_state")
+        if not isinstance(refresh, dict) or set(refresh) != set(self.SAVED_WORKOUTS_REFRESH_KEYS):
+            return False
+        if not isinstance(state, dict) or set(state) != set(self.SAVED_WORKOUTS_STATE_KEYS):
+            return False
+
+        status = refresh.get("status")
+        if status not in ("ok", "stale", "unavailable"):
+            return False
+        if refresh.get("refresh_interval_secs") != self.SAVED_WORKOUTS_REFRESH_INTERVAL_SECS:
+            return False
+        if not self._sw_is_utc_stamp(state.get("last_attempt_at")):
+            return False
+        if not self._sw_is_utc_stamp(state.get("next_attempt_after")):
+            return False
+
+        failures = state.get("consecutive_failures")
+        if not nonneg_int(failures):
+            return False
+        last_error = state.get("last_error")
+        if status == "ok":
+            if failures != 0 or last_error is not None:
+                return False
+        else:
+            if failures < 1:
+                return False
+            if not isinstance(last_error, dict) or set(last_error) != {"endpoint", "kind", "status"}:
+                return False
+            if last_error.get("endpoint") not in (None, "folders", "workouts"):
+                return False
+            if last_error.get("kind") not in self.SAVED_WORKOUTS_ERROR_KINDS:
+                return False
+            if not opt(last_error.get("status"), int) or isinstance(last_error.get("status"), bool):
+                return False
+
+        mismatch_count = state.get("endpoint_mismatch_count")
+        mismatch_ids = state.get("endpoint_mismatch_ids")
+        if not nonneg_int(mismatch_count):
+            return False
+        if not isinstance(mismatch_ids, list) or len(mismatch_ids) > self.SAVED_WORKOUTS_MISMATCH_ID_CAP:
+            return False
+        canonical_mismatch = []
+        for value in mismatch_ids:
+            cid = self._sw_canonical_id(value)
+            if cid is self.SW_ID_INVALID or cid in canonical_mismatch:
+                return False
+            canonical_mismatch.append(cid)
+        if mismatch_count < len(canonical_mismatch):
+            return False
+
+        folders, workouts, counts = data.get("folders"), data.get("workouts"), data.get("counts")
+
+        if status == "unavailable":
+            return (folders is None and workouts is None and counts is None
+                    and refresh.get("last_success_at") is None
+                    and refresh.get("last_content_change_at") is None
+                    and refresh.get("consistency") is None
+                    and state.get("content_digest") is None
+                    and mismatch_count == 0 and mismatch_ids == [])
+
+        # ok / stale: a real snapshot, coherent with its own metadata.
+        if not isinstance(folders, list) or not isinstance(workouts, list) or not isinstance(counts, dict):
+            return False
+        if set(counts) != {"folders", "workouts"}:
+            return False
+        if not self._sw_is_utc_stamp(refresh.get("last_success_at")):
+            return False
+        if not self._sw_is_utc_stamp(refresh.get("last_content_change_at")):
+            return False
+        consistency = refresh.get("consistency")
+        if consistency not in ("consistent", "endpoints_disagree"):
+            return False
+        if consistency == "consistent" and mismatch_count != 0:
+            return False
+        if consistency == "endpoints_disagree" and mismatch_count < 1:
+            return False
+        if not self._sw_is_digest(state.get("content_digest")):
+            return False
+        if not nonneg_int(counts.get("folders")) or not nonneg_int(counts.get("workouts")):
+            return False
+        if counts["folders"] != len(folders) or counts["workouts"] != len(workouts):
+            return False
+
+        folder_keys = {"id", "num_workouts", "workout_ids"} | {out for _, out in self.SAVED_WORKOUTS_FOLDER_FIELDS}
+        folder_ids = {}
+        folder_names = {}
+        for folder in folders:
+            if not isinstance(folder, dict) or set(folder) != folder_keys:
+                return False
+            fid = self._sw_canonical_id(folder.get("id"))
+            if fid is self.SW_ID_INVALID or fid in folder_ids:
+                return False
+            if not opt(folder.get("type"), str) or not opt(folder.get("name"), str):
+                return False
+            if not opt(folder.get("description"), str) or not opt(folder.get("visibility"), str):
+                return False
+            if not opt(folder.get("read_only_workouts"), bool) or not opt(folder.get("can_edit"), bool):
+                return False
+            if not opt(folder.get("start_date_local"), str) or not opt(folder.get("activity_types"), list):
+                return False
+            upstream = folder.get("upstream_num_workouts")
+            if upstream is not None and not nonneg_int(upstream):
+                return False
+            member_ids = folder.get("workout_ids")
+            if not isinstance(member_ids, list):
+                return False
+            members = []
+            for value in member_ids:
+                cid = self._sw_canonical_id(value)
+                if cid is self.SW_ID_INVALID or cid in members:
+                    return False
+                members.append(cid)
+            if not nonneg_int(folder.get("num_workouts")) or folder["num_workouts"] != len(members):
+                return False
+            folder_ids[fid] = members
+            folder_names[fid] = folder.get("name")
+
+        workout_keys = ({"id", "folder_id", "folder_name", "updated", "source_endpoint",
+                         "has_workout_doc", "workout_doc"} | set(self.SAVED_WORKOUTS_WORKOUT_FIELDS))
+        workout_refs = {}
+        for workout in workouts:
+            if not isinstance(workout, dict):
+                return False
+            extra = set(workout) - workout_keys
+            if extra - {"upstream_folder_id"} or not workout_keys <= set(workout):
+                return False
+            wid = self._sw_canonical_id(workout.get("id"))
+            if wid is self.SW_ID_INVALID or wid in workout_refs:
+                return False
+            if workout.get("source_endpoint") not in ("workouts", "folders"):
+                return False
+            if not opt(workout.get("updated"), str):
+                return False
+            for key in ("name", "type", "sub_type", "description", "target"):
+                if not opt(workout.get(key), str):
+                    return False
+            for key in ("indoor", "for_week", "hide_from_athlete"):
+                if not opt(workout.get(key), bool):
+                    return False
+            for key in ("moving_time", "distance", "icu_training_load", "icu_intensity", "carbs_per_hour"):
+                value = workout.get(key)
+                if not opt(value, int, float) or isinstance(value, bool):
+                    return False
+            for key in ("targets", "tags"):
+                value = workout.get(key)
+                if not opt(value, list):
+                    return False
+                if isinstance(value, list) and value != self._sw_normalize_set_like(value):
+                    return False
+            doc = workout.get("workout_doc")
+            if not opt(doc, dict):
+                return False
+            if workout.get("has_workout_doc") is not bool(isinstance(doc, dict) and doc):
+                return False
+            if not self._sw_ref_ok(workout.get("folder_id")):
+                return False
+            fid = self._sw_canonical_ref(workout.get("folder_id"))
+            if "upstream_folder_id" in workout:
+                upstream_ref = self._sw_canonical_id(workout["upstream_folder_id"])
+                if (upstream_ref is self.SW_ID_INVALID
+                        or workout.get("source_endpoint") != "folders"
+                        or upstream_ref == fid):
+                    return False
+            expected_name = folder_names.get(fid) if fid is not None and fid in folder_ids else None
+            if workout.get("folder_name") != expected_name:
+                return False
+            workout_refs[wid] = fid
+
+        # Canonical membership invariant, the same five clauses the producer guarantees.
+        for wid, fid in workout_refs.items():
+            holders = [f for f, members in folder_ids.items() if wid in members]
+            if fid is None:
+                if holders:
+                    return False
+            elif fid in folder_ids:
+                if holders != [fid]:
+                    return False
+            elif holders:
+                return False
+        for fid, members in folder_ids.items():
+            for wid in members:
+                if wid not in workout_refs or workout_refs[wid] != fid:
+                    return False
+
+        # Mismatch ids must reference workouts actually present in this snapshot.
+        if any(cid not in workout_refs for cid in canonical_mismatch):
+            return False
+
+        # Finally: the digest must be the one this snapshot actually produces. Altered
+        # content with a carried-over digest is the case presence checks cannot catch.
+        return self._sw_digest(folders, workouts) == state.get("content_digest")
+
+    def _sw_load_existing(self) -> Optional[Dict]:
+        """Previous mirror, or None when absent, unreadable or unparseable (treated as absent)."""
+        path = self.data_dir / self.SAVED_WORKOUTS_FILE
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            return None
+        if not self._sw_cache_is_valid(data):
+            return None
+        return data
+
+    def _sw_refresh_due(self, prev: Optional[Dict], now: datetime) -> bool:
+        """
+        A refresh is attempted when the file is absent or unparseable, the script hash
+        differs, or the scheduled attempt time has arrived. A script-hash change forces
+        a refresh but never discards the retained snapshot.
+        """
+        if prev is None:
+            return True
+        if prev.get("script_hash") != self.script_hash:
+            return True
+        state = prev.get("fetch_state") or {}
+        nxt = state.get("next_attempt_after")
+        if not nxt:
+            return True
+        try:
+            due = datetime.fromisoformat(str(nxt))
+        except (TypeError, ValueError):
+            return True
+        if due.tzinfo is None:
+            due = due.replace(tzinfo=timezone.utc)
+        return now >= due
+
+    def _sw_build_success(self, prev: Optional[Dict], folders_raw, workouts_raw,
+                          now: datetime) -> Dict:
+        """Snapshot from a complete, structurally validated response."""
+        prev_refresh = (prev or {}).get("refresh") or {}
+        prev_state = (prev or {}).get("fetch_state") or {}
+        folders, workouts, findings, flagged = self._sw_reconcile(folders_raw, workouts_raw)
+        digest = self._sw_digest(folders, workouts)
+        prev_change = prev_refresh.get("last_content_change_at")
+        changed = (digest != prev_state.get("content_digest")) or not prev_change
+        data = self._sw_envelope(now)
+        data["refresh"] = {
+            "status": "ok",
+            "consistency": "endpoints_disagree" if findings else "consistent",
+            "last_success_at": self._sw_iso(now),
+            "last_content_change_at": self._sw_iso(now) if changed else prev_change,
+            "refresh_interval_secs": self.SAVED_WORKOUTS_REFRESH_INTERVAL_SECS,
+        }
+        data["counts"] = {"folders": len(folders), "workouts": len(workouts)}
+        data["folders"] = folders
+        data["workouts"] = workouts
+        data["fetch_state"] = {
+            "last_attempt_at": self._sw_iso(now),
+            "consecutive_failures": 0,
+            "next_attempt_after": self._sw_iso(
+                now + timedelta(seconds=self.SAVED_WORKOUTS_REFRESH_INTERVAL_SECS)),
+            "last_error": None,
+            "content_digest": digest,
+            "endpoint_mismatch_count": findings,
+            "endpoint_mismatch_ids": flagged[:self.SAVED_WORKOUTS_MISMATCH_ID_CAP],
+        }
+        return data
+
+    def _sw_build_failure(self, prev: Optional[Dict], error: Dict, now: datetime) -> Dict:
+        """
+        Failure state. Every refresh failure lands here, whatever its cause: an HTTP
+        or transport error, a structurally invalid response, or an unexpected internal
+        exception. The last good snapshot is preserved whole and reported as stale;
+        with no valid previous snapshot the collections are null and the status is
+        unavailable. A retained snapshot is never presented as freshly verified.
+        """
+        prev_refresh = (prev or {}).get("refresh") or {}
+        prev_state = (prev or {}).get("fetch_state") or {}
+        if not isinstance(prev_refresh, dict):
+            prev_refresh = {}
+        if not isinstance(prev_state, dict):
+            prev_state = {}
+        has_snapshot = bool(prev_refresh.get("last_success_at")) and isinstance((prev or {}).get("workouts"), list)
+
+        # Defensive coercion. _sw_load_existing already rejects a malformed cache, but
+        # this is also the recovery path for an unexpected exception, so it must not be
+        # the thing that raises: a bad retained counter degrades to a safe default.
+        def safe_count(value, default=0):
+            return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else default
+
+        attempts = safe_count(prev_state.get("consecutive_failures")) + 1
+        retry_after = error.get("retry_after")
+        if not (isinstance(retry_after, int) and not isinstance(retry_after, bool) and retry_after >= 0):
+            retry_after = None
+        delay = self._sw_backoff_secs(attempts, retry_after)
+        prev_ids = prev_state.get("endpoint_mismatch_ids")
+        if not isinstance(prev_ids, list):
+            prev_ids = []
+        data = self._sw_envelope(now)
+        data["refresh"] = {
+            "status": "stale" if has_snapshot else "unavailable",
+            "consistency": prev_refresh.get("consistency") if has_snapshot else None,
+            "last_success_at": prev_refresh.get("last_success_at") if has_snapshot else None,
+            "last_content_change_at": prev_refresh.get("last_content_change_at") if has_snapshot else None,
+            "refresh_interval_secs": self.SAVED_WORKOUTS_REFRESH_INTERVAL_SECS,
+        }
+        data["counts"] = prev.get("counts") if has_snapshot else None
+        data["folders"] = prev.get("folders") if has_snapshot else None
+        data["workouts"] = prev.get("workouts") if has_snapshot else None
+        data["fetch_state"] = {
+            "last_attempt_at": self._sw_iso(now),
+            "consecutive_failures": attempts,
+            "next_attempt_after": self._sw_iso(now + timedelta(seconds=delay)),
+            "last_error": {"endpoint": error.get("endpoint"),
+                           "kind": error.get("kind"),
+                           "status": error.get("status")},
+            "content_digest": prev_state.get("content_digest") if has_snapshot else None,
+            "endpoint_mismatch_count": safe_count(prev_state.get("endpoint_mismatch_count")) if has_snapshot else 0,
+            "endpoint_mismatch_ids": prev_ids[:self.SAVED_WORKOUTS_MISMATCH_ID_CAP] if has_snapshot else [],
+        }
+        return data
+
+    def _sw_envelope(self, now: datetime) -> Dict:
+        """Producer identity block shared by every mirror write."""
+        return {
+            "generated_at": self._sw_iso(now),
+            "schema_version": self.SAVED_WORKOUTS_SCHEMA_VERSION,
+            "version": self.VERSION,
+            "script_hash": self.script_hash,
+            "source": "intervals.icu",
+            "target_resolution": "as_stored",
+        }
+
+    def _generate_saved_workouts(self, force: bool = False) -> Optional[Dict]:
+        """
+        Build saved_workouts.json, or return None when the throttle window has not
+        expired (in which case the file is left untouched and no request is made).
+
+        Every failure path - transport, HTTP status, malformed payload, unreadable or
+        structurally invalid cache, or an unexpected exception anywhere in fetch,
+        validation or reconciliation - resolves to _sw_build_failure, so the file
+        never keeps claiming that the most recent attempt succeeded. Failure never
+        removes cached entries.
+        """
+        now = self._sw_now()
+        prev = None
+        try:
+            prev = self._sw_load_existing()
+            if not force and not self._sw_refresh_due(prev, now):
+                self._saved_workouts_data = None
+                return None
+            ok, folders_raw, workouts_raw, error = self._fetch_saved_workouts()
+            if ok:
+                error = self._sw_validate_payloads(folders_raw, workouts_raw)
+                ok = error is None
+            if ok:
+                data = self._sw_build_success(prev, folders_raw, workouts_raw, now)
+            else:
+                data = self._sw_build_failure(prev, error, now)
+        except Exception:
+            # Bounded, sanitized classification only: no exception text, which could
+            # carry a URL, a token or athlete data.
+            data = self._sw_build_failure(
+                prev, {"endpoint": None, "kind": "internal", "status": None,
+                       "retry_after": None}, now)
+        self._saved_workouts_data = data
+        return data
+
+    def _sw_write(self, data: Dict) -> Path:
+        """Atomic same-directory write: temp file plus os.replace."""
+        path = self.data_dir / self.SAVED_WORKOUTS_FILE
+        tmp = path.with_name(path.name + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, default=str)
+        os.replace(tmp, path)
+        return path
+
+    @staticmethod
+    def _sw_status_line(data: Dict) -> str:
+        """One-line console summary of a mirror write."""
+        refresh = data.get("refresh") or {}
+        counts = data.get("counts") or {}
+        status = refresh.get("status")
+        if status == "unavailable":
+            return "unavailable (no snapshot yet)"
+        detail = f"{counts.get('workouts')} workout(s), {counts.get('folders')} folder(s)"
+        if refresh.get("consistency") == "endpoints_disagree":
+            detail += ", endpoints disagree"
+        return f"{status} - {detail}"
+
     def _generate_terrain(self, events: List[Dict],
                           athlete_units: Optional[Dict[str, str]] = None) -> Dict:
         """
@@ -3162,6 +4045,21 @@ class IntervalsSync:
         self._terrain_event_ids = terrain_event_ids
         if terrain_event_ids:
             print(f"   🗺️  Route data for {len(terrain_event_ids)} event(s)")
+
+        # Saved Workouts Mirror (v3.132) - read-only, independently throttled.
+        # Non-critical: a mirror problem must never abort a sync whose training data
+        # is sound, and the last good snapshot is retained on any failure.
+        try:
+            saved_workouts = self._generate_saved_workouts(
+                force=getattr(self, "_force_saved_workouts", False))
+            if saved_workouts is not None:
+                print(f"   📑 Saved workouts: {self._sw_status_line(saved_workouts)}")
+        except Exception as e:
+            # _generate_saved_workouts already persists a stale/unavailable state for
+            # any internal failure. This guard only keeps a mirror problem from
+            # aborting a sync whose training data is sound; it must not discard the
+            # state that was built, or the previous file would keep claiming ok.
+            print(f"   ⚠️ Saved workouts refresh failed (non-critical): {e}")
         
         # Build race calendar (v3.5.0) — moved before derived metrics for phase detection
         print("Building race calendar...")
@@ -10813,6 +11711,7 @@ def main():
     parser.add_argument("--generate-history", action="store_true", help="Force generate history.json (pulls up to 3 years)")
     parser.add_argument("--generate-manifest", action="store_true", help="Generate manifest.json from repo files (maintainer use)")
     parser.add_argument("--lockfile", action="store_true", help="Prevent overlapping runs (recommended for automated timers)")
+    parser.add_argument("--refresh-saved-workouts", action="store_true", help="Bypass the saved-workouts refresh throttle for this run")
     
     args = parser.parse_args()
     
@@ -10923,6 +11822,7 @@ def main():
     sync = IntervalsSync(athlete_id, intervals_key, github_token, github_repo, 
                          debug=args.debug, week_start_day=week_start_day,
                          zone_preference=zone_preference)
+    sync._force_saved_workouts = args.refresh_saved_workouts
     
     # Manual history generation
     if args.generate_history:
@@ -11032,6 +11932,12 @@ def main():
             with open(routes_path, 'w') as f:
                 json.dump(routes_data, f, indent=2, default=str)
             print(f"   🗺️  routes.json saved ({len(routes_data.get('events', []))} event(s))")
+
+        # === SAVE SAVED_WORKOUTS.JSON (local mode) ===
+        saved_workouts_data = getattr(sync, '_saved_workouts_data', None)
+        if saved_workouts_data is not None:
+            sync._sw_write(saved_workouts_data)
+            print(f"   📑 saved_workouts.json saved ({sync._sw_status_line(saved_workouts_data)})")
     else:
         raw_url = sync.publish_to_github(data)
         
@@ -11070,6 +11976,18 @@ def main():
                 print(f"   🗺️  routes.json pushed ({len(routes_data.get('events', []))} event(s))")
             except Exception as e:
                 print(f"   ⚠️ routes.json push failed (non-critical): {e}")
+
+        # === PUBLISH SAVED_WORKOUTS.JSON (GitHub mode) ===
+        saved_workouts_data = getattr(sync, '_saved_workouts_data', None)
+        if saved_workouts_data is not None:
+            # Save locally first: the throttle and last-good snapshot live in this file.
+            sync._sw_write(saved_workouts_data)
+            try:
+                sync.publish_to_github(saved_workouts_data, filepath="saved_workouts.json",
+                                       commit_message=f"Update saved_workouts.json - {datetime.now().strftime('%Y-%m-%d')}")
+                print(f"   📑 saved_workouts.json pushed ({sync._sw_status_line(saved_workouts_data)})")
+            except Exception as e:
+                print(f"   ⚠️ saved_workouts.json push failed (non-critical): {e}")
         
         # === UPDATE NOTIFICATIONS ===
         try:

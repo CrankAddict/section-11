@@ -1,13 +1,13 @@
 ---
 name: section-11
-description: Evidence-based endurance coaching protocol (v11.66). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
+description: Evidence-based endurance coaching protocol (v11.67). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
 ---
 
 # Section 11 - AI Coaching Protocol
 
 ## File Locations
 
-Data files (`latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, `routes.json`, `DOSSIER.md`, `section11/`) live in the athlete's **data directory**: a runtime-accessible location, typically something like `~/training-data/`. HEARTBEAT.md lives in the **agent workspace**: the directory the agent runs from. These may or may not be the same directory.
+Data files (`latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, `routes.json`, `saved_workouts.json`, `DOSSIER.md`, `section11/`) live in the athlete's **data directory**: a runtime-accessible location, typically something like `~/training-data/`. HEARTBEAT.md lives in the **agent workspace**: the directory the agent runs from. These may or may not be the same directory.
 
 The **data directory** is where training data is read. It is not the authority record for the dossier: the authoritative dossier copy is named in the `Official dossier location` field in the dossier's own header block.
 
@@ -26,7 +26,7 @@ On first use:
    - Show the draft and obtain explicit approval before creating the file
 
 2. **Set up JSON data source**
-   - **Runtime-accessible filesystem (recommended):** Athlete runs sync.py on a timer, producing `latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, and `routes.json` (when events have GPX/TCX attachments) in the data directory. The runtime reads them directly. This may be the athlete's own machine or a provider-hosted computer; "agentic" does not mean "local". See `examples/json-local-sync/SETUP.md` for the full pipeline.
+   - **Runtime-accessible filesystem (recommended):** Athlete runs sync.py on a timer, producing `latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, `routes.json` (when events have GPX/TCX attachments) and `saved_workouts.json` in the data directory. The runtime reads them directly. This may be the athlete's own machine or a provider-hosted computer; "agentic" does not mean "local". See `examples/json-local-sync/SETUP.md` for the full pipeline.
 
    **Platform routing.** Three surfaces, two contracts:
 
@@ -43,6 +43,7 @@ On first use:
    - `intervals.json`: per-interval segment data for recent structured sessions, plus DFA a1 session rollups when AlphaHRV recorded (14-day retention)
    - `ftp_history.json`: dated FTP changes (indoor/outdoor), used for staleness tracking and benchmark comparison
    - `routes.json`: route/terrain data for events with GPX/TCX attachments (when present)
+   - `saved_workouts.json`: read-only mirror of the athlete's saved workouts from Intervals.icu (Saved Workouts Mirror)
    - See: https://github.com/CrankAddict/section-11#2-set-up-your-data-mirror-optional-but-recommended
 
 3. **Configure heartbeat settings** (optional, OpenClaw)
@@ -69,7 +70,7 @@ Load the coaching protocol using this precedence:
 
 If both root and `section11/` copies exist, prefer the root copy.
 
-**Current version:** 11.66
+**Current version:** 11.67
 
 ## External Sources
 
@@ -82,7 +83,8 @@ All external files referenced by this skill (`sync.py`, `SECTION_11.md`, templat
 3. Athlete dossier (DOSSIER.md): stable private context only, never a current metric
 4. Interval data (intervals.json: on-demand, see below)
 5. Route/terrain data (routes.json: on-demand, when events have `has_terrain: true`)
-6. Heartbeat config (HEARTBEAT.md)
+6. Saved workout inventory (saved_workouts.json): optional and on-demand for selecting, reusing, or discussing saved workouts; never a session-design authority and never a replacement for the Workout Reference Library
+7. Heartbeat config (HEARTBEAT.md)
 
 ## Required Actions
 
@@ -90,6 +92,7 @@ All external files referenced by this skill (`sync.py`, `SECTION_11.md`, templat
 - Read or fetch history.json when trend analysis, phase context, or longitudinal comparison is needed. Same precedence.
 - Load `intervals.json` when analyzing a specific activity where `has_intervals: true` OR `has_dfa: true`. For block reports, load when any session in the block has either flag. Use for: interval compliance, pacing analysis, cardiac drift per set, recovery quality, DFA a1 session-level interpretation. Do not load for readiness, load management, or weekly summaries.
 - Load `routes.json` when a planned event has `has_terrain: true`. Use for: route analysis, terrain-adjusted pacing, pre-ride briefing, race preparation. Same precedence as other JSON files.
+- Load `saved_workouts.json` when selecting or reusing a saved workout, or when the athlete asks about their saved workouts. Do not load it for every training question or report. It is the preferred read path for saved workouts on every platform, because it avoids repeated API retrieval and is faster and cheaper to consume. On API-connected platforms, use the Intervals.icu API for edits, and as a read fallback when the mirror is missing, unavailable, stale, inconsistent, or lacks required data. The mirror is read-only and never grants write authority. Check `refresh.status` before use: `ok` means the snapshot was verified at `refresh.last_success_at`, `stale` means a retained older snapshot after a failed refresh, `unavailable` means no snapshot has ever succeeded. `consistency: endpoints_disagree` means the two upstream endpoints did not agree; treat folder membership as indicative. A saved workout may be prescribed only after verifying that its structure implements an applicable Workout Reference Library template or permitted variant. `saved_workouts.json` is never evidence of what was prescribed for a completed activity: historical compliance requires a verified Intervals.icu activity/event pairing or an authoritative prescription supplied in context, and the local JSON mirrors do not carry the prescription.
 - For all files (JSON data, protocol, dossier, templates): data directory → connected repo → uploaded/attached files → URL fetch.
 - No virtual math on pre-computed metrics. Use values from the JSON for CTL, ATL, TSB, ACWR, RI, zones, etc. Custom analysis from raw data is fine when pre-computed values don't cover the question.
 - Every training metric cited (in reports, recommendations, or conversation) must come from a JSON data read in the current response. Conversation history, memory, and prior messages are not data sources.

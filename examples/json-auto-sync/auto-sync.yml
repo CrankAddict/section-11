@@ -130,6 +130,10 @@ jobs:
               git add routes.json
               echo "✅ Staged routes.json"
             fi
+            if [ -f saved_workouts.json ]; then
+              git add saved_workouts.json
+              echo "✅ Staged saved_workouts.json"
+            fi
 
             # Now pull - autostash will safely stash staged changes
             git pull --rebase --autostash origin main
@@ -188,6 +192,7 @@ jobs:
             history.json
             intervals.json
             routes.json
+            saved_workouts.json
             ftp_history.json
           retention-days: 7
           if-no-files-found: ignore

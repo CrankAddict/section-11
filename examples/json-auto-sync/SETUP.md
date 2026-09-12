@@ -18,6 +18,7 @@ The data mirror automatically syncs your Intervals.icu metrics to a GitHub repos
 - `https://raw.githubusercontent.com/[you]/[repo]/main/ftp_history.json`
 - `https://raw.githubusercontent.com/[you]/[repo]/main/intervals.json`
 - `https://raw.githubusercontent.com/[you]/[repo]/main/routes.json` (when events have GPX/TCX attachments)
+- `https://raw.githubusercontent.com/[you]/[repo]/main/saved_workouts.json`
 
 ---
 
@@ -128,6 +129,7 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/latest.json
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/history.json
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/ftp_history.json
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/intervals.json
+https://raw.githubusercontent.com/[your-username]/[repo-name]/main/saved_workouts.json
 ```
 
 Test by opening the URLs in your browser. You should see your training data as JSON.
@@ -136,6 +138,7 @@ Test by opening the URLs in your browser. You should see your training data as J
 - `history.json`: longitudinal data with tiered granularity: daily (90 days), weekly (180 days), and monthly (up to 3 years). Generated automatically on first run, regenerated when outdated.
 - `intervals.json`: per-interval segment data for recent structured sessions (14-day retention). Generated automatically for activities with detected interval structure.
 - `routes.json`: route/terrain data for planned events with GPX/TCX attachments. Includes climb/descent detection, course character, and polyline. Generated when attachments exist, cached by attachment ID.
+- `saved_workouts.json`: read-only mirror of your Intervals.icu saved workouts, with folders and complete workout definitions. Refreshed on its own 6-hour throttle rather than every sync, and the last good copy is kept when a refresh fails.
 
 ---
 
@@ -187,7 +190,7 @@ Benchmark Index = (Current FTP - FTP 8 weeks ago) / FTP 8 weeks ago
 
 Once set up, configure your AI platform using the instructions in the [main README](../../README.md#web-chat-setup).
 
-**GitHub connector users:** If your AI platform has a GitHub connector, connect your data repo directly. The AI reads `latest.json`, `history.json`, `intervals.json`, `routes.json`, and any other committed files through the connector. No URLs needed. If you commit `DOSSIER.md` and `SECTION_11.md` to the repo as well, one connection covers your data, your dossier and the protocol. Check what the connector is actually scoped to. Where it exposes only the JSON, supply `SECTION_11.md` and the dossier separately.
+**GitHub connector users:** If your AI platform has a GitHub connector, connect your data repo directly. The AI reads `latest.json`, `history.json`, `intervals.json`, `routes.json`, `saved_workouts.json`, and any other committed files through the connector. No URLs needed. If you commit `DOSSIER.md` and `SECTION_11.md` to the repo as well, one connection covers your data, your dossier and the protocol. Check what the connector is actually scoped to. Where it exposes only the JSON, supply `SECTION_11.md` and the dossier separately.
 
 A GitHub connector is normally read-only. Where its write access is unavailable or unverified, your AI cannot update `DOSSIER.md` in place: it returns the revised dossier as an artifact and says plainly that the source was not updated. You then commit that file over the official `DOSSIER.md`, or replace the official copy with it, as would a repository writer whose access you have verified separately. Nothing in the automated pipeline does this for you. The sync workflow commits only the generated data files and the repository README; it never touches your dossier.
 
@@ -198,9 +201,10 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/history.json
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/ftp_history.json
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/intervals.json
 https://raw.githubusercontent.com/[your-username]/[repo-name]/main/routes.json
+https://raw.githubusercontent.com/[your-username]/[repo-name]/main/saved_workouts.json
 ```
 
-`latest.json` has the current 7-day snapshot, `history.json` provides longitudinal context for trend analysis, `intervals.json` has per-interval detail for recent structured sessions, and `routes.json` has route/terrain data for events with GPX/TCX attachments.
+`latest.json` has the current 7-day snapshot, `history.json` provides longitudinal context for trend analysis, `intervals.json` has per-interval detail for recent structured sessions, `routes.json` has route/terrain data for events with GPX/TCX attachments, and `saved_workouts.json` mirrors your Intervals.icu saved workouts.
 
 ---
 
@@ -255,7 +259,7 @@ run: python sync.py --days 14
 
 ## Privacy Notes
 
-The script does not anonymize your data. Only `metadata.athlete_id` is redacted; activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through. See [Privacy & Security](../../README.md#privacy--security).
+The script does not anonymize your data. Only `metadata.athlete_id` is redacted; activity names, date of birth, sex, height, location, timezone, athlete notes, and route coordinates are passed through, and `saved_workouts.json` carries your saved workouts in full: their names, descriptions, folder names and complete structures, which reveal planning intent such as goal events, target adaptations and prescribed intensities. Publishing the repo publishes all of it. See [Privacy & Security](../../README.md#privacy--security).
 
 Activity and event IDs are always real (opaque database keys, not PII) to enable features like coach annotations and planned-vs-actual pairing. Indoor/virtual ride names are preserved for workout identification.
 
@@ -271,6 +275,7 @@ For additional privacy, use a **private repository** and a separate GitHub accou
 | `history.json` | Longitudinal data: daily (90d), weekly (180d), monthly (3y) | Yes |
 | `intervals.json` | Per-interval segment data for recent structured sessions | Yes |
 | `routes.json` | Route/terrain data for events with GPX/TCX attachments | When attachments exist |
+| `saved_workouts.json` | Read-only mirror of your Intervals.icu saved workouts | Every sync (own 6h refresh throttle) |
 | `ftp_history.json` | FTP progression tracking for Benchmark Index | Yes |
 | `archive/` | Timestamped snapshots of each sync | Yes |
 

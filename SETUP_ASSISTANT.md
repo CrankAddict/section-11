@@ -114,7 +114,7 @@ A "repository" (repo) is just a folder on GitHub that holds their files. A "work
    - Go to https://github.com/new
    - Name it something like `my-training-data` or `t1-data` (their choice)
    - **Recommended:** set to **Private**. The output is not anonymized; see Privacy & Security in the README: https://github.com/CrankAddict/section-11#privacy--security
-   - **Public fallback:** only when the user's chosen AI platform/model cannot access a private repository and they need URL-based fetch. Tell them plainly that this publishes their date of birth, sex, height, location, activity names, athlete notes, and route coordinates.
+   - **Public fallback:** only when the user's chosen AI platform/model cannot access a private repository and they need URL-based fetch. Tell them plainly that this publishes their date of birth, sex, height, location, activity names, athlete notes, route coordinates, and their saved workouts in full: names, descriptions, folder names and complete structures, which reveal planning intent such as goal events, target adaptations and prescribed intensities.
    - Check **"Add a README file"**
    - Click **Create repository**
 4. Copy these files from the Section 11 repo into their new repo:
@@ -193,6 +193,7 @@ Walk them through:
 - A `history.json` file should also appear
 - An `intervals.json` file may appear if the athlete has recent structured interval sessions
 - A `routes.json` file may appear if the athlete has planned events with GPX/TCX file attachments
+- A `saved_workouts.json` file appears once the first sync completes: a read-only mirror of the athlete's Intervals.icu saved workouts
 
 If the run fails (red ✗), ask them to click into the failed run and share the error message so you can help troubleshoot.
 

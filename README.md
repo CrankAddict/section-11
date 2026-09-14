@@ -26,6 +26,7 @@ An open protocol for deterministic, auditable AI-powered endurance coaching. Bui
 | [SECTION_11.md](SECTION_11.md) | Complete protocol: AI Coach Guidance (11 A), Training Plan Protocol (11 B), Validation Protocol (11 C) |
 | [examples/workout-library/](examples/workout-library/) | Workout Reference Library: 26 session templates that Section 11 B §8 requires AI systems to select from |
 | [examples/agentic/](examples/agentic/) | Agentic tools (calendar writes, raw activity stream reads, external API reference) for runtimes with verified access, configured credentials and a tested execution path |
+| [examples/agentic/fit-file-and-merger/](examples/agentic/fit-file-and-merger/) | FIT File & Merger: a reusable reference architecture for multi-source FIT fusion, device identity, verification, recovery and platform-specific duplicate cleanup. Documentation, no runnable scripts in this phase |
 | [examples/json-local-sync/](examples/json-local-sync/) | Local automated sync for runtimes that can reach your filesystem (no GitHub needed) |
 | [examples/dfa_a1/NON_GARMIN.md](examples/dfa_a1/NON_GARMIN.md) | DFA a1 platform support status: documents that the feature requires Garmin + AlphaHRV today, plus discovery commands for Suunto / Karoo / phone-fallback verification |
 | [DOSSIER_TEMPLATE.md](DOSSIER_TEMPLATE.md) | Template for your athlete dossier: the stable private context your AI cannot read from your data |
@@ -153,6 +154,8 @@ Runtimes with verified access, configured credentials and a tested execution pat
 These all require code execution; web chat platforms cannot use them.
 
 See [examples/agentic/README.md](examples/agentic/README.md) for setup, commands, and workout syntax.
+
+**Advanced reference.** [examples/agentic/fit-file-and-merger/](examples/agentic/fit-file-and-merger/) documents a reusable reference architecture for building one authoritative activity from multiple source recordings: base and donor selection, field-by-field precedence, device identity rewriting, pre-upload validation, post-upload verification, recovery, and platform-specific duplicate cleanup. This phase contains documentation only, with no runnable scripts, so it is readable on any platform rather than requiring code execution. The working implementation it describes is cycling-tested; other sources and sports need their own implementation and validation.
 
 ---
 

@@ -1,6 +1,6 @@
 # Examples
 
-Working implementations for Section 11 integrations.
+Working implementations and reference documentation for Section 11 integrations.
 
 ## Available Methods
 
@@ -13,6 +13,7 @@ Working implementations for Section 11 integrations.
 | [json-manual](json-manual/) | Manual export from Mac/PC | ✅ Ready |
 | [reports](reports/) | Pre/post/weekly/block/season report templates | ✅ Ready |
 | [agentic](agentic/) | Write planned workouts to Intervals.icu calendar (code execution required) | ✅ Ready |
+| [agentic/fit-file-and-merger](agentic/fit-file-and-merger/) | Reusable multi-source FIT fusion, identity, verification, recovery and duplicate-cleanup reference | 📖 Reference |
 | [workout-library](workout-library/) | Structured workout templates for AI prescription | ✅ Ready |
 | [json-examples](json-examples/) | Example JSON output / current schema reference | ✅ Ready |
 

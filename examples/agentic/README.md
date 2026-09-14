@@ -7,6 +7,7 @@ Read and write tools for runtimes that can execute code or trigger GitHub Action
 | `push.py` | **Write** to Intervals.icu: manage planned workouts (push, list, move, delete), update sport-specific thresholds, annotate activities |
 | `pull.py` | **Read** raw Intervals.icu data on demand: per-second activity streams (latlng, altitude, watts, HR, …) and athlete unit preferences. Used when `terrain_summary`/`weather_summary` in `latest.json` aren't enough and the AI needs the underlying GPS/sensor track |
 | `EXTERNAL_APIS.md` | Endpoint reference for the external APIs used by the agentic platform: Strava, MET Norway (yr.no), Open-Meteo, Intervals.icu streams + weather |
+| [fit-file-and-merger/](fit-file-and-merger/) | Documentation for a multi-source FIT workflow: rewrite a virtual-ride FIT to a trainer identity, merge head-unit donor streams into it, upload to Garmin, re-check the stored result, then remove source duplicates. Cleanup gates and post-delete confirmation differ per platform, and current gaps are documented alongside them. Cycling-tested. Documentation only, no scripts published |
 
 `push.py` requires safety preview/confirm. `pull.py` is read-only and has no confirm gate.
 

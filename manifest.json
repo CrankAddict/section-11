@@ -17,7 +17,7 @@
       "hash": "eac8da51de1d8c9559f17a73f5bd3cec1116024793300d6049efe56c955cd991"
     },
     "README.md": {
-      "hash": "debb91336438e32918b9a2c0988c807e3bf1feab10e3cda79fd0c4dd5e151e1b"
+      "hash": "7eb8fc8aa208e2430d5d6e96c22df66afdca58d0431115e18c318cd9c275bfb9"
     },
     "SECTION_11.md": {
       "hash": "df58f3d2a1867cacd211465376f9b24b6a3d1336b5e51a0b752b691cadd2db8e",
@@ -36,13 +36,28 @@
       "hash": "5c65562b049a5306f889a8ba745a1b797c45c4cda7f41ff40d9f6f271abf417c"
     },
     "examples/README.md": {
-      "hash": "6596084d4bad293f025ed18b9c9b7f7df21937a85a966a94c8fa9f40d1ae1550"
+      "hash": "b20b99d387007e77191e90eb0f46e816ffc8bccf9f40fafa07bcdf23351a1245"
     },
     "examples/agentic/EXTERNAL_APIS.md": {
       "hash": "4905524df58a6aa59db4ed0321d51f212cc3eb0f5a2c6b715ec0b04e0acba126"
     },
     "examples/agentic/README.md": {
-      "hash": "df84cd52cc6badd3aaf7f47d6bf1550881cae36a876d31f77a50926ddd8e9d87"
+      "hash": "96f522ce7924dedd98fda14f73f735084442846a25ca9b03505232ed2390b24c"
+    },
+    "examples/agentic/fit-file-and-merger/ARCHITECTURE.md": {
+      "hash": "780f6ea92548749d0b5d5535976115d274b1e0301d19f004f04107faedc8a919"
+    },
+    "examples/agentic/fit-file-and-merger/CLEANUP_POLICY.md": {
+      "hash": "064d6d3afad2ef9824a72c3b7c3ac2e28bf09ca139d0eda347cfaaa2fe699876"
+    },
+    "examples/agentic/fit-file-and-merger/README.md": {
+      "hash": "d830b18b7cb2bacc21bb3f5b8ade9ffd3a90ed0d8a0fefaac625e0f84ca38db1"
+    },
+    "examples/agentic/fit-file-and-merger/RUNBOOK.md": {
+      "hash": "8afd177fba912e990acca1e4c6e5861acd49f9599c4902afb65817185e737bf8"
+    },
+    "examples/agentic/fit-file-and-merger/THIRD_PARTY_NOTICES.md": {
+      "hash": "08dd88684cc55633a80c1e13b5363d218e6b6fb2d3abdcd498a098582779b3d7"
     },
     "examples/agentic/openclaw/HEARTBEAT_TEMPLATE.md": {
       "hash": "7e202b098622c880deaba29fba4c49976a589659f7d1399c789f15e9acf22ed5"

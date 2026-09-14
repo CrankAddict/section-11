@@ -2,7 +2,7 @@
   "scope": "All tracked files in the Section 11 repository. --update compares file hashes to detect changes and new files.",
   "files": {
     "CONTRIBUTING.md": {
-      "hash": "e9637f09b42b974311d5b1b526f2a6992be3b85c7b0e3eadff49ac80e2cd8a52"
+      "hash": "ea5dbb6900f3ea9b213463f6fcfcd83649edbb7b3cfe155fe1191b25e3b19bb3"
     },
     "DOSSIER_TEMPLATE.md": {
       "hash": "4adcf97877f25a6ed9aaec66fdbc6c37ba929bb6c39cafbe4e69aadd948743a1"
@@ -34,6 +34,15 @@
     },
     "changelog.json": {
       "hash": "5c65562b049a5306f889a8ba745a1b797c45c4cda7f41ff40d9f6f271abf417c"
+    },
+    "dev/README.md": {
+      "hash": "dac11df84c5fd2ae0d7e599a124a2bdb9c6175725189d1cca30b7316001a8acb"
+    },
+    "dev/tests/test_intervals_fetch_state.py": {
+      "hash": "8633653a22e96615eee1ac4461c2be806a0446d04d706620fe4da556300413d0"
+    },
+    "dev/tests/test_push_smoke.py": {
+      "hash": "3bcb1c926d0b9333f72e3a9a91d50ca7c0ece06cd01bf375732b406ba687adc5"
     },
     "examples/README.md": {
       "hash": "b20b99d387007e77191e90eb0f46e816ffc8bccf9f40fafa07bcdf23351a1245"

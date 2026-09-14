@@ -12,7 +12,7 @@ Thanks for wanting to help. This project is an open, evidence‑based protocol f
 - Open an issue for ideas, bugs, or questions
 - Open a pull request for concrete changes
 - Keep PRs small and focused
-- sync.py changes should include test output showing the change works
+- Changes to sync.py or push.py should include relevant test output showing the change works; see [Developer validation](dev/README.md).
 - Scripts added under `examples/` should include worked-example output showing the script run against the relevant sample data in `examples/json-examples/` and the values it produces
 - Keep PR descriptions, documentation, code comments, and commit messages in English
  

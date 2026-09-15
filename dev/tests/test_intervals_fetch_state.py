@@ -28,29 +28,17 @@ Retry-After handling, expiry to tombstone, sibling-only merging, state persisten
 across restarts, and the write gates.
 """
 
-import importlib.util
 import json
-import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SYNC_PATH = REPO_ROOT / "examples" / "sync.py"
+from _harness import (NetworkBlocked, REPO_ROOT, SYNC_PATH, install_verb_guard,
+                      load_module_by_path, restore_verb_guard)
 
-
-def _load_sync_module():
-    """Import examples/sync.py by path without requiring it to be on sys.path."""
-    spec = importlib.util.spec_from_file_location("s11_sync", SYNC_PATH)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["s11_sync"] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-sync_mod = _load_sync_module()
+sync_mod = load_module_by_path("s11_sync", SYNC_PATH)
 IntervalsSync = sync_mod.IntervalsSync
 
 
@@ -68,50 +56,25 @@ IntervalsSync = sync_mod.IntervalsSync
 # cannot contaminate another one in the same interpreter, including after a
 # failing run and including during discovery's import phase.
 
-_HTTP_VERBS = ("get", "post", "put", "delete", "patch", "head", "options", "request")
+# The verb seam and its lifecycle now live in _harness.py, shared with the other
+# two modules. What stays here is the choice of seam: only the named verbs on
+# sync.py's real requests module are replaced, because sync.py's fetchers
+# reference requests.exceptions inside their except clauses and it must stay
+# reachable. Installation is still deferred to setUpModule for the reason given
+# in _harness: discovery imports every test module before running any of them.
 
-
-class NetworkBlocked(BaseException):
-    """Raised when a test reaches the HTTP layer without patching it."""
-
-
-def _blocked(*args, **kwargs):
-    raise NetworkBlocked(
-        "unmocked HTTP call: patch the fetcher, or the requests verb, under test"
-    )
-
-
-_ORIGINAL_VERBS = {
-    name: getattr(sync_mod.requests, name)
-    for name in _HTTP_VERBS
-    if hasattr(sync_mod.requests, name)
-}
+_ORIGINAL_VERBS = {}
 
 
 def setUpModule():
-    """Activate the guard, but only once this module's tests are about to run.
-
-    Installation is deliberately not done at import time. `unittest discover`
-    imports every test module before it runs any of them, so an import-time swap
-    would leave the process-wide requests module mutated while unrelated modules
-    are still importing, and anything that bound a verb by name during that window
-    would keep the blocker even after it is restored here.
-    """
-    replaced = []
-    try:
-        for _name in _ORIGINAL_VERBS:
-            setattr(sync_mod.requests, _name, _blocked)
-            replaced.append(_name)
-    except BaseException:
-        for _name in replaced:
-            setattr(sync_mod.requests, _name, _ORIGINAL_VERBS[_name])
-        raise
+    """Activate the guard, but only once this module's tests are about to run."""
+    global _ORIGINAL_VERBS
+    _ORIGINAL_VERBS = install_verb_guard(sync_mod.requests)
 
 
 def tearDownModule():
     """Put the real requests verbs back, whatever the outcome of the run."""
-    for _name, _fn in _ORIGINAL_VERBS.items():
-        setattr(sync_mod.requests, _name, _fn)
+    restore_verb_guard(sync_mod.requests, _ORIGINAL_VERBS)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

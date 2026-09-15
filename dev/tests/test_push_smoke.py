@@ -28,7 +28,6 @@ or its error handling.
 """
 
 import contextlib
-import importlib.util
 import io
 import os
 import sys
@@ -37,20 +36,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-PUSH_PATH = REPO_ROOT / "examples" / "agentic" / "push.py"
+from _harness import (NetworkBlocked, PUSH_PATH, REPO_ROOT, RefuseEverything,
+                      load_module_by_path)
 
-
-def _load_push_module():
-    """Import examples/agentic/push.py by path without requiring it on sys.path."""
-    spec = importlib.util.spec_from_file_location("s11_push", PUSH_PATH)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["s11_push"] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-push_mod = _load_push_module()
+push_mod = load_module_by_path("s11_push", PUSH_PATH)
 
 
 # ── network guard ────────────────────────────────────────────────────────────
@@ -67,29 +56,17 @@ push_mod = _load_push_module()
 _ORIGINAL_REQUESTS = push_mod._requests
 
 
-class NetworkBlocked(BaseException):
-    """Raised when a test reaches the HTTP layer somewhere it should not."""
-
-
-class _Refuse:
-    """Module-scope default: any HTTP verb at all is a defect outside a test."""
-
-    def __getattr__(self, name):
-        def _blocked(*args, **kwargs):
-            raise NetworkBlocked(f"unmocked HTTP call: push.py tried requests.{name}")
-
-        return _blocked
-
-
 def setUpModule():
     """Activate the guard only once this module's tests are about to run.
 
     Same lifecycle as the fetch-state module: importing this file must not leave
     push.py holding a test double, because discovery imports every test module
-    before running any of them.
+    before running any of them. The seam differs, though, and deliberately stays
+    different: push.py has no module-level `requests`, so the whole lazily-bound
+    `_requests` object is what gets replaced.
     """
     try:
-        push_mod._requests = _Refuse()
+        push_mod._requests = RefuseEverything()
     except BaseException:
         push_mod._requests = _ORIGINAL_REQUESTS
         raise
@@ -103,8 +80,18 @@ def tearDownModule():
 # ── synthetic transport ──────────────────────────────────────────────────────
 
 class FakeResponse:
-    def __init__(self, payload):
+    """
+    Minimal stand-in for a requests Response.
+
+    status_code and headers exist because push.py v0.6 inspects the status before
+    deciding whether a read is eligible for retry. They are not what these tests are
+    about; they are the smallest shape that lets the real code path run.
+    """
+
+    def __init__(self, payload, status_code=200):
         self._payload = payload
+        self.status_code = status_code
+        self.headers = {}
 
     def raise_for_status(self):
         return None

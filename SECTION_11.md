@@ -1,10 +1,15 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.67  
-**Last Updated:** 2026-09-12
+**Protocol Version:** 11.68  
+**Last Updated:** 2026-09-14
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.68 - Unretrieved activity chat notes are no longer reported as absent (`sync.py` v3.133):**
+- **Absence of `chat_notes` used to mean two different things.** The exporter collapsed every failure of the per-activity messages fetch to an empty result, so a network timeout and an activity with no notes reached the AI layer identically. `recent_activities[]` now carries a conditional `chat_notes_status` field with the single value `"unavailable"`, emitted only when the fetch did not complete. A successful empty response emits nothing and still means the activity genuinely has no notes, so a healthy payload is unchanged.
+- **What the AI must do with it.** When `chat_notes_status` is `"unavailable"`, the athlete may or may not have left a note and the exporter does not know. Do not state or imply that there was no note, and do not treat the silence as evidence about the session. Say that chat notes could not be retrieved if the point matters to the interpretation, and otherwise proceed on the rest of the data.
+- The rest of this release is HTTP hardening: bounded timeouts on every remaining request, bounded retry for safe reads only, and truthful unknown outcomes where a write's result cannot be established. It changes no calculation, no other field in the generated JSON, and no report rule, so nothing in the coaching data or report behavior defined by this protocol moves. `push.py` v0.6 does gain a documented write-outcome and recovery contract (`applied` / `not_applied` / `unknown`, with exit code 2 for unknown); that contract governs the calendar write tool and is documented in `examples/agentic/README.md`, not here.
 
 **v11.67 - Saved Workouts Mirror, per-session audit selections, and a general input trust boundary (`sync.py` v3.132):**
 - **The athlete's saved workouts are now available as a file.** `saved_workouts.json` is a read-only mirror of the user's saved workouts from Intervals.icu, written beside the other generated JSON. Intervals.icu remains the source of truth and the only write path. It is the preferred read path on every platform because it avoids repeated API retrieval; API-connected platforms use the API for edits and as a read fallback. It is an inventory and retrieval source, never a second session-design authority: a saved workout may be prescribed only after verifying that its structure implements an applicable Workout Reference Library template or permitted variant.
@@ -1025,7 +1030,7 @@ See **Output Format Guidelines** for full field reference, assessment labels, an
 - Cite "per Section 11" or "according to the protocol"
 - Omit any completed activity whose date falls on the report day (athlete local time). Every such activity gets its own session block: walks, ski-erg, short rides, aborted rides, commutes included.
 - Merge multiple activities into a single block. One activity ID, one block.
-- Invent explanations for anomalous sessions (very short duration, aborted, equipment issue). Report what the data shows. If context is needed, use only the activity's `description` or `chat_notes` fields. If neither explains it, include the block and, if relevant, note the anomaly plainly in the interpretation without speculating about cause.
+- Invent explanations for anomalous sessions (very short duration, aborted, equipment issue). Report what the data shows. If context is needed, use only the activity's `description` or `chat_notes` fields. If neither explains it, include the block and, if relevant, note the anomaly plainly in the interpretation without speculating about cause. An activity carrying `chat_notes_status: "unavailable"` had its chat notes fetch fail: absence of `chat_notes` there is not evidence that no note exists, so do not report the session as unexplained on that basis.
 
 Elaborate only when thresholds are breached or athlete requests deeper analysis.
 

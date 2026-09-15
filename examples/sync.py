@@ -4,6 +4,64 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.133 - Bounded HTTP timeouts, method-aware read retry, and truthful
+  ambiguous-write handling.
+  Eleven direct requests calls had no timeout: four here and seven in push.py. All
+  now pass a (connect, read) tuple. The read leg is an inactivity timeout between
+  socket reads as implemented by requests/urllib3, not a total body-transfer
+  deadline, so none of these values is a wall-clock bound on a call; what is bounded
+  is the connection phase, per-read inactivity, and how many further attempts may
+  begin.
+  Generic reads (_intervals_get, _get_activity_messages) retry only Timeout,
+  ConnectionError and 429/500/502/503/504, at most three attempts, backing off 1s
+  then 2s, honouring a valid Retry-After that may raise but never lower the delay.
+  Retry admission is decided BEFORE sleeping against a 60s monotonic cap measured
+  from the start of the call and including completed request time, so an oversized
+  Retry-After ends the call instead of buying a long sleep followed by no request.
+  A per-instance budget of four EXTRA generic-read attempts is shared across history
+  and current-data work, because main() builds one instance and a degraded API must
+  not spend a fresh retry budget on each of the dozen-odd generic reads in a run.
+  Four was chosen deliberately, not defaulted; once exhausted, later generic reads
+  still make their initial bounded attempt. Verification reads are never charged to
+  it, since starving them would manufacture unknown outcomes.
+  On exhaustion the ORIGINAL requests exception object is re-raised, so every
+  caller's fatal-versus-degraded behaviour is unchanged: _build_health_context still
+  catches RequestException specifically and still degrades to source_status
+  "partial". The generic loop never reads or writes _last_retry_after_secs, which
+  belongs to the interval/stream fetchers. Interval, stream and saved-workout fetch
+  state, ladders, deadlines and last-good retention are untouched, and their
+  persisted scheduling is deliberately not merged with this immediate-retry loop.
+  recent_activities[] gains a conditional chat_notes_status "unavailable". The
+  messages fetch previously collapsed every failure to an empty list, so a transport
+  failure and an activity with no notes were indistinguishable to the AI layer. The
+  marker is emitted only on degradation; a successful empty response emits nothing,
+  so a healthy payload is byte-identical to v3.132. After three consecutive final
+  failures in one run the remaining in-window activities are marked without issuing
+  a request; any successful retrieval, including a successful empty one, resets that
+  count.
+  publish_to_github is now a state machine. Every requests exception raised after
+  dispatch routes to verification, not only a timeout: a ChunkedEncodingError or
+  any other broken response stream can follow a commit the server already made. The old code turned any failed pre-read
+  into current_sha = None and sent a create-style PUT at a path that may exist;
+  GitHub rejects that with 422, so the observable result was a loud failed publish
+  and a skipped no-change comparison rather than a silent overwrite, but treating an
+  unknown read as proof of absence was wrong either way. Only a confirmed 404
+  establishes absence; every other status or transport failure raises
+  PublishPreReadFailed with zero PUTs. After a PUT timeout, connection error, 429 or
+  5xx, or any other unexpected non-2xx status, the file is read back and only
+  byte-equal intended content proves success;
+  anything else, including the pre-write content, raises PublishOutcomeUnknown,
+  because a commit can land after the verification read. A definitive 4xx including
+  409 raises as before. No second PUT is ever issued: the next scheduled sync is the
+  recovery path. All three new exceptions subclass requests.exceptions.
+  RequestException, so publication criticality is exactly unchanged, call site by
+  call site: latest.json is unwrapped and therefore critical; the auto-generated
+  history publication, intervals.json, routes.json and saved_workouts.json are each
+  wrapped and non-critical; and the explicit --history publication is unwrapped in
+  the baseline and stays unwrapped. No sys.exit is added anywhere in this file. The
+  four wrapped sites now report an unknown outcome distinctly from a failure.
+  Pairs with SECTION_11.md / SKILL.md v11.68, and with push.py v0.6.
+
 Version 3.132 - Saved Workouts Mirror: read-only saved_workouts.json.
   A read-only mirror of the user's saved workouts from Intervals.icu, written beside
   latest.json, history.json, intervals.json and routes.json. Intervals.icu remains the
@@ -350,6 +408,26 @@ import atexit
 from collections import defaultdict
 from pathlib import Path
 import xml.etree.ElementTree as ET
+import time
+
+
+# === Publication outcome errors (v3.133) ===
+#
+# All three subclass requests.exceptions.RequestException so that every existing
+# `except Exception` around a publish call keeps catching them and the criticality
+# of each call site is unchanged: latest.json stays critical and unwrapped, and
+# history/intervals/routes/saved_workouts stay non-critical and wrapped.
+
+class PublishError(requests.exceptions.RequestException):
+    """Base class for publish_to_github outcome errors."""
+
+
+class PublishPreReadFailed(PublishError):
+    """The pre-write read did not establish remote state, so no PUT was issued."""
+
+
+class PublishOutcomeUnknown(PublishError):
+    """A PUT was issued and its outcome could not be established. Not a failure."""
 
 
 class IntervalsSync:
@@ -361,10 +439,42 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.132"
+    VERSION = "3.133"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
     SAVED_WORKOUTS_FILE = "saved_workouts.json"
+
+    # --- HTTP policy (v3.133) ---
+    # Timeouts are (connect, read) tuples. The connect leg bounds the connection
+    # phase and the read leg bounds per-read inactivity, both as implemented by
+    # requests/urllib3. The read leg is an inactivity timeout between socket reads,
+    # NOT a total body-transfer deadline, so none of these values is a wall-clock
+    # bound on a call.
+    INTERVALS_READ_TIMEOUT = (5, 30)     # generic Intervals.icu reads
+    GITHUB_READ_TIMEOUT = (5, 30)        # publish pre-read and verification read
+    GITHUB_WRITE_TIMEOUT = (5, 60)       # publish PUT; history.json is the largest body
+    # Retry policy for generic reads only. The specialised interval/stream and
+    # saved-workout fetchers keep their own persisted ladders and are not routed here.
+    READ_RETRY_STATUSES = (429, 500, 502, 503, 504)
+    READ_RETRY_MAX_ATTEMPTS = 3          # 1 initial + up to 2 extra
+    READ_RETRY_BACKOFF_SECS = (1, 2)
+    # Admission cap, measured with time.monotonic() from the start of the call and
+    # including completed request time and completed sleeps. It decides whether a
+    # further attempt may BEGIN. It does not and cannot stop an in-flight request.
+    READ_RETRY_ADMISSION_CAP_SECS = 60
+    # Extra generic-read attempts allowed across one IntervalsSync instance. main()
+    # builds one instance for history and current-data work, so this is deliberately
+    # shared: a degraded API must not spend a fresh retry budget on each of the
+    # dozen-odd generic reads in a run. The number was chosen, not defaulted; once
+    # exhausted, later generic reads still make their initial bounded attempt.
+    READ_RETRY_INSTANCE_EXTRA_ATTEMPTS = 4
+    # Consecutive final failures of the per-activity messages read before the rest of
+    # the window is marked unavailable without issuing further requests.
+    MESSAGES_FAILURE_BREAK_COUNT = 3
+    # Publication statuses that prove the PUT was refused. Anything else after
+    # dispatch, including a redirect, is verified by read-back rather than
+    # trusted, because raise_for_status() does not reject 1xx or 3xx.
+    GITHUB_DEFINITIVE_WRITE_STATUSES = (400, 401, 403, 404, 409, 422)
 
     # --- Saved Workouts Mirror (v3.132) ---
     # Read-only mirror of the athlete's Intervals.icu saved workouts. Intervals.icu
@@ -582,6 +692,12 @@ class IntervalsSync:
         # Both fetchers reset it to None on entry, so a 429 value can never leak into
         # a later request. Valid only immediately after the fetcher returns.
         self._last_retry_after_secs = None
+        # v3.133: generic-read retry accounting. Deliberately per instance and never
+        # reset, so history and current-data work share one extra-attempt budget.
+        self._read_retry_extra_attempts_used = 0
+        # v3.133: consecutive FINAL failures of _get_activity_messages in this run.
+        # Any successful retrieval, including a successful empty response, resets it.
+        self._messages_consecutive_failures = 0
     
     @property
     def script_hash(self) -> str:
@@ -595,6 +711,110 @@ class IntervalsSync:
             self._cached_script_hash = h.hexdigest()[:12]  # short hash, sufficient for change detection
         return self._cached_script_hash
     
+    @staticmethod
+    def _decode_github_content(raw) -> str:
+        """
+        Decode a GitHub Contents API `content` field strictly.
+
+        base64.b64decode(validate=False) silently DISCARDS characters outside the
+        base64 alphabet, so a body with stray punctuation around an otherwise valid
+        payload decodes to the same bytes as the clean one. That is how a malformed
+        remote body could be compared equal to the intended content and reported as
+        "No changes detected", or accepted as proof that a write landed.
+
+        The GitHub API line-wraps its base64, so newlines and surrounding whitespace
+        are removed first, and only then is the remainder decoded with validate=True.
+        Raises ValueError on anything unusable; callers turn that into
+        PublishPreReadFailed or PublishOutcomeUnknown.
+        """
+        if not isinstance(raw, str):
+            raise ValueError("content is missing or not a string")
+        compact = "".join(raw.split())     # strips \n, \r, spaces and tabs only
+        if not compact:
+            raise ValueError("content is empty")
+        try:
+            decoded = base64.b64decode(compact, validate=True)
+        except Exception as e:
+            raise ValueError(f"content is not valid base64 ({e})")
+        try:
+            return decoded.decode("utf-8")
+        except UnicodeDecodeError as e:
+            raise ValueError(f"content is not valid UTF-8 ({e})")
+
+    def _read_retry_delay(self, attempt: int, retry_after_secs: Optional[int]) -> int:
+        """
+        Delay before attempt+1. Retry-After may RAISE the ladder value but never
+        lower it. The value is a local throughout: it is never stored on self, so it
+        cannot leak into a later request or into interval fetch-state scheduling.
+        """
+        ladder = self.READ_RETRY_BACKOFF_SECS
+        delay = ladder[min(attempt - 1, len(ladder) - 1)]
+        if retry_after_secs is not None:
+            delay = max(delay, int(retry_after_secs))
+        return delay
+
+    def _admit_read_retry(self, attempt: int, started_at: float, delay: int,
+                          charge_instance_budget: bool) -> bool:
+        """
+        Decide whether attempt+1 may BEGIN, and reserve budget only if it may.
+
+        Checked BEFORE sleeping, so a Retry-After too large to fit inside the
+        admission window re-raises immediately instead of sleeping and then
+        declining. The instance counter is incremented only on an admitted retry.
+        """
+        if attempt >= self.READ_RETRY_MAX_ATTEMPTS:
+            return False
+        if (time.monotonic() - started_at) + delay >= self.READ_RETRY_ADMISSION_CAP_SECS:
+            return False
+        if charge_instance_budget:
+            if self._read_retry_extra_attempts_used >= self.READ_RETRY_INSTANCE_EXTRA_ATTEMPTS:
+                return False
+            self._read_retry_extra_attempts_used += 1
+        return True
+
+    def _read_with_retry(self, send, charge_instance_budget: bool = True):
+        """
+        Run a bounded safe read, retrying only eligible transport failures and
+        statuses. Returns the final Response; the caller still calls
+        raise_for_status(), so an exhausted retryable status surfaces as the ordinary
+        requests.exceptions.HTTPError it always was.
+
+        On exhausted transport failure the ORIGINAL exception object is re-raised, so
+        its requests.exceptions.RequestException subclass is preserved. That is
+        load-bearing: _build_health_context catches RequestException specifically and
+        must keep degrading to source_status "partial" rather than killing the sync.
+
+        Retries POST/PUT/DELETE nothing: this is a read-only helper by construction.
+        """
+        started_at = time.monotonic()
+        attempt = 0
+        while True:
+            attempt += 1
+            error = None
+            response = None
+            retry_after = None
+            try:
+                response = send()
+            except (requests.exceptions.Timeout,
+                    requests.exceptions.ConnectionError) as e:
+                error = e
+            except requests.exceptions.RequestException:
+                raise
+            else:
+                if response.status_code not in self.READ_RETRY_STATUSES:
+                    return response
+                if response.status_code in (429, 503):
+                    retry_after = self._parse_retry_after(
+                        response.headers.get("Retry-After"))
+
+            delay = self._read_retry_delay(attempt, retry_after)
+            if not self._admit_read_retry(attempt, started_at, delay,
+                                          charge_instance_budget):
+                if error is not None:
+                    raise error
+                return response
+            time.sleep(delay)
+
     def _intervals_get(self, endpoint: str, params: Dict = None) -> Dict:
         """Fetch from Intervals.icu API"""
         if endpoint:
@@ -605,26 +825,72 @@ class IntervalsSync:
             "Authorization": f"Basic {self.intervals_auth}",
             "Accept": "application/json"
         }
-        response = requests.get(url, headers=headers, params=params)
+        response = self._read_with_retry(
+            lambda: requests.get(url, headers=headers, params=params,
+                                 timeout=self.INTERVALS_READ_TIMEOUT))
         response.raise_for_status()
         return response.json()
 
-    def _get_activity_messages(self, activity_id: str) -> List[str]:
-        """Fetch messages/notes for a completed activity. Returns list of text strings."""
+    def _get_activity_messages(self, activity_id: str) -> Tuple[str, List[str]]:
+        """
+        Fetch messages/notes for a completed activity.
+
+        Returns (status, texts) where status is "ok" or "unavailable". A successful
+        empty response is ("ok", []) and means the activity genuinely has no notes.
+        A transport failure, an HTTP error, an unparseable body or an unexpected
+        shape is ("unavailable", []): not retrieved, which is not the same fact and
+        must not reach the AI layer as confirmed absence.
+
+        Circuit break: after MESSAGES_FAILURE_BREAK_COUNT consecutive FINAL failures
+        in this run, remaining activities are reported unavailable without issuing a
+        request, so a dead endpoint costs one initial attempt per activity at most
+        three times rather than once per activity in the window. The break path
+        issues no attempt and therefore consumes no retry budget.
+        """
+        if self._messages_consecutive_failures >= self.MESSAGES_FAILURE_BREAK_COUNT:
+            return ("unavailable", [])
         url = f"{self.INTERVALS_BASE_URL}/activity/{activity_id}/messages"
         headers = {
             "Authorization": f"Basic {self.intervals_auth}",
             "Accept": "application/json"
         }
         try:
-            response = requests.get(url, headers=headers)
+            response = self._read_with_retry(
+                lambda: requests.get(url, headers=headers,
+                                     timeout=self.INTERVALS_READ_TIMEOUT))
             response.raise_for_status()
             messages = response.json()
-            if isinstance(messages, list):
-                return [m.get("content", m.get("text", "")) for m in messages if (m.get("content") or m.get("text", "")).strip()]
-            return []
         except Exception:
-            return []
+            self._messages_consecutive_failures += 1
+            return ("unavailable", [])
+        if not isinstance(messages, list):
+            # A 200 that is not a list is not a confirmed empty library.
+            self._messages_consecutive_failures += 1
+            return ("unavailable", [])
+        texts = []
+        for item in messages:
+            # Element-level validation, not just the outer list. A non-object entry,
+            # or a content field that is not text, would otherwise raise here, well
+            # outside the guarded block, and kill the whole sync over a chat note.
+            if not isinstance(item, dict):
+                self._messages_consecutive_failures += 1
+                return ("unavailable", [])
+            raw = item.get("content")
+            if raw is not None and not isinstance(raw, str):
+                self._messages_consecutive_failures += 1
+                return ("unavailable", [])
+            if raw is None or not raw.strip():
+                # Either field can carry the note. Fall back when content is null,
+                # empty or whitespace-only, not only when the key is absent.
+                fallback = item.get("text", "")
+                if fallback is not None and not isinstance(fallback, str):
+                    self._messages_consecutive_failures += 1
+                    return ("unavailable", [])
+                raw = fallback or ""
+            if raw.strip():
+                texts.append(raw)
+        self._messages_consecutive_failures = 0
+        return ("ok", texts)
     
     def _fetch_activity_intervals(self, activity_id: str) -> tuple:
         """
@@ -9703,9 +9969,14 @@ class IntervalsSync:
             if act_date >= chat_notes_cutoff:
                 activity_id = act.get("id")
                 if activity_id:
-                    notes = self._get_activity_messages(activity_id)
+                    # v3.133: absence of chat_notes previously conflated "no notes"
+                    # with "not retrieved". The marker is emitted ONLY on degradation,
+                    # so a healthy payload is byte-identical to before.
+                    msg_status, notes = self._get_activity_messages(activity_id)
                     if notes:
                         activity["chat_notes"] = notes
+                    if msg_status == "unavailable":
+                        activity["chat_notes_status"] = "unavailable"
             
             formatted.append(activity)
         
@@ -11010,42 +11281,123 @@ class IntervalsSync:
         }
         
         url = f"{self.GITHUB_API_URL}/repos/{self.github_repo}/contents/{filepath}"
-        try:
-            response = requests.get(url, headers=headers)
-            if response.status_code == 200:
-                current_file = response.json()
-                current_sha = current_file["sha"]
-                
-                current_content = base64.b64decode(current_file["content"]).decode()
-                new_content = json.dumps(data, indent=2, default=str)
-                
-                if current_content == new_content:
-                    print("⏭️  No changes detected, skipping update")
-                    raw_url = f"https://raw.githubusercontent.com/{self.github_repo}/main/{filepath}"
-                    return raw_url
-            else:
-                current_sha = None
-        except Exception as e:
-            print(f"⚠️  Could not check existing file: {e}")
-            current_sha = None
-        
+        raw_url = f"https://raw.githubusercontent.com/{self.github_repo}/main/{filepath}"
         content_json = json.dumps(data, indent=2, default=str)
-        content_base64 = base64.b64encode(content_json.encode()).decode()
-        
+
+        # --- Pre-read gate (v3.133) ---
+        # The old code turned ANY failed pre-read into current_sha = None, which sent
+        # a create-style PUT at a path that may exist. Only a confirmed 404 can
+        # establish absence; every other outcome stops before the PUT.
+        try:
+            response = self._read_with_retry(
+                lambda: requests.get(url, headers=headers,
+                                     timeout=self.GITHUB_READ_TIMEOUT),
+                charge_instance_budget=False)
+        except requests.exceptions.RequestException as e:
+            raise PublishPreReadFailed(
+                f"{filepath}: pre-read did not complete ({e}); no write attempted")
+
+        if response.status_code == 200:
+            # A 200 establishes an existing file only if it carries a usable sha and
+            # decodable content. A null, empty or non-string sha would otherwise be
+            # dropped by the truthiness test below and produce a create-style PUT,
+            # which only a confirmed 404 may authorise.
+            try:
+                current_file = response.json()
+                if not isinstance(current_file, dict):
+                    raise ValueError("expected an object")
+                current_sha = current_file.get("sha")
+                if not isinstance(current_sha, str) or not current_sha:
+                    raise ValueError("sha is missing, empty or not a string")
+                if current_sha != current_sha.strip():
+                    # " s1 " is not a usable sha. Trimming it here would guess at what
+                    # the server meant; sending it verbatim puts a value in the PUT
+                    # that cannot match.
+                    raise ValueError("sha carries surrounding whitespace")
+                current_content = self._decode_github_content(
+                    current_file.get("content"))
+            except Exception as e:
+                raise PublishPreReadFailed(
+                    f"{filepath}: pre-read returned an unusable body ({e}); "
+                    f"no write attempted")
+            if current_content == content_json:
+                print("⏭️  No changes detected, skipping update")
+                return raw_url
+        elif response.status_code == 404:
+            current_sha = None          # confirmed absent: create is safe
+        else:
+            raise PublishPreReadFailed(
+                f"{filepath}: pre-read returned HTTP {response.status_code}, which "
+                f"does not establish whether the path exists; no write attempted")
+
         payload = {
             "message": commit_message,
-            "content": content_base64,
+            "content": base64.b64encode(content_json.encode()).decode(),
             "branch": "main"
         }
-        
         if current_sha:
             payload["sha"] = current_sha
-        
-        response = requests.put(url, headers=headers, json=payload)
-        response.raise_for_status()
-        
-        raw_url = f"https://raw.githubusercontent.com/{self.github_repo}/main/{filepath}"
-        return raw_url
+
+        # --- Single write attempt (v3.133). There is no second PUT anywhere. ---
+        try:
+            response = requests.put(url, headers=headers, json=payload,
+                                    timeout=self.GITHUB_WRITE_TIMEOUT)
+        except requests.exceptions.RequestException as e:
+            # Every requests exception raised after dispatch is ambiguous, not just a
+            # timeout: a truncated or chunked response stream means the commit may
+            # already have happened and only the answer was lost.
+            return self._verify_github_publish(url, headers, content_json, raw_url,
+                                               filepath,
+                                               f"transport: {type(e).__name__}")
+
+        if 200 <= response.status_code < 300:
+            return raw_url
+        if response.status_code in self.GITHUB_DEFINITIVE_WRITE_STATUSES:
+            response.raise_for_status()     # definitive refusal, including 409
+        # Everything else, a 429, a 5xx, a redirect or any other unexpected status,
+        # is indeterminate. raise_for_status() would let a 3xx through as success, so
+        # the status is checked explicitly and the file is read back instead.
+        return self._verify_github_publish(
+            url, headers, content_json, raw_url, filepath,
+            f"http_{response.status_code}")
+
+    def _verify_github_publish(self, url: str, headers: Dict, intended_content: str,
+                               raw_url: str, filepath: str, cause: str) -> str:
+        """
+        Read the remote file back after an ambiguous PUT. Only byte-equal intended
+        content proves the write landed. Everything else, including the pre-write
+        content, is unknown: a commit can still be in flight, so observing the old
+        body does not prove non-application. No second PUT is ever issued; the next
+        scheduled sync is the recovery path.
+        """
+        try:
+            response = self._read_with_retry(
+                lambda: requests.get(url, headers=headers,
+                                     timeout=self.GITHUB_READ_TIMEOUT),
+                charge_instance_budget=False)
+        except requests.exceptions.RequestException as e:
+            raise PublishOutcomeUnknown(
+                f"{filepath}: write outcome UNKNOWN after {cause}; verification read "
+                f"failed ({e}). No write retry was issued.")
+        if response.status_code != 200:
+            raise PublishOutcomeUnknown(
+                f"{filepath}: write outcome UNKNOWN after {cause}; verification read "
+                f"returned HTTP {response.status_code}. No write retry was issued.")
+        try:
+            body = response.json()
+            if not isinstance(body, dict):
+                raise ValueError("expected an object")
+            remote_content = self._decode_github_content(body.get("content"))
+        except Exception as e:
+            raise PublishOutcomeUnknown(
+                f"{filepath}: write outcome UNKNOWN after {cause}; verification body "
+                f"unusable ({e}). No write retry was issued.")
+        if remote_content == intended_content:
+            print(f"   ✅ {filepath}: write confirmed by read-back after {cause}")
+            return raw_url
+        raise PublishOutcomeUnknown(
+            f"{filepath}: write outcome UNKNOWN after {cause}; remote content does "
+            f"not match the intended content. No write retry was issued.")
     
     def save_to_file(self, data: Dict, filepath: str = "latest.json"):
         """Save data to local JSON file"""
@@ -11858,6 +12210,8 @@ def main():
                 sync.publish_to_github(history, filepath="history.json",
                                        commit_message=f"Auto-generate history.json - {datetime.now().strftime('%Y-%m-%d')}")
                 print("   ✅ history.json auto-generated and pushed to GitHub")
+        except PublishOutcomeUnknown as e:
+            print(f"   ⚠️ history.json push outcome UNKNOWN (non-critical): {e}")
         except Exception as e:
             print(f"   ⚠️ History generation failed (non-critical): {e}")
     
@@ -11960,6 +12314,8 @@ def main():
                 sync.publish_to_github(intervals_data, filepath="intervals.json",
                                        commit_message=f"Update intervals.json - {datetime.now().strftime('%Y-%m-%d')}")
                 print(f"   📊 intervals.json pushed ({len(intervals_data['activities'])} activities)")
+            except PublishOutcomeUnknown as e:
+                print(f"   ⚠️ intervals.json push outcome UNKNOWN (non-critical): {e}")
             except Exception as e:
                 print(f"   ⚠️ intervals.json push failed (non-critical): {e}")
         
@@ -11974,6 +12330,8 @@ def main():
                 sync.publish_to_github(routes_data, filepath="routes.json",
                                        commit_message=f"Update routes.json - {datetime.now().strftime('%Y-%m-%d')}")
                 print(f"   🗺️  routes.json pushed ({len(routes_data.get('events', []))} event(s))")
+            except PublishOutcomeUnknown as e:
+                print(f"   ⚠️ routes.json push outcome UNKNOWN (non-critical): {e}")
             except Exception as e:
                 print(f"   ⚠️ routes.json push failed (non-critical): {e}")
 
@@ -11986,6 +12344,8 @@ def main():
                 sync.publish_to_github(saved_workouts_data, filepath="saved_workouts.json",
                                        commit_message=f"Update saved_workouts.json - {datetime.now().strftime('%Y-%m-%d')}")
                 print(f"   📑 saved_workouts.json pushed ({sync._sw_status_line(saved_workouts_data)})")
+            except PublishOutcomeUnknown as e:
+                print(f"   ⚠️ saved_workouts.json push outcome UNKNOWN (non-critical): {e}")
             except Exception as e:
                 print(f"   ⚠️ saved_workouts.json push failed (non-critical): {e}")
         

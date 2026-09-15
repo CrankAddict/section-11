@@ -244,6 +244,64 @@ NOTE: Focus on cadence >90rpm
 
 Provide `--activity-id` OR `--event-id`, not both.
 
+### Write Outcomes and Recovery (v0.6)
+
+Every **write** result carries an `outcome` field and the exit code follows it.
+Preview and read-only commands (`list`, and every preview) are unchanged: no
+`outcome` field, exit 0 on success and 1 on failure as before.
+
+| `outcome` | Exit | Meaning |
+|---|---|---|
+| `applied` | 0 | The change is in place. Either the server confirmed it, or a read-back after an ambiguous write showed the exact intended state |
+| `not_applied` | 1 | Nothing was written. Validation failed, the server definitively refused (400, 401, 403, 404, 409, 410, 422), or the pre-write read failed or returned an unusable shape |
+| `unknown` | 2 | A write was issued and its result could not be established. It may or may not have landed. **No write retry was issued.** The verification read itself may retry, since reads are safe to repeat |
+
+`applied` after an ambiguous write always means a read-back showed the exact
+intended remote state. Read-back follows **any** ambiguous write, not only a
+timeout: a connection error, a truncated or chunked response, an unexpected
+status such as a redirect, and a 429 or 5xx all go the same way, because any of
+them can follow a change the server already committed.
+
+Two things follow from this that agents must not get wrong. Exit 2 is not a
+failure: reporting "the workout was not added" on exit 2 is a false statement.
+And `push.py` never replays a write, so recovery is always a fresh, deliberate
+run.
+
+**Every write command now performs a read before it writes.** That read
+establishes the state the verification will be compared against, so if it fails
+the command fails closed with `not_applied` and writes nothing. This is a
+deliberate trade: slightly lower availability in exchange for never having to
+guess afterwards.
+
+#### Recovery after `unknown`
+
+The safe action differs per operation. Check the outcome first where the table
+says so.
+
+| Command | Safe to re-run as-is? | Notes |
+|---|---|---|
+| `move` | Yes | The same PUT sets the same date. Re-running converges |
+| `set-threshold` | Yes | The same values are re-sent. Re-running converges |
+| `annotate --event-id` | Yes | If the note is already the first line, push.py issues no request and returns `applied` with `unchanged: true` |
+| `annotate --activity-id` (description) | Yes | Same duplicate suppression as above |
+| `delete` | Yes | An event that is already gone is the requested end state: `applied` with `unchanged: true`, and no DELETE is sent |
+| `push` (bulk) | Check first | A stable `external_id` is what makes verification deterministic, but it is not by itself proof that a re-run is safe: the upsert matching key and the global uniqueness of `external_id` are not established by the current source. Read the target date range back before re-running. Without an `external_id` a timed-out push can never be confirmed at all, and re-running may create a duplicate |
+| `annotate --chat` | **No, check first** | Inspect the activity's messages first, in the Intervals.icu activity view or through a direct read of `/activity/{id}/messages`. `list` will not do: it reads calendar events, not activity messages. The API is not established to return a stable message id, so a timed-out chat post cannot be confirmed and a blind re-run risks a visible duplicate message |
+
+`preview delete` on an event that does not exist still reports failure, because
+read-only commands report what they find. Only the confirmed `delete` treats an
+absent event as the desired end state.
+
+**Give every pushed workout a stable `external_id`.** It is still optional, and
+it is what makes verification of a bulk push deterministic: without one, an
+interrupted push resolves to `unknown` and has to be checked by hand. It is
+necessary, not sufficient. Whether `events/bulk?upsert=true` matches on
+`external_id`, and whether the value is unique across the athlete's calendar, are
+not established by the current source, so `external_id` alone does not make a
+re-run provably safe.
+
+---
+
 ### Workout Fields
 
 | Field | Required | Type | Description |

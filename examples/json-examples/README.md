@@ -33,6 +33,7 @@ These example files were generated from sync.py v3.86 / Section 11 v11.17. Key f
 - `efficiency_factor`, `hrrc`: per-activity capability metrics
 - `description`: activity description passthrough
 - `chat_notes`: athlete notes extracted from activity description (conditional)
+- `chat_notes_status`: conditional degradation marker, present only with the value `"unavailable"` when the per-activity chat notes fetch did not complete. Absent on a healthy activity, including one that genuinely has no notes: a successful empty response emits nothing. When present, absence of `chat_notes` is not evidence that no note exists
 - `wellness_field_scales`: 1-4 scale legend in READ_THIS_FIRST
 - Expanded wellness fields (subjective state, vitals, body composition, nutrition, lifestyle, cycle)
 - `zone_basis` on all TID/Seiler blocks

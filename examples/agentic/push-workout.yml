@@ -1,4 +1,4 @@
-# push.py v0.5 workflow — supports push, list, move, delete, set-threshold, annotate
+# push.py v0.6 workflow — supports push, list, move, delete, set-threshold, annotate
 name: Push Workout to Intervals.icu
 
 on:
@@ -216,13 +216,25 @@ jobs:
           echo "Running: python push.py $ARGS"
           eval python push.py $ARGS
 
-      - name: Notify on failure
+      - name: Notify when the run did not complete with a confirmed success
         if: failure()
         run: |
-          echo "push.py failed! Check logs above."
-          echo "Common issues:"
+          echo "push.py did not complete with a confirmed success. Check logs above."
+          echo "Exit 1 with a JSON body carrying outcome not_applied means the"
+          echo "operation definitely did not happen. Exit 1 from an unstructured"
+          echo "failure, a traceback or a crash before any JSON was printed, carries"
+          echo "no such guarantee: treat that like exit 2 and check the calendar."
+          echo "Exit 2 means the outcome is UNKNOWN: see the note at the end."
+          echo "Common issues behind exit 1:"
           echo "  - Invalid workout JSON format"
           echo "  - Invalid date (must be today or future)"
           echo "  - Event/activity ID not found"
           echo "  - 403 Access denied: ATHLETE_ID secret must be in i123456 form (with leading i), and INTERVALS_KEY must be the raw API key string"
           echo "  - Intervals.icu API unreachable"
+          echo ""
+          echo "Exit code 2 is different: the outcome is UNKNOWN, not failed. push.py"
+          echo "issued one write, could not confirm whether it landed, and issued no"
+          echo "write retry. The change may or may not be in place. Do not report it"
+          echo "as failed. Check the calendar or activity first, then follow the"
+          echo "per-operation recovery table in examples/agentic/README.md."
+          echo "This step is marked non-successful only so the run draws attention."

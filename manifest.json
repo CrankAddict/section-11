@@ -172,6 +172,9 @@
     },
     "examples/workout-library/WORKOUT_REFERENCE.md": {
       "hash": "2ca6fb8dd263b9407cecbaf0139ccfe44f893c5ecd805596735abffc0dcfe26a"
+    },
+    "gitignore.txt": {
+      "hash": "6c88f1fd7e378ae7e70e287b1ac8e638f9c07cfcca6a0760ca43c6b3596b0281"
     }
   }
 }

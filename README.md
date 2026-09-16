@@ -82,13 +82,13 @@ Choose your path:
 
 ### 4. Make Files Available to Your AI
 
-Your AI needs access to `SECTION_11.md` (the protocol) and `DOSSIER.md` (your profile). How depends on your setup:
+Your AI needs access to `SECTION_11.md` (the protocol), plus `DOSSIER.md` (your stable private context and preferences) if you use one. How depends on your setup:
 
 - **Local/agentic:** Where the runtime can reach your filesystem, the AI reads the files directly.
 - **GitHub connector:** If these files are in your connected repo, the AI reads them directly. If only `DOSSIER.md` is in your data repo, upload `SECTION_11.md` separately (or connect the CrankAddict/section-11 repo too).
 - **Cloud connector (Google Drive, OneDrive; [platform support varies](#platform-setup)):** If these files are in your synced folder, the AI reads them through the connector.
 - **URL fetch (no connector):** If your data repo is public, the AI can fetch raw URLs directly.
-- **Manual upload:** Upload both files to your AI platform or project. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
+- **Manual upload:** Upload `SECTION_11.md`, and `DOSSIER.md` if you use one, to your AI platform or project. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 ---
 
@@ -100,7 +100,7 @@ For runtimes that can execute code, access the filesystem, and run shell command
 
 > **Alternative: GitHub sync.** A private repo with GitHub Actions gives you multi-device access and backup. Follow the per-platform instructions below.
 
-Your agent needs `SECTION_11.md` (the protocol) and your `DOSSIER.md`. If you cloned the repos locally, the agent reads them from the filesystem. If using GitHub sync, the agent reads them from the repo (no manual upload needed).
+Your agent needs `SECTION_11.md` (the protocol), plus your `DOSSIER.md` if you use one. If you cloned the repos locally, the agent reads them from the filesystem. If using GitHub sync, the agent reads them from the repo (no manual upload needed).
 
 ### OpenClaw (formerly ClawdBot/MoltBot)
 
@@ -181,13 +181,13 @@ Most major web-chat platforms can access private GitHub repositories, but access
 
 **GitHub connector status for web-chat platforms.** A runtime with verified repository access, configured credentials and a tested integration may also use authenticated GitHub tools and workflow dispatch; see [Agentic Setup](#agentic-setup). This table covers the web-chat connector experience.
 
-*Both tables verified 2026-08-16 using vendor documentation and, where available, hands-on testing. Plans, interfaces, permissions, and regional availability can change.*
+*GitHub table: the ChatGPT and Gemini rows were re-verified 2026-09-15 against vendor documentation. The other rows and the Google Drive table were verified 2026-08-16 using vendor documentation and, where available, hands-on testing. Plans, interfaces, permissions, and regional availability can change.*
 
 | Platform | How to Connect | Plans | Private Repos | Refresh | Permissions / Caveats |
 |----------|----------------|-------|---------------|---------|-----------------------|
-| [ChatGPT](https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt-deep-research) | Plugin/App directory → GitHub | Varies by plan and experience | Yes | Experience-dependent: live search or indexed sync | Read-only in ChatGPT; use Codex for repository writes. GitHub may appear in Deep Research or agent mode but not standard chat. |
+| [ChatGPT](https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt) | **Apps** or **Plugins** → GitHub | Varies by plan, workspace, and product surface | Yes, once the GitHub app is installed for the owning account and the repository is selected | On demand; no synced GitHub index | Read-only in ChatGPT; use Codex for repository writes. Availability may include standard chat, deep research, or agent workflows, depending on plan and product surface; some accounts have GitHub in deep research or agent mode but not standard chat. |
 | [Claude](https://support.claude.com/en/articles/10167454-use-the-github-integration) | **+** → **Add from GitHub** | All plans including Free; organization policy may restrict | Yes | Manual **Sync now** | Files only; no commit history, pull requests, or other repository metadata. |
-| [Gemini](https://support.google.com/gemini/answer/16176929) | **+** → **Import code** | Personal accounts and qualifying Workspace accounts | Yes | Frozen at import; re-import to refresh | Desktop web only; one repository per chat, up to 5,000 files / 100 MB; read-only. |
+| [Gemini](https://support.google.com/gemini/answer/16176929) | **Add files** → **More uploads** → **Import code** (ordinary chats) | Personal accounts and qualifying Workspace accounts with Gemini apps enabled; 18+ with Keep Activity on | Yes, with the GitHub account linked to your Google Account | Frozen at import; re-import to refresh | Import on a computer; one repository per chat, up to 5,000 files / 100 MB; read-only. Not a Gem Knowledge source. |
 | [Grok (web/app)](https://docs.x.ai/grok/connectors) | `grok.com/connectors` → GitHub | All users; Business/Enterprise requires admin provisioning | Authorized repositories | On demand | Public documentation identifies repository, issue, pull-request, and code access but does not state whether the GitHub connector can write; review the OAuth grant before authorizing. |
 | [Mistral Vibe](https://docs.mistral.ai/vibe/work/connectors) | **Work** → **Connectors** → **GitHub App** | All plans including Free; organization policy may restrict | Authorized repositories | Real-time / on demand | Can search repositories, review issues, and manage pull requests; actions require approval. |
 | [Perplexity](https://www.perplexity.ai/help-center/en/articles/12275669-github-connector-for-enterprise) | **Settings** → **Connectors** → **GitHub** | Pro, Max, Enterprise Pro, Enterprise Max | Yes | On demand | Can perform actions. The OAuth grant includes unusually broad scopes, including repository deletion and workflow updates; review it carefully. |
@@ -209,8 +209,8 @@ Most major web-chat platforms can access private GitHub repositories, but access
 
 1. Create a Project
 2. Add instructions to Project settings
-3. **GitHub connector:** Open the Plugin/App directory → GitHub → Connect → authorize repositories. Availability and refresh behavior vary by plan and chat experience. The connector is read-only; confirm that the connected experience has fetched the current files before requesting a report.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Files". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too). Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
+3. **GitHub connector:** Open **Apps** or **Plugins** → GitHub → Connect, install the ChatGPT GitHub app for the account or organization that owns your data repository, and select the repository. Availability varies by plan, workspace, and product surface. ChatGPT retrieves repository content on demand and keeps no synced index, so name the repository and file path when you ask for a report. The connector is read-only.
+4. **No connector?** Upload SECTION_11.md, and DOSSIER.md if used, to "Project Files". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too). Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 #### ChatGPT (CustomGPT)
 
@@ -224,15 +224,18 @@ Most major web-chat platforms can access private GitHub repositories, but access
 1. Create a Project
 2. Add instructions to "Project Instructions"
 3. **GitHub connector:** Click **+** in a chat or the project's Files section → **Add from GitHub** → select files. Private repositories are supported. Click **Sync now** before a report when the repository has changed.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Project Knowledge". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too). Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Upload SECTION_11.md, and DOSSIER.md if used, to "Project Knowledge". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too). Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 5. Enable "Web search" in settings if using URL-based fetch instead of the connector
 
 #### Gemini (Gems)
 
-1. Create Gem
-2. Paste instructions in instructions field
-3. **GitHub connector:** On desktop web, click **+** → **Import code**, paste the repo URL, and authorize. This also works for Gems. Private repositories are supported, but the imported repository is frozen: changes do not sync, so re-import it before the next report.
-4. **No connector?** Paste Section 11 content into the instructions field and upload the dossier separately. If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
+1. Create a Gem.
+2. **Instructions:** paste the block between the fences in `PROJECT_INSTRUCTIONS_WEB.md`. Do not paste the full Section 11 protocol into the instructions field.
+3. **Knowledge:** add `SECTION_11.md` as a knowledge file, plus `DOSSIER.md` if you use one. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the Gem.
+4. **Current JSON:** supply `latest.json`, and any other file the task needs, through the delivery path you configured (see the tables above).
+5. **GitHub repository (ordinary Gemini chat):** Google documents repository import for chats, not as Gem Knowledge. On a computer, open **Add files** → **More uploads** → **Import code**, paste the repo URL, and link your GitHub account if prompted. Private repositories are supported, but the imported repository is frozen: changes do not sync, so re-import it before the next report.
+
+Do not upload the complete Section 11 repository as a ZIP. Gemini's ordinary ZIP upload accepts at most ten files.
 
 > **Note:** Not all Google accounts have the same access. Gemini's capabilities vary by account type, Workspace edition, and region. If Gemini can't access your repo, see [Troubleshooting](#troubleshooting).
 
@@ -241,21 +244,21 @@ Most major web-chat platforms can access private GitHub repositories, but access
 1. Create Project
 2. Add instructions to Project configuration
 3. **GitHub connector:** Open `grok.com/connectors` → **New Connector** → GitHub → authorize. Connectors are available to all Grok (web/app) users; Business and Enterprise workspaces require an administrator to provision them first.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md to "Sources". If using the connector but some files aren't in your data repo, upload those separately. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Upload SECTION_11.md, and DOSSIER.md if used, to "Sources". If using the connector but some files aren't in your data repo, upload those separately. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 #### Mistral (Vibe)
 
 1. Create New Project
 2. Add instructions
 3. **GitHub connector:** Switch to **Work** → **Connectors** → **GitHub App** → Connect and authorize. Vibe can manage pull requests as well as read repository data, and asks for approval before actions.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md during project creation. If using the connector but some files aren't in your connected repo, upload those separately. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Upload SECTION_11.md, and DOSSIER.md if used, during project creation. If using the connector but some files aren't in your connected repo, upload those separately. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 #### Perplexity
 
 1. Create a Space (or use standard chat)
 2. Add instructions
 3. **GitHub connector:** **Settings** → **Connectors** → GitHub. Available on Pro, Max, Enterprise Pro, and Enterprise Max. Review the OAuth grant before authorizing: it includes broad administrative scopes, repository deletion, and GitHub Actions workflow updates.
-4. **No connector?** Upload SECTION_11.md and DOSSIER.md to the Space. Free users without connector access can use URL-based fetch, which requires a public repo (see [Privacy & Security](#privacy--security) for what publishing exposes), or upload files manually. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
+4. **No connector?** Upload SECTION_11.md, and DOSSIER.md if used, to the Space. Free users without connector access can use URL-based fetch, which requires a public repo (see [Privacy & Security](#privacy--security) for what publishing exposes), or upload files manually. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
 
 ---
 
@@ -268,7 +271,7 @@ After configuration, test with:
 > "How was today's workout?"
 
 **Good response includes:**
-- ✅ Fetched both latest.json and history.json automatically (no asking for it)
+- ✅ Read latest.json automatically (no asking for it); history.json only when the question needs trend or longitudinal context
 - ✅ Session summary with all fields (type, start time, duration, power, HR, TSS, cadence, decoupling, EF, zones, carbs, energy)
 - ✅ Training load context (TSB, CTL, ATL, weekly totals)
 - ✅ Brief interpretation
@@ -302,61 +305,98 @@ After configuration, test with:
 
 ## Troubleshooting
 
+Most data problems sit in one of five places: the AI has not loaded your project instructions, it cannot reach the files, the source files are old, the copy it sees is old, or it is answering from an earlier read. Your contract, [`PROJECT_INSTRUCTIONS_WEB.md`](PROJECT_INSTRUCTIONS_WEB.md) or [`PROJECT_INSTRUCTIONS_AGENTIC.md`](PROJECT_INSTRUCTIONS_AGENTIC.md), defines the delivery paths: a runtime-accessible filesystem (agentic runtimes), a connector or authenticated repository, an upload or attachment, and URL fetch. Current connect and refresh details for each platform are in [Platform Setup](#platform-setup).
+
 ### AI asks for data instead of fetching
 
-- Verify web search/browsing is enabled for your platform
-- Check your JSON URL is correct and publicly accessible (or that your GitHub connector is properly authorized)
-- Try starting a fresh conversation (some platforms cache instructions per-session)
-- If using a GitHub connector, verify the connector shows as "Connected" in your platform's settings
+If every configured path fails, the contracts require the AI to say which paths it tried and what failed, and then ask you. Ask for that report, then check the failing path:
+
+- **Filesystem:** the data directory the runtime actually used. Some runtimes override the configured working directory.
+- **Connector or repository:** the connector is available in this project or chat and authorized for the repository or folder that holds your files. A connector shown as connected can still lack access to a specific repository.
+- **Upload:** the files are attached to this project or conversation.
+- **URL fetch:** web fetch or browsing is enabled, the repository is public, and the raw URLs in your project instructions, or in your dossier's source configuration when you use one, are correct.
+
+After you replace a file, ask the AI to report the marker for that file: the `Protocol Version` for `SECTION_11.md`, `metadata.last_updated` for `latest.json`, or the dossier revision and last-reviewed date for `DOSSIER.md` when you use one. Start a fresh conversation only if it still reports the old copy.
 
 ### 404 error on JSON URLs / Private repo access
 
-Most AI platforms now have GitHub connectors that can access private repos directly. Check the [Platform Setup](#platform-setup) table for your platform's connector path.
+A `raw.githubusercontent.com` URL can be read without credentials only from a public repository. A private repository returns `404 Not Found`, the same response as a wrong path.
 
-If your platform doesn't support connectors or you can't get them working: use a public repo (see [Privacy & Security](#privacy--security) for what that exposes), upload `latest.json`, `history.json`, `intervals.json`, `routes.json` (if present), and `saved_workouts.json` manually to your AI Project/Space, replacing any older copy, or use an [agentic platform](#agentic-setup) with GitHub access configured.
+- **Public repository:** check the username, repository, branch (`main`) and file name, and confirm that the sync has committed `latest.json` to the repository root. See [Privacy & Security](#privacy--security) for what a public repository publishes.
+- **Private repository:** use a connector or authenticated repository instead. If the connector is connected but the repository is missing, check that the platform's GitHub app is installed for the account or organization that owns the repository and that the repository is selected. An organization or workspace administrator may need to approve or enable it. See [Platform Setup](#platform-setup).
+- **No working connector:** upload `latest.json`, plus `history.json` for trend questions and `intervals.json`, `routes.json` or `saved_workouts.json` when the task needs them. Upload `SECTION_11.md`, and your dossier if you use one, when the connector was supplying them. Replace older copies rather than adding new ones.
+- **Agentic runtime:** clone the data repository or authenticate the runtime to it. See [Agentic Setup](#agentic-setup).
 
 ### Data appears stale after sync
 
-- Try a fresh conversation (some platforms cache per-session)
-- Manually append a different query param: `...latest.json?v=2`
-- If using a GitHub connector, click "Sync now" or re-import to pull latest changes
-- If you uploaded the files, they are frozen at upload. Re-export and replace them; the AI cannot see changes made after the upload
+Check each layer in turn.
+
+1. **Source.** `latest.json` records `metadata.last_updated` on every sync, as the clock time of the machine that ran it, without a timezone offset. Section 11 expects it to be under 24 hours old and asks for a refresh beyond 48 hours. If it is old, see [Sync workflow not updating JSON](#sync-workflow-not-updating-json). Other files follow their own schedules: `history.json` is regenerated about every four weeks and whenever `sync.py` changes, with its age reported under `history` in `latest.json`, and `saved_workouts.json` reports `refresh.status`.
+2. **Delivered copy.** Uploads are frozen at upload; re-export and replace them. Connectors differ. Claude's GitHub integration refreshes the selected files when you click **Sync now**. A Gemini repository import never updates and must be imported again. ChatGPT retrieves permitted repository content on demand, with availability depending on plan and product surface. For other platforms, follow [Platform Setup](#platform-setup) and the linked vendor documentation. When the source is a cloud-drive folder, your computer must also finish syncing it before a connector can see the change.
+3. **Fetch cache (URL fetch).** Raw GitHub content can stay cached for a few minutes after a commit. Wait, then fetch again.
+4. **Conversation.** An AI can keep answering from an earlier read. Every cited metric must come from a read in the current response, so ask it to re-read `latest.json` and report `metadata.last_updated`. Start a fresh conversation if it keeps using old values.
 
 ### Sync workflow not updating JSON
 
-- Check GitHub Actions ran successfully in the Actions tab
-- Verify Intervals.icu API key is valid
-- Check workflow permissions are set to "Read and write" (Settings → Actions → General → Workflow permissions)
-- See [examples/json-auto-sync/SETUP.md](examples/json-auto-sync/SETUP.md) for workflow-specific issues
+Start with the sync path you use. On every path, check that your Intervals.icu API key and athlete ID are valid; a period without activities legitimately adds none.
+
+- **Local sync:** check the timer (`launchctl list | grep section11` on macOS, `systemctl --user status section11-sync.timer` on Linux, or your scheduler's status), read `sync.log`, keep `.sync_config.json` in the data directory root rather than inside `section11/`, and run once by hand with `--debug`. See [Verification and Troubleshooting](examples/json-local-sync/SETUP.md#verification-and-troubleshooting).
+- **GitHub sync:** open your data repository's **Actions** tab and check the latest **Auto-Sync Intervals.icu Data** run; its log names the cause, such as a missing secret. Scheduled runs can be delayed, and in a public repository GitHub disables scheduled workflows after 60 days without repository activity. Private repositories consume your account's GitHub Actions allowance, so check your current usage against [GitHub's billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-actions). If a push fails with a permission error, check **Settings → Actions → General → Workflow permissions**. The copies of `sync.py` and `auto-sync.yml` in your data repository never update themselves; see [Update Notifications](examples/json-auto-sync/SETUP.md#update-notifications) and [the GitHub sync troubleshooting](examples/json-auto-sync/SETUP.md#troubleshooting).
+- **On-demand sync:** nothing runs until you trigger the workflow. Confirm that the run completed, then download the `training-data` artifact, which is kept for seven days, and replace your uploads, or refresh your connector as your platform requires.
+- **Manual export:** nothing updates by itself. Run `sync.py` again and replace the uploaded files.
 
 ### Activities show null or missing fields
 
-If your device syncs through Strava, the API returns stripped data. Strava's API terms restrict detailed fields when accessed through third-party APIs; Intervals.icu shows everything in the UI, but the API returns empty fields.
+An empty field is not always a fault. A field stays empty when the device did not record it, and some fields report unavailability explicitly, such as `terrain_status` and `weather_status`.
 
-**Fix:** Connect your device (Garmin, Wahoo, etc.) directly to Intervals.icu in Settings → Connections. Keep Strava connected if you want, but the training data needs to come in direct.
+Activities imported through Strava are different. Strava's API terms do not allow Intervals.icu to pass Strava-sourced activities on through its own API, so Intervals.icu shows you the activity but its API returns only a stub, with little or no detail for the export.
+
+**Fix:** connect your device platform (Garmin, Wahoo and similar) directly to Intervals.icu, or upload the original activity files, so that new activities arrive from a non-Strava source.
 
 ### HRV shows as unavailable on Apple Watch
 
-Apple Watch exports **SDNN**; Section 11's readiness HRV signal is **rMSSD**, which Intervals.icu keeps in a different field. Your Apple value is passed through as context, but readiness never uses it. When your Intervals.icu wellness record contains native Apple SDNN but no usable rMSSD, `readiness_decision.signals.hrv` stays `unavailable` with `reason: "rmssd_missing_sdnn_available"` until an upstream tool supplies rMSSD.
+Readiness uses the Intervals.icu wellness `hrv` field as rMSSD. SDNN is stored separately in `hrvSDNN`; `latest.json` passes it through as `hrv_sdnn` for context, and Section 11 never substitutes it for rMSSD. When a usable rMSSD value is present, readiness uses it whichever device produced it. When the latest wellness record has only SDNN, `readiness_decision.signals.hrv` is `unavailable` with `reason: "rmssd_missing_sdnn_available"`. Apple Health has long reported HRV as SDNN, which is why Apple Watch users often see this.
 
-**Fix:** it has to happen before Intervals.icu: an app that derives rMSSD from beat-to-beat data and writes it to the `hrv` field. Community iOS apps do this; see the [Intervals.icu forum's External Projects category](https://forum.intervals.icu/c/external-projects/14). None is verified or supported by Section 11, and one may carry no historical data, so don't count on a historically established or stable baseline immediately.
+**Fix:** a tool upstream of Intervals.icu must write rMSSD to its `hrv` field. Community projects are discussed in the [Intervals.icu forum's External Projects category](https://forum.intervals.icu/c/external-projects/14); none is verified or supported by Section 11. A new source may bring no history, and the readiness baseline uses the last seven days, so allow about a week of values before relying on it.
 
 ### Gemini can't access your repo or ignores data
 
-- Import the repo on desktop web: **+** → **Import code**, paste the repo URL, and authorize
-- If it's a private repo, make sure your GitHub account is linked; you'll be prompted during import, or check Connected Apps settings
-- Remember the import is frozen. Re-import before a report if the repo has changed
-- Gemini capabilities vary by Google account type, Workspace edition, and region; not all accounts have the same access
+- Repository import is documented for ordinary Gemini chats, not as Gem Knowledge. In a Gem, add `SECTION_11.md` under Knowledge instead; see [Gemini (Gems)](#gemini-gems).
+- A repository import never updates. Import it again before a report if the repository has changed.
+- Account type, age, activity settings and Workspace policy affect availability, and a private repository needs your GitHub account linked to your Google Account. See the Gemini row in [Platform Setup](#platform-setup).
+- An import is limited in files and size. The GitHub sync adds a timestamped copy of `latest.json` under `archive/` on every run, so a long-running data repository can outgrow the limit.
+- If Gemini answers without using the data, ask it to open the root `latest.json` and report `metadata.last_updated` before anything else.
 
 ### Grok (web/app) can't connect to GitHub
 
 Connectors are available to all Grok (web/app) users. Add GitHub at `grok.com/connectors` → **New Connector**. In Business and Enterprise workspaces an administrator must provision connectors first. If it's still unavailable, upload files manually, or use a public repo with URL-based fetch; see [Privacy & Security](#privacy--security) for what publishing exposes.
 
+### AI uses the wrong dossier or ignores your preferences
+
+`DOSSIER.md` is optional. When you use one, it holds your stable private athlete context: long-term goals, health context, constraints, equipment and source configuration. It also holds your portable coaching and communication defaults and your athlete-specific preferences and behavioral overrides, which apply below platform safety rules, your explicit current request and task-specific Section 11 requirements. It is never a source of current metrics, readiness, zones, phase or schedule; those come from your data. Without a dossier the AI loses that personalization but can still coach safely from your data.
+
+- Ask the AI to report the dossier's authority statement, **Official dossier location**, **Dossier revision** and **Last reviewed**, and compare them with your official copy.
+- If it finds more than one copy, it must not merge them. It compares their authority statements, locations, revisions and last-reviewed dates, and asks you which copy is official. Once you have decided, replace or remove the superseded copies.
+- The AI may propose dossier changes. It applies one only after your exact approval, and only where write access to the official copy has been verified; otherwise it returns a revised file for you to save. After saving, check that the revision number increased.
+- Keep the dossier private. Never place it in a public repository.
+
 ### AI fabricates metrics or ignores synced data
 
-This can happen when the AI fails to fetch or parse your JSON data, when the context window overflows, or when the platform's web search doesn't reliably retrieve raw JSON.
+This can happen when the AI fails to fetch or parse your JSON data, when the context window overflows, when a platform or runtime update drops your project instructions, when a connector, import or upload serves missing, stale or duplicate files, or when the AI answers from an earlier read or from memory.
 
-**Nuclear option:** Download the full [section-11 repo](https://github.com/CrankAddict/section-11) as a zip and upload it directly into your AI Project, Gem, Space, or chat. This bypasses all fetch/connector issues and gives the AI the protocol and templates in one package. You'll still need to provide your own `latest.json`, `history.json`, `intervals.json`, `routes.json` (if present), and `DOSSIER.md` separately, plus `saved_workouts.json` on demand when you want to select, reuse, or discuss a saved workout. The protocol zip is frozen at upload too. Replace it when you update Section 11, and don't leave two copies in the store.
+**First, reload the rules.** Start a fresh conversation if needed and tell the AI to re-read and follow your project instructions ([`PROJECT_INSTRUCTIONS_WEB.md`](PROJECT_INSTRUCTIONS_WEB.md) or [`PROJECT_INSTRUCTIONS_AGENTIC.md`](PROJECT_INSTRUCTIONS_AGENTIC.md)). `SECTION_11.md` governs coaching decisions and reports, your data is the only source of current metrics, and `DOSSIER.md` supplies stable context and preferences as described above. If a file the task needs is unavailable, the AI must say so rather than guess.
+
+**Then verify what it read.** Ask it to report these values and compare them with the source:
+
+- The `Protocol Version` in `SECTION_11.md`.
+- `metadata.last_updated` in the root `latest.json`, not in a copy under `archive/`.
+- The dossier revision and last-reviewed date, when you use a dossier.
+- For the task at hand: `history.age_days` in `latest.json` for trend work, `generated_at` in `intervals.json` or `routes.json` when those files are needed, and `refresh.status` in `saved_workouts.json` for saved-workout questions.
+- Whether it can see more than one copy of any of these files.
+
+Exact matches are evidence that it read the files; a confident summary is not. If anything is wrong or missing, work through [Data appears stale after sync](#data-appears-stale-after-sync).
+
+**Fallback: provide a fresh protocol copy.** On agentic setups, clone or update the [section-11 repo](https://github.com/CrankAddict/section-11); with local sync, run `python3 section11/examples/sync.py --update`. Otherwise download the repository as a zip and attach or import it in the format your platform accepts; some platforms limit how many files a ZIP may contain. The bundled files under `examples/json-examples/` end in `.example.json`; every value in them is fictional, and they must never be used as athlete data. The repository contains none of your private athlete data. The AI still needs your current `latest.json` for current coaching, `history.json` for trend work, `intervals.json`, `routes.json` or `saved_workouts.json` when the task needs them, and your `DOSSIER.md`, if you use one, for your stored personalization and preferences. Uploaded copies are frozen at upload. Replace them when Section 11 changes, and don't leave two copies in the store.
 
 ---
 
@@ -474,7 +514,7 @@ See [examples/README.md](examples/README.md) for the full derived metrics table 
 
 ### Longitudinal History
 
-The script generates `history.json` with tiered granularity: daily (90 days), weekly (180 days), and monthly (up to 3 years). Includes period summaries, FTP timeline, and data gap detection. Provide `latest.json`, `history.json`, `intervals.json`, and `routes.json` (if present) to your AI coach for the most complete analysis.
+The script generates `history.json` with tiered granularity: daily (90 days), weekly (180 days), and monthly (up to 3 years). Includes period summaries, FTP timeline, and data gap detection. `latest.json` covers current coaching. Provide `history.json` for trend, phase or longitudinal questions, and `intervals.json` or `routes.json` (if present) when a task needs them.
 
 ### FTP History Tracking
 
@@ -495,6 +535,8 @@ The script generates `saved_workouts.json`, a read-only mirror of your saved wor
 ### Update Notifications
 
 The sync script checks for upstream updates. Runs that **publish to GitHub with configured credentials** open a GitHub Issue in the data repo when a new release is available; the automated data-mirror workflow does not, since it runs `sync.py` in output-only mode. **Local users** see a one-line notification during sync runs (once per day) and can run `--update` to pull changes. See [json-local-sync](examples/json-local-sync/SETUP.md#staying-up-to-date) for details.
+
+**Renames and removals:** `--update` lists files that no longer exist upstream as orphaned items and asks separately before deleting them. Approve that prompt to complete a rename or removal. Declining it, or running non-interactively, leaves the old files in place.
 
 ### Data Hierarchy
 

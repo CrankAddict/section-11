@@ -15,7 +15,7 @@ Working implementations and reference documentation for Section 11 integrations.
 | [agentic](agentic/) | Write planned workouts to Intervals.icu calendar (code execution required) | ✅ Ready |
 | [agentic/fit-file-and-merger](agentic/fit-file-and-merger/) | Reusable multi-source FIT fusion, identity, verification, recovery and duplicate-cleanup reference | 📖 Reference |
 | [workout-library](workout-library/) | Structured workout templates for AI prescription | ✅ Ready |
-| [json-examples](json-examples/) | Example JSON output / current schema reference | ✅ Ready |
+| [json-examples](json-examples/) | Fictional `.example.json` schema references, never athlete data | ✅ Ready |
 
 ---
 
@@ -61,7 +61,7 @@ Both methods use the same `sync.py` script and produce these files:
 | `ftp_history.json` | FTP tracking for Benchmark Index | Yes |
 | `archive/` | Timestamped snapshots (auto-sync only) | Yes |
 
-See [json-examples/](json-examples/) for example output showing the full current schema.
+See [json-examples/](json-examples/) for fictional example output of these files. They end in `.example.json`, are schema references only, and are never athlete data.
 
 ```bash
 # Manual local export

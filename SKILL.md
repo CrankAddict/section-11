@@ -1,6 +1,6 @@
 ---
 name: section-11
-description: Evidence-based endurance coaching protocol (v11.68). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
+description: Evidence-based endurance coaching protocol (v11.69). Use when analyzing training data, reviewing sessions, generating pre/post-workout reports, planning workouts, answering training questions, or giving endurance coaching advice. Always read or fetch athlete JSON data before responding to any training question.
 ---
 
 # Section 11 - AI Coaching Protocol
@@ -11,6 +11,8 @@ Data files (`latest.json`, `history.json`, `intervals.json`, `ftp_history.json`,
 
 The **data directory** is where training data is read. It is not the authority record for the dossier: the authoritative dossier copy is named in the `Official dossier location` field in the dossier's own header block.
 
+Files under any `examples/json-examples/` folder, including `section11/examples/json-examples/`, and any file ending in `.example.json` are fictional schema examples, never athlete data. Never use them for coaching, reports, readiness, planning or athlete metrics, and never fall back to them when a real data file is missing or stale.
+
 ## First Use Setup
 
 On first use:
@@ -19,6 +21,7 @@ On first use:
    - If found, read its header block first: authority statement, `Official dossier location`, dossier revision, last reviewed
    - If more than one copy is reachable, do not merge them. Compare revision and last-reviewed date and ask the athlete which is official
    - If not found, check the connected source (if a connector is available)
+   - If not found, check uploaded or attached files
    - If not found, check `section11/DOSSIER_TEMPLATE.md`
    - If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/DOSSIER_TEMPLATE.md
    - Offer guided creation first and manual completion second. Ask only for stable private context: long-term goals, health and medication context, allergies and tested fueling, stable constraints, environment and equipment, communication preferences. Do not ask for thresholds, zones, weight or current phase. Those come from current JSON. Do not ask for planned training or the weekly schedule. Those come from current JSON and calendar data
@@ -37,7 +40,8 @@ On first use:
 
    Grok Bot and Hermes Agent are **experimental**: the capability class fits, but the Section 11 pipeline is not validated end to end on either. Treat support as unproven rather than assured.
    - **Connector or authenticated repository:** the athlete's **private** data source reached through a platform connector, an authenticated repository, or an equivalent credentialed connection. The AI reads files directly (no URLs needed). Committing `DOSSIER.md` and `SECTION_11.md` there provides everything in one connection, and is safe only while the source is private. **This delivery path supplies data only.** It confers no write authority, no ability to trigger actions or workflows, and no script execution; each of those capabilities is separate and must be verified before it is used or assumed.
-   - **URL fetch:** Athlete creates a repository for training data with automated sync. If the repository is public it carries JSON only; the private dossier never goes there. Record the raw URLs in the dossier's source configuration.
+   - **Upload or attachment:** the athlete supplies the JSON files directly to the session. Uploaded files are frozen at supply time; replace them to update.
+   - **URL fetch:** Athlete creates a repository for training data with automated sync. If the repository is public it carries JSON only; the private dossier never goes there. Record the raw URLs in the project instructions or, when a dossier is used, in its source configuration.
    - `latest.json`: current 7-day snapshot + 28-day derived metrics
    - `history.json`: longitudinal data (daily 90d, weekly 180d, monthly 3y)
    - `intervals.json`: per-interval segment data for recent structured sessions, plus DFA a1 session rollups when AlphaHRV recorded (14-day retention)
@@ -66,11 +70,12 @@ Load the coaching protocol using this precedence:
 1. Check `./SECTION_11.md` (data directory root)
 2. If not found, check `section11/SECTION_11.md`
 3. If not found, check connected repo (if GitHub connector is available)
-4. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/SECTION_11.md
+4. If not found, check uploaded or attached files
+5. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/SECTION_11.md
 
 If both root and `section11/` copies exist, prefer the root copy.
 
-**Current version:** 11.68
+**Current version:** 11.69
 
 ## External Sources
 
@@ -78,7 +83,7 @@ All external files referenced by this skill (`sync.py`, `SECTION_11.md`, templat
 
 ## Data Hierarchy
 
-1. JSON data (always read latest.json first, then history.json for longitudinal context)
+1. JSON data (always read latest.json first; read history.json only for trend, phase or longitudinal context)
 2. Protocol rules (SECTION_11.md)
 3. Athlete dossier (DOSSIER.md): stable private context only, never a current metric
 4. Interval data (intervals.json: on-demand, see below)
@@ -88,7 +93,7 @@ All external files referenced by this skill (`sync.py`, `SECTION_11.md`, templat
 
 ## Required Actions
 
-- Read or fetch latest.json before any training question. Check data directory first, then connected repo (if GitHub connector is available), then fall back to dossier-specified URLs.
+- Read or fetch latest.json before any training question. Check the data directory first, then the connected repo (if a connector is available), then uploaded or attached files, then the configured raw URLs (in the project instructions or, when a dossier is used, its source configuration).
 - Read or fetch history.json when trend analysis, phase context, or longitudinal comparison is needed. Same precedence.
 - Load `intervals.json` when analyzing a specific activity where `has_intervals: true` OR `has_dfa: true`. For block reports, load when any session in the block has either flag. Use for: interval compliance, pacing analysis, cardiac drift per set, recovery quality, DFA a1 session-level interpretation. Do not load for readiness, load management, or weekly summaries.
 - Load `routes.json` when a planned event has `has_terrain: true`. Use for: route analysis, terrain-adjusted pacing, pre-ride briefing, race preparation. Same precedence as other JSON files.
@@ -124,7 +129,8 @@ Use standardized report formats. Load templates using this precedence:
 1. Check data directory `reports/` directory
 2. If not found, check `section11/examples/reports/`
 3. If not found, check connected repo (if GitHub connector is available)
-4. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/reports/
+4. If not found, check uploaded or attached files
+5. If not found, fetch from: https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/reports/
 
 Templates:
 - **Pre-workout:** Readiness assessment, Go/Modify/Skip recommendation: `PRE_WORKOUT_REPORT_TEMPLATE.md`

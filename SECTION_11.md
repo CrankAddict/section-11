@@ -1,10 +1,19 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.68  
-**Last Updated:** 2026-09-14
+**Protocol Version:** 11.69  
+**Last Updated:** 2026-09-15
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 ### Changelog
+
+**v11.69 - Fictional JSON examples isolated from athlete data (doc-only):**
+- **The bundled examples could be mistaken for real data.** The six fictional files in `examples/json-examples/` used the same names as the generated athlete files, so a project store or data directory holding the complete repository beside real exports contained two `latest.json` files, one of them invented. They are renamed, byte-for-byte unchanged, to `latest.example.json`, `history.example.json`, `intervals.example.json`, `routes.example.json`, `ftp_history.example.json` and `saved_workouts.example.json`, and the folder README now opens with a fictional-data warning.
+- **Example files are never athlete data.** Anything under an `examples/json-examples/` folder or ending in `.example.json` is excluded from every rung of the *Data Integrity Hierarchy*: it never supplies coaching, reports, readiness, planning or athlete metrics, and it is never a fallback when real data is missing or stale. `SKILL.md` and both project instruction files carry the same rule.
+- **Troubleshooting and setup guidance follow the four delivery paths.** The root README Troubleshooting section is rewritten around those paths and the separate freshness of the source, the delivered copy, fetch caches and the conversation. It describes the dossier as optional stable context with its full role and precedence, treats `latest.json` as required for current coaching, `history.json` for trend work and the other files as on-demand, and keeps the complete repository as the fallback package. README setup steps and the Post-Workout Test follow the same file rules. The ChatGPT and Gemini Platform Setup entries now match current vendor documentation, with Gemini repository import (ordinary chats) separated from Gem Knowledge, and the Setup Assistant's Gemini note and web-chat test troubleshooting follow suit.
+- **Delivery paths listed consistently.** Checklist item 0, the *Data Integrity Hierarchy*'s Tier-1 mirror entry and both `data_source_fetched` schema descriptions now name all four delivery paths, including upload or attachment. Both project instruction files and `SKILL.md` (JSON, protocol, report-template and first-use dossier lookups) follow the same order. Both contracts read `latest.json` before current coaching and load `history.json` and the other files only when a task needs them. Raw URLs can be configured in the project instructions, so URL fetch no longer depends on an optional dossier. The fact/source hierarchy and trust levels are unchanged.
+- **Web contract URL fetch uses the plain raw URL.** `PROJECT_INSTRUCTIONS_WEB.md` no longer asks the AI to append a date parameter; GitHub does not document query parameters as a cache bypass. Re-copy the fenced block into your project instructions to pick this up.
+- Agentic setup guidance now uses non-personal placeholders for athlete identifiers.
+- No change to `sync.py` (still v3.133), generated filenames, schema, calculations, source precedence or report behavior. An existing install keeps any old-name example files until `--update` orphan cleanup is confirmed; the path rule covers them meanwhile.
 
 **v11.68 - Unretrieved activity chat notes are no longer reported as absent (`sync.py` v3.133):**
 - **Absence of `chat_notes` used to mean two different things.** The exporter collapsed every failure of the per-activity messages fetch to an empty result, so a network timeout and an activity with no notes reached the AI layer identically. `recent_activities[]` now carries a conditional `chat_notes_status` field with the single value `"unavailable"`, emitted only when the fetch did not complete. A successful empty response emits nothing and still means the activity genuinely has no notes, so a healthy payload is unchanged.
@@ -263,7 +272,7 @@ Code execution alone is not sufficient; a runtime also needs an accessible data 
 1. **Runtime-accessible filesystem**: the data directory on whatever filesystem the runtime can reach. This may be the athlete's own machine or a provider-hosted computer; "agentic" does not mean "local".
 2. **Connector or authenticated repository**: the athlete's data source reached through a platform connector, an authenticated repository, or an equivalent credentialed connection. The AI reads `latest.json`, `history.json`, `intervals.json`, and any other committed files (e.g., `DOSSIER.md`, `SECTION_11.md`) directly. No URLs needed. **This path supplies data only.** It confers no write authority, no ability to trigger actions or workflows, and no script execution. Each of those capabilities is separate and must be verified before it is used or assumed.
 3. **Upload or attachment**: the athlete supplies the JSON files directly to the session. Common for web-chat platforms and available to provider-hosted agents.
-4. **URL fetch**: raw repository URLs as recorded in the athlete dossier's source configuration
+4. **URL fetch**: configured raw repository URLs, recorded in the project instructions or, when a dossier is used, in its source configuration
 
 **Example endpoint format (URL fetch):**
 ```
@@ -280,7 +289,7 @@ https://github.com/[username]/[repo]/tree/main/archive
 https://raw.githubusercontent.com/[username]/[repo]/main/history.json
 ```
 
-> **Note:** The actual URLs for your data mirror are defined in your athlete dossier. When using URL fetch, the AI must fetch from the dossier-specified endpoint. When using a GitHub connector, the AI reads directly from the connected repo.
+> **Note:** The actual URLs for your data mirror come from your project instructions or, when you use a dossier, its source configuration. When using URL fetch, the AI must fetch from the configured endpoint. When using a connector or authenticated repository, the AI reads directly from the connected source.
 
 This file represents a synchronized snapshot of current Intervals.icu metrics and activity summaries, structured for deterministic AI parsing and audit compliance.
 
@@ -845,7 +854,7 @@ Before providing recommendations, AI systems must verify:
 
 | #  | **Check**                        | **Deterministic Rules/Requirement**.                                                                                                                   |
 |----|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 0  | **Data Source Fetch**            | Load JSON from data source FIRST (local files → GitHub connector → URL fetch). If all methods fail or data unavailable, STOP and request manual data input.                                              |
+| 0  | **Data Source Fetch**            | Load JSON from data source FIRST (runtime-accessible filesystem → connector or authenticated repository → upload or attachment → URL fetch). If all methods fail or data unavailable, STOP and request manual data input.                                              |
 | 1  | FTP Source Verification          | Confirm FTP/LT2 is explicitly athlete-provided or from API/JSON mirror via sport-family lookup (`thresholds.sports[family]`). Do not infer, recalculate, or cross-apply thresholds across sport families. |
 | 2  | Data Consistency Check           | Verify weekly training hours and load totals match the “READ_THIS_FIRST → quick_stats” dataset. Confirm totals within ±1% tolerance of logged data     |             
 | 3  | No Virtual Math Policy           | Ensure all computed metrics originate from raw or mirrored data. No interpolation, smoothing, or estimation permitted.                                 |
@@ -1103,11 +1112,13 @@ If any values breach limits, shift guidance toward load modulation or recovery e
 If multiple data sources conflict:
 
 1. **Intervals.icu API** → Primary source for power, HRV, CTL/ATL, readiness metrics
-2. **Intervals.icu JSON Mirror** → Verified Tier-1 mirror source (local files, GitHub connector, or URL fetch; all carry the same trust level)
+2. **Intervals.icu JSON Mirror** → Verified Tier-1 mirror source (runtime-accessible filesystem, connector or authenticated repository, upload or attachment, or URL fetch; all carry the same trust level)
 3. **Garmin Connect** → Backup for HR, sleep, RHR
 4. **Athlete-provided data** → Valid if recent (<7 days) and stated explicitly
 
 The athlete dossier is **not** a rung in this hierarchy. It holds stable private context, never a current metric; see the Source Architecture Note.
+
+Fictional example files are **not** a data source at any rung. Anything under an `examples/json-examples/` folder, including `section11/examples/json-examples/`, and any file ending in `.example.json` is an invented schema example: never use it for coaching, reports, readiness, planning or athlete metrics, and never fall back to it when a real data file is missing, unreadable or stale.
 
 ---
 
@@ -3373,7 +3384,7 @@ This subsection defines the formal self-validation and audit metadata structure 
 
 | Field                          | Type     | Description                                                                         |
 |--------------------------------|----------|-------------------------------------------------------------------------------------|
-| `data_source_fetched`          | boolean  | Whether JSON was successfully loaded from data source (local files, connector, or URL) |
+| `data_source_fetched`          | boolean  | Whether JSON was successfully loaded from data source (runtime-accessible filesystem, connector or authenticated repository, upload or attachment, or URL fetch) |
 | `json_fetch_status`            | string   | "success" / "failed" / "unavailable"; stop and request manual input if not success |
 | `protocol_version`             | string   | Section 11 version being followed                                                   |
 | `checklist_passed`             | array    | List of checklist items (0–10, including 5b and 6b) that passed validation                               |
@@ -3521,7 +3532,7 @@ This subsection defines the formal self-validation and audit metadata structure 
 
 | Field                 | Type    | Description                                                                         |
 |-----------------------|---------|-------------------------------------------------------------------------------------|
-| `data_source_fetched` | boolean | Whether JSON was successfully loaded from data source (local files, connector, or URL) |
+| `data_source_fetched` | boolean | Whether JSON was successfully loaded from data source (runtime-accessible filesystem, connector or authenticated repository, upload or attachment, or URL fetch) |
 | `json_fetch_status`   | string  | "success" / "failed" / "unavailable"; stop and request manual input if not success |
 | `plan_version`        | string  | Version identifier for the plan                                                     |
 | `phase`               | string  | Current macro-phase (Base/Build/Peak/Taper/Recovery)                                |

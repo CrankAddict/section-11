@@ -11,26 +11,26 @@
       "hash": "0683b6ae3ded5701305dae4114d317d4346c175824d8db87a22d18e05a61ff77"
     },
     "PROJECT_INSTRUCTIONS_AGENTIC.md": {
-      "hash": "2731a6671c6e77ea4d68b651e8a69ad4604014004f03ff5d5579d338ffbdf933"
+      "hash": "4e5e29d09e94bd43b9604f94842947aa26b5602dad9da3e5579b45e241af20d6"
     },
     "PROJECT_INSTRUCTIONS_WEB.md": {
-      "hash": "eac8da51de1d8c9559f17a73f5bd3cec1116024793300d6049efe56c955cd991"
+      "hash": "3078b62614035b7ed8649d691616206de666e1783ab042a43a7b2a4aefea1df1"
     },
     "README.md": {
-      "hash": "7eb8fc8aa208e2430d5d6e96c22df66afdca58d0431115e18c318cd9c275bfb9"
+      "hash": "b580ca594e30cd247fbc16c2b9da685db576fb6cb83e4fb77d07aece697d5f0a"
     },
     "SECTION_11.md": {
-      "hash": "45146e96ea8fc1d1e075824532c3514fb72c8822bddd0a2b84293ad524839303",
+      "hash": "9103b9d7f587dca0ea8085ea8c665ea335f84112727bba4460754303c258de0c",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
       "hash": "47a0b437722547662e2215a759678cccaeb91984734337bfe2392185d71976d5"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "7e8433a653f598242e25dde9664a842648359f036129288f5cc2204cf081c989"
+      "hash": "e39beb5b7bcea8b8c6b2bd82d3bbb9af3bb7c9ac44c6a88860ddde399dba3e81"
     },
     "SKILL.md": {
-      "hash": "93e7c2c95209fb98a57e42caad44170a82632b39522598ed1a74dc8ff0ce1182"
+      "hash": "2aab8332a412a3219a05076374324b68e43891f6ef1a10b59891f71362e3eef6"
     },
     "changelog.json": {
       "hash": "5c65562b049a5306f889a8ba745a1b797c45c4cda7f41ff40d9f6f271abf417c"
@@ -51,13 +51,13 @@
       "hash": "8e49928c06190e13cef81f74525cb4b4088798590e6006db39c06b9713fc080d"
     },
     "examples/README.md": {
-      "hash": "b20b99d387007e77191e90eb0f46e816ffc8bccf9f40fafa07bcdf23351a1245"
+      "hash": "b1a4146c2901976349ea33dbaef10bbbdd0d0fea9703fa208af6c556c1f09435"
     },
     "examples/agentic/EXTERNAL_APIS.md": {
       "hash": "4905524df58a6aa59db4ed0321d51f212cc3eb0f5a2c6b715ec0b04e0acba126"
     },
     "examples/agentic/README.md": {
-      "hash": "a720526130fd75bcb96a4647b92e08f26809405696f7b2523598f559f7505113"
+      "hash": "9a26fcd1b5efe6bf9c03efd731817c752c377d3ede7602aaae4f9068d44a614a"
     },
     "examples/agentic/fit-file-and-merger/ARCHITECTURE.md": {
       "hash": "780f6ea92548749d0b5d5535976115d274b1e0301d19f004f04107faedc8a919"
@@ -99,24 +99,24 @@
       "hash": "2ccd63f5dadf813f9af745353df07fce032ab4ebaada69cdfdae47bf0da9f2e2"
     },
     "examples/json-examples/README.md": {
-      "hash": "3dc6fb1b503da544fde8dded446f68a075c015f6f63f9ff528dbb7d2ecb630b7"
+      "hash": "577c3bf9247a70f25bbb1a56c1efa965043cd9aab58864614950ec78aadb8987"
     },
-    "examples/json-examples/ftp_history.json": {
+    "examples/json-examples/ftp_history.example.json": {
       "hash": "b2f2d569327c7b030c02969efdadd224bcc6d3df4c63857c3f4e614a75cfcb75"
     },
-    "examples/json-examples/history.json": {
+    "examples/json-examples/history.example.json": {
       "hash": "45366e32462ee036c8bef390cf0b0ff0a7038be4f1144530936af1297dbbb647"
     },
-    "examples/json-examples/intervals.json": {
+    "examples/json-examples/intervals.example.json": {
       "hash": "e11384942f006b3959d61ceb0ecacd0d5d5722622212b0f217543b0308d9bf9c"
     },
-    "examples/json-examples/latest.json": {
+    "examples/json-examples/latest.example.json": {
       "hash": "17b425e1069c03a124a750ea0f28f71b90d37b6021f9464a68b7afe86ecb6389"
     },
-    "examples/json-examples/routes.json": {
+    "examples/json-examples/routes.example.json": {
       "hash": "0ff2ef8770733a9b059154e7305b57510455e0024f3c60cf57eee7b0d67e97ed"
     },
-    "examples/json-examples/saved_workouts.json": {
+    "examples/json-examples/saved_workouts.example.json": {
       "hash": "f7a02e699d269b7ba5b98cdc853bf7bc4fbdf5eb6f2520d46ba63e30825c145a"
     },
     "examples/json-local-sync/SETUP.md": {

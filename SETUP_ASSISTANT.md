@@ -312,12 +312,12 @@ If they are using URL fetch, tell them to replace `[USERNAME]/[REPO]` in the cop
 
 **3. Upload knowledge files:**
 
-Tell them to upload these two files to their project's knowledge/files section:
+Tell them to upload `SECTION_11.md`, plus `DOSSIER.md` if they use one, to their project's knowledge/files section:
 
 | File | Where to get it |
 |------|-----------------|
 | `SECTION_11.md` | https://github.com/CrankAddict/section-11 (download from repo root) |
-| `DOSSIER.md` | The dossier they created or selected as official in Step 7, from whichever private location they chose: private data repo, private document store, or local copy |
+| `DOSSIER.md` (if used) | The dossier they created or selected as official in Step 7, from whichever private location they chose: private data repo, private document store, or local copy |
 
 **Platform-specific notes:**
 - **ChatGPT Projects:** Upload to "Project Files."
@@ -325,7 +325,7 @@ Tell them to upload these two files to their project's knowledge/files section:
 - **Claude Projects:** Upload to "Project Knowledge." Enable "Web search" in settings if using URL-based fetch.
 - **Grok (web/app):** Upload to "Sources" in Project configuration.
 - **Mistral (Vibe):** Upload during project creation.
-- **Gemini Gems:** Paste Section 11 content into the instructions field and upload the dossier separately. *(If Gemini can't access your repo, try downloading the section-11 repo as a zip and uploading it directly.)*
+- **Gemini Gems:** Keep the project contract in the instructions field; do not paste the full protocol there. Add `SECTION_11.md` under Knowledge, plus `DOSSIER.md` if they use one. Do not upload the complete section-11 repository as a ZIP; Gemini's ordinary ZIP upload accepts at most ten files. GitHub repository import is a feature of ordinary Gemini chats, not a Gem Knowledge source.
 
 Whichever surface they use, uploaded files are frozen at upload. Tell them to replace the old copy when either file changes, and not to leave two versions in the store.
 
@@ -475,10 +475,14 @@ Tell them to open their newly configured AI coach and type:
 - Brief coach note
 - No web citations, no emojis, no unnecessary recovery warnings
 
-**If it doesn't work (web chat / GitHub path):**
-- "I don't have access to your data" → The AI can't reach the JSON URL. Check: is the repo public? Is web search/browsing enabled on the platform? Are the URLs correct in the instructions?
-- 404 or "Not Found" on the JSON URL → Double-check `[USERNAME]/[REPO]` in the instructions matches their actual GitHub username and repo name exactly. Also verify `latest.json` exists in the repo (Step 6 must have completed successfully).
-- Missing fields or weak analysis → SECTION_11.md may not be uploaded properly. Re-upload it.
+**If it doesn't work (web chat):**
+- "I don't have access to your data" → Ask the AI which delivery path it tried and what failed; the contract requires it to say. Then check that path:
+  - Connector or authenticated repository: the connector is available in this project or chat and authorized for their data repository. Shown as connected does not prove repository access. Refresh or re-import as the platform requires; see the Platform Setup tables: https://github.com/CrankAddict/section-11#platform-setup
+  - Upload or attachment: the current JSON files are attached, with no older copies beside them.
+  - URL fetch (public repositories only): web fetch or browsing is enabled, and `[USERNAME]/[REPO]` in the instructions matches their GitHub username and repo name exactly.
+- 404 or "Not Found" on a JSON URL → A private repository and a wrong path both return 404. For a private repository, use a connector or upload instead. For a public one, check `[USERNAME]/[REPO]`, the branch and the file name, and verify `latest.json` exists in the repo (Step 6 must have completed successfully).
+- Old values → Ask the AI to re-read `latest.json` and report `metadata.last_updated`. See Troubleshooting in the README: https://github.com/CrankAddict/section-11#troubleshooting
+- Missing fields or weak analysis → Check that `SECTION_11.md` reaches the AI through its connector or as a current upload. Activities imported through Strava reach the export with little or no detail.
 - Generic advice instead of data-driven → The AI isn't following the protocol. Check the instructions are pasted correctly.
 
 **If it doesn't work (local path):**

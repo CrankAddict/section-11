@@ -391,6 +391,8 @@ This shows what changed, then asks for confirmation before downloading:
 
 Only changed files are downloaded. Personal files at the data directory root (dossier, config, data) are never touched. Nothing changes without your confirmation. Same principle as `--confirm` on push.py writes.
 
+**Renames and removals use a second confirmation.** After checking downloads, `--update` lists files that no longer exist upstream as orphaned items and asks separately before deleting them. Approve that prompt to complete a rename or removal. Declining it, or running non-interactively, leaves the old files in place.
+
 ---
 
 ## Write Side (push.py)

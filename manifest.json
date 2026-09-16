@@ -120,7 +120,7 @@
       "hash": "f7a02e699d269b7ba5b98cdc853bf7bc4fbdf5eb6f2520d46ba63e30825c145a"
     },
     "examples/json-local-sync/SETUP.md": {
-      "hash": "303ca3b6230b3283b10e0d215ca11bde4f0103b50a62ddaac5655ffeac02144b"
+      "hash": "1c06a2aa33b167d8f95a82460f216c40f0710858940661064dafaef2df0f6629"
     },
     "examples/json-manual/SETUP.md": {
       "hash": "a9451f952649c2df91109cd27ad03458a6880ef96d09fa2cb69d7ef9aeb4004d"
@@ -172,9 +172,6 @@
     },
     "examples/workout-library/WORKOUT_REFERENCE.md": {
       "hash": "2ca6fb8dd263b9407cecbaf0139ccfe44f893c5ecd805596735abffc0dcfe26a"
-    },
-    "gitignore.txt": {
-      "hash": "6c88f1fd7e378ae7e70e287b1ac8e638f9c07cfcca6a0760ca43c6b3596b0281"
     }
   }
 }

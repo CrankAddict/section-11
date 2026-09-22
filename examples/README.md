@@ -7,7 +7,7 @@ Working implementations and reference documentation for Section 11 integrations.
 | Folder | Description | Status |
 |--------|-------------|--------|
 | [SETUP_ASSISTANT.md](../SETUP_ASSISTANT.md) | Interactive AI-guided setup: paste into any AI chat | ✅ Ready |
-| [json-auto-sync](json-auto-sync/) | Automated GitHub Actions sync (every 15 min) | ✅ Ready |
+| [json-auto-sync](json-auto-sync/) | Automated GitHub Actions sync (every 30 min) | ✅ Ready |
 | [json-local-sync](json-local-sync/) | Automated local sync, read via runtime filesystem or cloud connector (no GitHub) | ✅ Ready |
 | [json-on-demand](json-on-demand/) | On-demand sync from phone or browser (no local Python) | ✅ Ready |
 | [json-manual](json-manual/) | Manual export from Mac/PC | ✅ Ready |
@@ -59,7 +59,7 @@ Both methods use the same `sync.py` script and produce these files:
 | `routes.json` | Route/terrain data for events with GPX/TCX attachments | When attachments exist |
 | `saved_workouts.json` | Read-only mirror of the athlete's Intervals.icu saved workouts | Every sync (refreshed on its own 6h throttle) |
 | `ftp_history.json` | FTP tracking for Benchmark Index | Yes |
-| `archive/` | Timestamped snapshots (auto-sync only) | Yes |
+| `archive/` | Daily UTC snapshots of `latest.json`, overwritten by later successful runs that day (GitHub workflow only, scheduled or Sync Now) | Yes |
 
 See [json-examples/](json-examples/) for fictional example output of these files. They end in `.example.json`, are schema references only, and are never athlete data.
 

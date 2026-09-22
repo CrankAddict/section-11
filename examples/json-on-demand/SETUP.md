@@ -134,6 +134,12 @@ Downloading the artifact ZIP and attaching the JSON to a chat takes your data ou
 
 ---
 
+## Updating an Existing Repository
+
+When the workflow template changes, follow [Updating an Existing Repository](../json-auto-sync/SETUP.md#updating-an-existing-repository) in the auto-sync guide, with these differences. Skip its step 2 (**Choose a schedule**) and step 8 (**Watch the next scheduled run**). The current `auto-sync.yml` includes a `schedule` block, so in its step 4, remove the `schedule:` block again before you commit and keep `workflow_dispatch:`, as in Step 2 of this guide; otherwise the workflow starts running on a schedule. Reapply any other changes you still want as usual.
+
+---
+
 ## Troubleshooting
 
 See the [auto-sync troubleshooting guide](../json-auto-sync/SETUP.md#troubleshooting). The same workflow runs in both paths.

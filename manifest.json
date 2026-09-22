@@ -17,7 +17,7 @@
       "hash": "3078b62614035b7ed8649d691616206de666e1783ab042a43a7b2a4aefea1df1"
     },
     "README.md": {
-      "hash": "b580ca594e30cd247fbc16c2b9da685db576fb6cb83e4fb77d07aece697d5f0a"
+      "hash": "ad61b35ffa7703e0c376fb3bb7fe523a1f7cca9a594753cfd09ffcf98767b5e2"
     },
     "SECTION_11.md": {
       "hash": "9103b9d7f587dca0ea8085ea8c665ea335f84112727bba4460754303c258de0c",
@@ -27,7 +27,7 @@
       "hash": "47a0b437722547662e2215a759678cccaeb91984734337bfe2392185d71976d5"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "e39beb5b7bcea8b8c6b2bd82d3bbb9af3bb7c9ac44c6a88860ddde399dba3e81"
+      "hash": "1077b240f575ec92851bdfa218dcfc807f9ef89743f2ab3acfabde5bcc4cb00c"
     },
     "SKILL.md": {
       "hash": "2aab8332a412a3219a05076374324b68e43891f6ef1a10b59891f71362e3eef6"
@@ -51,7 +51,7 @@
       "hash": "8e49928c06190e13cef81f74525cb4b4088798590e6006db39c06b9713fc080d"
     },
     "examples/README.md": {
-      "hash": "b1a4146c2901976349ea33dbaef10bbbdd0d0fea9703fa208af6c556c1f09435"
+      "hash": "33a86e96b1a2d5860a293a026145609315ac0c297a895e79f8d934af9275b1f9"
     },
     "examples/agentic/EXTERNAL_APIS.md": {
       "hash": "4905524df58a6aa59db4ed0321d51f212cc3eb0f5a2c6b715ec0b04e0acba126"
@@ -81,7 +81,7 @@
       "hash": "0128c6888083f543ed4f4fe2af8e6341960ecdd1b486fc924d527b554eb250f7"
     },
     "examples/agentic/push-workout.yml": {
-      "hash": "2b6b1935683c9375751789562918f4c346326d000022c0ade2da1c15bf0048b5"
+      "hash": "75a6053ecfbaeb8d8d7822c3ff6dd7995dc3f86f5947ab2341b9e4249f1b3bf4"
     },
     "examples/agentic/push.py": {
       "hash": "b9ba2a37b921e8fa47556ae6605d56979c133ff7c5597b38cca596b2b574e8f0"
@@ -90,13 +90,13 @@
       "hash": "a4d629dc2831e11211e8d295046d4b0d483df0651cf34ad216246d0fd28aa1ea"
     },
     "examples/json-auto-sync/DATA_REPO_README_TEMPLATE.md": {
-      "hash": "5603d148bba7c44e0f16cd26acecfb40e936bcecb28f9631ea614df1d243d94f"
+      "hash": "303f1ecba84b0500db4bed307370e963c0d07b0bab896871b600a633665504a8"
     },
     "examples/json-auto-sync/SETUP.md": {
-      "hash": "d0d7aa2dee9c2420bb9d7a17468a675894ff801add605ffb96cf4187aa8538f1"
+      "hash": "1c2d5c5f070a69cd16a5bf8b799950f9ea3d8e3ca518532bade20d7b7b27e69c"
     },
     "examples/json-auto-sync/auto-sync.yml": {
-      "hash": "2ccd63f5dadf813f9af745353df07fce032ab4ebaada69cdfdae47bf0da9f2e2"
+      "hash": "fb7b0765ce638c7588acc736056517afffc77dc3bf2b964fa63487bbdafc6a6c"
     },
     "examples/json-examples/README.md": {
       "hash": "577c3bf9247a70f25bbb1a56c1efa965043cd9aab58864614950ec78aadb8987"
@@ -126,7 +126,7 @@
       "hash": "a9451f952649c2df91109cd27ad03458a6880ef96d09fa2cb69d7ef9aeb4004d"
     },
     "examples/json-on-demand/SETUP.md": {
-      "hash": "5f6b58ca73c2c298441cd4e03c8d10f5497151e79caa46d330b7f9e183553652"
+      "hash": "4452683bb7311a02d93d5473f8803dfd3e786ecc1f0bc1175728af105e860fef"
     },
     "examples/reports/BLOCK_REPORT_EXAMPLES.md": {
       "hash": "8766eba6fbad4441872c857df14e92450e49e4d62238677066e7892dadff4f3c"

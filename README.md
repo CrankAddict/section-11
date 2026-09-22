@@ -67,7 +67,7 @@ Keep your Intervals.icu data fresh for your AI coach automatically.
 
 **[Local sync](examples/json-local-sync/SETUP.md)**: a script on a machine you control syncs your data on a 60-second timer. An AI whose runtime can reach that filesystem reads the files directly; otherwise it reads them through a cloud connector (Google Drive, OneDrive; [platform support varies](#platform-setup)).
 
-**[GitHub sync](examples/json-auto-sync/SETUP.md)**: GitHub Actions syncs every 15 minutes to a private repo. Your AI reads via GitHub connector or raw URL.
+**[GitHub sync](examples/json-auto-sync/SETUP.md)**: GitHub Actions syncs to a private repo every 30 minutes by default, and **Sync Now** runs a sync immediately, for example after a workout. Scheduled runs are best-effort, and each run uses your GitHub Actions minutes; see [Sync Schedule and GitHub Actions Usage](examples/json-auto-sync/SETUP.md#sync-schedule-and-github-actions-usage) for Fast mode and hybrid schedules. A hybrid schedule checks more often during an active window fixed in UTC, so its local-clock hours can shift when daylight saving time starts or ends. Your AI reads the data through a GitHub connector; raw URLs work only for a public repository.
 
 **[On-demand sync](examples/json-on-demand/SETUP.md)**: trigger a fresh sync from your phone or browser via your repo's README. Download the data as a ZIP artifact. No schedule, no local Python.
 
@@ -173,7 +173,7 @@ That file is the canonical web and connector contract. It states which sessions 
 
 **If using a connector (GitHub, Google Drive, OneDrive; [platform support varies](#platform-setup)):** The AI reads files through the connector (no URL editing needed). Refresh behavior varies by platform; follow the [Platform Setup](#platform-setup) guidance and refresh or re-import when required. A connector supplies data only; it confers no write authority, and every further capability is separate and must be verified. Committing `DOSSIER.md` to your data repo provides your data and dossier in one connection, and is safe only while that repo stays private. `SECTION_11.md` can be uploaded separately or accessed via a second connector to the CrankAddict/section-11 repo.
 
-**If using URL fetch:** Replace `[USERNAME]/[REPO]` with your GitHub data mirror path.
+**If using URL fetch (public repository only):** Replace `[USERNAME]/[REPO]` with your GitHub data mirror path. Raw URLs of a private repository return 404 without GitHub authentication; see [404 error on JSON URLs / Private repo access](#404-error-on-json-urls--private-repo-access).
 
 ### Platform Setup
 
@@ -225,7 +225,7 @@ Most major web-chat platforms can access private GitHub repositories, but access
 2. Add instructions to "Project Instructions"
 3. **GitHub connector:** Click **+** in a chat or the project's Files section → **Add from GitHub** → select files. Private repositories are supported. Click **Sync now** before a report when the repository has changed.
 4. **No connector?** Upload SECTION_11.md, and DOSSIER.md if used, to "Project Knowledge". If using the connector but `SECTION_11.md` isn't in your data repo, upload it separately (or connect the CrankAddict/section-11 repo too). Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
-5. Enable "Web search" in settings if using URL-based fetch instead of the connector
+5. Enable "Web search" in settings if using URL-based fetch instead of the connector (public repository only)
 
 #### Gemini (Gems)
 
@@ -341,7 +341,7 @@ Check each layer in turn.
 Start with the sync path you use. On every path, check that your Intervals.icu API key and athlete ID are valid; a period without activities legitimately adds none.
 
 - **Local sync:** check the timer (`launchctl list | grep section11` on macOS, `systemctl --user status section11-sync.timer` on Linux, or your scheduler's status), read `sync.log`, keep `.sync_config.json` in the data directory root rather than inside `section11/`, and run once by hand with `--debug`. See [Verification and Troubleshooting](examples/json-local-sync/SETUP.md#verification-and-troubleshooting).
-- **GitHub sync:** open your data repository's **Actions** tab and check the latest **Auto-Sync Intervals.icu Data** run; its log names the cause, such as a missing secret. Scheduled runs can be delayed, and in a public repository GitHub disables scheduled workflows after 60 days without repository activity. Private repositories consume your account's GitHub Actions allowance, so check your current usage against [GitHub's billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-actions). If a push fails with a permission error, check **Settings → Actions → General → Workflow permissions**. The copies of `sync.py` and `auto-sync.yml` in your data repository never update themselves; see [Update Notifications](examples/json-auto-sync/SETUP.md#update-notifications) and [the GitHub sync troubleshooting](examples/json-auto-sync/SETUP.md#troubleshooting).
+- **GitHub sync:** open your data repository's **Actions** tab and check the latest **Auto-Sync Intervals.icu Data** run; its log names the cause, such as a missing secret. Scheduled runs are best-effort and can be delayed or skipped, so use **Sync Now** (**Run workflow**) when you need fresh data; in a public repository GitHub also disables scheduled workflows after 60 days without repository activity. Private repositories consume your account's GitHub Actions allowance, and GitHub rounds each job up to a whole minute, so every run counts as at least one minute. Check your current usage against [GitHub's billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-actions) and see [GitHub Actions minutes](examples/json-auto-sync/SETUP.md#github-actions-minutes). If a push fails with a permission error, check **Settings → Actions → General → Workflow permissions**. The copies of `sync.py` and `auto-sync.yml` in your data repository never update themselves; see [Update Notifications](examples/json-auto-sync/SETUP.md#update-notifications) and [the GitHub sync troubleshooting](examples/json-auto-sync/SETUP.md#troubleshooting).
 - **On-demand sync:** nothing runs until you trigger the workflow. Confirm that the run completed, then download the `training-data` artifact, which is kept for seven days, and replace your uploads, or refresh your connector as your platform requires.
 - **Manual export:** nothing updates by itself. Run `sync.py` again and replace the uploaded files.
 
@@ -364,7 +364,7 @@ Readiness uses the Intervals.icu wellness `hrv` field as rMSSD. SDNN is stored s
 - Repository import is documented for ordinary Gemini chats, not as Gem Knowledge. In a Gem, add `SECTION_11.md` under Knowledge instead; see [Gemini (Gems)](#gemini-gems).
 - A repository import never updates. Import it again before a report if the repository has changed.
 - Account type, age, activity settings and Workspace policy affect availability, and a private repository needs your GitHub account linked to your Google Account. See the Gemini row in [Platform Setup](#platform-setup).
-- An import is limited in files and size. The GitHub sync adds a timestamped copy of `latest.json` under `archive/` on every run, so a long-running data repository can outgrow the limit.
+- An import is limited in files and size. The GitHub sync keeps one copy of `latest.json` per UTC day under `archive/`, and earlier versions of the workflow added one on every run, so a long-running data repository can outgrow the limit. You can delete old archive files; see [Archive](examples/json-auto-sync/SETUP.md#archive).
 - If Gemini answers without using the data, ask it to open the root `latest.json` and report `metadata.last_updated` before anything else.
 
 ### Grok (web/app) can't connect to GitHub
@@ -526,7 +526,7 @@ The script generates `intervals.json` with per-interval segment data (power, HR 
 
 ### Route & Terrain Data
 
-The script generates `routes.json` with terrain analysis for planned events that have GPX/TCX file attachments. Includes total distance, elevation, course character classification, climb detection (Cat 4 through HC), descent detection, and a 500m-downsampled polyline with elevation. Events with terrain data are flagged with `has_terrain: true` in `latest.json`. Cached by attachment ID. Files are only downloaded and parsed once.
+The script writes `routes.json` on every sync, with terrain analysis for planned events that have GPX/TCX file attachments; its `events` list is empty when there are none. Includes total distance, elevation, course character classification, climb detection (Cat 4 through HC), descent detection, and a 500m-downsampled polyline with elevation. Events with terrain data are flagged with `has_terrain: true` in `latest.json`. Cached by attachment ID. Files are only downloaded and parsed once.
 
 ### Saved Workouts Mirror
 

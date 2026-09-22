@@ -53,13 +53,13 @@ Two questions to ask early:
 >
 > **Yes → Local sync:** A script on your machine keeps your data fresh on a timer. No GitHub needed. Cheaper, faster, more reliable.
 >
-> **No → GitHub sync:** GitHub Actions syncs your data every 15 minutes. No machine to maintain."
+> **No → GitHub sync:** GitHub Actions syncs your data on a schedule, every 30 minutes by default, and **Sync Now** syncs immediately. No machine to maintain."
 
 Both sync methods work with both platform types, and agentic runtimes split by whether they can reach the athlete's filesystem. The valid combinations:
 
 | Platform type | Sync method | How the AI reads the data |
 |---|---|---|
-| Web/phone chat | GitHub | GitHub connector or raw URL |
+| Web/phone chat | GitHub | GitHub connector (raw URLs only for a public repository) |
 | Web/phone chat | Local | Cloud connector (Google Drive, OneDrive; platform support varies) |
 | Agentic, filesystem reachable | Local | Filesystem (fastest) |
 | Agentic, filesystem reachable | GitHub | GitHub connector |
@@ -104,7 +104,7 @@ Confirm they have both their Athlete ID and API Key before continuing.
 
 ### Step 3: Create their data repository
 
-A "repository" (repo) is just a folder on GitHub that holds their files. A "workflow" is an automation file that GitHub runs on a schedule, in this case, syncing their training data every 15 minutes.
+A "repository" (repo) is just a folder on GitHub that holds their files. A "workflow" is an automation file that GitHub runs on a schedule, in this case syncing their training data every 30 minutes by default (see **Choose the sync schedule** below).
 
 **Default: create a fresh repo:**
 
@@ -121,6 +121,64 @@ A "repository" (repo) is just a folder on GitHub that holds their files. A "work
    - **`examples/sync.py`** → repo root (the main file list) as `sync.py`
    - **`examples/json-auto-sync/auto-sync.yml`** → `.github/workflows/auto-sync.yml`
    - **`examples/json-auto-sync/DATA_REPO_README_TEMPLATE.md`** → repo root as `README.md` (optional: gives them a sync status badge)
+
+#### Choose the sync schedule
+
+Settle this before they paste `auto-sync.yml`. Tell them:
+
+> "Your data syncs on its own every 30 minutes by default. GitHub runs scheduled workflows on a best-effort basis, so a scheduled sync can be late or skipped. For fresh data right after a workout, use **Sync Now**: open the **Actions** tab, or the 🔄 Sync Now link in your repository README, and click **Run workflow**."
+
+Keep the default unless they want something else. If they do, ask:
+
+1. **Their GitHub plan:** Free, Pro, Team, or not sure. Treat "not sure" as Free.
+2. **For a hybrid schedule only:** the hour their active window starts in UTC (0 to 23), how many whole hours it lasts (1 to 23), and whether they want checks every 20 or every 15 minutes during it. The schedule runs in UTC. If they give their window in local time, you may convert it using the UTC offset they tell you applies now (for example, 06:00 at UTC+2 is 04:00 UTC, and 06:00 at UTC-5 is 11:00 UTC), but show them the resulting UTC start and end hours and get their explicit confirmation before writing anything. Never require a time zone name, never guess their offset, and never present the result as a local-time schedule.
+
+In a private repository every run uses the account's GitHub Actions minutes, and GitHub rounds each job up to a whole minute, so every run counts as at least one billed minute. The monthly allowance is 2,000 minutes on GitHub Free and 3,000 on Pro and Team. A public repository does not use standard-runner minutes, but it publishes their training data (see the public fallback above). Calculate the worst case with a 31-day month and show them the numbers:
+
+```text
+jobs/day = active hours × (60 / active interval) + outside-window hours
+monthly worst case = jobs/day × 31
+minutes left = allowance − monthly worst case
+```
+
+All-day schedules have 48 jobs a day (every 30 minutes) or 96 (every 15 minutes).
+
+| Profile | Schedule | Jobs/day | Jobs in 31 days | Free minutes left |
+|---|---|---:|---:|---|
+| Default | Every 30 minutes, all day | 48 | 1,488 | 512 |
+| Fast | Every 15 minutes, all day | 96 | 2,976 | None: over by 976 (Pro/Team: 24 left) |
+| Standard hybrid | 16 active hours every 20 minutes, hourly otherwise | 56 | 1,736 | 264 |
+| Extended hybrid (lower headroom) | 18 active hours every 20 minutes, hourly otherwise | 60 | 1,860 | 140 |
+| Fast hybrid (lower headroom) | At most 12 active hours every 15 minutes, hourly otherwise | 60 | 1,860 | 140 |
+
+Apply these rules to whatever they choose:
+
+- **Above their allowance:** do not write that schedule. Explain the numbers and offer the default, a shorter or slower active window, or a paid plan. Continue only if they confirm they have deliberately set up paid usage beyond the allowance, and state the expected overage.
+- **GitHub Free:** Fast mode is over the allowance. For a 16- or 18-hour window with hourly checks outside it, 20 minutes is the shortest safe active interval: at 15 minutes, 16 hours gives 2,232 jobs and 18 hours gives 2,418.
+- **Fewer than 140 minutes left:** do not recommend it. For example, 13 active hours at 15 minutes gives 1,953 jobs and leaves only 47 minutes. If they still want it, say plainly that Sync Now runs, failed runs and other workflows can use up the rest.
+- **140 to 263 minutes left:** call it lower headroom, like the Extended and Fast hybrid profiles.
+- **264 minutes or more left:** acceptable under this calculation.
+- **Always:** the minutes left must also cover Sync Now runs, failed runs, re-runs and other workflows in the account, such as `push-workout.yml`. GitHub delaying or skipping scheduled runs is never a way to stay within the allowance, and a UTC schedule has no daylight-saving transitions, so the 31-day estimate applies all year.
+
+To write the schedule, change only the `schedule:` entries under `on:` in `auto-sync.yml` and keep `workflow_dispatch:`:
+
+- **Default:** `- cron: '7,37 * * * *'`, already in the file
+- **Fast:** `- cron: '7,22,37,52 * * * *'`
+- **Hybrid:** two ordinary UTC cron lines, never with a `timezone:` line. With confirmed UTC start hour `H`, active hours `A` and interval `I`, the active hours are `H` through `H+A-1`, continuing from 23 to 0; every other hour goes in the outside line, so together the two lines cover each hour once. The active line uses minutes `7,27,47` (every 20 minutes) or `7,22,37,52` (every 15 minutes); the outside line uses minute `7`. Write the hours as ranges or comma lists. A window that crosses midnight needs two ranges, for example `0-5,14-23`, never a wrap-around range such as `14-5`.
+
+Before handing it over, check that every hour from 0 to 23 appears in exactly one line, that no line uses minute 0, that the active line has the minutes for the chosen interval and the outside line has minute `7`, that no range wraps past midnight, that no line has `timezone:`, that `workflow_dispatch:` is still there, that the job count matches your calculation, and that it fits their allowance or they have confirmed paid usage. Example: a 16-hour window starting at 06:00 UTC, every 20 minutes:
+
+```yaml
+on:
+  schedule:
+    - cron: '7,27,47 6-21 * * *'
+    - cron: '7 0-5,22-23 * * *'
+  workflow_dispatch:
+```
+
+Tell them the window is fixed in UTC: the schedule never adjusts itself. Where daylight saving time applies, the same UTC window normally moves by one hour on their local clock when their UTC offset changes. If they want the same local-clock hours all year, they must recalculate the UTC hours and replace both lines themselves after each offset change. Present that as optional manual maintenance, never as something that happens automatically.
+
+The full profile examples are in the GitHub sync setup guide: https://github.com/CrankAddict/section-11/blob/main/examples/json-auto-sync/SETUP.md#sync-schedule-and-github-actions-usage
 
 Tell them they can do this through the GitHub web interface:
 - Click **"Add file" → "Create new file"**
@@ -175,7 +233,7 @@ Walk them through:
 3. Select **"Read and write permissions"**
 4. Click **Save**
 
-This allows the sync workflow to commit updated data files to the repo.
+This allows the sync workflow to commit updated data files to the repo. The workflow file also requests `contents: write` for itself; keep this setting for now, because whether that request alone is enough has not yet been validated.
 
 ### Step 6: Run the first sync
 
@@ -184,16 +242,21 @@ Walk them through:
 1. Go to the **Actions** tab in their repo
 2. They should see **"Auto-Sync Intervals.icu Data"** in the left sidebar (or similar workflow name)
 3. Click on it, then click **"Run workflow"** (button on the right side)
-4. Click the green **"Run workflow"** button in the dropdown
+4. Keep their default branch (normally `main`) selected and click the green **"Run workflow"** button in the dropdown. A run started from any other branch stops at its first step without syncing.
 5. Wait about 30-60 seconds, then refresh
 
 **What to check:**
 - The workflow run should show a green ✓
+- The latest commit in the repository's **Code** view should be a new `Sync training data` commit
 - A `latest.json` file should now exist in the repo root with their training data
 - A `history.json` file should also appear
-- An `intervals.json` file may appear if the athlete has recent structured interval sessions
-- A `routes.json` file may appear if the athlete has planned events with GPX/TCX file attachments
+- An `intervals.json` file is written on every sync; its activity list can be empty if the athlete has no recent structured interval sessions
+- A `routes.json` file is written on every sync; its `events` list is empty unless the athlete has planned events with GPX/TCX file attachments
 - A `saved_workouts.json` file appears once the first sync completes: a read-only mirror of the athlete's Intervals.icu saved workouts
+
+Have them check these files in the repository's **Code** view. Do not have them check a private repository with plain `raw.githubusercontent.com` URLs: those normally return 404 without GitHub authentication.
+
+Tell them that from now on **Sync Now** (**Run workflow**) is the way to get fresh data right after a workout.
 
 If the run fails (red ✗), ask them to click into the failed run and share the error message so you can help troubleshoot.
 
@@ -201,6 +264,8 @@ If the run fails (red ✗), ask them to click into the failed run and share the 
 - `ERROR: ATHLETE_ID secret not set!` → Secret name doesn't match. Must be exactly `ATHLETE_ID`.
 - `ERROR: INTERVALS_KEY secret not set!` → Same thing. Must be exactly `INTERVALS_KEY`.
 - Permission denied on push → Step 5 wasn't completed. Check workflow permissions.
+- Run stops at **Verify default branch** → The run was started from another branch. Run it again with the default branch selected.
+- Other failures → See the GitHub sync troubleshooting guide: https://github.com/CrankAddict/section-11/blob/main/examples/json-auto-sync/SETUP.md#troubleshooting
 
 Once `latest.json` exists and has data, confirm and continue.
 
@@ -293,7 +358,7 @@ Walk them through setting up a ChatGPT or Claude project. If they use a differen
 
 **Before starting, check if their platform has a GitHub connector.** Plans, connect paths, refresh behavior, and permissions vary by platform and change often. They are maintained in one place: the Platform Setup tables in the README: https://github.com/CrankAddict/section-11#platform-setup
 
-If they have a connector available, walk them through connecting it and skip the fetch URLs in the instructions below. Only if their chosen platform/model cannot access a private repository does the URL-based approach apply. That requires a public repo, so disclose what it exposes (see Privacy & Security in the README: https://github.com/CrankAddict/section-11#privacy--security).
+If they have a connector available, walk them through connecting it and skip the fetch URLs in the instructions below. Only if their chosen platform/model cannot access a private repository does the URL-based approach apply. That requires a public repo, so disclose what it exposes (see Privacy & Security in the README: https://github.com/CrankAddict/section-11#privacy--security). If they keep a private repository and have no connector, they upload the JSON files instead: run **Sync Now** and download the **training-data** artifact from the run page (kept for seven days), then upload its files. Plain raw URLs do not work for a private repository.
 
 **1. Create a Project:**
 
@@ -308,7 +373,7 @@ Tell them to copy the block between the fences in [`PROJECT_INSTRUCTIONS_WEB.md`
 
 That file is the canonical web and connector contract. It states which sessions it covers, what a delivery path does and does not confer, and how to handle stale or conflicting copies. If the athlete's AI runs on a filesystem it can read, use [`PROJECT_INSTRUCTIONS_AGENTIC.md`](PROJECT_INSTRUCTIONS_AGENTIC.md) instead.
 
-If they are using URL fetch, tell them to replace `[USERNAME]/[REPO]` in the copied block with their own GitHub data mirror path.
+If they are using URL fetch (public repository only), tell them to replace `[USERNAME]/[REPO]` in the copied block with their own GitHub data mirror path.
 
 **3. Upload knowledge files:**
 
@@ -322,7 +387,7 @@ Tell them to upload `SECTION_11.md`, plus `DOSSIER.md` if they use one, to their
 **Platform-specific notes:**
 - **ChatGPT Projects:** Upload to "Project Files."
 - **ChatGPT CustomGPT:** Upload to "Knowledge" under Configure. Enable "Web Browsing" in Capabilities.
-- **Claude Projects:** Upload to "Project Knowledge." Enable "Web search" in settings if using URL-based fetch.
+- **Claude Projects:** Upload to "Project Knowledge." Enable "Web search" in settings if using URL-based fetch (public repository only).
 - **Grok (web/app):** Upload to "Sources" in Project configuration.
 - **Mistral (Vibe):** Upload during project creation.
 - **Gemini Gems:** Keep the project contract in the instructions field; do not paste the full protocol there. Add `SECTION_11.md` under Knowledge, plus `DOSSIER.md` if they use one. Do not upload the complete section-11 repository as a ZIP; Gemini's ordinary ZIP upload accepts at most ten files. GitHub repository import is a feature of ordinary Gemini chats, not a Gem Knowledge source.

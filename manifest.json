@@ -119,6 +119,9 @@
     "examples/json-examples/saved_workouts.example.json": {
       "hash": "f7a02e699d269b7ba5b98cdc853bf7bc4fbdf5eb6f2520d46ba63e30825c145a"
     },
+    "examples/json-local-sync/SETUP.md": {
+      "hash": "291c5e0d513c879743a58838fda51d7800b8d5538b1ccca3e1cc169f24f65778"
+    },
     "examples/json-manual/SETUP.md": {
       "hash": "a9451f952649c2df91109cd27ad03458a6880ef96d09fa2cb69d7ef9aeb4004d"
     },

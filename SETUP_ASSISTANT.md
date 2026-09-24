@@ -96,7 +96,7 @@ Walk them through:
 
 1. Log in to https://intervals.icu
 2. Go to **Settings** (gear icon, bottom-left sidebar)
-3. Find their **Athlete ID**: it's the `i` followed by numbers in their profile URL or at the top of Settings (e.g., `i12345`). Tell them to note this down.
+3. Find their **Athlete ID** in their profile URL or at the top of Settings: usually `i` followed by numbers (e.g., `i12345`), or numbers only for some early accounts. Tell them to note it down exactly as shown.
 4. Go to **Settings → Developer Settings**
 5. Click **Create API Key** (or copy existing one). Tell them to save this somewhere safe. They'll need it in a moment.
 

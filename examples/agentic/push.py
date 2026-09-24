@@ -89,7 +89,15 @@ class IntervalsPush:
     """Manage planned workouts on Intervals.icu calendar."""
 
     BASE_URL = "https://intervals.icu/api/v1"
-    VERSION = "0.6"
+    VERSION = "0.7"
+
+    # Athlete path ID (v0.7). Intervals.icu uses `i` + digits for current accounts,
+    # digits only for early accounts (their Strava athlete ID), and `0` for the
+    # athlete that owns the API key. The ID is sent exactly as given: no `i` is added
+    # or removed. Only `i` and ASCII digits pass, so no other text reaches the URL
+    # path. This does not prove which athlete is targeted: the server decides what
+    # the key may reach, and a coach's key can reach coached athletes.
+    ATHLETE_ID_PATTERN = re.compile(r"i?[0-9]+")
 
     # --- HTTP policy (v0.6) ---
     # (connect, read) tuples. The connect leg bounds the connection phase and the
@@ -142,12 +150,21 @@ class IntervalsPush:
     def __init__(self, athlete_id: str, api_key: str):
         if not athlete_id or not api_key:
             raise ValueError("athlete_id and api_key are required")
+        # The rejected value is never echoed: a misplaced API key would land in logs.
+        if not isinstance(athlete_id, str):
+            raise ValueError(
+                f"athlete_id must be a string, got {type(athlete_id).__name__}. "
+                "Quote it in .sync_config.json. "
+                "Check .sync_config.json / ATHLETE_ID / --athlete-id."
+            )
         athlete_id = athlete_id.strip()
         api_key = api_key.strip()
-        if athlete_id.isdigit():
+        if not self.ATHLETE_ID_PATTERN.fullmatch(athlete_id):
             raise ValueError(
-                f"athlete_id must be in `i123456` form (with the leading `i`). "
-                f"Got `{athlete_id}`. Check .sync_config.json / ATHLETE_ID / --athlete-id."
+                "athlete_id is not a valid Intervals.icu athlete ID. Use it exactly as "
+                "shown in Intervals.icu Settings: `i` followed by digits (e.g. "
+                "`i123456`), or digits only for some early accounts. "
+                "Check .sync_config.json / ATHLETE_ID / --athlete-id."
             )
         self.athlete_id = athlete_id
         self.auth = base64.b64encode(f"API_KEY:{api_key}".encode()).decode()
@@ -324,9 +341,10 @@ class IntervalsPush:
             message = f"{response.status_code}: {response.text[:200]}"
         if response.status_code == 403:
             message = (
-                "Access denied (403). Common causes: athlete_id isn't in "
-                "`i123456` form, API key is wrong, or the API key doesn't "
-                f"belong to this athlete. Raw response: {message}"
+                "Access denied (403). Common causes: athlete_id doesn't match "
+                "the ID shown in Intervals.icu Settings exactly (an `i` added or "
+                "dropped), API key is wrong, or the API key has no access to "
+                f"this athlete. Raw response: {message}"
             )
         return message
 

@@ -110,7 +110,7 @@ Credentials loaded from (first match wins):
 2. `.sync_config.json` in working directory (same file sync.py uses)
 3. Environment: `ATHLETE_ID`, `INTERVALS_KEY`
 
-`ATHLETE_ID` must include the leading `i`, e.g. `i<ATHLETE_NUMBER>`, not `<ATHLETE_NUMBER>`. `INTERVALS_KEY` is the raw API key string from Intervals.icu → Settings → Developer.
+`ATHLETE_ID` must match the ID shown in Intervals.icu Settings exactly: usually `i` followed by digits (`i<ATHLETE_NUMBER>`), or digits only (`<ATHLETE_NUMBER>`) for some early accounts. Don't add or remove the `i`. `INTERVALS_KEY` is the raw API key string from Intervals.icu → Settings → Developer.
 
 ```bash
 # CLI flags
@@ -390,7 +390,7 @@ Maps Section 11 Workout Reference template IDs to Intervals.icu description synt
 
 ### Troubleshooting
 
-- **`403 Access denied`**: `ATHLETE_ID` is missing the leading `i` (e.g. `<ATHLETE_NUMBER>` instead of `i<ATHLETE_NUMBER>`), the API key is wrong, or the key doesn't belong to that athlete
+- **`403 Access denied`**: `ATHLETE_ID` doesn't match the ID shown in Intervals.icu Settings exactly (an `i` added or dropped), the API key is wrong, or the key has no access to that athlete
 - **Error saying `requests` is not installed**: push.py is running under a Python interpreter that doesn't have `requests` installed; run `pip install requests` in the same env as `sync.py`, or invoke that env's Python explicitly (same applies to `pull.py`)
 - **Command appears to have done nothing**: preview is the default for all write operations. Add `--confirm` to actually write
 

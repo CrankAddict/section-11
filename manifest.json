@@ -27,7 +27,7 @@
       "hash": "47a0b437722547662e2215a759678cccaeb91984734337bfe2392185d71976d5"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "22fb89da688b50723ff92cd65679e5f00700291632ea08e483829765297b47a9"
+      "hash": "90e09d52cccd8363f55792df68e021e503c442ab80d4c9064ea5dc83b660e56a"
     },
     "SKILL.md": {
       "hash": "ebd0e26c24d3edf43abb16ef3ac3bdb6756d78071cad62ba090365b71bfada63"
@@ -42,7 +42,7 @@
       "hash": "66e59a98b8f094a56aa5604a5dee42eb7f38c18dd0a152169a9c10ae400f3b77"
     },
     "dev/tests/test_http_policy.py": {
-      "hash": "136a6f93d477fd7ffafe6a44249fff9c8b22db38e2e044bb26e4917c8da10129"
+      "hash": "2fa9130b9af139b51fd8a1abf53047d33da59aa30fbfd8dd00e8fc23eca16efb"
     },
     "dev/tests/test_intervals_fetch_state.py": {
       "hash": "c688f9e14313c5246952277d22a1432ec295b6cf077532dd277d26c0decc5154"
@@ -57,7 +57,7 @@
       "hash": "4905524df58a6aa59db4ed0321d51f212cc3eb0f5a2c6b715ec0b04e0acba126"
     },
     "examples/agentic/README.md": {
-      "hash": "9a26fcd1b5efe6bf9c03efd731817c752c377d3ede7602aaae4f9068d44a614a"
+      "hash": "1c161afe533cf686ebe0ea9e9109c4046ad67968ad4c7d037e8cc5156b71b93b"
     },
     "examples/agentic/fit-file-and-merger/ARCHITECTURE.md": {
       "hash": "780f6ea92548749d0b5d5535976115d274b1e0301d19f004f04107faedc8a919"
@@ -81,10 +81,10 @@
       "hash": "0128c6888083f543ed4f4fe2af8e6341960ecdd1b486fc924d527b554eb250f7"
     },
     "examples/agentic/push-workout.yml": {
-      "hash": "75a6053ecfbaeb8d8d7822c3ff6dd7995dc3f86f5947ab2341b9e4249f1b3bf4"
+      "hash": "d18c3fc87ecbbba04b6dd1ad65badbfce3195c68cb632b3309a58dfb31c7dc36"
     },
     "examples/agentic/push.py": {
-      "hash": "b9ba2a37b921e8fa47556ae6605d56979c133ff7c5597b38cca596b2b574e8f0"
+      "hash": "ca1e074f53c39493b658271863a78e4bfe6c03111aa7c3198a679333b458f529"
     },
     "examples/dfa_a1/NON_GARMIN.md": {
       "hash": "a4d629dc2831e11211e8d295046d4b0d483df0651cf34ad216246d0fd28aa1ea"

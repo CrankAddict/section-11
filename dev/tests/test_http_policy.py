@@ -2132,11 +2132,16 @@ class TestConfirmModeLocalRejection(PushCase):
                 self.assertEqual(t.calls, [])
 
     def test_confirmed_writes_with_invalid_athlete_id(self):
-        bad = ["--athlete-id", "123456", "--api-key", "key_test"]
+        # Retargeted in v0.7: digits only is a valid early-account ID now, so the
+        # local rejection is exercised with a malformed ID instead.
+        bad = ["--athlete-id", "I123456", "--api-key", "key_test"]
         code, result, t = self._run(
             bad + ["move", "--event-id", "42", "--date", FUTURE, "--confirm"])
         self.assertEqual(result["outcome"], "not_applied")
-        self.assertIn("i123456", result["error"])
+        self.assertIn("`i123456`", result["error"])
+        self.assertIn("digits only", result["error"])
+        self.assertNotIn("I123456", result["error"],
+                         "the rejected value was echoed back")
         self.assertEqual(code, 1)
         self.assertEqual(t.calls, [])
 
@@ -2146,7 +2151,7 @@ class TestConfirmModeLocalRejection(PushCase):
             "preview_push_bad_json": self.CREDS + ["push", "--json", "missing.json"],
             "preview_missing_credentials": ["move", "--event-id", "42",
                                             "--date", FUTURE],
-            "preview_invalid_athlete": ["--athlete-id", "123456", "--api-key", "k",
+            "preview_invalid_athlete": ["--athlete-id", "I123456", "--api-key", "k",
                                         "delete", "--event-id", "42"],
             "list_missing_credentials": ["list"],
         }
@@ -2156,6 +2161,312 @@ class TestConfirmModeLocalRejection(PushCase):
                 self.assertNotIn("outcome", result,
                                  f"{name} grew a write outcome")
                 self.assertEqual(code, 1)
+
+
+# ── athlete path ID (push.py v0.7) ───────────────────────────────────────────
+#
+# Intervals.icu athlete IDs are `i` + digits (current accounts), digits only (early
+# accounts, which carry their Strava athlete ID) and `0` (the API key's owner). All
+# three must reach the URL exactly as given; anything else must stop locally, before
+# a request, with the same outcome contract as every other local rejection.
+
+INTERVALS_API = "https://intervals.icu/api/v1"
+ACCEPTED_IDS = ("i123456", "123456", "0")
+MALFORMED_IDS = (
+    "", "   ", "I123456", "i", "ii123", "i12a", "i-1", "-1", "+1", "1.5", "0x1",
+    "i1/../x", "i1/events", "../i1", "i123 456", "i1?x=1", "i1#x", "i1%2F", "%2e%2e",
+    "\uff11\uff12\uff13", "i\uff11\uff12\uff13", "\u00b2", "abc", "key_test_misplaced",
+)
+NON_STRING_IDS = (123456, True, 1.5, ["i123"], {"id": "i123"}, b"i123")
+
+
+def athlete_id_contract_violations(module):
+    """
+    Every way a loaded push.py breaks the athlete-ID contract, one line each.
+
+    Run against the real module (expect none) and against mutated copies of the real
+    source (expect some), so a pass on the real module is not a hollow pass.
+    """
+    violations = []
+    cls = module.IntervalsPush
+    for raw, sent in (("i123456", "i123456"), ("123456", "123456"), ("0", "0"),
+                      (" 123456\n", "123456")):
+        try:
+            url = cls(raw, "key_test")._url("events")
+        except Exception as e:
+            violations.append(f"valid {raw!r} rejected: {type(e).__name__}")
+            continue
+        if url != f"{INTERVALS_API}/athlete/{sent}/events":
+            violations.append(f"valid {raw!r} targeted {url}")
+    for raw in MALFORMED_IDS + NON_STRING_IDS:
+        try:
+            cls(raw, "key_test")
+        except ValueError:
+            continue
+        except Exception as e:
+            violations.append(f"{raw!r} raised {type(e).__name__}, not ValueError")
+            continue
+        violations.append(f"malformed {raw!r} accepted")
+    return violations
+
+
+class TestAthleteIdContract(PushCase):
+    """The validator itself, with negative controls built from the real source."""
+
+    VALIDATOR = "        if not self.ATHLETE_ID_PATTERN.fullmatch(athlete_id):\n"
+    PATTERN = 're.compile(r"i?[0-9]+")'
+    ASSIGN = "        self.athlete_id = athlete_id\n"
+    TYPE_CHECK = "        if not isinstance(athlete_id, str):\n"
+
+    MUTANTS = {
+        "v0.6 digit-only guard": (VALIDATOR, "        if athlete_id.isdigit():\n"),
+        "validation removed": (VALIDATOR, "        if False:\n"),
+        "automatic i prefix": (
+            ASSIGN,
+            "        self.athlete_id = (athlete_id if athlete_id.startswith('i')\n"
+            "                           else 'i' + athlete_id)\n"),
+        "non-string coercion": (
+            TYPE_CHECK, "        athlete_id = str(athlete_id)\n" + TYPE_CHECK),
+        "Unicode digits": (PATTERN, 're.compile(r"i?\\d+")'),
+        "any alphanumeric segment": (PATTERN, 're.compile(r"[A-Za-z0-9]+")'),
+    }
+
+    def test_real_push_honours_the_contract(self):
+        self.assertEqual(athlete_id_contract_violations(push_mod), [])
+
+    def test_rejections_never_echo_the_value(self):
+        for raw in ("key_test_misplaced", "I123456"):
+            with self.subTest(raw=raw):
+                with self.assertRaises(ValueError) as cm:
+                    push_mod.IntervalsPush(raw, "key_test")
+                self.assertNotIn(raw, str(cm.exception),
+                                 "a rejected ID was echoed; a misplaced key would leak")
+
+    def test_contract_check_catches_each_unsafe_variant_of_the_real_source(self):
+        source = PUSH_PATH.read_text(encoding="utf-8")
+        for name, (anchor, replacement) in self.MUTANTS.items():
+            with self.subTest(mutant=name):
+                self.assertEqual(source.count(anchor), 1,
+                                 "the mutation anchor moved; fix this test")
+                module_name = "s11_push_id_mutant"
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    copy = Path(tmpdir) / "push_mutant.py"
+                    copy.write_text(source.replace(anchor, replacement, 1),
+                                    encoding="utf-8")
+                    try:
+                        mutant = load_module_by_path(module_name, copy)
+                        self.assertTrue(
+                            athlete_id_contract_violations(mutant),
+                            f"the contract check passed the '{name}' variant, so "
+                            f"its pass on the real source is hollow")
+                    finally:
+                        sys.modules.pop(module_name, None)
+
+
+class TestAthleteIdThroughTheCli(PushCase):
+    """
+    Accepted IDs reach the URL unchanged from CLI, config and environment; malformed
+    and non-string IDs stop before any request. Reads and previews stay outcome-free;
+    confirmed writes keep the applied/not_applied/unknown contract.
+    """
+
+    EVENT = {"id": 42, "name": "Endurance", "start_date_local": f"{FUTURE}T00:00:00",
+             "type": "Ride", "description": "base text"}
+
+    def _run(self, argv, config=None, env=None, **handlers):
+        out = io.StringIO()
+        transport = self.install(**handlers)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            if config is not None:
+                Path(tmpdir, ".sync_config.json").write_text(json.dumps(config))
+            cwd = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                with mock.patch.object(sys, "argv", ["push.py"] + argv), \
+                     mock.patch.dict(os.environ, env or {}, clear=True), \
+                     contextlib.redirect_stdout(out):
+                    with self.assertRaises(SystemExit) as exit_info:
+                        push_mod.main()
+            finally:
+                os.chdir(cwd)
+        return exit_info.exception.code, json.loads(out.getvalue()), transport
+
+    @staticmethod
+    def _sources(athlete_id):
+        return {
+            "cli": (["--athlete-id", athlete_id, "--api-key", "key_test"], None, None),
+            "config": ([], {"athlete_id": athlete_id, "intervals_key": "key_test"},
+                       None),
+            "env": ([], None, {"ATHLETE_ID": athlete_id, "INTERVALS_KEY": "key_test"}),
+        }
+
+    def assertAllUnder(self, transport, prefix):
+        self.assertTrue(transport.calls, "nothing reached the transport")
+        for verb, url in transport.calls:
+            self.assertTrue(url.startswith(prefix),
+                            f"{verb} went to {url}, expected under {prefix}")
+
+    def test_list_reads_every_accepted_id_unchanged_from_every_source(self):
+        for athlete_id in ACCEPTED_IDS:
+            for source, (creds, config, env) in self._sources(athlete_id).items():
+                with self.subTest(athlete_id=athlete_id, source=source):
+                    code, result, t = self._run(creds + ["list"], config, env,
+                                                GET=FakeResponse(200, []))
+                    self.assertEqual(code, 0)
+                    self.assertNotIn("outcome", result)
+                    self.assertAllUnder(t, f"{INTERVALS_API}/athlete/{athlete_id}/")
+
+    def test_confirmed_writes_target_every_accepted_id_unchanged(self):
+        moved = dict(self.EVENT)
+        cases = {
+            "delete": (["delete", "--event-id", "42", "--confirm"],
+                       dict(GET=FakeResponse(200, self.EVENT),
+                            DELETE=FakeResponse(204, {}))),
+            "move": (["move", "--event-id", "42", "--date", FUTURE, "--confirm"],
+                     dict(GET=FakeResponse(200, self.EVENT),
+                          PUT=FakeResponse(200, moved))),
+        }
+        for athlete_id in ACCEPTED_IDS:
+            for source, (creds, config, env) in self._sources(athlete_id).items():
+                for op, (argv, handlers) in cases.items():
+                    with self.subTest(athlete_id=athlete_id, source=source, op=op):
+                        code, result, t = self._run(creds + argv, config, env,
+                                                    **handlers)
+                        self.assertEqual(result["outcome"], "applied")
+                        self.assertEqual(code, 0)
+                        self.assertAllUnder(
+                            t, f"{INTERVALS_API}/athlete/{athlete_id}/events/42")
+
+    def test_numeric_preview_is_outcome_free_and_sends_nothing(self):
+        for source, (creds, config, env) in self._sources("123456").items():
+            with self.subTest(source=source):
+                code, result, t = self._run(
+                    creds + ["push", "--name", "W", "--date", FUTURE], config, env)
+                self.assertEqual(code, 0)
+                self.assertEqual(result.get("mode"), "preview")
+                self.assertNotIn("outcome", result)
+                self.assertEqual(t.calls, [])
+
+    def test_malformed_ids_stop_locally_from_every_source(self):
+        for raw in MALFORMED_IDS:
+            for source, (creds, config, env) in self._sources(raw).items():
+                with self.subTest(raw=raw, source=source):
+                    code, result, t = self._run(
+                        creds + ["delete", "--event-id", "42", "--confirm"], config, env)
+                    self.assertEqual(result["outcome"], "not_applied")
+                    self.assertEqual(code, 1)
+                    self.assertEqual(t.calls, [])
+                    code, result, t = self._run(creds + ["list"], config, env)
+                    self.assertNotIn("outcome", result)
+                    self.assertEqual(code, 1)
+                    self.assertEqual(t.calls, [])
+
+    def test_non_string_config_ids_are_rejected_not_coerced(self):
+        for value in (123456, True, 1.5, ["i123"], {"id": "i123"}):
+            config = {"athlete_id": value, "intervals_key": "key_test"}
+            with self.subTest(value=value):
+                code, result, t = self._run(
+                    ["delete", "--event-id", "42", "--confirm"], config)
+                self.assertEqual(result["outcome"], "not_applied")
+                self.assertIn("must be a string", result["error"])
+                self.assertEqual(code, 1)
+                self.assertEqual(t.calls, [])
+                code, result, t = self._run(["list"], config)
+                self.assertNotIn("outcome", result)
+                self.assertEqual(code, 1)
+                self.assertEqual(t.calls, [])
+
+    def test_falsy_non_string_config_ids_are_not_turned_into_zero(self):
+        """JSON 0 and false count as absent, as before; never as the `0` alias."""
+        for value in (0, False):
+            with self.subTest(value=value):
+                code, result, t = self._run(
+                    ["delete", "--event-id", "42", "--confirm"],
+                    {"athlete_id": value, "intervals_key": "key_test"})
+                self.assertEqual(result["outcome"], "not_applied")
+                self.assertEqual(code, 1)
+                self.assertEqual(t.calls, [])
+
+    def test_precedence_is_unchanged_and_never_skips_a_malformed_value(self):
+        config = {"athlete_id": "222", "intervals_key": "key_test"}
+        env = {"ATHLETE_ID": "i333", "INTERVALS_KEY": "key_test"}
+        cli = ["--athlete-id", "i111", "--api-key", "key_test"]
+        _, _, t = self._run(cli + ["list"], config, env, GET=FakeResponse(200, []))
+        self.assertAllUnder(t, f"{INTERVALS_API}/athlete/i111/")
+        _, _, t = self._run(["list"], config, env, GET=FakeResponse(200, []))
+        self.assertAllUnder(t, f"{INTERVALS_API}/athlete/222/")
+        _, _, t = self._run(["list"], None, env, GET=FakeResponse(200, []))
+        self.assertAllUnder(t, f"{INTERVALS_API}/athlete/i333/")
+        bad_cli = ["--athlete-id", "I111", "--api-key", "key_test"]
+        code, result, t = self._run(bad_cli + ["list"], config, env)
+        self.assertEqual((code, t.calls), (1, []))
+        self.assertNotIn("outcome", result)
+        bad_config = {"athlete_id": "I222", "intervals_key": "key_test"}
+        code, result, t = self._run(["delete", "--event-id", "42", "--confirm"],
+                                    bad_config, env)
+        self.assertEqual((result["outcome"], code, t.calls), ("not_applied", 1, []))
+
+
+class TestNumericAthleteIdWriteOutcomes(PushCase):
+    """A digits-only ID runs through the same write classification as an `i` ID."""
+
+    EVENT = {"id": 42, "name": "E", "start_date_local": "2097-01-01T00:00:00",
+             "type": "Ride", "description": "base text"}
+    WORKOUT = {"name": "Sweet Spot", "date": FUTURE, "type": "Ride",
+               "external_id": "s11-a", "duration_minutes": 60}
+    PREFIX = f"{INTERVALS_API}/athlete/123456/"
+
+    def setUp(self):
+        super().setUp()
+        self.pusher = push_mod.IntervalsPush("123456", "key_test")
+
+    def test_bulk_success_is_applied_under_the_numeric_id(self):
+        created = {"id": 1, "name": "Sweet Spot", "start_date_local": f"{FUTURE}T00:00:00",
+                   "type": "Ride", "external_id": "s11-a"}
+        t = self.install(GET=FakeResponse(200, []), POST=FakeResponse(200, [created]))
+        self.assertEqual(self.pusher.push_workouts([self.WORKOUT])["outcome"], "applied")
+        for _, url in t.calls:
+            self.assertTrue(url.startswith(self.PREFIX), url)
+
+    def test_definitive_403_is_not_applied_with_neutral_guidance(self):
+        t = self.install(GET=FakeResponse(200, self.EVENT),
+                         DELETE=FakeResponse(403, {"status": 403,
+                                                   "error": "Access denied"}))
+        result = self.pusher.delete_event(42)
+        self.assertEqual(result["outcome"], "not_applied")
+        self.assertEqual(len(t.verbs("DELETE")), 1)
+        self.assertIn("an `i` added or dropped", result["error"])
+        self.assertNotIn("`i123456` form", result["error"])
+
+    def test_ambiguous_writes_stay_unknown_and_are_never_reissued(self):
+        timeout = requests.exceptions.Timeout("x")
+        cases = [
+            ("bulk", "POST", FakeResponse(200, []),
+             lambda p: p.push_workouts([self.WORKOUT])),
+            ("move", "PUT", FakeResponse(200, self.EVENT),
+             lambda p: p.move_event(42, FUTURE)),
+            ("delete", "DELETE", FakeResponse(200, self.EVENT),
+             lambda p: p.delete_event(42)),
+        ]
+        for name, verb, read, run in cases:
+            with self.subTest(operation=name):
+                t = self.install(GET=read, **{verb: timeout})
+                self.assertEqual(run(self.pusher)["outcome"], "unknown")
+                self.assertEqual(len(t.verbs(verb)), 1, f"{name} was reissued")
+                for _, url in t.calls:
+                    self.assertTrue(url.startswith(self.PREFIX), url)
+
+    def test_activity_writes_do_not_depend_on_the_athlete_id(self):
+        activity = {"id": "a1", "description": "base text"}
+        target = dict(activity, description="NOTE: knee pain\n\nbase text")
+        gets = [FakeResponse(200, activity), FakeResponse(200, target)]
+        t = self.install(GET=lambda url, i: gets[min(i, len(gets) - 1)],
+                         PUT=requests.exceptions.Timeout("x"))
+        self.assertEqual(self.pusher.annotate_activity("a1", "knee pain")["outcome"],
+                         "applied")
+        self.assertEqual(len(t.verbs("PUT")), 1)
+        for _, url in t.calls:
+            self.assertTrue(url.startswith(f"{INTERVALS_API}/activity/a1"), url)
 
 
 class TestOutcomeContract(PushCase):

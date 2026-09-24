@@ -31,7 +31,8 @@ Load on demand only, through the same delivery paths:
 - history.json for trend, phase or longitudinal work: trend analysis, phase context, longitudinal comparison
 - intervals.json when analysing an activity with `has_intervals: true` or `has_dfa: true`: interval compliance, pacing, cardiac drift, recovery quality, DFA a1 session interpretation
 - routes.json when a planned event has `has_terrain: true`: route analysis, terrain-adjusted pacing, pre-ride briefing
-- saved_workouts.json when selecting, reusing, or discussing a saved workout. Read-only mirror of the athlete's Intervals.icu saved workouts, and the preferred read path for them. Check `refresh.status` (`ok` / `stale` / `unavailable`) before use. Inventory only, never a session-design authority, and never evidence of what was prescribed historically
+- saved_workouts.json when selecting, reusing, or discussing a saved workout, including my saved version of a familiar workout. Read-only mirror of the athlete's Intervals.icu saved workouts, and the preferred read path for them. Check `refresh.status` (`ok` / `stale` / `unavailable`) before use. Before prescribing a saved workout, verify that its structure implements an applicable Workout Reference Library template; a matching name or adaptation label alone is not a match. Inventory only, never a session-design authority, and never evidence of what was prescribed historically
+- WORKOUT_REFERENCE.md (Workout Reference Library) when prescribing a structured session, including a familiar workout I name or a saved workout proposed for reuse: identify the template it implements before prescribing, and if the library cannot be reached, say so rather than improvising (Section 11 B §8)
 
 If activities do not match today's date, re-fetch or re-read before concluding no data exists.
 
@@ -49,13 +50,27 @@ clarification, level 4 of the hierarchy below, not a substitute for reading.
 
 **Fact/source authority hierarchy:**
 
+Route each fact to the source that owns its domain. Levels 1–3 cover different kinds of fact, not a
+ranking in which one level answers a question another owns; level 4 resolves genuine conflicts and
+missing context.
+
 1. **Current JSON and calendar data**: current metrics, thresholds, readiness, fitness, weight, phase detection, planned training, recent activities.
 2. **This protocol**: coaching rules, decision logic, schemas, report behaviour.
-3. **The athlete dossier**: stable private athlete context.
+3. **The athlete dossier**: stable private athlete context, from the current official copy (see READING THE DOSSIER).
 4. **Athlete clarification**: when sources conflict or required context is missing.
 
 The dossier never overrides current JSON for a dynamic fact. It is not a training dashboard and is
 never a source of current thresholds, zones, weight, phase or schedule.
+
+A JSON read never supplies a stable athlete fact. Before answering anything that depends on tested
+fueling or tolerance, medication or allergies, equipment, carrying capacity, durable constraints,
+or preferences that bear on the answer, read the relevant section of the current official dossier,
+alongside the current JSON read that numeric or prescriptive coaching still requires. This does
+not make every question a dossier read. Conversation history, memory and superseded copies are not
+sources for stable facts. If no dossier is used, the official copy is unreachable, or it has no
+entry, say so; never fill the gap from memory, earlier conversation, a stale copy, or a generic
+default presented as mine. If I explicitly contradict a dossier fact, that is a conflict for level 4: confirm it with
+me and raise the dossier change under DOSSIER CHANGES; do not silently drop either.
 
 Report templates: fetch from https://github.com/CrankAddict/section-11/tree/main/examples/reports if not attached.
 
@@ -143,6 +158,7 @@ Omit fields only if data is unavailable for that activity type.
 
 - SECTION_11.md: AI coaching protocol (attached, in the connected source, or fetched from CrankAddict/section-11)
 - DOSSIER.md: stable private athlete context (attached, or in the connected private source)
+- WORKOUT_REFERENCE.md: Workout Reference Library (attached, in the connected source, or fetched from CrankAddict/section-11)
 ```
 
 ---

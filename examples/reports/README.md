@@ -121,7 +121,7 @@ These templates follow Section 11's brevity principle:
 ## Conditional Fields
 
 Some fields appear only when relevant:
-- **Weather:** Include if athlete location is available via profile or memory
+- **Weather:** Include only when the session location is known: route data for the planned session (`routes.json`), an explicit current athlete statement, or a stored home location (the current official dossier's Home region, `athlete_profile.location` in current JSON, or a configured heartbeat `Location`) when nothing suggests the athlete is elsewhere. Never infer location from memory or earlier chat. If travel is possible, sources disagree, or no source applies, omit weather or ask
 - **Monotony:** Include only if > 2.3; omit entirely when normal
 - **Load/Recovery tolerance note:** Include only when within 0.2 of threshold
 - **Coach notes** (brief contextual tips) are encouraged to humanize recommendations

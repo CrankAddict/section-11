@@ -301,6 +301,23 @@ After configuration, test with:
 - ❌ Missing capability snapshot (durability, TID drift)
 - ❌ Generic "listen to your body" without referencing actual metrics
 
+### Stable-Context Test
+
+Only if you use a dossier. Ask about something your official dossier records, such as your regular training bottle or a piece of equipment:
+
+> "What's in my regular training bottle?"
+
+**Good response includes:**
+- ✅ Your bottle or equipment exactly as your official dossier records it
+- ✅ When you follow up with "Which dossier did you read?", an authority statement, **Official dossier location** and **Dossier revision** that match your official copy
+- ✅ A plain statement when the official copy is missing, unreachable or has no entry for it
+
+**Bad response:**
+- ❌ A guess, a generic recipe or product, or a value from an earlier chat presented as your own
+- ❌ An answer from a stale or unofficial dossier copy treated as current
+
+Then ask a prescriptive follow-up, such as "How many of those should I take on my next long ride?" A good response also reads `latest.json` and your planned session (or says none is planned) before giving numbers.
+
 ---
 
 ## Troubleshooting

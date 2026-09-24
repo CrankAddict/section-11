@@ -2,7 +2,7 @@
 
 > This template defines the standard output format for pre-workout reports.  
 > Fields in `[brackets]` are placeholders. Omit fields that don't apply.  
-> **Data Freshness:** Every numeric value in a report must come from a current read of its source JSON file. Do not carry forward values from earlier reports or earlier in the conversation. Re-read before quoting.  
+> **Data Freshness:** Take every number from a current read of the source that owns it: training metrics and planned sessions from the source JSON file, stable athlete facts (such as a tested bottle quantity) from the current official dossier, athlete-reported values from the athlete's explicit current statement, and external conditions such as weather from their current source (see SECTION_11.md §Output Format Guidelines). Never take a number from memory or an earlier chat. Do not carry forward values from earlier reports or earlier in the conversation. Re-read before quoting.  
 > **Display Units:** For distance / elevation / weight / height / position / speed, quote `display.*` fields from the source JSON; they're pre-converted to the athlete's Intervals.icu preferences. Use canonical metric (`*_km`, `*_m`, `*_kg`) only for calculations. See SECTION_11.md §Display Unit Semantics.
 
 ---
@@ -66,7 +66,7 @@ is P2-only, P0 and P1 are not overridable. State the rationale.]
 | Field | Rule |
 |-------|------|
 | Phase | Include only when `phase_detection.confidence` is "high" or "medium". Omit when "low" or phase is null |
-| Weather | Include if athlete location is available via profile or memory |
+| Weather | Include only when the session location is known: route data for the planned session (`routes.json`), an explicit current athlete statement, or a stored home location (the current official dossier's Home region, `athlete_profile.location` in current JSON, or a configured heartbeat `Location`) when nothing suggests the athlete is elsewhere. Never infer location from memory or earlier chat. If travel is possible, sources disagree, or no source applies, omit weather or ask |
 | Coach note (weather) | Include only if actionable (e.g., dress warm, indoor day). When forecast triggers heat stress Tier 1+: Tier 1: note hydration emphasis. Tier 2: specify session modification per Environmental Conditions Protocol session-type rules (e.g., "Threshold intervals planned: keep power targets, consider reducing from 4×8min to 3×8min"). Tier 3: recommend reschedule or endurance-only. See **Environmental Conditions Protocol** in SECTION_11.md for tier definitions and session-type rules. |
 | Monotony | Include **only** if > 2.3. Omit entirely when normal |
 | Durability | Include if qualifying sessions exist. Omit if 0 qualifying sessions in 7d |

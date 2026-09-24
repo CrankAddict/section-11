@@ -227,12 +227,14 @@ The athlete's dossier (`DOSSIER.md`) is a separate document holding **stable pri
 
 **Fact/source authority hierarchy:**
 
+Route each fact to the source that owns its domain. Levels 1–3 cover different kinds of fact, not a ranking in which one level answers a question another level owns; level 4 resolves genuine conflicts and missing context.
+
 1. **Current JSON and calendar data**: current metrics, thresholds, readiness, fitness, weight, phase detection, planned training, recent activities.
 2. **This protocol**: coaching rules, decision logic, schemas, report behaviour.
-3. **The athlete dossier**: stable private athlete context.
+3. **The athlete dossier**: stable private athlete context, from the current official copy identified by its authority block and `Official dossier location`.
 4. **Athlete clarification**: when sources conflict or required context is missing.
 
-The dossier never overrides current JSON for a dynamic fact. Dossier ownership, approval and maintenance rules are normative and live in **Update & Version Guidance**.
+The dossier never overrides current JSON for a dynamic fact, and a JSON read never supplies a stable athlete fact. When a task depends on tested fueling or tolerance, medication or allergies, equipment, carrying capacity, durable constraints, or stable preferences that bear on the answer, consult the relevant section of the current official dossier, in addition to the fresh JSON read that numeric or prescriptive coaching requires. This does not turn every task into a dossier read, and a missing dossier does not block safe, data-based coaching. Conversation history, memory and superseded copies are not sources for stable athlete facts. If no dossier is used, the official copy cannot be reached, or it holds no entry for the fact, say so; do not fill the gap from memory, earlier conversation, a stale copy, or a generic default presented as the athlete's own. An explicit current athlete statement that contradicts a dossier fact is a conflict for level 4: resolve it with the athlete and raise the dossier change under the maintenance rules, without silently discarding either. Dossier ownership, approval and maintenance rules are normative and live in **Update & Version Guidance**.
 
 | Content Type | Location | Rationale |
 |-------------|----------|-----------|
@@ -261,7 +263,7 @@ AI systems read current thresholds, zones, weight and phase from current JSON, a
 
 This protocol defines how an AI model should interact with an athlete's training data, apply validated endurance science, and make determinate, auditable recommendations, even without automated data sync from platforms like Intervals.icu, Garmin Connect, or Concept2 Logbook.
 
-If the AI instance does not retain prior context (e.g., new chat or session), it must perform a fresh read of the current JSON before giving numeric or prescriptive advice, and confirm the fields the current task actually depends on. Where a field the task needs is missing or stale, say so and request it rather than inferring it. It should also read the athlete dossier for stable private context; a missing or stale dossier limits personalization but does not block safe, data-based coaching.
+If the AI instance does not retain prior context (e.g., new chat or session), it must perform a fresh read of the current JSON before giving numeric or prescriptive advice, and confirm the fields the current task actually depends on. Where a field the task needs is missing or stale, say so and request it rather than inferring it. It should also read the current official athlete dossier for stable private context, and consult its relevant section whenever the task depends on a stable athlete fact (see the Source Architecture Note); a missing or stale dossier limits personalization but does not block safe, data-based coaching.
 
 #### Data Mirror Integration
 
@@ -860,7 +862,7 @@ Before providing recommendations, AI systems must verify:
 | 3  | No Virtual Math Policy           | Ensure all computed metrics originate from raw or mirrored data. No interpolation, smoothing, or estimation permitted.                                 |
 | 4  | Tolerance Compliance             | Recommendations must remain within: ±3 W power, ±1 bpm HR, ±1% dataset variance.                                                                       |
 | 5  | Missing-Data Handling            | If a metric is unavailable or outdated, explicitly request it from athlete. Never assume or project unseen values.                                     |
-| 5b | No Conversational Data Substitution | Training metrics must come from the current JSON data read. Never use values from conversation history, prior messages, cached session context, or AI memory/recall. No data read in this response = no metric cited. If a value isn't in the JSON files at query time, state "data unavailable." |
+| 5b | No Conversational Data Substitution | Training metrics must come from the current JSON data read. Never use values from conversation history, prior messages, cached session context, or AI memory/recall. No data read in this response = no metric cited. If a value isn't in the JSON files at query time, state "data unavailable." Stable athlete facts such as a tested bottle recipe or carrying capacity are not training metrics: they come from the current official dossier (see the Source Architecture Note), never from conversation history or memory. |
 | 6  | Temporal Data Validation         | Verify "last_updated" timestamp is <24 hours old. If data is >48 hours, request a refresh. Flag if athlete context (illness, travel) contradicts data. |               
 | 6b | UTC Time Synchronization         | Confirm dataset and system clocks align to UTC. Flag if offset >60 min or timestamps appear ahead of query time.                                       |
 | 7  | Multi-Metric Conflict Resolution | If HRV/RHR conflict with athlete-reported state, prioritize athlete-provided readiness. Note discrepancy, request clarification. Never override illness/fatigue with “good” TSB. |
@@ -1932,13 +1934,13 @@ This is planning guidance. Where actual intake becomes known during a ride, the 
 | Glucose + fructose (1:0.8 ratio) | ~90 g/hour | Conventional multiple-transportable intake; co-ingesting fructose (GLUT5) lifts exogenous oxidation above single-source |
 | Dual source, high dose, practised | Up to 120 g/hour | Studied high intake, not a ceiling: Hearris et al. (2022) reported peak exogenous oxidation of 1.56–1.66 g/min and oxidation efficiency of 72–75% |
 
-These are intake rates, and four distinct things sit behind them: how much is ingested, how much the gut handles, how much is oxidised, and what the athlete tolerates. They are not interchangeable: ingested carbohydrate exceeds oxidised carbohydrate even in the studies that push the dose highest. What constrains a plan in practice is the rate the athlete has demonstrated tolerance for, not expenditure: an athlete burning 900 kJ/hour who has never trained above 60 g/hour should not be handed 90 g/hour because the dosing table says so. The AI should match intake recommendations to the rate the athlete has actually practised when known (from dossier or conversation), and default to 60 g/hour single-source when unknown.
+These are intake rates, and four distinct things sit behind them: how much is ingested, how much the gut handles, how much is oxidised, and what the athlete tolerates. They are not interchangeable: ingested carbohydrate exceeds oxidised carbohydrate even in the studies that push the dose highest. What constrains a plan in practice is the rate the athlete has demonstrated tolerance for, not expenditure: an athlete burning 900 kJ/hour who has never trained above 60 g/hour should not be handed 90 g/hour because the dosing table says so. The AI should match intake recommendations to the rate the athlete has actually practised when known (from the current official dossier, or the athlete's explicit current statement), and default to 60 g/hour single-source when unknown.
 
 **Delivery form:** In the one protocol that tested this directly, form had no measurable effect on exogenous oxidation: nine trained males at 120 g/h as fluid, gel, jelly chew or a mix, 180 min at 95% lactate threshold under low thermal stress, with minimal GI symptoms in every condition (Hearris et al., 2022). Treat form as interchangeable for oxidation purposes within that envelope. Separately from that result, the AI should still weigh individual tolerance, practicality and conditions when recommending a format: heat, higher intensity and athletes outside that cohort are untested, and an athlete's own history with a format outranks the group finding.
 
 **Economical DIY high-carbohydrate bottle - starting template:**
 
-For athletes seeking a lower-cost alternative to commercial drink mixes, the following is an optional starting template the AI may offer. It is a template to adapt, never a universal prescription.
+For athletes seeking a lower-cost alternative to commercial drink mixes, the following is an optional starting template the AI may offer. It is a template to adapt, never a universal prescription, and never the athlete's own tested bottle: where the dossier records one, answer questions about the athlete's bottle from that entry.
 
 | Ingredient | Amount |
 |---|---|
@@ -3010,7 +3012,7 @@ Long-term objectives come from the athlete dossier. The **current phase** comes 
 AI systems should structure athlete reports consistently.  
 See https://github.com/CrankAddict/section-11/tree/main/examples/reports for annotated templates and examples.
 
-**Data Freshness:** Every numeric value in any report must come from a current read of its source JSON file (`latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, `routes.json`, or `saved_workouts.json` as appropriate for the metric). Do not carry forward values from an earlier report or an earlier point in the conversation; upstream data may have updated between reads. This rule applies especially to AI systems with persistent memory or long-running sessions, where values from prior reports may be cached and reused inadvertently.
+**Data Freshness:** Every number in a report comes from a current read of the source that owns it (see the Fact/source authority hierarchy in the Source Architecture Note). Training metrics, thresholds, load, readiness and planned sessions come from a current read of their source JSON file (`latest.json`, `history.json`, `intervals.json`, `ftp_history.json`, `routes.json`, or `saved_workouts.json` as appropriate for the metric), and every report requires that read. A stable athlete fact, such as a tested bottle quantity or carrying capacity, comes from the current official dossier. A value the athlete explicitly reports now is cited as athlete-reported and handled under the clarification rules and the *Data Integrity Hierarchy*. External conditions, such as a weather forecast, come from a current read of their source (see *Weather Data Source*). Values Section 11 derives from these inputs follow its calculation rules. Never take a number from memory or an earlier chat, and do not carry forward values from an earlier report or an earlier point in the conversation; upstream data may have updated between reads. This rule applies especially to AI systems with persistent memory or long-running sessions, where values from prior reports may be cached and reused inadvertently.
 
 **Pre-Workout Reports must include:**
 - Weather and coach note (if athlete location is available)
@@ -3265,7 +3267,7 @@ Human-review override requires athlete confirmation and metadata flag "override"
 
 ### 8 - Workout Reference Interface
 
-When a plan requires a structured session (per Section 4), the AI must select from the **Workout Reference Library** (`examples/workout-library/WORKOUT_REFERENCE.md`).
+When a plan requires a structured session (per Section 4), the AI must select from the **Workout Reference Library** (`examples/workout-library/WORKOUT_REFERENCE.md`). The Reference Library is equally the design source when a structured session is prescribed outside a generated plan, including a familiar workout the athlete names or a saved workout proposed for reuse: identify the template it implements, and flag a gap rather than improvise. Audit metadata remains governed by Section 6.
 
 **Selection rules:**
 - Match target adaptation (Sweet Spot, VO₂max, Endurance, etc.) to the session slot identified by the plan.

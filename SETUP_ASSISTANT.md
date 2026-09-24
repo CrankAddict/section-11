@@ -520,10 +520,7 @@ See `examples/agentic/README.md` for commands, workout syntax, and template mapp
 
 Route by whether the AI has a runtime filesystem at all, not by which sync method they chose. If it does (the athlete's own machine or a provider-hosted agent computer), it is an agentic session: use [`PROJECT_INSTRUCTIONS_AGENTIC.md`](PROJECT_INSTRUCTIONS_AGENTIC.md) and copy the block between the fences there into the agent's instructions. That holds even when the training data itself arrives through a connector. Only a session with no runtime filesystem uses [`PROJECT_INSTRUCTIONS_WEB.md`](PROJECT_INSTRUCTIONS_WEB.md).
 
-Two resources the agentic contract does not name by path. Where the agent can actually reach them (a provider-hosted computer often cannot), tell them to point it at these as well:
-
-- `section11/examples/reports/`: report templates
-- `section11/examples/workout-library/WORKOUT_REFERENCE.md`: session templates for planning
+The agentic contract names the Workout Reference Library (`section11/examples/workout-library/WORKOUT_REFERENCE.md`, with a fetch fallback) but not the report templates. Where the agent can actually reach them (a provider-hosted computer often cannot), tell them to point it at `section11/examples/reports/` as well.
 
 ---
 
@@ -539,6 +536,12 @@ Tell them to open their newly configured AI coach and type:
 - Training load context (TSB, CTL, ATL, weekly totals)
 - Brief coach note
 - No web citations, no emojis, no unnecessary recovery warnings
+
+**If they use a dossier, test stable context too.** Tell them to ask about something recorded in their dossier's tested fuel or equipment section, for example:
+
+> "What's in my regular training bottle?"
+
+A good answer gives the bottle exactly as their official dossier records it. When they follow up with "Which dossier revision did you read, and where is it?", it reports the revision and `Official dossier location` of their official copy. A generic recipe, a value from an earlier chat, or a guess presented as their own bottle is a fail. If the official dossier cannot be reached or has no bottle entry, a good answer says so instead. Then have them ask something prescriptive, such as "How many of those should I take on my next long ride?": the AI must also read current JSON and the planned session (or say none is planned) before giving numbers, combining them with the dossier's bottle and carrying capacity. If the first answer fails, check that the official dossier reaches the AI and ask it to report the dossier's header fields.
 
 **If it doesn't work (web chat):**
 - "I don't have access to your data" → Ask the AI which delivery path it tried and what failed; the contract requires it to say. Then check that path:

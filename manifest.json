@@ -11,26 +11,26 @@
       "hash": "0683b6ae3ded5701305dae4114d317d4346c175824d8db87a22d18e05a61ff77"
     },
     "PROJECT_INSTRUCTIONS_AGENTIC.md": {
-      "hash": "4e5e29d09e94bd43b9604f94842947aa26b5602dad9da3e5579b45e241af20d6"
+      "hash": "90dcbb698abbec483661862094b9fb747a6af21d91a4221bca17417bad269f4d"
     },
     "PROJECT_INSTRUCTIONS_WEB.md": {
-      "hash": "3078b62614035b7ed8649d691616206de666e1783ab042a43a7b2a4aefea1df1"
+      "hash": "5b5d005b7ca407179fee43fe9513805a6eb43f9a127977b8414542cf0c1cbc9f"
     },
     "README.md": {
-      "hash": "ad61b35ffa7703e0c376fb3bb7fe523a1f7cca9a594753cfd09ffcf98767b5e2"
+      "hash": "bed13326e6b0f76c8919aaeedce5fbf31459e132064a4dd1e42d84a12e894c93"
     },
     "SECTION_11.md": {
-      "hash": "9103b9d7f587dca0ea8085ea8c665ea335f84112727bba4460754303c258de0c",
+      "hash": "0c17ee23240a02278a1bad3e5cbeb1d8e3ea1928340608ced624c8dc69a0d8f7",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
       "hash": "47a0b437722547662e2215a759678cccaeb91984734337bfe2392185d71976d5"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "1077b240f575ec92851bdfa218dcfc807f9ef89743f2ab3acfabde5bcc4cb00c"
+      "hash": "22fb89da688b50723ff92cd65679e5f00700291632ea08e483829765297b47a9"
     },
     "SKILL.md": {
-      "hash": "2aab8332a412a3219a05076374324b68e43891f6ef1a10b59891f71362e3eef6"
+      "hash": "ebd0e26c24d3edf43abb16ef3ac3bdb6756d78071cad62ba090365b71bfada63"
     },
     "changelog.json": {
       "hash": "5c65562b049a5306f889a8ba745a1b797c45c4cda7f41ff40d9f6f271abf417c"
@@ -119,9 +119,6 @@
     "examples/json-examples/saved_workouts.example.json": {
       "hash": "f7a02e699d269b7ba5b98cdc853bf7bc4fbdf5eb6f2520d46ba63e30825c145a"
     },
-    "examples/json-local-sync/SETUP.md": {
-      "hash": "1c06a2aa33b167d8f95a82460f216c40f0710858940661064dafaef2df0f6629"
-    },
     "examples/json-manual/SETUP.md": {
       "hash": "a9451f952649c2df91109cd27ad03458a6880ef96d09fa2cb69d7ef9aeb4004d"
     },
@@ -132,22 +129,22 @@
       "hash": "8766eba6fbad4441872c857df14e92450e49e4d62238677066e7892dadff4f3c"
     },
     "examples/reports/BLOCK_REPORT_TEMPLATE.md": {
-      "hash": "a756df7d3003e4b975e543016286c8927e65d9bfcf31e6c20d7af3674ad36e10"
+      "hash": "b2c050d8d5d5c5945cb61c17cd5b219dd958c295603a9cc54ab3a045ef5b24ee"
     },
     "examples/reports/POST_WORKOUT_REPORT_EXAMPLES.md": {
       "hash": "26ecb082e85c361342f6b0e2a40fbaad2c2bf983056dfe0c95a45b5554b4316c"
     },
     "examples/reports/POST_WORKOUT_REPORT_TEMPLATE.md": {
-      "hash": "134ee2f37a25d1d1f411b10f561d189d11df17dd6eda8dc5d4df266f397a960a"
+      "hash": "ea72505722209b8ec128a36daf2d1cf7a414ef1c142eccaf7d87d1a0fb815aa4"
     },
     "examples/reports/PRE_WORKOUT_REPORT_EXAMPLES.md": {
       "hash": "9cfa993c5795d49078c86c7ae40a60a27d18397095ae40a26b7eca3e7cf1bb45"
     },
     "examples/reports/PRE_WORKOUT_REPORT_TEMPLATE.md": {
-      "hash": "2a5524d5ee1a7e78bd970ca0099e8d165495c2f8f7daaa3d0e0536b488b682e8"
+      "hash": "aee6e89b746767acadfb4988a29c1745edb7345c116b1c88c79df3a44974b00d"
     },
     "examples/reports/README.md": {
-      "hash": "4902719fe47ee500ab3bed2ece871b2f66f403ed2efdaff9c082d717ebccab16"
+      "hash": "b6ddeafc8defdeae0fa154a2b1bf4b9ff7ceefe6f8cb76fc5bf5a2696acb24f9"
     },
     "examples/reports/REPORT_HIERARCHY.md": {
       "hash": "9a7ceadf7ea8a137f89fc43e8fec18ebda8f945799c6a9c3618fef8cc79e15a4"
@@ -156,13 +153,13 @@
       "hash": "72044d03a359faafe1d2283019eb813ce447fe7959349bff73cd09df094bb187"
     },
     "examples/reports/SEASON_REPORT_TEMPLATE.md": {
-      "hash": "84ae393ca28d33258e4a657ee63ffb3fe5e037e273af611977be11f408cbe93e"
+      "hash": "7b94bb7d3dc38762a85f6f2ead34aac2651cca8b760ba14bec082818005d679a"
     },
     "examples/reports/WEEKLY_REPORT_EXAMPLES.md": {
       "hash": "ec44dfba2211dd29a676b7cf71853bb9bc1262eae5898dc3ee337f870247a561"
     },
     "examples/reports/WEEKLY_REPORT_TEMPLATE.md": {
-      "hash": "fa74c394cb75f53c70568fcb48a13c21b67186440d67ec9d5c4a0ef8d12a2e27"
+      "hash": "8d7982c04b764b445ac384c4a1ef465d86ec0be92d69562c8cb524170686bb99"
     },
     "examples/sync.py": {
       "hash": "eb9aac916af334cd556e017420be220d72504c10db15de42888300c0dd24162f"

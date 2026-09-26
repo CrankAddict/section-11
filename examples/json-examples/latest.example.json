@@ -1289,7 +1289,7 @@
       "planned_tss": 92,
       "duration_hours": 1.5,
       "duration_formatted": "1h30m",
-      "workout_summary": "10m @155W | 10m @185W | 5\u00d74m @310W / 3m rec | 15m @140W",
+      "workout_summary": "10m @155W | 10m @185W | 5\u00d7(4m @310W + 3m) | 15m @140W",
       "description": null
     },
     {
@@ -1313,7 +1313,7 @@
       "planned_tss": 85,
       "duration_hours": 1.5,
       "duration_formatted": "1h30m",
-      "workout_summary": "10m @155W | 3\u00d712m @245W / 5m rec | 15m @140W",
+      "workout_summary": "10m @155W | 3\u00d7(12m @245W + 5m) | 15m @140W",
       "description": null
     },
     {
@@ -1337,7 +1337,7 @@
       "planned_tss": 65,
       "duration_hours": 1.75,
       "duration_formatted": "1h45m",
-      "workout_summary": "1h30m @160W | 3\u00d71m @280W / 2m rec | 10m @140W",
+      "workout_summary": "1h30m @160W | 3\u00d7(1m @280W + 2m) | 10m @140W",
       "description": null
     }
   ],

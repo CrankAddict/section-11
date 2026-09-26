@@ -4,6 +4,89 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.136 - An unmarked workout_summary is truthful for repeats, counts, durations
+  and the 2 W tolerance (issue #28, correction of the unpublished v3.135).
+  v3.135 could still emit an unmarked summary that misstated the plan: a repeat nested
+  inside a repeat was shown by its aggregate duration ("2×(1m @300W + 3m)"); a step
+  with "reps" but a non-list "steps" was rendered as a flat step; the unmatched final
+  child of a nested alternating repeat was shown by its duration when it was itself a
+  repeat; a zero, negative, fractional, non-finite, boolean or non-numeric repeat count
+  was rendered as if valid (a zero-count repeat became real work); a negative, zero,
+  sub-second, non-finite, boolean or string duration could render as a step ("0s
+  @200W") or join a compressed block; and the alternating detectors rounded targets
+  before applying their 2 W tolerance, so 302.4 W was shown as 300 W. Float durations
+  and counts also displayed as "1.0m" and "3.0×".
+  Now one duration policy (_summary_duration: a finite number of at least 1 s, not
+  boolean) and one count policy (_summary_count: a whole finite number of at least 1)
+  govern every summary path. Any step with a "reps" or "steps" key has repeat
+  semantics and is never rendered flat: a well-formed nested two-step repeat is shown
+  as "N×(A + B)" (recursively, to depth 4), and any other or malformed repeat is marked
+  "[repeat not summarized]". A child with repeat semantics or an unusable duration
+  cannot stand in a compressed position, so the detector declines the block and it is
+  marked. A compressed role shows the reference value only when every raw target is
+  within 2 W of the reference step before rounding; otherwise the role is marked.
+  Display uses whole seconds and whole counts.
+  Availability is unchanged for every valid input: detection still compares rounded
+  targets, and the v3.134 two-step availability rule is kept. It changes only where an
+  invalid input produced the summary's only interval: a zero-count repeat, or a flat
+  alternating block built from unusable durations, now leaves the summary null
+  instead of reporting invented work.
+  The report templates now state the tolerance as "within 2 W and 2 s of that first
+  step", matching the detectors (the v3.135 "of each other" wording overstated it).
+
+Version 3.135 - An incomplete workout_summary now says so (issue #28, checkpoint 2).
+  A summary could look complete while missing or misstating content: the second
+  step of a two-step repeat with no duration was dropped ("3×10m @245W"); a step
+  without a duration (a distance step, for example), a repeat block the renderer
+  cannot compress, or the unmatched final child of a nested alternating repeat
+  vanished; and a target value was printed as W or bpm whatever it was: a relative
+  target (%FTP, an HR zone) got an absolute unit, range bounds were dropped when
+  the object also carried a value, an empty target read as no target and an empty
+  power target let an HR value stand in for it. One target policy (_step_target)
+  now governs every output path, including both alternating detectors: a value is
+  printed only when it is a finite number in the governing object ("_power", else
+  "power"; "_hr", else "hr"), its units are absent on the resolved key or name W /
+  bpm, and no range bounds are present; otherwise the target is marked. Presence is
+  decided by key, not truthiness, and an unprintable power target is never replaced
+  by HR. Content that cannot render is marked in place: "[step not summarized]",
+  "[repeat not summarized]", "[target not shown]". No conversion or value is
+  invented; a step with no target key still renders as duration only.
+  A summary without a marker lists every step with its duration and its power
+  target (or HR target when no power target is set). It does not carry secondary
+  targets (cadence, an HR target set alongside power), and the alternating
+  detectors still show repeated steps within 2 W and 2 s of each other at one
+  reference value.
+  Rendering only: detection still compares targets through _get_power and a
+  two-step repeat's availability is decided exactly as in v3.134, and no marker
+  contains "×" or "sets", so which workouts get a workout_summary, the phase
+  hard-session marker, workout_summary_stats and near/far tiering are unchanged.
+  A part carrying a marker never merges with an identical neighbour.
+  The PRE and POST report templates used description_preview whenever workout_summary
+  was null, but near-day rows (the only rows those reports read for today and
+  tomorrow) carry description, not description_preview, so an all-flat workout, which
+  never gets a summary, reached the report with no plan text. Both templates now use
+  whichever of description or description_preview the entry carries when the summary
+  is null or marked, state what an unmarked summary does and does not carry, and no
+  longer drop a step as recovery unless the plan labels it.
+
+Version 3.134 - workout_summary no longer labels any step as recovery (issue #28).
+  The two-step repeat renderer called the second step "rec" without comparing
+  targets, and the nested and flat alternating detectors called the lower step "rec"
+  whenever it was at least 10 W or 5% below the first. A lower target is not
+  evidence of recovery: over-unders and active endurance connectors were misreported
+  and the report templates omit recovery steps. All three now render structure only,
+  "N×(A + B)", with each step's own target; a leading set step keeps its target
+  instead of "(Xm set rec)", and a differing tail rest or trailing rep is written out.
+  The flat detector also skipped the step after a trailing solo rep, dropping for
+  example a cool-down; it now resumes after the last consumed step.
+  Rendering only: every detector guard is unchanged, so which workouts get a
+  workout_summary, the "×" / "sets" markers read by _phase_stream2_features, and
+  workout_summary_stats are identical to v3.133. Known limits, unchanged: a two-step
+  repeat whose second step has no duration still renders only its first step, steps
+  that cannot render are still omitted from an otherwise non-null summary, and only
+  a power or HR "value" target is printed. examples/json-examples/latest.example.json
+  is aligned to the new format.
+
 Version 3.133 - Bounded HTTP timeouts, method-aware read retry, and truthful
   ambiguous-write handling.
   Eleven direct requests calls had no timeout: four here and seven in push.py. All
@@ -439,7 +522,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.133"
+    VERSION = "3.136"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
     SAVED_WORKOUTS_FILE = "saved_workouts.json"
@@ -10046,6 +10129,20 @@ class IntervalsSync:
         
         return formatted
     
+    # v3.135: in-place markers for content a workout_summary cannot render. Each
+    # replaces what used to be dropped or misstated; the scope of an unmarked summary
+    # is stated in the v3.135 note above. None contains "×" or "sets", so summary
+    # availability and the phase hard-session marker are unchanged.
+    SUMMARY_STEP_NOT_SUMMARIZED = "[step not summarized]"
+    SUMMARY_REPEAT_NOT_SUMMARIZED = "[repeat not summarized]"
+    SUMMARY_TARGET_NOT_SHOWN = "[target not shown]"
+    SUMMARY_TARGET_KEYS = ("_power", "power", "_hr", "hr", "_pace", "pace")
+    # Units under which a target value may be printed as an absolute W / bpm value.
+    # A resolved "_power" / "_hr" with no "units" is the resolve=true form the renderer
+    # has always printed; a raw "power" / "hr" must name one of these units.
+    SUMMARY_WATT_UNITS = ("w", "watts")
+    SUMMARY_BPM_UNITS = ("bpm",)
+
     def _summarize_workout_doc(self, workout_doc: Dict) -> str:
         """
         Summarize a structured workout_doc into a human-readable one-liner.
@@ -10073,6 +10170,10 @@ class IntervalsSync:
                 rendered = self._render_step(step)
                 if rendered:
                     parts.append(rendered)
+                elif self._is_repeat_like(step):
+                    parts.append(self.SUMMARY_REPEAT_NOT_SUMMARIZED)
+                else:
+                    parts.append(self.SUMMARY_STEP_NOT_SUMMARIZED)
             
             if not parts:
                 return None
@@ -10093,7 +10194,7 @@ class IntervalsSync:
         """
         Merge consecutive identical interval blocks in summary parts.
         
-        E.g., ["5×10s @700W / 3m rec", "5×10s @700W / 3m rec"] → ["2 × 5×10s @700W / 3m rec"]
+        E.g., ["5×(10s @700W + 3m @120W)", "5×(10s @700W + 3m @120W)"] → ["2 × 5×(10s @700W + 3m @120W)"]
         
         No WU/CD labeling — that's a coaching interpretation, not structural data.
         Strict string equality only.
@@ -10106,7 +10207,10 @@ class IntervalsSync:
         while i < len(parts):
             current = parts[i]
             count = 1
-            while i + count < len(parts) and parts[i + count] == current:
+            # v3.135: a part carrying a marker never merges; identical text does not
+            # prove that the unrendered steps or targets behind it are identical.
+            while (i + count < len(parts) and parts[i + count] == current
+                    and "[" not in current):
                 count += 1
             if count > 1:
                 result.append(f"{count} × {current}")
@@ -10122,8 +10226,9 @@ class IntervalsSync:
             if not isinstance(step, dict):
                 return None
             
-            # Pattern A: Explicit repeats
-            if "reps" in step and "steps" in step and isinstance(step["steps"], list):
+            # Pattern A: Explicit repeats. v3.136: any step with repeat semantics goes
+            # here; a malformed one returns None and is marked by the caller.
+            if self._is_repeat_like(step):
                 return self._render_repeat_block(step)
             
             # Pattern B: Check later at block level (handled in _summarize_workout_doc 
@@ -10135,28 +10240,12 @@ class IntervalsSync:
     def _render_flat_step(self, step: Dict) -> str:
         """Render a non-repeat step as 'duration @power'."""
         try:
-            dur = step.get("duration")
-            if not dur or not isinstance(dur, (int, float)):
+            dur = self._summary_duration(step.get("duration"))
+            if dur is None:
                 return None
             
-            dur_str = self._format_duration(int(dur))
-            
-            # Get power target
-            power = step.get("_power") or step.get("power")
-            if power and isinstance(power, dict):
-                val = power.get("value")
-                if val is not None:
-                    return f"{dur_str} @{int(round(val))}W"
-            
-            # HR target
-            hr = step.get("_hr") or step.get("hr")
-            if hr and isinstance(hr, dict):
-                val = hr.get("value")
-                if val is not None:
-                    return f"{dur_str} @{int(round(val))}bpm"
-            
-            # Duration only (freeride, etc)
-            return f"{dur_str}"
+            dur_str = self._format_duration(dur)
+            return f"{dur_str}{self._describe_step_target(step)}"
         except Exception:
             return None
     
@@ -10165,27 +10254,34 @@ class IntervalsSync:
         Render a repeat block (Pattern A).
         
         Handles:
-        - Simple: reps × (work + rest) → "N×dur @power / rest rec"
-        - With set recovery: first nested step is low-power rest, then alternating pairs
+        - Simple: reps × (A + B) → "N×(dur @target + dur @target)"
+        - With a leading set step: longer, lower-or-equal target step, then alternating pairs
+
+        Structure only (v3.134): no step is labelled recovery. Order and a lower target
+        are not evidence of a step's role, so each step keeps its own target.
         
         Bails to None if nested structure has >3 unique step types or is too complex.
         """
         try:
-            reps = step.get("reps", 1)
-            nested = step.get("steps", [])
-            if not nested or not isinstance(nested, list):
+            # v3.136: count and shape are validated first; zero, negative, fractional,
+            # non-finite, boolean or non-numeric counts and non-list or empty "steps"
+            # fail closed (the caller marks the repeat).
+            parts = self._repeat_parts(step)
+            if parts is None:
                 return None
+            reps, nested = parts
             
-            # Simple case: 2 nested steps (work + rest)
+            # Simple case: 2 nested steps, rendered alike
             if len(nested) == 2:
-                work, rest = nested[0], nested[1]
-                work_str = self._describe_work_step(work)
-                rest_str = self._describe_rest_duration(rest)
-                if work_str and rest_str:
-                    return f"{reps}×{work_str} / {rest_str} rec"
-                elif work_str:
-                    return f"{reps}×{work_str}"
-                return None
+                first, second = nested[0], nested[1]
+                # v3.135: availability is decided exactly as in v3.134 (see
+                # _repeat_step_describable); rendering follows _step_target, and a
+                # step that cannot render is marked in place, never dropped.
+                if not self._repeat_step_describable(first):
+                    return None
+                # v3.136: a nested repeat child is rendered as a repeat or marked,
+                # never by its aggregate duration.
+                return f"{reps}×({self._render_child(first)} + {self._render_child(second)})"
             
             # Check for alternating work/rest pattern inside nested steps
             # (e.g., 30/15 sessions: set_recovery, then work, rest, work, rest...)
@@ -10204,6 +10300,11 @@ class IntervalsSync:
         Detect alternating work/rest pairs inside a nested step list.
         Used for 30/15-style sessions where the builder unrolls reps inside a set.
         
+        The guards decide only whether the steps compress; they do not establish that
+        the lower step is recovery. v3.134 renders both targets and no role label:
+        "k×(a + b)", then "+ (a + b')" when the last rest duration differs and
+        "+ a" for a trailing rep; a leading set step keeps its target.
+
         Guards:
         - Both work and rest must have numeric power targets
         - All work targets within ±2W, all rest targets within ±2W
@@ -10211,10 +10312,16 @@ class IntervalsSync:
         - Minimum 3 pairs
         """
         try:
+            # v3.136: a child with repeat semantics or an unusable duration can never
+            # stand in a compressed position (set step, pair or trailing rep).
+            def usable(child):
+                return (isinstance(child, dict) and not self._is_repeat_like(child)
+                        and self._summary_duration(child.get("duration")) is not None)
+
             # Check if first step is a set recovery (low power, before the main work)
             set_rec = None
             start_idx = 0
-            if len(nested) >= 5:  # need at least set_rec + 2 pairs
+            if len(nested) >= 5 and usable(nested[0]) and usable(nested[1]):
                 first = nested[0]
                 second = nested[1]
                 first_power = self._get_power(first)
@@ -10234,16 +10341,19 @@ class IntervalsSync:
             
             # Try to consume as (work, rest) pairs
             pairs = []
+            pair_steps = []
             i = 0
             while i + 1 < len(remaining):
                 work = remaining[i]
                 rest = remaining[i + 1]
                 w_power = self._get_power(work)
                 r_power = self._get_power(rest)
+                if not usable(work) or not usable(rest):
+                    return None  # v3.136: unusable child — bail (caller marks the repeat)
                 w_dur = work.get("duration")
                 r_dur = rest.get("duration")
                 
-                if w_power is None or r_power is None or w_dur is None or r_dur is None:
+                if w_power is None or r_power is None:
                     return None  # Can't compare — bail
                 w_power = int(round(w_power))
                 r_power = int(round(r_power))
@@ -10253,6 +10363,7 @@ class IntervalsSync:
                     return None  # Targets must be meaningfully distinct
                 
                 pairs.append((w_dur, w_power, r_dur, r_power))
+                pair_steps.append((work, rest))
                 i += 2
             
             # Trailing solo work step: final rep with no rest (builder drops
@@ -10260,8 +10371,8 @@ class IntervalsSync:
             has_trailing = False
             if i == len(remaining) - 1:
                 trailing = remaining[i]
-                t_power = self._get_power(trailing)
-                t_dur = trailing.get("duration")
+                t_power = self._get_power(trailing) if usable(trailing) else None
+                t_dur = trailing.get("duration") if usable(trailing) else None
                 if (t_power is not None and t_dur is not None and pairs):
                     ref_wd = pairs[0][0]
                     ref_wp = pairs[0][1]
@@ -10285,23 +10396,51 @@ class IntervalsSync:
                 if rd != ref_r_dur and j < len(pairs) - 1:
                     return None
             
-            # Build summary
-            n_reps = len(pairs) + (1 if has_trailing else 0)
-            work_dur_str = self._format_duration(ref_w_dur)
-            work_power = int(round(ref_w_power))
-            rest_dur_str = self._format_duration(ref_r_dur)
-            
-            inner = f"{n_reps}×{work_dur_str} @{work_power}W / {rest_dur_str} rec"
-            
-            if outer_reps > 1:
-                if set_rec:
-                    sr_dur = self._format_duration(set_rec.get("duration", 0))
-                    return f"{outer_reps} sets × {inner} ({sr_dur} set rec)"
-                return f"{outer_reps} sets × {inner}"
+            # Build summary (structure only; both targets kept, no role label).
+            # v3.135: targets are rendered through _step_target / _role_target_suffix,
+            # and an unmatched final child is written out instead of dropped.
+            n_uniform = len(pairs)
+            last_r_dur = pairs[-1][2]
+            has_tail = last_r_dur != ref_r_dur
+            if has_tail:
+                n_uniform -= 1
+            work_steps = [w for w, _ in pair_steps]
+            if has_trailing:
+                work_steps.append(remaining[i])
+            rest_steps = [r for _, r in pair_steps]
+            if has_tail:
+                rest_steps = rest_steps[:-1]
+            work_str = (f"{self._format_duration(int(ref_w_dur))}"
+                        f"{self._role_target_suffix(work_steps, ref_w_power)}")
+            rest_str = (f"{self._format_duration(int(ref_r_dur))}"
+                        f"{self._role_target_suffix(rest_steps, ref_r_power)}")
+
+            inner = f"{n_uniform}×({work_str} + {rest_str})"
+            compound = False
+            if has_tail:
+                # Tail exception: render the differing last pair explicitly.
+                tail_rest = pair_steps[-1][1]
+                tail_str = (f"{self._format_duration(int(last_r_dur))}"
+                            f"{self._describe_step_target(tail_rest)}")
+                inner += f" + ({work_str} + {tail_str})"
+                compound = True
+            if has_trailing:
+                inner += f" + {work_str}"
+                compound = True
+            elif i == len(remaining) - 1:
+                unmatched = remaining[i]
+                inner += f" + {self._render_child(unmatched)}"
+                compound = True
             
             if set_rec:
-                sr_dur = self._format_duration(set_rec.get("duration", 0))
-                return f"{inner} ({sr_dur} set rec)"
+                sr_dur = self._format_duration(int(set_rec.get("duration")))
+                inner = f"{sr_dur}{self._describe_step_target(set_rec)} + {inner}"
+                compound = True
+            
+            if outer_reps > 1:
+                if compound:
+                    return f"{outer_reps} sets × ({inner})"
+                return f"{outer_reps} sets × {inner}"
             return inner
         except Exception:
             return None
@@ -10319,36 +10458,187 @@ class IntervalsSync:
             return None
     
     def _describe_work_step(self, step: Dict) -> str:
-        """Describe a work step as 'dur @power'."""
+        """Describe an atomic step as 'dur @target'; None if its duration is unusable."""
+        try:
+            if self._is_repeat_like(step):
+                return None
+            dur = self._summary_duration(step.get("duration"))
+            if dur is None:
+                return None
+            dur_str = self._format_duration(dur)
+            return f"{dur_str}{self._describe_step_target(step)}"
+        except Exception:
+            return None
+
+    # v3.136: one duration policy and one repeat-count policy for every summary path.
+    SUMMARY_MAX_NESTED_REPEAT_DEPTH = 4
+
+    @staticmethod
+    def _summary_duration(value) -> Optional[int]:
+        """
+        Seconds a summary may print for a step, or None when the duration is not a
+        usable positive finite number (missing, zero, negative, non-finite, boolean,
+        string or other type). Fractional seconds are truncated for display, as
+        before; a value below 1 s is not usable.
+        """
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        if not math.isfinite(value) or value < 1:
+            return None
+        return int(value)
+
+    @staticmethod
+    def _summary_count(value) -> Optional[int]:
+        """
+        A repeat count a summary may print, or None unless it is a whole finite
+        number of at least 1 (not boolean, not a string, not fractional).
+        """
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        if not math.isfinite(value) or value < 1 or value != int(value):
+            return None
+        return int(value)
+
+    @staticmethod
+    def _is_repeat_like(step) -> bool:
+        """A step with repeat semantics ("reps" or "steps" key) is never rendered flat."""
+        return isinstance(step, dict) and ("reps" in step or "steps" in step)
+
+    def _repeat_parts(self, step: Dict):
+        """(count, children) for a well-formed repeat, else None (fail closed)."""
+        if not self._is_repeat_like(step):
+            return None
+        count = self._summary_count(step.get("reps"))
+        children = step.get("steps")
+        if count is None or not isinstance(children, list) or not children:
+            return None
+        return count, children
+
+    def _render_child(self, child, depth: int = 1) -> str:
+        """
+        Render one child of a repeat: a nested two-step repeat as "N×(A + B)"
+        (recursively), any other repeat-like child as the repeat marker, and an atomic
+        child through _describe_work_step or the step marker. Never renders a repeat
+        by its aggregate duration.
+        """
+        if self._is_repeat_like(child):
+            parts = self._repeat_parts(child)
+            if (parts is None or len(parts[1]) != 2
+                    or depth > self.SUMMARY_MAX_NESTED_REPEAT_DEPTH):
+                return self.SUMMARY_REPEAT_NOT_SUMMARIZED
+            count, (a, b) = parts
+            return (f"{count}×({self._render_child(a, depth + 1)} + "
+                    f"{self._render_child(b, depth + 1)})")
+        return self._describe_work_step(child) or self.SUMMARY_STEP_NOT_SUMMARIZED
+
+    def _step_target_value(self, step: Dict):
+        """
+        The one target policy for every workout_summary output path (v3.135).
+
+        Returns ("W", raw), ("bpm", raw), None (no target key at all) or
+        SUMMARY_TARGET_NOT_SHOWN. Presence is decided by key, not truthiness, so
+        "power": {} or "power": null is a present target, not an untargeted step.
+        Power governs when any power key is present; an unprintable power target is
+        marked and never replaced by an HR value. A value is printed only when:
+        - it is a finite number in the governing object ("_power" if present, else
+          "power"; likewise "_hr" / "hr");
+        - its units support the absolute label: a resolved "_power" / "_hr" with no
+          "units", or units in SUMMARY_WATT_UNITS / SUMMARY_BPM_UNITS. Relative
+          targets (%FTP, zones) are marked, never relabelled or converted;
+        - no present object of that kind carries range bounds ("start" / "end"),
+          which a single printed value would silently discard.
+        A pace key is always marked. Never raises.
+        """
+        try:
+            for resolved, raw, label, units_ok in (
+                    ("_power", "power", "W", self.SUMMARY_WATT_UNITS),
+                    ("_hr", "hr", "bpm", self.SUMMARY_BPM_UNITS)):
+                present = [k for k in (resolved, raw) if k in step]
+                if not present:
+                    continue
+                for k in present:
+                    obj = step[k]
+                    if isinstance(obj, dict) and ("start" in obj or "end" in obj):
+                        return self.SUMMARY_TARGET_NOT_SHOWN
+                key = resolved if resolved in step else raw
+                obj = step[key]
+                if not isinstance(obj, dict):
+                    return self.SUMMARY_TARGET_NOT_SHOWN
+                val = obj.get("value")
+                if (isinstance(val, bool) or not isinstance(val, (int, float))
+                        or not math.isfinite(val)):
+                    return self.SUMMARY_TARGET_NOT_SHOWN
+                units = obj.get("units")
+                if key == raw or units is not None:
+                    if not isinstance(units, str) or units.strip().lower() not in units_ok:
+                        return self.SUMMARY_TARGET_NOT_SHOWN
+                return (label, float(val))
+            if "_pace" in step or "pace" in step:
+                return self.SUMMARY_TARGET_NOT_SHOWN
+            return None
+        except Exception:
+            return self.SUMMARY_TARGET_NOT_SHOWN
+
+    def _step_target(self, step: Dict):
+        """_step_target_value with the printable value rounded for display."""
+        target = self._step_target_value(step)
+        if isinstance(target, tuple):
+            return (target[0], int(round(target[1])))
+        return target
+
+    def _describe_step_target(self, step: Dict) -> str:
+        """Target suffix per _step_target: " @NW", " @Nbpm", "" or " [target not shown]"."""
+        target = self._step_target(step)
+        if target is None:
+            return ""
+        if isinstance(target, tuple):
+            return f" @{target[1]}{target[0]}"
+        return f" {self.SUMMARY_TARGET_NOT_SHOWN}"
+
+    def _role_target_suffix(self, steps: List[Dict], ref_power: float) -> str:
+        """
+        Target suffix for one role (work or rest) of a compressed alternating block.
+
+        The detectors compare targets through _get_power, which reads any value. The
+        rendered suffix follows _step_target: the reference watts are printed only when
+        every step in the role has a printable watt target; otherwise the role is
+        marked. Detection, and so summary availability, is unchanged.
+        """
+        targets = [self._step_target_value(s) for s in steps]
+        if targets and all(isinstance(t, tuple) and t[0] == "W" for t in targets):
+            raw = [t[1] for t in targets]
+            # v3.136: the detectors' 2 W tolerance (relative to the reference, the
+            # role's first step) is checked on raw values before display rounding;
+            # a wider deviation is marked rather than shown as the reference value.
+            if all(abs(v - raw[0]) <= 2 for v in raw):
+                return f" @{int(round(raw[0]))}W"
+        return f" {self.SUMMARY_TARGET_NOT_SHOWN}"
+
+    def _repeat_step_describable(self, step: Dict) -> bool:
+        """
+        Whether v3.134 _describe_work_step would have returned a string for this step.
+
+        A two-step repeat block exists only when its first step is describable. That
+        test is kept exactly as in v3.134 so the target policy cannot change which
+        repeats render, and with them summary null status or the phase "×" marker.
+        """
         try:
             dur = step.get("duration")
             if not dur:
-                return None
-            dur_str = self._format_duration(int(dur))
-            
+                return False
+            int(dur)
             power = self._get_power(step)
             if power is not None:
-                return f"{dur_str} @{int(round(power))}W"
-            
+                int(round(power))
+                return True
             hr = step.get("_hr") or step.get("hr")
             if hr and isinstance(hr, dict):
                 val = hr.get("value")
                 if val is not None:
-                    return f"{dur_str} @{int(round(val))}bpm"
-            
-            return dur_str
+                    int(round(val))
+            return True
         except Exception:
-            return None
-    
-    def _describe_rest_duration(self, step: Dict) -> str:
-        """Describe a rest step duration."""
-        try:
-            dur = step.get("duration")
-            if not dur:
-                return None
-            return self._format_duration(int(dur))
-        except Exception:
-            return None
+            return False
     
     @staticmethod
     def _format_duration(seconds: int) -> str:
@@ -10382,6 +10672,11 @@ class IntervalsSync:
         - All work durations equal, all rest durations equal (one tail exception)
         - Minimum 3 pairs per block
         - Work power must be higher than rest power
+
+        As in the nested detector, the guards decide only whether steps compress.
+        v3.134 renders "k×(a + b)" with both targets and no role label, an explicit
+        "+ (a + b')" for a differing tail rest and "+ a" for a trailing rep, and
+        resumes scanning immediately after the last consumed step.
         """
         try:
             steps = workout_doc.get("steps")
@@ -10397,6 +10692,10 @@ class IntervalsSync:
             for s in steps:
                 if not isinstance(s, dict):
                     return None
+                # v3.136: a repeat-like step or an unusable duration cannot join a block.
+                if self._is_repeat_like(s) or self._summary_duration(s.get("duration")) is None:
+                    step_data.append((None, None))
+                    continue
                 dur = s.get("duration")
                 power = self._get_power(s)
                 step_data.append((dur, power))
@@ -10415,18 +10714,46 @@ class IntervalsSync:
                     
                     block = self._try_alternating_block(step_data, i)
                     if block:
-                        count, work_dur, work_power, rest_dur = block
-                        wd_str = self._format_duration(work_dur)
-                        rd_str = self._format_duration(rest_dur)
-                        parts.append(f"{count}×{wd_str} @{int(round(work_power))}W / {rd_str} rec")
-                        i += count * 2
+                        (count, work_dur, work_power, rest_dur, rest_power,
+                         n_pairs, tail_rest_dur, has_trailing) = block
+                        # v3.135: targets follow _step_target via _role_target_suffix.
+                        work_steps = [steps[i + 2 * k] for k in range(n_pairs)]
+                        if has_trailing:
+                            work_steps.append(steps[i + 2 * n_pairs])
+                        rest_steps = [steps[i + 2 * k + 1] for k in range(n_pairs)]
+                        tail_rest = None
+                        if tail_rest_dur is not None:
+                            tail_rest = rest_steps.pop()
+                        work_str = (f"{self._format_duration(int(work_dur))}"
+                                    f"{self._role_target_suffix(work_steps, work_power)}")
+                        rest_str = (f"{self._format_duration(int(rest_dur))}"
+                                    f"{self._role_target_suffix(rest_steps, rest_power)}")
+                        n_uniform = n_pairs - (1 if tail_rest_dur is not None else 0)
+                        part = f"{n_uniform}×({work_str} + {rest_str})"
+                        if tail_rest_dur is not None:
+                            # v3.136: the tail rest shows the reference value only when it
+                            # and the reference rest are printable and within 2 W raw.
+                            tail_suffix = self._role_target_suffix([steps[i + 1], tail_rest],
+                                                                   rest_power)
+                            tail_str = f"{self._format_duration(int(tail_rest_dur))}{tail_suffix}"
+                            part += f" + ({work_str} + {tail_str})"
+                        if has_trailing:
+                            part += f" + {work_str}"
+                        parts.append(part)
+                        # v3.134: advance past exactly the consumed steps. count
+                        # includes a trailing solo rep, so count * 2 overshot by one
+                        # and silently dropped the step after it (e.g. a cool-down).
+                        i += n_pairs * 2 + (1 if has_trailing else 0)
                         continue
                 
                 # Not part of an alternating block — render as flat step
-                if dur_i is not None:
-                    flat = self._render_flat_step(steps[i])
-                    if flat:
-                        parts.append(flat)
+                # v3.135: a step that cannot render is marked, not dropped; v3.136: a
+                # repeat-like step gets the repeat marker and is never rendered flat.
+                if self._is_repeat_like(steps[i]):
+                    parts.append(self.SUMMARY_REPEAT_NOT_SUMMARIZED)
+                else:
+                    flat = self._render_flat_step(steps[i]) if dur_i is not None else None
+                    parts.append(flat or self.SUMMARY_STEP_NOT_SUMMARIZED)
                 i += 1
             
             if not parts:
@@ -10444,7 +10771,10 @@ class IntervalsSync:
     def _try_alternating_block(self, step_data: List, start: int) -> tuple:
         """
         Try to consume an alternating work/rest block starting at 'start'.
-        Returns (count, work_dur, work_power, rest_dur) or None.
+        Returns (count, work_dur, work_power, rest_dur, rest_power, n_pairs,
+        tail_rest_dur, has_trailing) or None. count = n_pairs plus one for a
+        trailing solo rep; tail_rest_dur is the last pair's differing rest duration
+        (tail exception) or None. Consumed steps: n_pairs * 2 + has_trailing.
         """
         try:
             ref_w_dur, ref_w_power = step_data[start]
@@ -10463,6 +10793,7 @@ class IntervalsSync:
                 return None
             
             count = 1
+            tail_rest_dur = None
             j = start + 2
             while j + 1 < len(step_data):
                 wd, wp = step_data[j]
@@ -10483,6 +10814,7 @@ class IntervalsSync:
                     # Long rest (≥1.5× normal) = set break — always consume as tail
                     if rd >= ref_r_dur * 1.5:
                         count += 1
+                        tail_rest_dur = rd
                         j += 2
                         break
                     # Otherwise check if more matching pairs follow
@@ -10492,6 +10824,7 @@ class IntervalsSync:
                             and nwp is not None and abs(int(round(nwp)) - ref_w_power) <= 2):
                             break  # Not the last pair — strict fail
                     count += 1
+                    tail_rest_dur = rd
                     j += 2
                     break  # Tail exception consumed, stop
                 
@@ -10499,17 +10832,21 @@ class IntervalsSync:
                 j += 2
             
             # Trailing solo work step: final rep with no paired rest
+            n_pairs = count
+            has_trailing = False
             if j < len(step_data):
                 wd, wp = step_data[j]
                 if (wd is not None and wp is not None
                         and abs(wd - ref_w_dur) <= 1
                         and abs(int(round(wp)) - ref_w_power) <= 2):
                     count += 1
+                    has_trailing = True
             
             if count < 3:
                 return None
             
-            return (count, ref_w_dur, ref_w_power, ref_r_dur)
+            return (count, ref_w_dur, ref_w_power, ref_r_dur, ref_r_power,
+                    n_pairs, tail_rest_dur, has_trailing)
         except Exception:
             return None
     

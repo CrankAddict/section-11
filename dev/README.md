@@ -57,7 +57,7 @@ directory.
 
 **Shared helpers live in `_harness.py`.** The loader, the `NetworkBlocked` type,
 the verb-seam installer and restorer, and the `RefuseEverything` object-seam
-sentinel are shared by all three modules. There is no single guard installer,
+sentinel are shared by all four modules. There is no single guard installer,
 because the two seams are not the same mechanism: the verb seam swaps named
 attributes on a real module and restores them, while the object seam replaces one
 lazily-bound object with `RefuseEverything` and assigns the saved original back. The leading underscore keeps the file outside
@@ -130,10 +130,43 @@ both annotate forms) issue GET and never POST, PUT or DELETE; a negative control
 proves the write blocker actually fires; and the CLI dispatches to preview by
 default, with `--confirm` selecting the write path.
 
+`test_workout_summary.py` covers the planned-workout `workout_summary` renderer in
+`sync.py` v3.134 to v3.136 (issue #28): the two-step repeat, nested alternating and flat
+alternating emitters assign no step role such as `rec`, however the targets
+compare; an expansion oracle turns each summary back into ordered duration and
+target steps and compares them with the synthetic `workout_doc`, so a dropped
+step, a lost target or a reordering fails; the flat detector no longer skips the
+step after a trailing rep. It also pins that the change is rendering only: which
+workouts get a summary, the `×` / `sets` markers, `workout_summary_stats`,
+`hard_sessions_planned` and the near/far tier fields equal constants captured from
+v3.133, and the fictional `latest.example.json` interval summaries equal what the
+producer emits. Content the renderer cannot show (a step without a duration, a
+repeat block it cannot compress, the unmatched final child of a nested repeat, a
+target it cannot print as W or bpm: a relative unit, range bounds, an empty or
+null target, a string value) must appear as an in-place marker on every output
+path. v3.136 adds repeat semantics (a nested repeat is shown as a repeat or marked,
+never by its aggregate duration; a malformed repeat shape is marked), repeat-count
+and duration validity (zero, negative, fractional, non-finite, boolean and string
+values), and the 2 W tolerance checked on raw values before rounding. Every
+fixture step and repeat declares its expected rendering when it is built (`P`,
+`T`, `A`, `X`, `R`, `XR`), so the oracle never calls `sync.py` and never inspects
+a count, duration, target or `steps` shape; it is shown to reject the outputs of
+both rejected candidates. An unmarked summary is checked to list every step with
+its duration and primary power or HR target, within the stated tolerance
+(targets within 2 W and durations within 2 s of the first compressed step);
+secondary targets such as cadence are out of scope. The three fixtures whose summary
+availability v3.136 changes are listed and justified in the module. The PRE and
+POST report templates are checked against the producer: they must name its
+markers, keep the labelled-recovery rule and the stated scope of an unmarked
+summary, and for a null or marked summary must name the description field that the
+producer puts on each row tier, with the near/far boundary and preview length they
+state matching the producer's. No report is rendered.
+
 ## Not covered
 
 Everything else. No DFA computation, no report generation, and no `sync.py`
-surface outside per-endpoint fetch state and HTTP policy. `push.py` write paths are
+surface outside per-endpoint fetch state, HTTP policy and the `workout_summary`
+renderer with its report-template field contract. `push.py` write paths are
 covered for their transport behaviour and outcome classification only, not for
-their validation rules or their calendar semantics. Treat this as two focused regression guards, not as
+their validation rules or their calendar semantics. Treat this as focused regression guards, not as
 coverage of the repository.

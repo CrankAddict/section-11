@@ -59,6 +59,9 @@
     "examples/agentic/EXTERNAL_APIS.md": {
       "hash": "4905524df58a6aa59db4ed0321d51f212cc3eb0f5a2c6b715ec0b04e0acba126"
     },
+    "examples/agentic/README.md": {
+      "hash": "180154d09507772fc6ae0b69da3cc82a98af7aa852717bea023035d2abe9f650"
+    },
     "examples/agentic/fit-file-and-merger/ARCHITECTURE.md": {
       "hash": "e439d040fdcad87e556bd2a08975667d1726840b8c295670c0a397788f74de10"
     },

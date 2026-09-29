@@ -1,7 +1,9 @@
 # Architecture
 
 How a multi-source activity is discovered, merged, uploaded and verified. Everything here
-describes behaviour established by the working implementation. Cases that are not
+describes behaviour established by the working implementation. The cleanup behaviour
+summarised in the README's [cleanup reliability](README.md#cleanup-reliability) section has
+offline regression coverage and a bounded live observation. Cases that are not
 established are named as such in [Untested and unsupported](#untested-and-unsupported).
 
 ## Components
@@ -245,20 +247,43 @@ cause a second merge of the same ride.
 activity ids, the merged activity name, the start time, duration and distance used for
 matching, and the field counts the verification step must reproduce.
 
-Persistence is not uniform, and the difference matters after an interrupted pass:
+Cleanup checkpoints verification, rename, per-platform completion, individual Garmin target
+outcomes and, for trigger-first items, individual Strava target outcomes. A failed checkpoint
+stops all further remote work. Each item has independent step records; a platform failure
+does not abort later safe stages or later items. Verification or Garmin rename failure still
+stops that item's downstream work.
 
-| Platform | When state is written |
-|----------|-----------------------|
-| Upload target (Garmin) | The deleted-id list is saved immediately after each individual delete call, so a pass interrupted between two deletions resumes at the second. |
-| Analysis platform, Strava | Flags are set in memory and normally persisted at the end of the pass. The dedicated Strava-only entry point persists per item as it goes. |
-| Zwift Companion | No per-card ids are recorded. Completion is reconciled by reloading the feed and confirming the native card is present and both imports are absent. |
+The JSON state keeps its original version and adds records rather than replacing them: each
+item's required-platform policy and the origin of that policy, per-step outcomes with retry
+deadlines, an optional item-level block, per-target upload-target delete outcomes, an
+outstanding analysis-platform delete request, and a shared per-service backoff. Invalid JSON
+or an invalid top-level shape fails visibly rather than becoming an empty queue.
 
-Completion is also not uniform. A trigger-first item uses a canonical four-platform contract:
-it is complete only when the upload target, the analysis platform, Strava and Companion have
-all finished, whatever flags a given invocation had. A file-first item computes completion
-from the deletion flags enabled for that invocation alone, so a pass run with a single flag
-can mark the item complete while the platforms whose flags were off have never run. Only a
-trigger-first item can be reopened after completion, and only for Companion cleanup.
+The runner explicitly supplies the completion policy from its switches. Without an explicit
+required-platform policy, a manual command uses the saved policy, or Garmin, Intervals and
+Strava for an unfinished legacy item. Enabled deletion flags add obligations; omitting flags
+does not remove saved obligations. Completed legacy records without a saved policy are
+grandfathered to the destinations already recorded complete. A persisted grandfathered policy
+origin prevents later runner flags from reopening them; a reviewed migration must replace the
+policy and clear that origin. Companion applies only to trigger-first
+items. An explicit policy can exclude a disabled platform without marking it deleted. Both
+source modes reopen when an existing explicit policy requires unfinished work. With every
+deletion flag off, no work runs.
+
+Expected propagation waits use a five-minute minimum and exit healthy. Transport or adapter
+failures, including Garmin and Intervals HTTP 429, exit unhealthy while backed off, starting
+at 30 minutes and doubling to a six-hour cap. Longer existing Strava/Companion deadlines and
+exposed Retry-After values are retained. Garmin and Intervals HTTP 401/403 blocks and 429
+deadlines are shared across items; deterministic failures are blocked until reviewed. Strava
+keeps a global rate limit, which is a healthy wait, and a late-duplicate watch for
+trigger-first items; both are described in [CLEANUP_POLICY.md](CLEANUP_POLICY.md).
+
+Garmin source-delete 404 handling is confined to the exact deletion call. Structured status
+is preferred; contradictory status or endpoint metadata is rejected. A narrowly matched
+Garmin wrapper message is supported when metadata is absent. This is client evidence of
+absence, not independent proof that a service routed the request correctly. Non-delete 404s
+do not complete a deletion. Intervals 202 records a pending request and waits for listing
+absence without resubmitting that deletion.
 
 ## Untested and unsupported
 
@@ -281,10 +306,6 @@ trigger-first item can be reopened after completion, and only for Companion clea
 - **Post-upload identity verification.** Nothing re-reads the stored activity's device
   identity. A rewrite or normalisation applied by the platform after upload would not be
   detected.
-- **Uniform completion for file-first items.** A file-first item is marked complete on the
-  strength of the flags enabled for that one invocation. An isolated pass can therefore close
-  an item while platforms whose flags were off still hold duplicates, and a closed file-first
-  item is not reopened when those flags are later enabled.
 
 ## Adaptation points
 
@@ -321,7 +342,7 @@ in the structure of the implementation, and working at them means editing source
 | Post-upload verification | Presence checks plus exact counts where a count was recorded; identity, timeline and values not checked | Identity and value verification where the destination allows it | A stored copy that differs must be detected, not merely counted |
 | Destinations | One upload target, one analysis service, one social platform, one companion app | Substituted per deployment | Auth expiry, rate limiting and lag behaviour proven per platform |
 | Duplicate rules | Device name and external-id classification, with the native activity protected on two platforms | New rules for whichever platform now holds provenance | An ambiguity case must fail closed, and a protected activity must never be a target |
-| State and completion | Two state records, mixed persistence, mode-dependent completion | Uniform persistence and completion if the adaptation needs it | Interrupted-pass tests per platform |
+| State and completion | Two state records; checkpointed cleanup progress and explicit completion policy | Redefine required destinations and retry policy deliberately | Interrupted-pass and policy-change tests per platform |
 
 Nothing in this table is a work plan. It is the list of decisions someone would have to make
 deliberately, and the evidence they would need before trusting the result.

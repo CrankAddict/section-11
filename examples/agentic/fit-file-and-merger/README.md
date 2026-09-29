@@ -53,6 +53,36 @@ These are stated as limits, not as work in progress.
 - **Automatic replacement cleanup.** Cleanup state tracks the original source recordings.
   There is no mechanism to identify or delete an obsolete earlier merged activity.
 
+## Cleanup reliability
+
+Cleanup isolates failures by item and platform, checkpoints verified progress, and treats an
+exact Garmin source-delete 404 as already absent. Other failures stay visible to the scheduler
+as an unhealthy exit during persisted backoff. Expected propagation waits, the trigger-first
+Strava late-duplicate watch and Strava rate waits remain healthy pending states. Two Strava
+outcomes differ: on a file-first item, a listing with no candidate or with one copy that does
+not match the merge is a deterministic block that waits for review, even when the cause is
+ordinary sync lag; on a trigger-first item, an ambiguous listing, or one without exactly one
+native activity, stays pending with a healthy exit and no time limit. See
+[CLEANUP_POLICY.md](CLEANUP_POLICY.md).
+
+Completion means all platforms in the explicit, saved completion policy have finished.
+Disabled platforms are not labelled deleted. The runner derives that policy from its
+configured switches; an isolated manual command preserves the saved obligations unless it
+explicitly supplies a replacement policy. Completed legacy records without a saved policy
+are grandfathered to destinations already recorded complete, with a persisted origin marker
+so later switches cannot silently reopen historical activities. A reviewed migration can
+replace that policy and clear the marker.
+Newly required unfinished work reopens items that already carry an explicit policy.
+
+Evidence differs by kind. The behaviour above is read from the deployed cleanup source and
+runner. An offline regression suite covers exact-target 404 handling, failure isolation,
+checkpoint failure, backoff, policy changes, grandfathering, dry runs and identity gates. A
+bounded live observation saw completed upload-target, analysis-platform and Companion steps,
+trigger-first items held healthy-pending by the Strava late-duplicate watch, no blocked or
+error step, and unhealthy exits while earlier failures were unresolved. None of this exercises
+every branch; the file-first Strava path has no live observation. Companion deletion remains a
+separate explicit switch. See the operating boundaries in [RUNBOOK.md](RUNBOOK.md).
+
 ## Current gaps
 
 These are things the design calls for that the implementation does not yet do. They are
@@ -62,9 +92,12 @@ listed so nobody reads the sections above as stronger guarantees than they are.
 |-----|-------------|
 | The uploaded activity's device identity is not re-checked after upload | Verification confirms donor-derived fields survived, not that the stored copy still presents the intended trainer identity. |
 | Merged-activity selection takes the best-scoring candidate | Where several activities fall inside the start, duration and distance windows, the closest wins and no ambiguity is reported. |
-| Garmin and Intervals.icu deletions have no post-delete read | Success is recorded from the call, not from a confirming query. Only Strava and Companion re-check. |
+| Garmin and synchronous Intervals.icu deletions have no post-delete read | Success or an accepted exact-target 404 is recorded from the call. Intervals HTTP 202 remains pending until a later listing shows absence. Strava and Companion re-check. |
 | File-first Garmin deletion does not wait for downstream verification | The trigger-first mode waits; the file-first mode does not. |
 | Deletion is flag-gated, not approval-gated | Three of the four deletion flags default on in the runner. The dry run is an operator habit, not an enforced per-item gate. |
+| File-first Strava cleanup has no late-duplicate watch | A single Strava candidate that matches the merge completes the step, so a source copy that syncs later is not removed. |
+| File-first Strava lag blocks rather than waits | No candidate, or one non-matching copy, blocks the step until an operator reviews and clears it. |
+| Trigger-first Strava ambiguity does not alert | An ambiguous listing, or one without exactly one native activity, deletes nothing but keeps the item pending with a healthy exit indefinitely. |
 
 ## Reuse beyond the current deployment
 

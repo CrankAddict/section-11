@@ -59,20 +59,17 @@
     "examples/agentic/EXTERNAL_APIS.md": {
       "hash": "4905524df58a6aa59db4ed0321d51f212cc3eb0f5a2c6b715ec0b04e0acba126"
     },
-    "examples/agentic/README.md": {
-      "hash": "180154d09507772fc6ae0b69da3cc82a98af7aa852717bea023035d2abe9f650"
-    },
     "examples/agentic/fit-file-and-merger/ARCHITECTURE.md": {
-      "hash": "780f6ea92548749d0b5d5535976115d274b1e0301d19f004f04107faedc8a919"
+      "hash": "e439d040fdcad87e556bd2a08975667d1726840b8c295670c0a397788f74de10"
     },
     "examples/agentic/fit-file-and-merger/CLEANUP_POLICY.md": {
-      "hash": "064d6d3afad2ef9824a72c3b7c3ac2e28bf09ca139d0eda347cfaaa2fe699876"
+      "hash": "f72c335caa4b71b51b5743c33e149150c0b9892edf026d577ff4961293b0b67f"
     },
     "examples/agentic/fit-file-and-merger/README.md": {
-      "hash": "d830b18b7cb2bacc21bb3f5b8ade9ffd3a90ed0d8a0fefaac625e0f84ca38db1"
+      "hash": "c25c04b6e60c229f4e3abf391a2bfea57e0dd322012d04ccc08bac748470aecc"
     },
     "examples/agentic/fit-file-and-merger/RUNBOOK.md": {
-      "hash": "8afd177fba912e990acca1e4c6e5861acd49f9599c4902afb65817185e737bf8"
+      "hash": "184449519e7802cbf451247f7b0856248b731f6e231f9aa7e39b98f2dfa1dafb"
     },
     "examples/agentic/fit-file-and-merger/THIRD_PARTY_NOTICES.md": {
       "hash": "08dd88684cc55633a80c1e13b5363d218e6b6fb2d3abdcd498a098582779b3d7"

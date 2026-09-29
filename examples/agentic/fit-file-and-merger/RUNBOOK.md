@@ -51,6 +51,18 @@ first. The protections that do apply are uneven across platforms and are set out
 [CLEANUP_POLICY.md](CLEANUP_POLICY.md). Note that three of the four deletion flags default to
 on, so a runner deployed with defaults will delete sources once an item passes its gates.
 
+The runner passes an explicit required-platform policy derived from the enabled switches.
+A manual subset of deletion flags preserves the saved completion policy. Only an explicit
+replacement policy removes obligations; excluded platforms remain undeleted in state.
+Completed legacy records without a saved policy retain the destinations already recorded
+complete under a persisted grandfathered policy origin until an operator explicitly replaces
+the policy and clears that origin. All switches off means no cleanup work, not proof that
+duplicates are absent. Audit the effective scheduler environment rather than assuming script
+defaults: a scheduler-level override wins. Disable a switch with an explicit off value; in the
+reference runner an empty value falls back to the default, which is on for three of the four
+deletion flags. Keep the Companion deletion flag off unless Companion deletion is separately
+reviewed and approved.
+
 ## Normal automatic workflow
 
 One scheduled run performs, in order:
@@ -66,7 +78,12 @@ One scheduled run performs, in order:
    state. On no-donor, apply the wait or fallback described below.
 5. **Fallback upload.** Anything still sitting in the local inbox is handed to the upstream
    CLI's upload-all mode.
-6. **Cleanup pass.** Process every unfinished cleanup item under its gates.
+6. **Cleanup pass.** Reconcile each item against the selected completion policy and gates.
+   Failed items do not stop later safe work. The runner propagates cleanup's nonzero
+   exit and treats a missing cleanup executable as failure. Expected waits exit zero;
+   errors and deterministic blocks remain nonzero even during their retry delay. A
+   trigger-first Strava ambiguity is also a zero-exit pending state; see
+   [CLEANUP_POLICY.md](CLEANUP_POLICY.md#fail-closed-conditions).
 
 A run that finds nothing still does work: it refreshes and scans the cloud folder through
 the file provider and its metadata index, and it invokes the upstream fallback upload scan
@@ -104,7 +121,7 @@ listed first.
 | Explicit merge | Merge a named base and donor into a named output. Takes an explicit source mode, a force flag for a base that already carries `Alpha1`, and a flag to waive the donor `Alpha1` requirement. |
 | Identity-only rewrite | Rewrite a base file to the trainer identity with no donor. |
 | Raw upload | Upload a prepared file to Garmin without the upstream metadata rewrite. |
-| Cleanup dry run | Report exactly what cleanup would delete on each platform, and why it is or is not ready, changing nothing. |
+| Cleanup dry run | Preview selected platforms without renaming, deleting activities or saving cleanup progress. Live reads can refresh credentials, verification caches and rate-limit state. A Companion preview starts the emulator and relaunches the app. |
 | Strava dry run | The same, narrowed to Strava, optionally for one date. |
 | Trigger reset | Return an abandoned or failed trigger to pending so the next run retries it. |
 
@@ -186,18 +203,56 @@ downloaded and checked.
 
 | Symptom | What actually happened | Action |
 |---------|------------------------|--------|
-| Upload succeeded but the activity was not renamed | The rename call failed and aborted the cleanup pass before its state was written. No deletion had occurred, because the rename runs before every deletion gate. | Re-run. The next pass re-verifies from scratch and retries the rename. |
+| Upload succeeded but the activity was not renamed | Verification is checkpointed before rename; rename failure stops downstream work for that item. | Inspect the error. Transient failures retry after backoff; deterministic failures require review. Do not reset verified progress merely to retry naming. |
 | Upload reported a conflict | Garmin already had the file. This is reported as a conflict, not an error. | Confirm the existing activity is the merged one, then let cleanup verify it normally. |
-| Cleanup reports it is waiting for the merged Garmin activity | Garmin has not finished processing, or the merged activity falls outside the start, duration or distance match window. | Wait one cycle. If it persists, check whether the uploaded activity's duration or distance drifted beyond the match window. |
-| Cleanup reports missing required fields on the merged activity | One of several checks failed: no AlphaHRV record present, no temperature record present, or a mismatch against a recorded balance or respiration count that was greater than zero. This is the gate doing its job. | Do not override. Determine which of the checks failed, then compare the merge's reported values with the downloaded copy. |
-| Garmin source is gone but the analysis platform still shows it, item still pending | Not an ordering effect: the normal pass processes the analysis platform before the upload target. It usually means the two deletion flags differed, or this was a file-first item whose upload-target deletion does not wait for downstream verification, or the analysis-platform listing was stale, or its delete call reported success without taking effect. | Re-run cleanup with the analysis-platform flag enabled. The step removes the source once both it and the merged activity are visible there. If it persists, check the platform directly, since that deletion has no post-delete confirmation. |
-| Garmin source is gone but the analysis platform still shows it, item already marked complete | A file-first item closed by an isolated invocation that had only the upload-target flag enabled. File-first completion is computed from the flags of that invocation alone, and a completed file-first item is never reopened. | Re-running will not help: the item is no longer pending, and no ordinary rerun reopens it. Remove the downstream duplicate by hand, or have the implementation owner reconcile cleanup state. |
-| Platform listings lag behind reality | An activity was deleted but still appears, or a new one has not appeared yet. | The pipeline treats an absent source as already handled and an absent merge as not ready. Both resolve on a later pass. Note the converse case is not detected: on the upload target and the analysis platform a delete call that returned success but did not take effect is recorded as done and will not be retried, so confirm those two manually if a duplicate persists. |
-| Strava authentication expired | Detected explicitly, either as a login redirect or as a missing delete control on the activity page. Nothing was deleted. | Log the browser profile back in. The item retries after its backoff. |
-| Strava rate limit hit | Recorded for the whole run, not just the item that hit it. | Wait. The recorded reset time governs the next attempt. |
+| Cleanup reports it is waiting for the merged Garmin activity | Processing may be delayed, or the activity falls outside the unchanged match windows. | Wait until the recorded retry time, at least five minutes. Persistent absence requires inspection, not wider tolerances. |
+| Cleanup reports missing required fields | The verification gate failed and its step is blocked without automatic polling. | Compare the saved merge counts with a freshly downloaded result under separate authorization. Preserve cached evidence. Only after repair and review clear that step block; never set a verified or deleted flag by assumption. |
+| Garmin source is gone but the analysis platform still shows it, item still pending | Intervals runs first, but Garmin's trigger-first gate requires the downstream merge, not completed source deletion. An Intervals error or pending 202 after merge verification can leave this state. File-first Garmin cleanup has no downstream gate. | Keep the Intervals flag enabled and respect its retry deadline. Confirm the retained merged activity; do not reset completed Garmin targets. |
+| A disabled platform still has a duplicate on a completed item | Completion applies to the saved policy, not every possible destination. | Include that destination in the explicit policy and enable its deletion flag only after preview and authorization. Unfinished work reopens in both source modes. |
+| Platform listings lag behind reality | A deleted source may still appear, or a merge may be absent. | Respect backoff. An exact-target Garmin delete 404 can reconcile absence; a lookup or rename 404 cannot. Intervals 202 remains pending until listing absence. Synchronous successful deletes still lack independent readback. |
+| Strava authentication expired | A login redirect or missing delete control stops that target. Earlier sibling deletions may already have completed and been checkpointed. | Restore the browser session and respect the recorded backoff. Do not reset successfully reconciled targets. |
+| Rate limit hit | Strava limits apply globally and are a healthy wait. Garmin/Intervals 429 deadlines are shared across items, and the pass exits nonzero until they pass. | Wait for the recorded deadline. Do not clear rate state to force retries. |
 | Companion cleanup blocked as ambiguous | The feed did not show exactly one protected native activity and at most one of each import, or the saved Garmin ids were not distinct. | Inspect the feed manually. An unloaded or empty feed is treated as ambiguity, never as success. |
-| Cleanup stopped halfway through | Persistence differs by platform. The upload target saves its deleted-id list after each individual delete call. Analysis-platform and Strava flags are normally written at the end of the pass, so an abort can lose an in-memory flag for work that did complete. Companion keeps no per-card ids and reconciles by reloading the feed. | Re-run. Upload-target deletions are not repeated. A lost flag causes a re-check, not a second deletion, because each step re-reads the platform before acting. |
+| Strava step blocked on a file-first item | Strava showed no candidate, more than one duplicate, or a kept copy that does not match the merge. Ordinary sync lag can cause this, and the block is not retried. | Confirm the Strava listing directly. When exactly the merge and one source copy are present, clear only that item's Strava step block and let the next pass re-match. |
+| Trigger-first item still pending on Strava long after the ride | Either the late-duplicate watch, up to 24 hours, or an ambiguous Strava listing or one without exactly one native activity. Both exit zero. | If still pending after the watch deadline, inspect the listing for extra, missing or unclassified copies. Do not widen classification rules to force completion. |
+| Cleanup stopped halfway through | Verified transitions, individual Garmin outcomes and trigger-first Strava outcomes are checkpointed. Companion reconciles its feed. A crash between remote success and checkpoint remains possible. | Resume with the same policy after inspecting the error. Exact-target absence reconciles a lost checkpoint; never bulk-mark pending flags complete. Persistence failure stops the whole pass. |
 | A trigger was abandoned with no pair found | The Garmin pair never appeared within the retry window, or one half of it failed its metadata requirements. | Confirm both activities exist on Garmin with the required manufacturer and type, then reset the trigger to pending. |
+
+## Deploying and validating cleanup changes
+
+Deployment is separate from activation. Pause the scheduled runner first; installing a
+cleanup change with default-on flags and an active scheduler would enable deletion. Back up
+the script, the full runner and cleanup state without removing caches. Stage the exact change,
+run the offline tests, and check integration against the complete runner, including its lock
+and exit handling, rather than an excerpt.
+
+Review every item the selected policy could reopen. Confirm that completed legacy records
+without a saved policy remain grandfathered across repeated passes; migrate only individually
+reviewed records when a new destination is intentionally required, replacing the saved policy
+and clearing the grandfathered policy origin together. Before migrating a record whose
+analysis-platform source was already removed, check that it carries the analysis-platform merge
+confirmation; without it, the later Strava step waits indefinitely with a healthy exit while
+analysis-platform cleanup is enabled. Keep unrelated work explicitly held during a
+bounded recovery. Preserve existing verified ids, completed flags, per-target outcomes, watch
+deadlines and rate limits. Do not manufacture completed deletion flags.
+
+With separate live-read authorization, inspect the exact source and merged ids, download the
+current merged FIT for field verification, and confirm the downstream merge and protected
+native activity. Cached verification and a saved verified id do not prove current presence.
+Run a deletion-free preview with the intended flags and policy. Preview can update local
+credential, verification-cache or rate-limit data; it is not a filesystem-read-only command.
+
+Only after approval of the concrete target list run one bounded live cleanup. Inspect JSON
+health, saved transitions and exact platform results. Confirm retained activities directly.
+A deterministic block requires correcting its cause and clearing only the reviewed
+step record, item-level block, or shared authentication service block as applicable.
+Never clear a rate deadline or delete evidence as a recovery shortcut.
+
+Resume scheduling only after confirming that expected waits exit zero, actual failures stay
+nonzero during backoff, and no unexpected items or destinations are enabled. Confirm the
+effective scheduler command omits every disabled destination before the first restored run.
+The deployed Garmin client version and its exception metadata must be validated before
+activation whenever that dependency changes.
 
 ## What is never removed automatically
 

@@ -1290,7 +1290,7 @@
       "duration_hours": 1.5,
       "duration_formatted": "1h30m",
       "workout_summary": "10m @155W | 10m @185W | 5\u00d7(4m @310W + 3m) | 15m @140W",
-      "description": null
+      "description": "- 10m 155w\n- 10m 185w\n\n5x\n- 4m 310w\n- 3m Recovery\n\n- 15m 140w"
     },
     {
       "id": 90100003,
@@ -1314,7 +1314,7 @@
       "duration_hours": 1.5,
       "duration_formatted": "1h30m",
       "workout_summary": "10m @155W | 3\u00d7(12m @245W + 5m) | 15m @140W",
-      "description": null
+      "description": "- 10m 155w\n\n3x\n- 12m 245w\n- 5m Recovery\n\n- 15m 140w"
     },
     {
       "id": 90100005,

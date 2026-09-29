@@ -342,7 +342,7 @@ The `description` field uses Intervals.icu's native workout builder syntax. When
 
 - Steps start with `-`
 - Blank lines required around repeat blocks
-- Text before duration becomes step cue
+- Text before the duration or power specification becomes the step's text prompt
 - Case-insensitive keywords
 - Nested repeats NOT supported
 
@@ -357,6 +357,20 @@ The `description` field uses Intervals.icu's native workout builder syntax. When
 
 - 10m 50%
 ```
+
+#### Workout step text (optional)
+
+Most modern AIs can usually understand a workout from its structure, durations and targets. A clear workout name or description is often enough. If you want to make the intended role of a step even clearer, you can optionally add a short label such as “Recovery.”
+
+This can be useful for distinguishing recovery from an active connector, or adding context to over-under, warm-up and cool-down sections.
+
+You can place it wherever it reads clearly. When Section 11 writes a workout description or example, its house style is to put the text after the step's executable details:
+
+```
+- 5m 55% Recovery
+```
+
+Other clear forms work too, such as `- 5m 55% - Recovery` or `- Recovery 5m 55%`. This is not a required grammar. In Intervals.icu, text before the duration or power specification becomes the step's *text prompt* (see Structure above); text in other placements is ordinary workout step text.
 
 ### Template Mappings
 

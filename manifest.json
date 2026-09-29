@@ -60,7 +60,7 @@
       "hash": "4905524df58a6aa59db4ed0321d51f212cc3eb0f5a2c6b715ec0b04e0acba126"
     },
     "examples/agentic/README.md": {
-      "hash": "1c161afe533cf686ebe0ea9e9109c4046ad67968ad4c7d037e8cc5156b71b93b"
+      "hash": "180154d09507772fc6ae0b69da3cc82a98af7aa852717bea023035d2abe9f650"
     },
     "examples/agentic/fit-file-and-merger/ARCHITECTURE.md": {
       "hash": "780f6ea92548749d0b5d5535976115d274b1e0301d19f004f04107faedc8a919"
@@ -102,7 +102,7 @@
       "hash": "fb7b0765ce638c7588acc736056517afffc77dc3bf2b964fa63487bbdafc6a6c"
     },
     "examples/json-examples/README.md": {
-      "hash": "577c3bf9247a70f25bbb1a56c1efa965043cd9aab58864614950ec78aadb8987"
+      "hash": "4fb6091034e8259f3162b5f10a280ea361b50d5e95234c7e414e10ff2a70291b"
     },
     "examples/json-examples/ftp_history.example.json": {
       "hash": "b2f2d569327c7b030c02969efdadd224bcc6d3df4c63857c3f4e614a75cfcb75"
@@ -114,7 +114,7 @@
       "hash": "e11384942f006b3959d61ceb0ecacd0d5d5722622212b0f217543b0308d9bf9c"
     },
     "examples/json-examples/latest.example.json": {
-      "hash": "6262ff10f644e78ec8596582a61b6a9ecb75cfa3b4cfdc60e042725828527c14"
+      "hash": "15c57e4c4649da76d91a68e8a24c825dc19586f5915e9f9c1006a252d1c1be5b"
     },
     "examples/json-examples/routes.example.json": {
       "hash": "0ff2ef8770733a9b059154e7305b57510455e0024f3c60cf57eee7b0d67e97ed"
@@ -171,7 +171,7 @@
       "hash": "48139e3b0b1b65ead3e40d91ec4c7c0ac5271ce52a694fa21194af51e195f8e8"
     },
     "examples/workout-library/README.md": {
-      "hash": "d73df5bef8df8a9177927362eae821c5a5fa260545755e10dc969ff15b8c89c0"
+      "hash": "303c3bf9abf52c50eaaeff637884812c01220975bb7f9adb080e0130fbddb31c"
     },
     "examples/workout-library/WORKOUT_REFERENCE.md": {
       "hash": "2ca6fb8dd263b9407cecbaf0139ccfe44f893c5ecd805596735abffc0dcfe26a"

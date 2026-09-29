@@ -56,6 +56,12 @@ These example files were generated from sync.py v3.86 / Section 11 v11.17. Key f
 
 For the full field reference, see [SECTION_11.md](../../SECTION_11.md) (Derived Metrics table).
 
+## Planned Workout Descriptions
+
+`planned_workouts[].description` carries the text of the planned workout's Intervals.icu description. In `latest.example.json`, the `VO2max Intervals` and `Sweet Spot` rows show optional workout step text written after the step's executable details (`- 3m Recovery`), which is Section 11's house style for descriptions it writes. An athlete's own descriptions may place such text before a step, after it, or anywhere else it reads clearly; this is not a required grammar. See [Intervals.icu Workout Syntax](../agentic/README.md#intervalsicu-workout-syntax).
+
+In `saved_workouts.json`, a structured `workout_doc` step holds its text in a separate `text` field (for example `"text": "Recover"`), so before/after ordering does not apply there.
+
 ## Saved Workouts Mirror
 
 `saved_workouts.json` is a read-only mirror of the user's saved workouts from Intervals.icu. This section is the canonical description of the data product; `SECTION_11.md` holds the normative rules for how an AI must use it.

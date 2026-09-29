@@ -45,6 +45,10 @@ This document is designed to be forked. You can:
 
 As long as your sessions follow the template format (name, zones, structure, duration, coaching notes, selection criteria), the AI coaching system can reference them.
 
+## From Template to Intervals.icu Workout
+
+The templates here describe sessions conceptually (zones, structure, duration), not in Intervals.icu syntax. When a template is written out as a raw Intervals.icu workout description, Section 11's house style is to put any optional workout step text, such as "Recovery", after the step's executable details, as in `- 5m 55% Recovery`. This is a style preference, not a required grammar: text before a step, after it, or in another placement that reads clearly remains valid. For the syntax itself, see [Intervals.icu Workout Syntax](../agentic/README.md#intervalsicu-workout-syntax).
+
 ## Version
 
 Current: **0.5.0**

@@ -53,7 +53,7 @@ Two questions to ask early:
 >
 > **Yes → Local sync:** A script on your machine keeps your data fresh on a timer. No GitHub needed. Cheaper, faster, more reliable.
 >
-> **No → GitHub sync:** GitHub Actions syncs your data on a schedule, every 30 minutes by default, and **Sync Now** syncs immediately. No machine to maintain."
+> **No → GitHub sync:** GitHub Actions syncs your data on a schedule, every 30 minutes by default, and **Sync Now** requests a sync whenever you want one. No machine to maintain."
 
 Both sync methods work with both platform types, and agentic runtimes split by whether they can reach the athlete's filesystem. The valid combinations:
 
@@ -133,12 +133,12 @@ Keep the default unless they want something else. If they do, ask:
 1. **Their GitHub plan:** Free, Pro, Team, or not sure. Treat "not sure" as Free.
 2. **For a hybrid schedule only:** the hour their active window starts in UTC (0 to 23), how many whole hours it lasts (1 to 23), and whether they want checks every 20 or every 15 minutes during it. The schedule runs in UTC. If they give their window in local time, you may convert it using the UTC offset they tell you applies now (for example, 06:00 at UTC+2 is 04:00 UTC, and 06:00 at UTC-5 is 11:00 UTC), but show them the resulting UTC start and end hours and get their explicit confirmation before writing anything. Never require a time zone name, never guess their offset, and never present the result as a local-time schedule.
 
-In a private repository every run uses the account's GitHub Actions minutes, and GitHub rounds each job up to a whole minute, so every run counts as at least one billed minute. The monthly allowance is 2,000 minutes on GitHub Free and 3,000 on Pro and Team. A public repository does not use standard-runner minutes, but it publishes their training data (see the public fallback above). Calculate the worst case with a 31-day month and show them the numbers:
+In a private repository every run uses the account's GitHub Actions minutes, and GitHub rounds each job up to a whole minute, so every run counts as at least one billed minute. The monthly allowance is 2,000 minutes on GitHub Free and 3,000 on Pro and Team. A public repository does not use standard-runner minutes, but it publishes their training data (see the public fallback above). Estimate a 31-day month at one billed minute per scheduled job and show them the numbers. This is an estimate, not a true worst case: longer jobs, Sync Now runs, failed runs, re-runs and other workflows use more:
 
 ```text
 jobs/day = active hours × (60 / active interval) + outside-window hours
-monthly worst case = jobs/day × 31
-minutes left = allowance − monthly worst case
+monthly estimate = jobs/day × 31, at one billed minute per job
+minutes left = allowance − monthly estimate
 ```
 
 All-day schedules have 48 jobs a day (every 30 minutes) or 96 (every 15 minutes).

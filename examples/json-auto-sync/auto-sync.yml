@@ -3,7 +3,7 @@ name: Auto-Sync Intervals.icu Data
 on:
   schedule:
     # Every 30 minutes, at :07 and :37 UTC (away from the busy top of the hour).
-    # GitHub runs schedules best-effort; for an immediate sync, use Run workflow (Sync Now).
+    # GitHub runs schedules best-effort; to request a sync, use Run workflow (Sync Now). It waits if another sync is running or queued.
     # For Fast mode and hybrid schedules, see examples/json-auto-sync/SETUP.md in Section 11.
     - cron: '7,37 * * * *'
   workflow_dispatch:  # Allow manual trigger
@@ -252,7 +252,7 @@ jobs:
             if ! git fetch --quiet origin "refs/heads/${TARGET_BRANCH}" || ! REMOTE_SHA=$(git rev-parse --verify --quiet FETCH_HEAD); then
               echo "❌ OUTCOME UNKNOWN: The branch could not be read back after the push."
               echo "The commit from this run may or may not have landed. No retry was made."
-              echo "Check the latest commit on ${TARGET_BRANCH} before running the workflow again."
+              echo "Before running the workflow again, look for this run's commit(s) ${PUSHED[*]} anywhere in the history of ${TARGET_BRANCH}, not only as its latest commit. Until you can tell, the outcome is unknown, not failed."
               exit 2
             fi
             APPLIED=""
@@ -269,7 +269,7 @@ jobs:
               elif [ "$RC" -ne 1 ]; then
                 echo "❌ OUTCOME UNKNOWN: Could not determine whether this run's commit is on ${TARGET_BRANCH}."
                 echo "The commit from this run may or may not have landed. No retry was made."
-                echo "Check the latest commit on ${TARGET_BRANCH} before running the workflow again."
+                echo "Before running the workflow again, look for this run's commit(s) ${PUSHED[*]} anywhere in the history of ${TARGET_BRANCH}, not only as its latest commit. Until you can tell, the outcome is unknown, not failed."
                 exit 2
               fi
             done

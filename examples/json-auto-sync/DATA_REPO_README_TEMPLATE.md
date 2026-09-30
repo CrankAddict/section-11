@@ -21,7 +21,7 @@ Built on the [Section 11 Protocol](https://github.com/CrankAddict/section-11).
 
 ## Sync Now
 
-[🔄 Sync Now](../../actions/workflows/auto-sync.yml): tap **Run workflow** (keep the default branch selected) for a fresh sync right away, for example after a workout. When the run completes, the new data is committed here, and the **training-data** artifact ZIP on the run page can be downloaded for seven days.
+[🔄 Sync Now](../../actions/workflows/auto-sync.yml): tap **Run workflow** (keep the default branch selected) to request a fresh sync, for example after a workout. If another sync is already running or queued, your run waits its turn. When the run completes, the new data is committed here, and the **training-data** artifact ZIP on the run page can be downloaded for seven days.
 
 ## Data URLs
 

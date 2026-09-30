@@ -163,7 +163,7 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/saved_workout
 2. Click **Run workflow**, keep your default branch selected, and confirm
 3. When the run completes, the new data is committed to the repository
 
-A manual run also uploads the generated JSON files as a **training-data** artifact on the run page, kept for seven days, for uploading to an AI chat. If another sync is already running, your run waits for it to finish. Each manual run counts toward your GitHub Actions minutes like any other run.
+A manual run also uploads the generated JSON files as a **training-data** artifact on the run page, kept for seven days, for uploading to an AI chat. Sync Now requests a run; it does not guarantee that the run starts at once. All syncs share one queue, so if another sync is already running or waiting, your run waits its turn and can start later. GitHub does not guarantee the order of waiting runs. Each manual run counts toward your GitHub Actions minutes like any other run.
 
 ### Default schedule
 
@@ -174,13 +174,13 @@ A manual run also uploads the generated JSON files as a **training-data** artifa
 - Checks every 30 minutes, at 7 and 37 minutes past each hour (UTC)
 - The offsets avoid the start of the hour, which GitHub documents as its busiest time for scheduled workflows
 - When GitHub runs the schedule on time, new data in Intervals.icu waits on average 15 minutes, and at most 30 minutes, for the next scheduled sync
-- GitHub can still delay or drop scheduled runs, so Sync Now remains the immediate path
+- GitHub can still delay or drop scheduled runs, so Sync Now remains the way to request a sync when you need one
 
 ### GitHub Actions minutes
 
 In a private repository, every run uses your account's GitHub Actions minutes. GitHub rounds each job up to a whole minute, so a sync that finishes in under a minute still counts as one billed minute. The monthly allowance for standard runners is 2,000 minutes on GitHub Free and 3,000 minutes on GitHub Pro and Team, shared by all private-repository workflows in your account. See [GitHub's billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-actions) for current figures. What happens after the allowance is used depends on your account's payment and budget settings.
 
-Estimates below use the worst case: a 31-day month with every scheduled run executed.
+Estimates below count scheduled jobs in a 31-day month with every scheduled run executed, assuming each job uses one billed minute. They are not a true worst case: a job that runs longer than a minute, such as a first sync that builds `history.json`, uses more, and Sync Now runs, failed runs, re-runs and other workflows come on top.
 
 | Schedule | Jobs per day | Jobs in 31 days | GitHub Free (2,000) | Pro or Team (3,000) |
 |----------|-------------:|----------------:|---------------------|---------------------|
@@ -202,7 +202,7 @@ Fast mode checks every 15 minutes, all day. It is **not suitable for GitHub Free
 
 ### Advanced hybrid schedules
 
-A hybrid schedule checks more often during an active window that you set in UTC, and hourly otherwise. It uses two ordinary cron lines, which GitHub reads in UTC like the Default and Fast schedules. Do not add a `timezone:` line to either entry: Section 11 does not rely on it, because in testing an entry with `timezone:` ran as if its hours were in UTC. Sync Now remains the way to get fresh data immediately.
+A hybrid schedule checks more often during an active window that you set in UTC, and hourly otherwise. It uses two ordinary cron lines, which GitHub reads in UTC like the Default and Fast schedules. Do not add a `timezone:` line to either entry: Section 11 does not rely on it, because in testing an entry with `timezone:` ran as if its hours were in UTC. Sync Now remains the way to request fresh data when you need it.
 
 The window is fixed in UTC, and the schedule does not adjust itself. Where daylight saving time applies, the same UTC window normally moves by one hour on your local clock when your UTC offset changes. To keep the same local-clock hours all year, recalculate the UTC hours after each offset change and replace both lines yourself; this is optional manual maintenance. With a half-hour or quarter-hour UTC offset, the window starts and ends partway through a local hour. That is expected: the UTC hours remain authoritative.
 
@@ -240,8 +240,8 @@ To build your own window, choose its start hour in UTC (`H`, 0 to 23), its lengt
 
 ```text
 jobs/day = active hours × (60 / active interval) + outside-window hours
-monthly worst case = jobs/day × 31
-minutes left = allowance − monthly worst case
+monthly estimate = jobs/day × 31, at one billed minute per job
+minutes left = allowance − monthly estimate
 ```
 
 - **Above your allowance:** do not use it unless you have deliberately set up paid usage beyond the allowance
@@ -262,7 +262,7 @@ The workflow file is the authority for this behavior. In outline:
 
 - **Actions:** GitHub's checkout, setup-python and upload-artifact actions are pinned to full commit SHAs of their current Node 24 releases, with the release version in a comment
 - **Permissions:** the workflow requests only `contents: write`
-- **One sync at a time:** runs share one concurrency group and queue instead of cancelling each other. After a GitHub outage, several queued runs may execute one after another, and each counts as a billed minute
+- **One sync at a time:** runs share one concurrency group and queue instead of cancelling each other. After a GitHub outage, several queued runs may execute one after another, and each counts as at least one billed minute
 - **Time limit:** a run is stopped after 15 minutes. A normal sync finishes in well under a minute, but a first sync that builds `history.json` can take longer; if a first run is stopped at the limit, raise `timeout-minutes` in the workflow
 - **Default branch only:** a manual run started from another branch stops before any secret is used or anything is synced
 - **Credential masking:** `sync.py` prints the first five characters of your athlete ID and API key; the workflow registers both with GitHub's log masking before `sync.py` runs
@@ -378,7 +378,9 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/saved_workout
 
 ### Run stops with "OUTCOME UNKNOWN"
 - A push did not report success and the workflow could not confirm whether it landed, so it did not retry
-- Check the latest commit on your default branch. If it is this run's `Sync training data` commit, the data was published; otherwise run the workflow again
+- The log names each commit this run tried to push, in its `Pushing commit` lines and again in the OUTCOME UNKNOWN message. Look for those commits anywhere in your default branch's commit history, not only as the latest commit: later syncs may already have landed on top of it, and another sync's commit with the same title is not this run's
+- If one of this run's commits is there, the data was published. If you have confirmed that none is there, run the workflow again
+- Until you can tell, the outcome stays unknown: it does not mean the run failed, and it is not a reason to start runs again blindly
 
 ### Scheduled runs are late or missing
 - GitHub runs schedules best-effort and can delay or drop them; use [Sync Now](#sync-now) when you need fresh data

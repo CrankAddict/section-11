@@ -76,7 +76,9 @@ missing context.
 The dossier never overrides current JSON for a dynamic fact. It is not a training dashboard and is
 never a source of current thresholds, zones, weight, phase or schedule.
 
-A JSON read never supplies a stable athlete fact. Before answering anything that depends on tested
+A JSON read never supplies the stable private athlete context that the dossier owns; the documented
+`athlete_profile` identity and location fields in current JSON remain a legitimate source for those
+fields. Before answering anything that depends on tested
 fueling or tolerance, medication or allergies, equipment, carrying capacity, durable constraints,
 or preferences that bear on the answer, read the relevant section of the current official dossier,
 alongside the current JSON read that numeric or prescriptive coaching still requires. This does

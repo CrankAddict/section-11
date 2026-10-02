@@ -399,6 +399,8 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/saved_workout
 
 ### history.json not generated
 - History generates automatically on first run, then regenerates when outdated
+- Scheduled runs refresh an outdated `history.json` only when the run's number is a multiple of 16. Other scheduled runs skip the refresh, sync everything else normally and say so in the log. The refresh can therefore arrive several hours after the file becomes outdated, and later if those runs are delayed, cancelled or fail
+- **Sync Now** skips only that limit. It refreshes an outdated file unless an earlier failed refresh is still waiting out its retry delay, and it does nothing to a file that is not outdated
 - Delete `history.json` from your repo and re-run to force regeneration. Do this while no sync is running; a run already in progress fails without publishing and the next run regenerates it
 - Check workflow logs. History generation is non-critical and won't fail the sync
 

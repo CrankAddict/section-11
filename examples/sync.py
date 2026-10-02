@@ -4,7 +4,71 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
-Version 3.136 - An unmarked workout_summary is truthful for repeats, counts, durations
+Version 3.137 - history.json refresh gate, retention and GitHub Actions run budget.
+  should_generate_history() refreshed an existing history.json older than 28 days
+  only on Sunday or Monday between 00:00 and 00:30 host-local time. Under the
+  :07/:37 GitHub schedule only the 00:07 run fitted, so a delayed or skipped run on
+  both days left the file overdue for another week, and a machine asleep at
+  midnight never refreshed it by age at all. The age rule is unchanged (strictly
+  more than 28 whole days, so due at 29 x 24h elapsed) but the weekday and
+  time-of-day window is removed: an overdue file is refreshed on the first
+  automatic run after it becomes due (in GitHub Actions, the first run the run
+  budget below allows). Ages are compared in UTC; a naive
+  generated_at, which is what generate_history() writes and whose format is
+  unchanged, is read as host-local time. A missing, unparseable or more than one
+  day future generated_at now counts as due at any time; previously an unusable
+  value counted only inside the old window and a future one never did.
+  generate_history() swallowed a failed activities or wellness fetch into an empty
+  list and still wrote the file, so one transient failure replaced good history
+  with a partially or fully degraded file carrying a fresh generated_at that
+  suppressed any refresh for a month. When history.json already loads as a JSON
+  object, a failed activities, wellness or athlete fetch now aborts generation and
+  the file is kept untouched; this applies to the automatic path and to
+  --generate-history alike, which stays loud and unwrapped. Without such a file
+  (first run, or an unreadable file) behaviour is unchanged: an activities-only or
+  wellness-only failure still writes a degraded first file, and an athlete,
+  builder or write failure still propagates and is retried on the next run. A
+  successful empty response is valid data. The history write is now atomic (temp
+  file plus os.replace, temp removed on failure).
+  A failed AUTOMATIC refresh of an existing file records an internal
+  refresh_state block in history.json (last_attempt_at, consecutive_failures,
+  next_attempt_after, attempt_script_hash, last_error {kind, status}), aware UTC,
+  no exception text. Every other key, generated_at included, is preserved.
+  Further automatic attempts back off 1h, 6h, then 24h; a Retry-After on 429/503
+  may raise but never lower the delay, capped at 24h. The backoff also applies to
+  the sync.py-changed trigger, but only for state recorded by the current script,
+  so changed code is never held back by older state. Malformed state is ignored,
+  and a next attempt more than 24h away (clock regression) is ignored. Success
+  writes a fresh file without the block. --generate-history bypasses gate and
+  backoff and records no state. Publication is unchanged: a failed or unknown
+  history publication after a successful generation records nothing, no PUT is
+  replayed, and automatic history stays non-critical.
+  GitHub Actions run budget: refresh_state reaches the next fresh runner only
+  when that whole run is published, so without a limit an outage that also fails
+  the main sync, or a failed push, allowed one history attempt (with a failed
+  push, one full 3-year pull) per run. When GITHUB_ACTIONS is "true" and the event
+  is not workflow_dispatch (scheduled runs, and also custom push or
+  repository_dispatch triggers), an automatic refresh of an existing JSON-object
+  history.json therefore starts only when GITHUB_RUN_NUMBER is a plain positive
+  integer divisible by HISTORY_ACTIONS_RUN_BUDGET (16), and only if the gate above
+  finds it due and outside any refresh_state backoff. Any other run skips only
+  the history refresh, prints one line and syncs normally; a missing or malformed
+  run number is treated as held. No state is stored for this. The run number
+  counts every created run of the workflow, manual runs included, so the limit is
+  at most one automatic attempt per multiple of 16 in any range of run numbers.
+  It is not a limit per hour or per scheduled run: manual runs can make two
+  consecutive scheduled runs eligible. Manual workflow_dispatch runs skip only
+  this budget (they still need a due file and honour backoff), and a re-run
+  keeps its number, so a re-run of an eligible run may attempt again; neither is
+  bounded by it. There is no refresh deadline: catch-up needs an eligible run that
+  reaches this gate, and cancelled or failed eligible runs, schedule delays,
+  backoff and continuing failures postpone it. Local runs and timers, the
+  --generate-history path, main sync, publication and HTTP handling are unchanged.
+  Known limits, accepted: a missing or unreadable file has no state carrier and
+  is not budgeted, so first-run failures keep their previous behaviour.
+  Pairs with SECTION_11.md / SKILL.md v11.70.
+
+Version 3.136 -An unmarked workout_summary is truthful for repeats, counts, durations
   and the 2 W tolerance (issue #28, correction of the unpublished v3.135).
   v3.135 could still emit an unmarked summary that misstated the plan: a repeat nested
   inside a repeat was shown by its aggregate duration ("2×(1m @300W + 3m)"); a step
@@ -522,7 +586,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.136"
+    VERSION = "3.137"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
     SAVED_WORKOUTS_FILE = "saved_workouts.json"
@@ -558,6 +622,27 @@ class IntervalsSync:
     # dispatch, including a redirect, is verified by read-back rather than
     # trusted, because raise_for_status() does not reject 1xx or 3xx.
     GITHUB_DEFINITIVE_WRITE_STATUSES = (400, 401, 403, 404, 409, 422)
+
+    # --- History refresh gate ---
+    # history.json is refreshed on the first automatic run (in GitHub Actions, the
+    # first one HISTORY_ACTIONS_RUN_BUDGET allows) once it is older than
+    # HISTORY_REFRESH_AGE_DAYS whole days (strictly greater, so due at 29 x 24h
+    # elapsed). There is no weekday or time-of-day window. A failed automatic
+    # refresh of an existing file keeps its data and records an INTERNAL
+    # refresh_state block that backs further automatic attempts off on this
+    # ladder (failure count through N -> delay seconds). The block is not part of
+    # the consumer contract.
+    HISTORY_REFRESH_AGE_DAYS = 28
+    HISTORY_RETRY_LADDER = ((1, 3600), (2, 21600), (None, 86400))
+    HISTORY_RETRY_MAX_SECS = 86400        # Retry-After cap and clock-regression bound
+    HISTORY_FUTURE_TOLERANCE_SECS = 86400  # generated_at further ahead than this is invalid
+    HISTORY_ERROR_KINDS = ("http_status", "timeout", "connection", "decode", "internal")
+    # In GitHub Actions a fresh runner cannot see an unpublished attempt, so an
+    # automatic refresh of an existing file starts only on runs whose
+    # GITHUB_RUN_NUMBER is a multiple of this. The number counts every run of the
+    # workflow, manual ones included. Manual workflow_dispatch runs skip only
+    # this limit. This limits attempts per created run, not per hour.
+    HISTORY_ACTIONS_RUN_BUDGET = 16
 
     # --- Saved Workouts Mirror (v3.132) ---
     # Read-only mirror of the athlete's Intervals.icu saved workouts. Intervals.icu
@@ -8822,67 +8907,154 @@ class IntervalsSync:
             "note": "No history.json available. Longitudinal analysis limited to current 28-day window."
         }
     
-    def should_generate_history(self) -> bool:
+    @staticmethod
+    def _history_stamp_utc(value) -> Optional[datetime]:
         """
-        Determine if history.json needs to be (re)generated.
-        
-        Triggers:
-        - history.json missing → ALWAYS generate (bypass time gate, first-run scenario)
-        - history.json >28 days old → regenerate (time-gated to Sun/Mon midnight)
-        
-        Refresh runs only on Sundays (6) or Mondays (0), in the first two runs
-        after midnight (00:00 and 00:15 UTC).
+        A history timestamp as aware UTC, or None when absent or unusable.
+
+        An aware stamp is converted. A naive stamp, which is what generate_history()
+        writes, is interpreted as host-local wall time, so DST is applied for that
+        date. A naive stamp written on another host keeps that host's offset error.
+        """
+        if not isinstance(value, str) or not value:
+            return None
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.astimezone()
+            return dt.astimezone(timezone.utc)
+        except (ValueError, OverflowError, OSError):
+            return None
+
+    def _history_backoff_active(self, history_data: Dict, now_utc: datetime) -> bool:
+        """
+        True while a recorded failed automatic refresh is still backing off.
+
+        Only state recorded by the CURRENT script applies, so changed code always
+        gets an immediate attempt. A malformed block is ignored, never fatal, and
+        a next attempt further away than the maximum delay is treated as stale
+        (clock regression) and ignored.
+        """
+        state = history_data.get("refresh_state")
+        if not isinstance(state, dict):
+            return False
+        if state.get("attempt_script_hash") != self.script_hash:
+            return False
+        nxt = state.get("next_attempt_after")
+        if not isinstance(nxt, str) or not nxt:
+            return False
+        try:
+            due = datetime.fromisoformat(nxt)
+        except ValueError:
+            return False
+        if due.tzinfo is None:
+            return False
+        remaining = (due - now_utc).total_seconds()
+        if remaining <= 0 or remaining > self.HISTORY_RETRY_MAX_SECS:
+            return False
+        return True
+
+    def _history_run_budget_hold(self, env=None) -> Optional[str]:
+        """
+        Why the GitHub Actions run budget holds an automatic refresh of an
+        existing history.json on this run, or None when it does not.
+
+        Applies only when GITHUB_ACTIONS is "true" and GITHUB_EVENT_NAME is not
+        workflow_dispatch, so local runs and manual Sync Now runs are never
+        held. Any other event, custom push or repository_dispatch included, is
+        held unless GITHUB_RUN_NUMBER is a plain positive integer that is a
+        multiple of HISTORY_ACTIONS_RUN_BUDGET. A missing or malformed number is
+        held, and its raw value is never echoed. A re-run keeps its number, so
+        it gets the same answer. `env` is for tests; it defaults to os.environ.
+        """
+        env = os.environ if env is None else env
+        if env.get("GITHUB_ACTIONS") != "true":
+            return None
+        if env.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+            return None
+        raw = env.get("GITHUB_RUN_NUMBER")
+        if not (isinstance(raw, str) and raw.isascii() and raw.isdigit() and raw[0] != "0"):
+            return "the run number is missing or not a positive integer"
+        number = int(raw)
+        if number % self.HISTORY_ACTIONS_RUN_BUDGET:
+            return f"run {number} is not a multiple of {self.HISTORY_ACTIONS_RUN_BUDGET}"
+        return None
+
+    def should_generate_history(self, now: Optional[datetime] = None) -> bool:
+        """
+        Determine if history.json needs to be (re)generated by the automatic path.
+
+        Triggers, in order:
+        - history.json missing, unreadable or not a JSON object → generate
+          (first-run scenario; no backoff, there is nothing to carry state in)
+        - sync.py changed (script_hash differs) → regenerate
+        - generated_at missing, unparseable or more than a day in the future → regenerate
+        - older than HISTORY_REFRESH_AGE_DAYS whole days (> 28) → regenerate
+        The last three are skipped while a failed attempt by this same script is
+        backing off (refresh_state), and otherwise in GitHub Actions runs that the
+        run budget holds (_history_run_budget_hold). There is no weekday or
+        time-of-day window: outside GitHub Actions an overdue file is refreshed on
+        the first run after it becomes due.
+        Ages are compared in UTC; a naive generated_at is host-local time.
+
+        `now` is for tests; it defaults to the current time.
         """
         history_path = self.data_dir / self.HISTORY_FILE
-        
-        # If history.json doesn't exist, ALWAYS generate (bypass time gate)
+        now_utc = now if now is not None else datetime.now(timezone.utc)
+        if now_utc.tzinfo is None:
+            now_utc = now_utc.astimezone()
+        now_utc = now_utc.astimezone(timezone.utc)
+
+        # If history.json doesn't exist, ALWAYS generate
         if not history_path.exists():
             if self.debug:
                 print("  history.json missing — will generate (first run)")
             return True
-        
-        # If sync.py changed, regenerate regardless of time gate
+
         try:
             with open(history_path, 'r') as f:
                 history_data = json.load(f)
-            if history_data.get("script_hash") != self.script_hash:
-                if self.debug:
-                    print("  history.json stale (sync.py changed) — will regenerate")
-                return True
         except Exception:
             return True
-        
-        # For REFRESH of existing history, apply the time gate
-        now = datetime.now()
-        
-        # Only on Sundays (6) or Mondays (0)
-        if now.weekday() not in [0, 6]:
-            return False
-        
-        # Only in the first two runs after midnight (00:00-00:30)
-        if now.hour > 0 or (now.hour == 0 and now.minute > 30):
-            return False
-        
-        # Check age of existing file
-        try:
-            with open(history_path, 'r') as f:
-                history_data = json.load(f)
-            generated_at = history_data.get("generated_at", "")
-            gen_date = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
-            age_days = (datetime.now() - gen_date.replace(tzinfo=None)).days
-            
-            if age_days > 28:
-                if self.debug:
-                    print(f"  history.json is {age_days} days old — will regenerate")
-                return True
-            else:
-                if self.debug:
-                    print(f"  history.json is {age_days} days old — fresh enough")
-                return False
-        except Exception as e:
-            if self.debug:
-                print(f"  Could not parse history.json age: {e} — will regenerate")
+        if not isinstance(history_data, dict):
             return True
+
+        backing_off = self._history_backoff_active(history_data, now_utc)
+
+        def due(reason: str) -> bool:
+            if backing_off:
+                if self.debug:
+                    print(f"  history.json {reason} — refresh backing off until "
+                          f"{history_data['refresh_state'].get('next_attempt_after')}")
+                return False
+            hold = self._history_run_budget_hold()
+            if hold is not None:
+                print(f"  ⏸️ history.json {reason}: automatic refresh deferred, {hold}. "
+                      f"In GitHub Actions only runs numbered in multiples of "
+                      f"{self.HISTORY_ACTIONS_RUN_BUDGET} refresh it automatically; a manual "
+                      f"Sync Now skips only this limit and still waits out any retry backoff "
+                      f"and refreshes only a due file.")
+                return False
+            if self.debug:
+                print(f"  history.json {reason} — will regenerate")
+            return True
+
+        # If sync.py changed, regenerate regardless of age
+        if history_data.get("script_hash") != self.script_hash:
+            return due("stale (sync.py changed)")
+
+        gen_utc = self._history_stamp_utc(history_data.get("generated_at"))
+        if gen_utc is None:
+            return due("has no usable generated_at")
+        if (gen_utc - now_utc).total_seconds() > self.HISTORY_FUTURE_TOLERANCE_SECS:
+            return due("generated_at is in the future")
+
+        age_days = (now_utc - gen_utc).days
+        if age_days > self.HISTORY_REFRESH_AGE_DAYS:
+            return due(f"is {age_days} days old")
+        if self.debug:
+            print(f"  history.json is {age_days} days old — fresh enough")
+        return False
     
     def generate_history(self) -> Dict:
         """
@@ -8894,9 +9066,18 @@ class IntervalsSync:
         - 1/2/3-year tiers: monthly aggregates (17 fields)
         - FTP timeline from API
         - Data gaps flagged factually
+        
+        When a history.json that loads as a JSON object already exists, a failed
+        activities, wellness or athlete fetch aborts generation by re-raising and
+        the existing file is kept untouched. Without one (first run, or an
+        unreadable file) a failed activities or wellness fetch still degrades to an
+        empty list as before. A successful empty response is valid data. The file
+        is written atomically. Callers decide criticality: the automatic path
+        treats a raise as non-critical, the explicit --generate-history does not.
         """
         print("\n📊 Generating history.json...")
         
+        prior_valid = self._history_prior_is_valid()
         now = datetime.now()
         
         # Determine how far back we can go (up to 3 years)
@@ -8911,6 +9092,9 @@ class IntervalsSync:
             })
         except Exception as e:
             print(f"  ⚠️ Could not fetch full history: {e}")
+            if prior_valid:
+                print("  ⚠️ History refresh aborted — existing history.json kept")
+                raise
             all_activities = []
         
         # Fetch all wellness for full range
@@ -8921,6 +9105,9 @@ class IntervalsSync:
             })
         except Exception as e:
             print(f"  ⚠️ Could not fetch wellness history: {e}")
+            if prior_valid:
+                print("  ⚠️ History refresh aborted — existing history.json kept")
+                raise
             all_wellness = []
         
         # Fetch athlete data for FTP history from API
@@ -9033,13 +9220,133 @@ class IntervalsSync:
             **monthly_tiers
         }
         
-        # Save locally
-        history_path = self.data_dir / self.HISTORY_FILE
-        with open(history_path, 'w') as f:
-            json.dump(history, f, indent=2, default=str)
+        # Save locally (atomic: a failed write leaves any previous file intact)
+        history_path = self._history_write(history)
         print(f"  ✅ history.json saved to {history_path} ({len(daily_90d)} daily, {len(weekly_180d)} weekly rows)")
         
         return history
+    
+    def _history_prior_is_valid(self) -> bool:
+        """True when history.json exists and loads as a JSON object."""
+        try:
+            with open(self.data_dir / self.HISTORY_FILE, 'r') as f:
+                return isinstance(json.load(f), dict)
+        except Exception:
+            return False
+    
+    def _history_write(self, data: Dict) -> Path:
+        """
+        Atomic same-directory write of history.json: temp file plus os.replace.
+        On any failure the temp file is removed and the previous file, if any, is
+        left exactly as it was.
+        """
+        history_path = self.data_dir / self.HISTORY_FILE
+        tmp_path = history_path.with_name(history_path.name + ".tmp")
+        try:
+            with open(tmp_path, 'w') as f:
+                json.dump(data, f, indent=2, default=str)
+            os.replace(tmp_path, history_path)
+        except BaseException:
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
+            raise
+        return history_path
+    
+    def _history_error_info(self, error: BaseException) -> Dict:
+        """
+        Bounded, sanitized classification of a failed refresh: kind and HTTP
+        status only. No exception text, which could carry a URL, a token or
+        athlete data. retry_after is used for scheduling and never persisted.
+        """
+        kind, status, retry_after = "internal", None, None
+        json_errors = (json.JSONDecodeError,)
+        requests_json_error = getattr(requests.exceptions, "JSONDecodeError", None)
+        if requests_json_error is not None:
+            json_errors += (requests_json_error,)
+        if isinstance(error, requests.exceptions.HTTPError):
+            kind = "http_status"
+            response = getattr(error, "response", None)
+            code = getattr(response, "status_code", None)
+            if isinstance(code, int) and not isinstance(code, bool):
+                status = code
+                if code in (429, 503):
+                    retry_after = self._parse_retry_after(response.headers.get("Retry-After"))
+        elif isinstance(error, json_errors):
+            kind = "decode"
+        elif isinstance(error, requests.exceptions.Timeout):
+            kind = "timeout"
+        elif isinstance(error, requests.exceptions.ConnectionError):
+            kind = "connection"
+        return {"kind": kind, "status": status, "retry_after": retry_after}
+    
+    def _history_backoff_secs(self, failures: int, retry_after_secs: Optional[int] = None) -> int:
+        """Ladder delay; Retry-After may raise it but never lower it; capped at the maximum."""
+        delay = self.HISTORY_RETRY_LADDER[-1][1]
+        for through, secs in self.HISTORY_RETRY_LADDER:
+            if through is None or failures <= through:
+                delay = secs
+                break
+        if retry_after_secs is not None:
+            delay = max(delay, int(retry_after_secs))
+        return min(delay, self.HISTORY_RETRY_MAX_SECS)
+    
+    def _record_history_refresh_failure(self, error: BaseException,
+                                        now: Optional[datetime] = None) -> Optional[Dict]:
+        """
+        Record a failed AUTOMATIC refresh in the existing history.json and return
+        the new refresh_state, or None when nothing was recorded.
+        
+        Only an existing file that loads as a JSON object carries state; every
+        other key, generated_at included, is preserved exactly and only
+        refresh_state changes. Nothing is recorded for a missing or unreadable
+        file (first run). Never raises: a failure here must not touch the main
+        sync. Publication failures are not generation failures and never reach
+        this method.
+        
+        Cross-run reach: locally the file persists. In GitHub Actions the state
+        reaches the next fresh runner only if that whole run is published; a run
+        that fails later discards it, so the next runner attempts again once the
+        run budget (_history_run_budget_hold) allows it.
+        """
+        try:
+            history_path = self.data_dir / self.HISTORY_FILE
+            if not history_path.exists():
+                return None
+            with open(history_path, 'r') as f:
+                prev = json.load(f)
+            if not isinstance(prev, dict):
+                return None
+            now_utc = now if now is not None else datetime.now(timezone.utc)
+            if now_utc.tzinfo is None:
+                now_utc = now_utc.astimezone()
+            now_utc = now_utc.astimezone(timezone.utc)
+            prev_state = prev.get("refresh_state")
+            failures = 0
+            if isinstance(prev_state, dict) and prev_state.get("attempt_script_hash") == self.script_hash:
+                count = prev_state.get("consecutive_failures")
+                if isinstance(count, int) and not isinstance(count, bool) and count >= 0:
+                    failures = count
+            failures += 1
+            info = self._history_error_info(error)
+            delay = self._history_backoff_secs(failures, info["retry_after"])
+            state = {
+                "last_attempt_at": now_utc.isoformat(),
+                "consecutive_failures": failures,
+                "next_attempt_after": (now_utc + timedelta(seconds=delay)).isoformat(),
+                "attempt_script_hash": self.script_hash,
+                "last_error": {"kind": info["kind"], "status": info["status"]},
+            }
+            data = dict(prev)
+            data["refresh_state"] = state
+            self._history_write(data)
+            print(f"   ⚠️ Existing history.json kept; next automatic refresh attempt after {state['next_attempt_after']}")
+            return state
+        except Exception as e:
+            print(f"   ⚠️ Could not record history refresh state (non-critical): {type(e).__name__}")
+            return None
     
     def _build_daily_tier(self, activities_by_date: Dict, wellness_by_date: Dict, 
                           days: int,
@@ -12542,7 +12849,13 @@ def main():
     if sync.should_generate_history():
         try:
             print("\n📊 Auto-generating history.json...")
-            history = sync.generate_history()
+            try:
+                history = sync.generate_history()
+            except Exception as e:
+                # Generation failures only: back off further automatic attempts.
+                # Publication below never records refresh state.
+                sync._record_history_refresh_failure(e)
+                raise
             if not args.output:
                 sync.publish_to_github(history, filepath="history.json",
                                        commit_message=f"Auto-generate history.json - {datetime.now().strftime('%Y-%m-%d')}")

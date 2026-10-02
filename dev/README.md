@@ -57,7 +57,7 @@ directory.
 
 **Shared helpers live in `_harness.py`.** The loader, the `NetworkBlocked` type,
 the verb-seam installer and restorer, and the `RefuseEverything` object-seam
-sentinel are shared by all four modules. There is no single guard installer,
+sentinel are shared by all five modules. There is no single guard installer,
 because the two seams are not the same mechanism: the verb seam swaps named
 attributes on a real module and restores them, while the object seam replaces one
 lazily-bound object with `RefuseEverything` and assigns the saved original back. The leading underscore keeps the file outside
@@ -162,11 +162,33 @@ summary, and for a null or marked summary must name the description field that t
 producer puts on each row tier, with the near/far boundary and preview length they
 state matching the producer's. No report is rendered.
 
+`test_history_refresh.py` covers the `history.json` refresh gate, retention and
+failure backoff in `sync.py`: the strict more-than-28-whole-days boundary with no
+weekday or midnight window, catch-up after downtime, unusable and future
+`generated_at`, aware, naive and DST-crossing timestamps, retention of an existing
+file when the activities, wellness or athlete read fails, the atomic write and its
+temp-file cleanup, the internal `refresh_state` ladder (1h, 6h, 24h) with
+`Retry-After` and its 24h cap, clock regression, malformed state, script-hash
+containment, sanitised error kinds, manual `--generate-history`, publication
+failures that must record nothing, and the unchanged first-run behaviour. Runs go
+through `main()` with a frozen module clock and a pinned host `TZ`, so the same
+assertions run against the pre-repair `sync.py` and fail there on behaviour rather
+than on a missing name. A GitHub Actions runner is simulated as a fresh directory
+holding only the committed `history.json`, which also pins the accepted residual:
+a run that is not published loses its state. It also covers the GitHub Actions run
+budget: eligibility by run number, event and malformed number, fresh-runner chains
+with unpublished failures and successes, its interaction with backoff, the
+script-hash trigger and the unbudgeted first run, manual dispatch, re-runs, mixed,
+skipped and out-of-order run numbers, and the deferral line. The module removes the
+GitHub Actions run variables from its environment while it runs and sets them
+explicitly per case, so it gives the same results inside GitHub Actions. It needs
+`time.tzset()` and is skipped where it is unavailable.
+
 ## Not covered
 
 Everything else. No DFA computation, no report generation, and no `sync.py`
-surface outside per-endpoint fetch state, HTTP policy and the `workout_summary`
-renderer with its report-template field contract. `push.py` write paths are
+surface outside per-endpoint fetch state, HTTP policy, the `history.json` refresh
+gate and the `workout_summary` renderer with its report-template field contract. `push.py` write paths are
 covered for their transport behaviour and outcome classification only, not for
 their validation rules or their calendar semantics. Treat this as focused regression guards, not as
 coverage of the repository.

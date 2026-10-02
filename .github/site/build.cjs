@@ -142,7 +142,7 @@ function landing() {
 <div class="actions"><a class="button" href="getting-started.html">Getting started <span aria-hidden="true">↗</span></a><a class="text-link" href="${REPOSITORY}">View repository</a></div>
 <p class="hero-note">For endurance athletes using AI alongside their training.</p></section>
 <section class="overview" aria-labelledby="how"><div><p class="eyebrow">How it fits together</p><h2 id="how">Data first.<br> Context alongside it.</h2></div>
-<ol class="principles"><li><span class="number">01</span><div><h3>Your training data</h3><p>Sync from Intervals.icu, or provide an export. Current metrics come from your data, with history loaded when the question needs it.</p></div></li>
+<ol class="principles"><li><span class="number">01</span><div><h3>Your training data</h3><p>Sync your data from Intervals.icu, automatically or as a one-off export. Current metrics come from your data, with history loaded when the question needs it.</p></div></li>
 <li><span class="number">02</span><div><h3>A shared set of rules</h3><p>The protocol defines coaching, planning and validation rules. Your optional private dossier adds goals, constraints and preferences.</p></div></li>
 <li><span class="number">03</span><div><h3>A more useful review</h3><p>Use structured pre-workout briefings, session analysis and longer-term reviews to connect the data to your training questions.</p><a href="reports.html">Explore report examples <span aria-hidden="true">↗</span></a></div></li></ol></section>
 <section class="reading" aria-labelledby="explore"><div><p class="eyebrow">Read the project</p><h2 id="explore">Start with the essentials.</h2></div><div class="reading-links">

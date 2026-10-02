@@ -55,6 +55,8 @@ An AI with persistent memory and a runtime that can execute code reaches more of
 
 ## Quick Start
 
+**Before you start:** The documented data setups use [Intervals.icu](https://intervals.icu). You need an account containing your training data, plus your athlete ID and API key.
+
 > **Recommended:** Paste [SETUP_ASSISTANT.md](SETUP_ASSISTANT.md) into ChatGPT, Claude, Gemini, or any AI chat, and it will walk you through everything below step by step. This is the easiest path for most users.
 
 You can also follow the step-by-step guides below.
@@ -91,6 +93,12 @@ Your AI needs access to `SECTION_11.md` (the protocol), plus `DOSSIER.md` (your 
 - **Cloud connector (Google Drive, OneDrive; [platform support varies](#platform-setup)):** If these files are in your synced folder, the AI reads them through the connector.
 - **URL fetch (no connector):** If your data repo is public, the AI can fetch raw URLs directly.
 - **Manual upload:** Upload `SECTION_11.md`, and `DOSSIER.md` if you use one, to your AI platform or project. Uploaded files are frozen at upload. Replace the old copy when you update one, and don't leave two versions in the store.
+
+### Having trouble?
+
+- [Activities are missing or incomplete, including Strava imports](#activities-show-null-or-missing-fields)
+- [Your data looks out of date](#data-appears-stale-after-sync)
+- [Your AI cannot read the data files](#ai-asks-for-data-instead-of-fetching)
 
 ---
 
@@ -637,6 +645,7 @@ The software is provided "as is", without warranty of any kind.
 
 ## Links
 
+- **Website:** [section11.net](https://section11.net/)
 - **Protocol:** [SECTION_11.md](SECTION_11.md)
 - **Template:** [DOSSIER_TEMPLATE.md](DOSSIER_TEMPLATE.md)
 - **Examples:** [examples/](examples/)

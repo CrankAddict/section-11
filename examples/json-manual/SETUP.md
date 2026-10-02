@@ -6,6 +6,7 @@ Export Intervals.icu data locally for different time ranges.
 
 - Python 3.8+
 - `requests` library: `pip install requests`
+- [Intervals.icu](https://intervals.icu) account with training data
 
 ## First-Time Setup
 

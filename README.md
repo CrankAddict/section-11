@@ -1,5 +1,7 @@
 # Section 11 - AI Coaching Protocol
 
+[Project website](https://section11.net/)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 An open protocol for deterministic, auditable AI-powered endurance coaching. Built for athletes who want AI coaches that follow science, not speculation.

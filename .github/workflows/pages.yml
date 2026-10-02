@@ -1,0 +1,60 @@
+name: Section 11 documentation site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.md'
+      - LICENSE
+      - '.github/site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: section11-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, existing project convention
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.20.0'
+      - name: Install locked build dependencies
+        run: npm ci --prefix .github/site --ignore-scripts --omit=dev --no-audit --no-fund
+      - name: Test build boundary
+        run: npm test --prefix .github/site
+      - name: Build public pages
+        run: npm run build --prefix .github/site
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload only generated public output
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .github/site/_site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

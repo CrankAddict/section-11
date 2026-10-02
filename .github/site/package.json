@@ -1,0 +1,10 @@
+{
+  "name": "section-11-site",
+  "private": true,
+  "scripts": {
+    "build": "node build.cjs",
+    "test": "node --test test.cjs"
+  },
+  "engines": { "node": ">=24" },
+  "dependencies": { "markdown-it": "15.0.2" }
+}

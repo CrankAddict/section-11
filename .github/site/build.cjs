@@ -120,7 +120,8 @@ function renderDocument(page, documents, root) {
 }
 
 function shell(route, title, description, content) {
-  const nav = [ ['index.html', 'Overview'], ['getting-started.html', 'Getting started'], ['reports.html', 'Reports'] ];
+  // Secondary links stay in every header; site.css hides them only at the mobile breakpoint.
+  const nav = [ ['index.html', 'Overview', true], ['getting-started.html', 'Getting started'], ['reports.html', 'Reports', true] ];
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="${escape(description)}">
@@ -129,9 +130,9 @@ function shell(route, title, description, content) {
 <link rel="stylesheet" href="${relative(route, 'assets/site.css')}"></head>
 <body><a class="skip" href="#main">Skip to content</a>
 <header class="site-header"><a class="wordmark" href="${relative(route, 'index.html')}" aria-label="Section 11 home">SECTION <span>11</span></a>
-<nav aria-label="Main navigation">${nav.map(([url, label]) => `<a href="${relative(route, url)}"${url === route ? ' aria-current="page"' : ''}>${label}</a>`).join('')}<a href="${REPOSITORY}">Repository <span aria-hidden="true">↗</span></a></nav></header>
+<nav aria-label="Main navigation">${nav.map(([url, label, secondary]) => `<a${secondary ? ' class="nav-secondary"' : ''} href="${relative(route, url)}"${url === route ? ' aria-current="page"' : ''}>${label}</a>`).join('')}<a href="${REPOSITORY}">Repository <span aria-hidden="true">↗</span></a></nav></header>
 <main id="main">${content}</main>
-<footer><span>Section 11 <span aria-hidden="true">/</span> by <a href="${REPOSITORY}">CrankAddict</a></span><a href="${relative(route, 'LICENSE.txt')}">MIT license</a><span>Open protocol. Athlete-controlled data.</span></footer>
+<footer><span>Section 11 <span aria-hidden="true">/</span> by <a href="${REPOSITORY}">CrankAddict</a></span><span>Free and open source <span aria-hidden="true">·</span> <a href="${relative(route, 'LICENSE.txt')}">MIT license</a></span><span>Open protocol. Athlete-controlled data.</span></footer>
 </body></html>\n`;
 }
 
@@ -139,14 +140,14 @@ function landing() {
   return `<section class="hero"><p class="eyebrow">An open protocol for endurance coaching</p>
 <h1>Your training data.<br>A clearer conversation.</h1>
 <p class="lead">Give your AI coach a framework for working with your actual training data: what to read, how to interpret it, and when to ask for more.</p>
-<div class="actions"><a class="button" href="getting-started.html">Getting started <span aria-hidden="true">↗</span></a><a class="text-link" href="${REPOSITORY}">View repository</a></div>
-<p class="hero-note">For endurance athletes using AI alongside their training.</p></section>
+<div class="actions"><a class="button" href="getting-started.html">Getting started <span aria-hidden="true">→</span></a><a class="text-link hero-repo" href="${REPOSITORY}">View repository <span aria-hidden="true">↗</span></a></div>
+<p class="hero-note">For endurance athletes using AI alongside their training, in AI chats or agentic setups.</p></section>
 <section class="overview" aria-labelledby="how"><div><p class="eyebrow">How it fits together</p><h2 id="how">Data first.<br> Context alongside it.</h2></div>
 <ol class="principles"><li><span class="number">01</span><div><h3>Your training data</h3><p>Sync your data from Intervals.icu, automatically or as a one-off export. Current metrics come from your data, with history loaded when the question needs it.</p></div></li>
 <li><span class="number">02</span><div><h3>A shared set of rules</h3><p>The protocol defines coaching, planning and validation rules. Your optional private dossier adds goals, constraints and preferences.</p></div></li>
-<li><span class="number">03</span><div><h3>A more useful review</h3><p>Use structured pre-workout briefings, session analysis and longer-term reviews to connect the data to your training questions.</p><a href="reports.html">Explore report examples <span aria-hidden="true">↗</span></a></div></li></ol></section>
+<li><span class="number">03</span><div><h3>A more useful review</h3><p>Use structured pre-workout briefings, session analysis and longer-term reviews to connect the data to your training questions.</p><a href="reports.html">Explore report examples <span aria-hidden="true">→</span></a></div></li></ol></section>
 <section class="reading" aria-labelledby="explore"><div><p class="eyebrow">Read the project</p><h2 id="explore">Start with the essentials.</h2></div><div class="reading-links">
-<a href="getting-started.html"><span>Getting started</span><span>Choose your setup <span aria-hidden="true">↗</span></span></a>
+<a href="getting-started.html"><span>Getting started</span><span>Choose your setup <span aria-hidden="true">→</span></span></a>
 <a href="${sourceURL('SECTION_11.md')}"><span>The protocol</span><span>Coaching rules and validation <span aria-hidden="true">↗</span></span></a>
 <a href="${REPOSITORY}/tree/main/examples/workout-library"><span>Workout reference</span><span>Structured session templates <span aria-hidden="true">↗</span></span></a></div></section>
 <section class="limits" aria-labelledby="limits"><h2 id="limits">Keep the limits in view.</h2><div><p>Section 11 is a protocol and a set of tools. You choose the AI and the services that handle your data; Section 11 operates no hosted backend. Keep your training exports and athlete dossier private.</p><p>AI can still make mistakes. This is not medical advice, a replacement for a human coach, or a guarantee of performance.</p><a href="${sourceURL('README.md', '#privacy--security')}">Privacy and data handling <span aria-hidden="true">↗</span></a></div></section>`;
@@ -163,9 +164,10 @@ function build(root, output) {
     const article = renderDocument(page, documents, root);
     const toc = page.headings.filter(h => h.level === (page.section ? 3 : 2));
     const sourceLink = sourceURL(page.source, page.section ? `#${slug(page.section)}` : '');
-    const sidebar = `<aside class="guide-nav"><p class="eyebrow">Setup &amp; examples</p><nav aria-label="Guide navigation">${documents.map(d => `<a href="${relative(page.route, d.route)}"${d.route === page.route ? ' aria-current="page"' : ''}>${escape(d.title)}</a>`).join('')}</nav><a class="source-link" href="${sourceLink}">View Markdown source ↗</a></aside>`;
+    const sidebar = `<aside class="guide-nav"><p class="eyebrow">Setup &amp; examples</p><nav aria-label="Guide navigation">${documents.map(d => `<a href="${relative(page.route, d.route)}"${d.route === page.route ? ' aria-current="page"' : ''}>${escape(d.title)}</a>`).join('')}</nav><a class="source-link" href="${sourceLink}">View Markdown source <span aria-hidden="true">↗</span></a></aside>`;
     const contents = `<details class="toc"><summary>On this page</summary><nav aria-label="On this page"><ul>${toc.map(h => `<li><a href="#${escape(h.id)}">${escape(h.text)}</a></li>`).join('')}</ul></nav></details>`;
-    files.set(page.route, shell(page.route, page.title, page.description, `<div class="doc-layout">${sidebar}<div class="doc-content"><p class="eyebrow">${escape(page.title)}</p><p class="source-note">From the maintained <a href="${sourceLink}">repository documentation</a>.</p>${contents}<article class="prose">${article}</article></div></div>`));
+    // Article first in reading and focus order; site.css keeps the guide column on the left on desktop.
+    files.set(page.route, shell(page.route, page.title, page.description, `<div class="doc-layout"><div class="doc-content"><p class="eyebrow">${escape(page.title)}</p>${contents}<article class="prose">${article}</article></div>${sidebar}</div>`));
   }
   files.set('assets/site.css', ordinary(root, '.github/site/site.css'));
   files.set('LICENSE.txt', ordinary(root, 'LICENSE'));

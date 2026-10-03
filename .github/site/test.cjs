@@ -28,6 +28,60 @@ test('build emits only the explicit public inventory', t => {
   assert.match(index, /Data first\.<br> Context alongside it\./);
   assert.match(index, /https:\/\/section11\.net\//);
   assert.doesNotMatch(index, /<script|<form|<iframe|<img/i);
+  for (const route of ['index.html', ...pages.map(p => p.route)]) {
+    const footer = fs.readFileSync(path.join(output, route), 'utf8').match(/<footer>.*<\/footer>/)[0];
+    const license = route.includes('/') ? '../LICENSE.txt' : 'LICENSE.txt';
+    assert.ok(footer.includes(`<span>Free and open source <span aria-hidden="true">·</span> <a href="${license}">MIT license</a></span>`), route);
+  }
+});
+
+test('arrows are decorative: up-right leaves the site, right stays on it', t => {
+  const output = path.join(scratch(t), 'public');
+  build(root, output);
+  for (const route of ['index.html', ...pages.map(p => p.route)]) {
+    const html = fs.readFileSync(path.join(output, route), 'utf8');
+    assert.doesNotMatch(html, /(?<!<span aria-hidden="true">)↗/, route);
+    for (const [, href, label] of html.matchAll(/<a [^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gs)) {
+      if (label.includes('<span aria-hidden="true">↗</span>')) assert.match(href, /^https:\/\//, `${route}: ${href}`);
+      if (label.includes('<span aria-hidden="true">→</span>')) assert.doesNotMatch(href, /^[a-z]+:/i, `${route}: ${href}`);
+    }
+    if (route === 'index.html') continue;
+    assert.doesNotMatch(html, /class="source-note"/, route);
+    assert.match(html, /<a class="source-link" href="https:\/\/github\.com\/CrankAddict\/section-11\/blob\/main\/[^"]+">View Markdown source /, route);
+  }
+});
+
+test('mobile header keeps Getting started and the repository; the article precedes the guides', t => {
+  const output = path.join(scratch(t), 'public');
+  build(root, output);
+  for (const route of ['index.html', ...pages.map(p => p.route)]) {
+    const html = fs.readFileSync(path.join(output, route), 'utf8');
+    const header = html.match(/<nav aria-label="Main navigation">(.*?)<\/nav>/)[1];
+    const links = [...header.matchAll(/<a(?: class="([^"]*)")? href="[^"]*"[^>]*>(.*?)<\/a>/g)].map(m => [m[1] || '', m[2].replace(/<[^>]*>/g, '').trim()]);
+    assert.deepEqual(links, [['nav-secondary', 'Overview'], ['', 'Getting started'], ['nav-secondary', 'Reports'], ['', 'Repository ↗']], route);
+    assert.match(header, /<a href="https:\/\/github\.com\/CrankAddict\/section-11">Repository <span aria-hidden="true">↗<\/span><\/a>$/, route);
+    assert.equal(html.split('hero-repo').length, route === 'index.html' ? 2 : 1, route);
+    if (route === 'index.html') {
+      assert.match(html, /<div class="actions"><a class="button" href="getting-started\.html">Getting started <span aria-hidden="true">→<\/span><\/a><a class="text-link hero-repo" href="https:\/\/github\.com\/CrankAddict\/section-11">View repository <span aria-hidden="true">↗<\/span><\/a><\/div>/);
+      continue;
+    }
+    const content = html.indexOf('<div class="doc-content">'), guide = html.indexOf('<aside class="guide-nav">');
+    assert.ok(content > 0 && guide > content && guide > html.indexOf('</article>'), route);
+    const aside = html.slice(guide, html.indexOf('</aside>', guide));
+    for (const p of pages) assert.match(aside, new RegExp(`>${p.title}</a>`), `${route}: ${p.title}`);
+    assert.match(aside, /class="source-link"/, route);
+  }
+  const css = fs.readFileSync(path.join(output, 'assets/site.css'), 'utf8');
+  const mobile = css.slice(css.indexOf('@media (max-width: 800px) {'), css.indexOf('@media print'));
+  for (const name of ['.nav-secondary', '.hero-repo']) assert.equal(css.split(name).length, 2, name);
+  assert.match(mobile, /\.nav-secondary, \.hero-repo \{ display: none; \}/);
+  assert.doesNotMatch(css, /nav-repo|nav-full|::before|\.button[^{]*\{[^}]*display: none/);
+  assert.match(mobile, /\.site-header \{ flex-wrap: wrap;/);
+  assert.match(mobile, /\.site-header nav \{[^}]*margin-left: auto; \}/);
+  assert.match(css, /\.doc-layout \{[^}]*grid-template-areas: "guide content";/);
+  assert.match(mobile, /\.doc-layout \{[^}]*grid-template-areas: "content" "guide";/);
+  assert.match(css, /\.wordmark \{ font-size: 1\.3rem; font-weight: 600; letter-spacing: \.07em;/);
+  assert.match(css, /\.wordmark span \{ color: var\(--accent\); font-size: 1\.7rem; font-weight: 750; letter-spacing: -\.08em; margin-left: -\.15rem; \}/);
 });
 
 test('Quick Start is an exact source section, excluding adjacent sections', () => {

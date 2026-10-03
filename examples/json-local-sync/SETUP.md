@@ -147,9 +147,9 @@ gemini
 
 Gemini CLI has full filesystem access to the working directory.
 
-### Hermes Agent (experimental)
+### Hermes Agent
 
-Hermes reads the filesystem of its runtime host, which may be this machine or a remote box you control, not necessarily the one you are reading this on. It has the agentic capability class, so it uses the agentic contract named under [Project instructions](#project-instructions) below, but it is **experimental**: not validated end to end against the Section 11 pipeline, and capability class is not a support promise.
+Hermes reads the filesystem of its runtime host, which may be this machine or a remote box you control, not necessarily the one you are reading this on. It uses the agentic contract named under [Project instructions](#project-instructions) below. Its Section 11 workflow has not been validated end to end on this runtime.
 
 Point it at your data with a pointer file rather than copying files onto the host. Its working directory is not guaranteed to be where you think it is; set paths explicitly and check the resolved working directory before relying on a relative path, particularly when driving Hermes through a messaging gateway.
 

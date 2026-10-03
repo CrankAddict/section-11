@@ -57,7 +57,9 @@ An AI with persistent memory and a runtime that can execute code reaches more of
 
 **Before you start:** The documented data setups use [Intervals.icu](https://intervals.icu). You need an account containing your training data, plus your athlete ID and API key.
 
-> **Recommended:** Paste [SETUP_ASSISTANT.md](SETUP_ASSISTANT.md) into ChatGPT, Claude, Gemini, or any AI chat, and it will walk you through everything below step by step. This is the easiest path for most users.
+Section 11 is free to use. Your chosen AI platform or hosting may have its own costs.
+
+> **Recommended:** Give [SETUP_ASSISTANT.md](SETUP_ASSISTANT.md) to your AI for guided setup, whether you use a chat app such as ChatGPT or Claude, or OpenClaw and similar always-on agentic setups. Or use the [Section 11 skill](SKILL.md), if supported.
 
 You can also follow the step-by-step guides below.
 
@@ -81,8 +83,8 @@ Keep your Intervals.icu data fresh for your AI coach automatically.
 
 Choose your path:
 
-- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, Claude Cowork, ChatGPT Codex, Gemini CLI (code execution, push workouts to calendar). Grok Bot and Hermes Agent have the capability class but are **experimental**; capability class is not a support promise. Calendar writes need verified access, configured credentials and a tested integration.
-- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT Projects, Claude Projects, Gemini Gems, Grok (web/app), Mistral Vibe
+- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, and Hermes Agent, etc.
+- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.
 
 ### 4. Make Files Available to Your AI
 
@@ -147,9 +149,9 @@ Runs on a user-scoped shared computer and authenticates through Cursor. It has t
 
 All Bots on your account share one cloud computer: files, browser sessions and command-line credentials are not isolated. Deleting a Bot does not clear shared files or browser sessions. Cloud storage is required and Legacy Privacy Mode is unavailable. Check your [xAI](https://docs.x.ai/) and Cursor privacy settings before adding a sensitive dossier.
 
-### Hermes Agent (experimental)
+### Hermes Agent
 
-Reads the filesystem of its runtime host, not your machine. It has the agentic capability class, but it is **experimental** and not validated end to end against the Section 11 pipeline.
+Reads the filesystem of its runtime host, not your machine. Its Section 11 workflow has not been validated end to end on this runtime.
 
 Point it at your data with a pointer file rather than copying files onto the host. Its working directory is not guaranteed to be where you think it is. Set paths explicitly and check the resolved working directory before relying on a relative path.
 

@@ -82,6 +82,33 @@ test('mobile header keeps Getting started and the repository; the article preced
   assert.match(mobile, /\.doc-layout \{[^}]*grid-template-areas: "content" "guide";/);
   assert.match(css, /\.wordmark \{ font-size: 1\.3rem; font-weight: 600; letter-spacing: \.07em;/);
   assert.match(css, /\.wordmark span \{ color: var\(--accent\); font-size: 1\.7rem; font-weight: 750; letter-spacing: -\.08em; margin-left: -\.15rem; \}/);
+  // Phone header: tighter gaps and a header-only inset; body and footer keep the shared margin, wrapping stays the fallback.
+  assert.match(mobile, /\.site-header, main, footer \{ width: calc\(100% - 2\.5rem\); \}\n  \.site-header \{ flex-wrap: wrap; gap: \.25rem; min-height: 4\.5rem; padding-block: \.9rem; width: calc\(100% - 1rem\); \}\n  \.site-header nav \{ gap: \.45rem \.5rem; margin-left: auto; \}/);
+  assert.equal(mobile.split(' width: ').length, 3);
+  assert.doesNotMatch(mobile, /nowrap|overflow|font-size|font-weight|footer \{ (?!width: calc\(100% - 2\.5rem\))/);
+  assert.match(css, /\.site-header, main, footer \{ width: min\(1160px, calc\(100% - 5rem\)\); margin-inline: auto; \}/);
+  assert.match(css, /\.site-header \{ display: flex; justify-content: space-between; align-items: center; gap: 2rem; min-height: 6\.5rem; border-bottom: 1px solid var\(--line\); \}/);
+  assert.match(css, /\.site-header nav \{ display: flex; gap: 1\.75rem; flex-wrap: wrap; font-size: \.9375rem; \}/);
+  assert.match(css, /\nfooter \{ display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem 2rem; border-top: 1px solid var\(--line\); padding-block: 2rem; font-size: \.875rem; color: var\(--muted\); \}/);
+});
+
+test('OpenCode and the T3 Code note appear in Agentic Setup and as Quick Start examples', () => {
+  const docs = prepare(root);
+  const start = docs.find(p => p.route === 'getting-started.html');
+  const readme = start.original;
+  const titles = parse(readme).headings.filter(h => h.level === 3).map(h => h.text);
+  assert.deepEqual(titles.slice(titles.indexOf('Hermes Agent'), titles.indexOf('Agentic Tools') + 1), ['Hermes Agent', 'OpenCode', 'Agentic Tools']);
+  const entry = readme.slice(readme.indexOf('\n### OpenCode\n'), readme.indexOf('\n### Agentic Tools\n'));
+  assert.match(entry, /has not been validated end to end on this runtime\.\n\n\*\*Control interfaces\.\*\* T3 Code provides an interface for supported agents[^\n]*T3 Code is not a separate coaching runtime\.\n$/);
+  assert.equal(readme.split('T3 Code').length, 4);
+  assert.ok(start.selected.includes('\nChoose your path:\n\n- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.\n- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.\n\n[T3 Code](https://t3.codes/) is an optional control interface for supported agents, not a separate coaching runtime.\n\nOpen-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.\n\n### 4. Make Files Available to Your AI\n'));
+  assert.equal(start.selected.split('OpenCode').length, 2);
+  assert.equal(start.selected.split('T3 Code').length, 2);
+  assert.equal(linkURL('#agentic-setup', start, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/README.md#agentic-setup');
+  const html = renderDocument(start, docs, root);
+  assert.ok(html.includes('OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.</li>'));
+  assert.ok(html.includes('<p><a href="https://t3.codes/">T3 Code</a> is an optional control interface for supported agents, not a separate coaching runtime.</p>\n<p>Open-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.</p>\n<h2 id="4-make-files-available-to-your-ai"'));
+  assert.equal(readme.split('Open-weight').length, 2);
 });
 
 test('Quick Start is an exact source section, excluding adjacent sections', () => {

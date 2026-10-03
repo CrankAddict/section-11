@@ -83,8 +83,12 @@ Keep your Intervals.icu data fresh for your AI coach automatically.
 
 Choose your path:
 
-- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, and Hermes Agent, etc.
+- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.
 - **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.
+
+[T3 Code](https://t3.codes/) is an optional control interface for supported agents, not a separate coaching runtime.
+
+Open-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.
 
 ### 4. Make Files Available to Your AI
 
@@ -154,6 +158,12 @@ All Bots on your account share one cloud computer: files, browser sessions and c
 Reads the filesystem of its runtime host, not your machine. Its Section 11 workflow has not been validated end to end on this runtime.
 
 Point it at your data with a pointer file rather than copying files onto the host. Its working directory is not guaranteed to be where you think it is. Set paths explicitly and check the resolved working directory before relying on a relative path.
+
+### OpenCode
+
+An open-source coding agent for the terminal, IDE and desktop. Its Section 11 workflow has not been validated end to end on this runtime.
+
+**Control interfaces.** T3 Code provides an interface for supported agents such as Claude Code, ChatGPT Codex and OpenCode. Section 11 access depends on the underlying agent's configured filesystem and tool permissions; T3 Code is not a separate coaching runtime.
 
 ### Agentic Tools
 

@@ -90,8 +90,8 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
 [id] { scroll-margin-top: 2rem; }
 @media (max-width: 800px) {
   .site-header, main, footer { width: calc(100% - 2.5rem); }
-  .site-header { flex-wrap: wrap; gap: .5rem; min-height: 4.5rem; padding-block: .9rem; }
-  .site-header nav { gap: .45rem .75rem; margin-left: auto; }
+  .site-header { flex-wrap: wrap; gap: .25rem; min-height: 4.5rem; padding-block: .9rem; width: calc(100% - 1rem); }
+  .site-header nav { gap: .45rem .5rem; margin-left: auto; }
   .nav-secondary, .hero-repo { display: none; }
   .hero { padding: 3.5rem 0; }
   .overview, .reading, .limits { grid-template-columns: 1fr; gap: 1.7rem; padding: 2.7rem 0; }

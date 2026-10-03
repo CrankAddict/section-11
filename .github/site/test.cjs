@@ -101,14 +101,28 @@ test('OpenCode and the T3 Code note appear in Agentic Setup and as Quick Start e
   const entry = readme.slice(readme.indexOf('\n### OpenCode\n'), readme.indexOf('\n### Agentic Tools\n'));
   assert.match(entry, /has not been validated end to end on this runtime\.\n\n\*\*Control interfaces\.\*\* T3 Code provides an interface for supported agents[^\n]*T3 Code is not a separate coaching runtime\.\n$/);
   assert.equal(readme.split('T3 Code').length, 4);
-  assert.ok(start.selected.includes('\nChoose your path:\n\n- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.\n- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.\n\n[T3 Code](https://t3.codes/) is an optional control interface for supported agents, not a separate coaching runtime.\n\nOpen-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.\n\n### 4. Make Files Available to Your AI\n'));
+  assert.ok(start.selected.includes('\nChoose your path:\n\n- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.\n- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.\n\n[T3 Code](https://t3.codes/) is an optional control interface for supported agents, not a separate coaching runtime.\n\n### 4. Make Files Available to Your AI\n'));
   assert.equal(start.selected.split('OpenCode').length, 2);
   assert.equal(start.selected.split('T3 Code').length, 2);
   assert.equal(linkURL('#agentic-setup', start, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/README.md#agentic-setup');
   const html = renderDocument(start, docs, root);
   assert.ok(html.includes('OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.</li>'));
-  assert.ok(html.includes('<p><a href="https://t3.codes/">T3 Code</a> is an optional control interface for supported agents, not a separate coaching runtime.</p>\n<p>Open-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.</p>\n<h2 id="4-make-files-available-to-your-ai"'));
-  assert.equal(readme.split('Open-weight').length, 2);
+  assert.ok(html.includes('<p><a href="https://t3.codes/">T3 Code</a> is an optional control interface for supported agents, not a separate coaching runtime.</p>\n<h2 id="4-make-files-available-to-your-ai"'));
+  assert.doesNotMatch(readme + html, /open-weight/i);
+});
+
+test('open-weight options close Connect Your Agent in the local sync guide only', () => {
+  const docs = prepare(root);
+  const local = docs.find(p => p.route === 'guides/local-sync.html');
+  const paragraph = 'Open-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.';
+  const titles = parse(local.original).headings.filter(h => h.level <= 3).map(h => h.text);
+  assert.deepEqual(titles.slice(titles.indexOf('Connect Your Agent'), titles.indexOf('Using with Web Chat Platforms') + 1), ['Connect Your Agent', 'OpenClaw', 'Claude Code', 'Claude Cowork', 'ChatGPT Codex CLI', 'Gemini CLI', 'Hermes Agent', 'Grok Bot (experimental)', 'Project instructions', 'Open-weight options', 'Using with Web Chat Platforms']);
+  assert.ok(local.original.includes(`as well.\n\n### Open-weight options\n\n${paragraph}\n\n---\n\n## Using with Web Chat Platforms\n`));
+  assert.equal(local.original.split(/open-weight/i).length, 3);
+  const html = renderDocument(local, docs, root);
+  assert.ok(html.includes(`<h3 id="open-weight-options">Open-weight options</h3>\n<p>${paragraph}</p>\n<hr>\n<h2 id="using-with-web-chat-platforms">`));
+  assert.equal(html.split(paragraph).length, 2);
+  for (const page of docs) if (page !== local) assert.doesNotMatch(page.selected, /open-weight/i, page.route);
 });
 
 test('Quick Start is an exact source section, excluding adjacent sections', () => {

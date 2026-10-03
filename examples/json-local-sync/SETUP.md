@@ -165,6 +165,10 @@ Your coach's instructions live in one canonical contract, not in this guide. Whi
 
 That contract names the Workout Reference Library (`section11/examples/workout-library/WORKOUT_REFERENCE.md`, with a fetch fallback) but not the report templates. Where the agent can actually reach them (a provider-hosted computer often cannot), point it at `section11/examples/reports/` as well.
 
+### Open-weight options
+
+Open-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.
+
 ---
 
 ## Using with Web Chat Platforms

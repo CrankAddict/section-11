@@ -88,8 +88,6 @@ Choose your path:
 
 [T3 Code](https://t3.codes/) is an optional control interface for supported agents, not a separate coaching runtime.
 
-Open-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.
-
 ### 4. Make Files Available to Your AI
 
 Your AI needs access to `SECTION_11.md` (the protocol), plus `DOSSIER.md` (your stable private context and preferences) if you use one. How depends on your setup:

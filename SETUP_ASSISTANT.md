@@ -422,7 +422,7 @@ The GitHub vs Local question was already answered in Step 0. If they're here, th
 
 3. The `--setup` step asks for their Intervals.icu Athlete ID and API Key (from Step 2). They can skip GitHub token and repo (not needed for local).
 
-4. `--init` downloads the full Section 11 repository to `section11/`. After it finishes, all commands use `section11/examples/sync.py`.
+4. `--init` downloads the manifest-managed Section 11 files to `section11/`. After it finishes, all commands use `section11/examples/sync.py`.
 
 5. Handle the dossier. **Search first, before offering to create anything.** Look wherever a dossier is permitted to live (the data directory, the private repo, and any private document store the athlete uses) and check the runtime's actual working directory rather than assuming it is the configured one. If the athlete knows of an official copy you cannot reach, that is inaccessible, not absent: do not create a competing dossier. Get access, or have them supply the file. If only a stale copy is reachable, use it as migration input rather than current truth, and surface sensitive and time-sensitive entries for reconfirmation.
 

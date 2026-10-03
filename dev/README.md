@@ -3,13 +3,37 @@
 Maintainer validation material for this repository.
 
 **If you are setting up Section 11 as an athlete, you do not need anything in this
-folder.** `--init` and `--update` install it because the repository ships whole,
-but nothing in the setup path, the protocol, the report templates or any user
-workflow reads it or runs it. It can be ignored entirely.
+folder.** From `sync.py` v3.138, `--init` and `--update` no longer install this
+maintainer material. Nothing in the setup path, the protocol, the report templates
+or any user workflow reads it or runs it. A copy left by an older install can be
+ignored entirely.
 
 The tests exist so that a change to `examples/sync.py` or
 `examples/agentic/push.py` can be shown not to have broken behaviour that a live
 run does not reach.
+
+## Repository snapshots and updater scope
+
+`--init` installs exactly the files listed in the update manifest, plus the
+manifest itself, after checking each file against the hash the manifest records.
+`--update` refreshes the same list. The manifest generator excludes `.github`,
+other hidden paths, this repository-root `dev/` folder, dependency directories and
+cache directories, so none of them reaches an athlete installation. New tests are
+still committed here; they are not shipped through athlete updates.
+
+Installations created by an older `--init` may still hold `section11/.github` and
+`section11/dev`, which `--update` does not refresh. Where `section11/` is not a
+Git checkout, `--update` offers to move them to `section11-legacy-github/` and
+`section11-legacy-dev/` beside `section11/`. It asks only in an interactive
+terminal, moves them only when the word `move` is typed there, and never deletes
+them. A `dev/` folder that stays is left out of
+the orphan cleanup.
+
+For development or reviews that depend on the tests, the website or GitHub
+workflows, use a current Git checkout or a verified, commit-pinned
+full-repository snapshot. Do not treat a manifest-updated coaching installation
+as a complete current repository. This distinction requires no change to athlete
+setup.
 
 ## Running
 
@@ -57,7 +81,7 @@ directory.
 
 **Shared helpers live in `_harness.py`.** The loader, the `NetworkBlocked` type,
 the verb-seam installer and restorer, and the `RefuseEverything` object-seam
-sentinel are shared by all five modules. There is no single guard installer,
+sentinel are shared by all six modules. There is no single guard installer,
 because the two seams are not the same mechanism: the verb seam swaps named
 attributes on a real module and restores them, while the object seam replaces one
 lazily-bound object with `RefuseEverything` and assigns the saved original back. The leading underscore keeps the file outside
@@ -184,11 +208,37 @@ GitHub Actions run variables from its environment while it runs and sets them
 explicitly per case, so it gives the same results inside GitHub Actions. It needs
 `time.tzset()` and is skipped where it is unavailable.
 
+`test_init_update_distribution.py` covers what `--init` installs and how `--update`
+treats folders it no longer manages, in `sync.py` v3.138. Every archive is a
+synthetic zip built in memory and every install lives in a temporary directory. For
+`--init`: the installed set is exactly the archive manifest's file list plus
+`manifest.json`; `.github`, hidden files, unlisted files and the root `dev/` folder
+are never written; a missing or malformed manifest, an unsafe path (absolute,
+traversal, backslash, drive), a wrong or malformed hash, a missing or duplicated
+member, a member or manifest the archive declares as a directory, symlink, FIFO,
+device or socket, and a wrong archive root each install nothing and keep the
+bootstrap `sync.py`, while entries declared regular or with no declared type
+install; an existing `section11/` is left alone. For the generator:
+only the repository-root `dev/` is excluded, a nested `dev` folder is still listed,
+and what it lists is what `--init` installs. For `--update` on an older install:
+the move offer for `.github` and an unmanaged `dev/` is made only when standard
+input is a terminal and acts only on the typed word `move`; piped or redirected
+input is never read for it, even when it contains that word, and the
+interactivity check fails closed; Enter, `y`, `yes`, EOF and Ctrl+C keep both; a taken backup name is never
+overwritten; a failed rename keeps the original; modified and added files move
+byte for byte; a Git checkout is not offered and a symlink is left alone; `dev/` is
+not offered while the upstream manifest still lists it; and a `dev/` that stays is
+never listed or deleted by the orphan cleanup, even when that prompt is answered
+yes, while an ordinary orphan still is. The Git-checkout test, the terminal check
+and the symlink test are substituted, and special file types exist only as modes in
+an in-memory zip, so no test creates a `.git` directory, a terminal, a symlink or a
+special file.
+
 ## Not covered
 
 Everything else. No DFA computation, no report generation, and no `sync.py`
 surface outside per-endpoint fetch state, HTTP policy, the `history.json` refresh
-gate and the `workout_summary` renderer with its report-template field contract. `push.py` write paths are
+gate, the `--init` and `--update` distribution rules and the `workout_summary` renderer with its report-template field contract. `push.py` write paths are
 covered for their transport behaviour and outcome classification only, not for
 their validation rules or their calendar semantics. Treat this as focused regression guards, not as
 coverage of the repository.

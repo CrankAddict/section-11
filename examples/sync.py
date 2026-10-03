@@ -4,6 +4,33 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.138 - --init installs exactly what --update manages; maintainer folders
+  are no longer distributed.
+  --init extracted the whole repository archive, while --update refreshes only the
+  files listed in manifest.json and the orphan cleanup skips hidden paths. So
+  .github arrived once at --init and was never refreshed or offered for removal.
+  --init now reads manifest.json from the archive it downloaded and installs
+  exactly manifest.files plus manifest.json. Before anything is placed it checks
+  the archive root, the manifest shape, every listed path (relative POSIX, no
+  traversal, backslash or drive), that manifest.json and each listed member are
+  present exactly once as regular files (a declared directory, symlink, FIFO,
+  device or socket is refused), and each SHA256. Any failure installs nothing and keeps the
+  bootstrap sync.py. The hashes check that the archive is consistent with its own
+  manifest; they are not origin authentication. No extra network request.
+  The manifest generator now also excludes the repository-root dev/ folder
+  (maintainer tests), so it is no longer installed or updated. Nested folders
+  named dev are unaffected. The scope description is updated to match.
+  --update: on an installation that is not a Git checkout, section11/.github and,
+  once the upstream manifest no longer lists it, section11/dev can be moved to
+  section11-legacy-github/ and section11-legacy-dev/ beside section11/. This is
+  asked only when standard input is a terminal and happens only when the word
+  "move" is typed there. Enter, y, yes, EOF, Ctrl+C and any piped or redirected
+  input keep them. Nothing is deleted, an existing backup name is never overwritten, a
+  symlink is left alone, and a failed rename keeps the original. A dev/ folder
+  that stays is excluded from the orphan cleanup, so answering yes there cannot
+  delete it. Setup and update tooling only: no change to exported data, schema,
+  calculations or the cache policy.
+
 Version 3.137 - history.json refresh gate, retention and GitHub Actions run budget.
   should_generate_history() refreshed an existing history.json older than 28 days
   only on Sunday or Monday between 00:00 and 00:30 host-local time. Under the
@@ -586,7 +613,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.137"
+    VERSION = "3.138"
     INTERVALS_FILE = "intervals.json"
     ROUTES_FILE = "routes.json"
     SAVED_WORKOUTS_FILE = "saved_workouts.json"
@@ -12058,6 +12085,168 @@ SECTION11_REPO_RAW = "https://raw.githubusercontent.com/CrankAddict/section-11/m
 # Directories/files to exclude from manifest generation
 _MANIFEST_EXCLUDE_DIRS = {".git", ".github", "__pycache__", "node_modules"}
 _MANIFEST_EXCLUDE_FILES = {"manifest.json", ".DS_Store"}
+# Excluded only at the repository root: maintainer material that athlete
+# installations do not receive. A nested folder with the same name is unaffected.
+_MANIFEST_EXCLUDE_ROOT_DIRS = {"dev"}
+
+# Root folders an older --init left in section11/ that --update does not manage,
+# and the backup folder each may be moved to beside section11/.
+_LEGACY_UNMANAGED_ROOTS = {".github": "section11-legacy-github", "dev": "section11-legacy-dev"}
+
+
+class _InitArchiveError(Exception):
+    """The downloaded archive cannot be installed as a consistent distribution."""
+
+
+def _safe_manifest_path(path):
+    """True when a manifest path is a plain relative POSIX file path.
+
+    Rejects anything that could write outside the installation: absolute paths,
+    backslashes, drive prefixes, empty, "." and ".." components, control characters.
+    """
+    if not isinstance(path, str) or not path or path != path.strip():
+        return False
+    if "\\" in path or ":" in path or path.startswith("/"):
+        return False
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in path):
+        return False
+    return all(part not in ("", ".", "..") for part in path.split("/"))
+
+
+def _plan_manifest_install(zf):
+    """Validate a downloaded repository archive against its own manifest.json.
+
+    Returns (manifest_bytes, [(relative_path, file_bytes), ...]) for exactly the
+    files manifest.json lists. Raises _InitArchiveError on any inconsistency, before
+    anything is written. Unlisted archive members are never read or returned.
+    """
+    infos = [info for info in zf.infolist() if not info.filename.startswith("__MACOSX/")]
+    roots = {info.filename.split("/", 1)[0] for info in infos}
+    if len(roots) != 1 or any("/" not in info.filename for info in infos):
+        raise _InitArchiveError(f"unexpected zip structure: expected 1 top-level directory, found {len(roots)}")
+    root = next(iter(roots))
+
+    members = {}
+    for info in infos:
+        if info.filename in members:
+            raise _InitArchiveError(f"duplicate archive member: {info.filename}")
+        members[info.filename] = info
+
+    def read_regular(rel_path):
+        info = members.get(f"{root}/{rel_path}")
+        if info is None:
+            raise _InitArchiveError(f"listed file is missing from the archive: {rel_path}")
+        # Unix file type declared by the archive. 0 means the creator recorded none,
+        # which is an ordinary file; anything else must be S_IFREG. That refuses
+        # directories, symlinks, FIFOs, devices and sockets.
+        declared_type = (info.external_attr >> 16) & 0o170000
+        if info.is_dir() or declared_type not in (0, 0o100000):
+            raise _InitArchiveError(f"listed path is not a regular file: {rel_path}")
+        return zf.read(info)
+
+    manifest_bytes = read_regular("manifest.json")
+    try:
+        manifest = json.loads(manifest_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        raise _InitArchiveError("manifest.json is not valid JSON")
+    files = manifest.get("files") if isinstance(manifest, dict) else None
+    if not isinstance(files, dict) or not files:
+        raise _InitArchiveError("manifest.json has no files list")
+
+    planned = []
+    for rel_path, entry in files.items():
+        if not _safe_manifest_path(rel_path) or rel_path == "manifest.json":
+            raise _InitArchiveError(f"unsafe path in manifest.json: {rel_path!r}")
+        expected = entry.get("hash") if isinstance(entry, dict) else None
+        if not isinstance(expected, str) or len(expected) != 64 or any(c not in "0123456789abcdef" for c in expected):
+            raise _InitArchiveError(f"invalid hash in manifest.json for {rel_path}")
+        data = read_regular(rel_path)
+        if hashlib.sha256(data).hexdigest() != expected:
+            raise _InitArchiveError(f"hash mismatch for {rel_path}: the archive does not match its manifest.json")
+        planned.append((rel_path, data))
+    return manifest_bytes, planned
+
+
+def _is_git_checkout(section11_dir):
+    """True when section11/ is a Git working tree (a developer clone, not an --init install)."""
+    return os.path.lexists(os.path.join(str(section11_dir), ".git"))
+
+
+def _unmanaged_legacy_roots(upstream_files, section11_dir):
+    """Names of legacy root folders present in section11/ that the upstream manifest does not manage."""
+    present = []
+    for name in sorted(_LEGACY_UNMANAGED_ROOTS):
+        if any(path == name or path.startswith(name + "/") for path in upstream_files):
+            continue
+        if os.path.lexists(os.path.join(str(section11_dir), name)):
+            present.append(name)
+    return present
+
+
+def _stdin_is_interactive():
+    """True only when standard input is a terminal. Any doubt counts as not interactive."""
+    import sys
+    try:
+        return bool(sys.stdin is not None and sys.stdin.isatty())
+    except Exception:
+        return False
+
+
+def _offer_legacy_move(upstream_files, data_dir, section11_dir):
+    """Offer to move legacy unmanaged root folders out of section11/. Never deletes.
+
+    Asks only in an interactive session and acts only when the word "move" is typed
+    there. Piped or redirected input is never read for this question, whatever it
+    contains. Anything else, EOF or Ctrl+C keeps the folders. A Git checkout is never
+    offered, a symlink or non-directory is left alone, an existing backup name is
+    never overwritten and a failed rename keeps the original in place.
+    """
+    if _is_git_checkout(section11_dir):
+        return
+
+    movable = []
+    for name in _unmanaged_legacy_roots(upstream_files, section11_dir):
+        path = section11_dir / name
+        if path.is_symlink() or not path.is_dir():
+            print(f"\n   Kept section11/{name}: not an ordinary folder, left untouched.")
+            continue
+        count = sum(len(filenames) for _, _, filenames in os.walk(path))
+        movable.append((name, path, count))
+    if not movable:
+        return
+
+    if not _stdin_is_interactive():
+        names = ", ".join(f"section11/{name}/" for name, _, _ in movable)
+        print(f"\n   Kept {names}: from an older install and not updated by --update.")
+        print("   Run --update in a terminal to move them out of section11/.")
+        return
+
+    print("\n   Folders from an older install that --update does not manage:\n")
+    for name, _, count in movable:
+        print(f"   section11/{name}/  ({count} file{'s' if count != 1 else ''})"
+              f"  ->  {_LEGACY_UNMANAGED_ROOTS[name]}/")
+    print("\n   They are not used for coaching and are never refreshed.")
+    print("   Moving keeps every file; you can delete the moved folders afterwards.\n")
+    try:
+        answer = input('   Type "move" to move them out of section11/, or press Enter to keep them: ').strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        answer = ""
+        print()
+    if answer != "move":
+        print("   Kept. These folders are not updated by --update.")
+        return
+
+    for name, path, _ in movable:
+        backup = data_dir / _LEGACY_UNMANAGED_ROOTS[name]
+        suffix = 2
+        while os.path.lexists(backup):
+            backup = data_dir / f"{_LEGACY_UNMANAGED_ROOTS[name]}-{suffix}"
+            suffix += 1
+        try:
+            os.rename(str(path), str(backup))
+            print(f"   Moved section11/{name}/ to {backup.name}/")
+        except OSError as e:
+            print(f"   Kept section11/{name}/: could not move it ({e})")
 
 
 def _compute_file_hash(filepath):
@@ -12207,7 +12396,9 @@ def do_generate_manifest():
     for root, dirs, filenames in os.walk(repo_dir):
         # Exclude directories
         dirs[:] = [d for d in dirs if d not in _MANIFEST_EXCLUDE_DIRS]
-        
+        if Path(root) == repo_dir:
+            dirs[:] = [d for d in dirs if d not in _MANIFEST_EXCLUDE_ROOT_DIRS]
+
         for filename in filenames:
             if filename in _MANIFEST_EXCLUDE_FILES:
                 continue
@@ -12235,7 +12426,7 @@ def do_generate_manifest():
     sorted_files = dict(sorted(files.items()))
     
     manifest = {
-        "scope": "All tracked files in the Section 11 repository. --update compares file hashes to detect changes and new files.",
+        "scope": "Files installed by sync.py --init and managed by --update; excludes .github, hidden paths, the repository-root dev folder, and generated dependency/cache directories.",
         "files": sorted_files
     }
     
@@ -12248,10 +12439,11 @@ def do_generate_manifest():
 
 def do_init():
     """
-    Download and extract the full Section 11 repo to section11/.
-    
+    Download Section 11 and install the manifest-managed files to section11/.
+
     Standalone function — does not require Intervals.icu credentials.
-    Downloads the repo as a zip from GitHub, extracts to section11/,
+    Downloads the repo as a zip from GitHub, installs exactly the files listed in
+    the archive's own manifest.json (plus manifest.json) after verifying them,
     and removes the bootstrap sync.py as the last step.
     """
     data_dir = Path.cwd()
@@ -12278,25 +12470,32 @@ def do_init():
     
     print(f"   Downloaded ({len(response.content) // 1024}KB)")
     
-    # Extract to temp directory first, then move (atomic)
+    # Verify the archive against its own manifest, stage only the listed files in a
+    # temp directory, then move (atomic). Unlisted archive content is never written.
     try:
         with tempfile.TemporaryDirectory() as tmp_dir:
             zip_path = Path(tmp_dir) / "repo.zip"
             with open(zip_path, 'wb') as f:
                 f.write(response.content)
-            
-            with zipfile.ZipFile(zip_path, 'r') as zf:
-                zf.extractall(tmp_dir)
-            
+
             # GitHub zips have a top-level folder like "section-11-main/"
-            extracted = [d for d in Path(tmp_dir).iterdir() 
-                        if d.is_dir() and d.name != '__MACOSX']
-            if len(extracted) != 1:
-                print(f"Section 11: unexpected zip structure — expected 1 directory, found {len(extracted)}")
-                return
-            
-            # Move extracted folder to section11/
-            shutil.move(str(extracted[0]), str(target_dir))
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                manifest_bytes, planned = _plan_manifest_install(zf)
+
+            staged = Path(tmp_dir) / "section11"
+            for rel_path, data in planned + [("manifest.json", manifest_bytes)]:
+                staged_path = staged.joinpath(*rel_path.split("/"))
+                staged_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(staged_path, 'xb') as f:
+                    f.write(data)
+
+            # Move the verified staged folder to section11/
+            shutil.move(str(staged), str(target_dir))
+    except _InitArchiveError as e:
+        print(f"Section 11: the downloaded archive failed verification — {e}")
+        print("   Nothing was installed. Try again later.")
+        print("   Alternative: git clone https://github.com/CrankAddict/section-11.git section11")
+        return
     except Exception as e:
         print(f"Section 11: extraction failed — {e}")
         # Clean up partial extraction if it exists
@@ -12304,7 +12503,7 @@ def do_init():
             shutil.rmtree(target_dir, ignore_errors=True)
         return
     
-    print(f"   ✅ Extracted to section11/")
+    print(f"   ✅ Installed {len(planned)} verified files to section11/")
     
     # Delete bootstrap sync.py — LAST STEP, only after extraction fully succeeded
     bootstrap_path = data_dir / "sync.py"
@@ -12460,9 +12659,19 @@ def do_update():
                 print(f"      Timer users: full data after 2 cycles (~2 min)")
                 print(f"      Manual users: run sync twice to rebuild")
 
+    # --- Legacy unmanaged folders (.github, dev): offer a recoverable move, never delete ---
+    _offer_legacy_move(upstream_files, data_dir, target_dir)
+
     # --- Orphan cleanup (runs regardless of whether files were updated) ---
     orphaned_files = _find_orphaned_files(upstream_files, target_dir)
     empty_dirs = _find_empty_dirs(target_dir)
+
+    # A legacy folder that is still here was kept on purpose (declined, Git checkout,
+    # symlink or failed move). It must not fall through into the orphan prompt.
+    kept_roots = set(_unmanaged_legacy_roots(upstream_files, target_dir))
+    if kept_roots:
+        orphaned_files = [p for p in orphaned_files if Path(p).parts[0] not in kept_roots]
+        empty_dirs = [d for d in empty_dirs if Path(d).parts[0] not in kept_roots]
 
     if orphaned_files or empty_dirs:
         total = len(orphaned_files) + len(empty_dirs)

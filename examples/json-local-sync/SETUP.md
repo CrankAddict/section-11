@@ -159,15 +159,19 @@ Grok Bot's filesystem is provider-hosted, so it cannot read this machine. It sti
 
 All Bots on your account share one cloud computer, cloud storage is required, and Legacy Privacy Mode is unavailable. Check your xAI and Cursor privacy settings before pointing it at a dossier carrying medication or health context.
 
+### Open-weight options
+
+Open-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.
+
+### Control interfaces
+
+[T3 Code](https://t3.codes/) is an optional control interface for supported agents, not a separate coaching runtime.
+
 ### Project instructions
 
 Your coach's instructions live in one canonical contract, not in this guide. Which one you use depends on whether the AI has a runtime filesystem at all, not on which sync method you chose, and not on the platform's name. If it has one, whether that is this machine or a provider-hosted computer, it is an agentic session: copy the block between the fences in [`PROJECT_INSTRUCTIONS_AGENTIC.md`](../../PROJECT_INSTRUCTIONS_AGENTIC.md) into the agent's project settings. That holds even when the data itself arrives through a connector.
 
 That contract names the Workout Reference Library (`section11/examples/workout-library/WORKOUT_REFERENCE.md`, with a fetch fallback) but not the report templates. Where the agent can actually reach them (a provider-hosted computer often cannot), point it at `section11/examples/reports/` as well.
-
-### Open-weight options
-
-Open-weight setups are another option, for example, GLM with ZCode, Qwen with Qwen Code, or DeepSeek through a compatible agent. These are examples, not fixed pairings: choose the models and tools that fit your needs.
 
 ---
 

@@ -1,11 +1,15 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const MarkdownIt = require('markdown-it');
 const pages = require('./pages.json');
 const REPOSITORY = 'https://github.com/CrankAddict/section-11';
 const SITE = 'https://section11.net/';
+// Committed in icons/ and copied to the site root; generate-icons.cjs regenerates them.
+const ICONS = ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'site.webmanifest'];
+const ICON_LINKS = [['icon', 'favicon.ico', ' sizes="16x16 32x32 48x48"'], ['icon', 'favicon.svg', ' type="image/svg+xml"'], ['apple-touch-icon', 'apple-touch-icon.png', ''], ['manifest', 'site.webmanifest', '']];
 const md = new MarkdownIt({ html: false, linkify: false, typographer: false });
 const escape = md.utils.escapeHtml;
 const relative = (from, to) => path.posix.relative(path.posix.dirname(from), to);
@@ -36,7 +40,7 @@ function parse(source) {
   return { tokens, headings };
 }
 
-function ordinary(root, name) {
+function ordinary(root, name, encoding = 'utf8') {
   if (!name || path.posix.isAbsolute(name) || name.split('/').some(p => !p || p === '..' || p === '.')) {
     throw new Error(`Unsafe source path: ${name}`);
   }
@@ -46,7 +50,7 @@ function ordinary(root, name) {
     if (fs.lstatSync(target).isSymbolicLink()) throw new Error(`Symlink input: ${name}`);
   }
   if (!fs.statSync(target).isFile()) throw new Error(`Not an ordinary file: ${name}`);
-  return fs.readFileSync(target, 'utf8');
+  return fs.readFileSync(target, encoding);
 }
 
 function select(source, page) {
@@ -119,14 +123,15 @@ function renderDocument(page, documents, root) {
   return md.renderer.render(tokens, md.options, {});
 }
 
-function shell(route, title, description, content) {
+function shell(route, title, description, content, icons) {
   // Secondary links stay in every header; site.css hides them only at the mobile breakpoint.
   const nav = [ ['index.html', 'Overview', true], ['getting-started.html', 'Getting started'], ['reports.html', 'Reports', true] ];
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="${escape(description)}">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <title>${escape(title)} | Section 11</title><link rel="canonical" href="${SITE}${route === 'index.html' ? '' : route}">
+${ICON_LINKS.map(([rel, name, attributes]) => `<link rel="${rel}" href="${relative(route, name)}?v=${icons.get(name)}"${attributes}>`).join('\n')}
 <link rel="stylesheet" href="${relative(route, 'assets/site.css')}"></head>
 <body><a class="skip" href="#main">Skip to content</a>
 <header class="site-header"><a class="wordmark" href="${relative(route, 'index.html')}" aria-label="Section 11 home">SECTION <span>11</span></a>
@@ -159,7 +164,14 @@ function build(root, output) {
   if (fs.existsSync(output)) throw new Error('Output must be a new directory; inspect and remove old output separately.');
   const documents = prepare(root);
   const files = new Map();
-  files.set('index.html', shell('index.html', 'AI coaching protocol', 'An open framework for AI-assisted endurance coaching, grounded in your training data.', landing()));
+  // Icon links carry a short content hash, so a changed icon is not served from an old favicon cache.
+  const icons = new Map();
+  for (const name of ICONS) {
+    const data = ordinary(root, `.github/site/icons/${name}`, null);
+    files.set(name, data);
+    icons.set(name, crypto.createHash('sha256').update(data).digest('hex').slice(0, 8));
+  }
+  files.set('index.html', shell('index.html', 'AI coaching protocol', 'An open framework for AI-assisted endurance coaching, grounded in your training data.', landing(), icons));
   for (const page of documents) {
     const article = renderDocument(page, documents, root);
     const toc = page.headings.filter(h => h.level === (page.section ? 3 : 2));
@@ -167,7 +179,7 @@ function build(root, output) {
     const sidebar = `<aside class="guide-nav"><p class="eyebrow">Setup &amp; examples</p><nav aria-label="Guide navigation">${documents.map(d => `<a href="${relative(page.route, d.route)}"${d.route === page.route ? ' aria-current="page"' : ''}>${escape(d.title)}</a>`).join('')}</nav><a class="source-link" href="${sourceLink}">View Markdown source <span aria-hidden="true">↗</span></a></aside>`;
     const contents = `<details class="toc"><summary>On this page</summary><nav aria-label="On this page"><ul>${toc.map(h => `<li><a href="#${escape(h.id)}">${escape(h.text)}</a></li>`).join('')}</ul></nav></details>`;
     // Article first in reading and focus order; site.css keeps the guide column on the left on desktop.
-    files.set(page.route, shell(page.route, page.title, page.description, `<div class="doc-layout"><div class="doc-content"><p class="eyebrow">${escape(page.title)}</p>${contents}<article class="prose">${article}</article></div>${sidebar}</div>`));
+    files.set(page.route, shell(page.route, page.title, page.description, `<div class="doc-layout"><div class="doc-content"><p class="eyebrow">${escape(page.title)}</p>${contents}<article class="prose">${article}</article></div>${sidebar}</div>`, icons));
   }
   files.set('assets/site.css', ordinary(root, '.github/site/site.css'));
   files.set('LICENSE.txt', ordinary(root, 'LICENSE'));
@@ -180,7 +192,7 @@ function build(root, output) {
   return [...files.keys()].sort();
 }
 
-module.exports = { build, prepare, select, parse, linkURL, renderDocument, pages };
+module.exports = { build, prepare, select, parse, linkURL, renderDocument, pages, ICONS };
 if (require.main === module) {
   const root = path.resolve(__dirname, '../..');
   const output = process.argv[2] || path.join(__dirname, '_site');

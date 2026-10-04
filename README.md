@@ -86,8 +86,6 @@ Choose your path:
 - **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.
 - **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.
 
-[T3 Code](https://t3.codes/) is an optional control interface for supported agents, not a separate coaching runtime.
-
 ### 4. Make Files Available to Your AI
 
 Your AI needs access to `SECTION_11.md` (the protocol), plus `DOSSIER.md` (your stable private context and preferences) if you use one. How depends on your setup:

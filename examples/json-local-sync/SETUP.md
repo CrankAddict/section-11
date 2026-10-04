@@ -147,6 +147,10 @@ gemini
 
 Gemini CLI has full filesystem access to the working directory.
 
+### OpenCode
+
+[OpenCode](https://opencode.ai/docs/) supports multiple model providers. Start it from `~/training-data/` and use the agentic contract under [Project instructions](#project-instructions) below.
+
 ### Hermes Agent
 
 Hermes reads the filesystem of its runtime host, which may be this machine or a remote box you control, not necessarily the one you are reading this on. It uses the agentic contract named under [Project instructions](#project-instructions) below. Its Section 11 workflow has not been validated end to end on this runtime.

@@ -13,6 +13,25 @@ const ICON_LINKS = [['icon', 'favicon.ico', ' sizes="16x16 32x32 48x48"'], ['ico
 const md = new MarkdownIt({ html: false, linkify: false, typographer: false });
 const escape = md.utils.escapeHtml;
 const relative = (from, to) => path.posix.relative(path.posix.dirname(from), to);
+const canonical = route => `${SITE}${route === 'index.html' ? '' : route}`;
+// The landing page is authored here, so its search metadata lives here too; pages.json holds the documents'.
+const HOME = { title: 'AI coaching protocol', searchTitle: 'AI endurance coaching protocol | Section 11',
+  description: 'Use ChatGPT, Claude, OpenClaw and other AI tools as your AI coach. Section 11 is a free, open-source protocol built around your data. No hosted backend.' };
+// searchTitle is the complete <title> text; title alone stays the navigation and eyebrow label.
+const headTitle = page => page.searchTitle || `${page.title} | Section 11`;
+// Structured data is inert JSON, never script. Escaping "<" keeps any value from closing the data block.
+const jsonLD = data => JSON.stringify(data).replace(/</g, '\\u003c');
+function homeGraph() {
+  const website = { '@id': `${SITE}#website` }, project = { '@id': `${SITE}#project` }, license = `${SITE}LICENSE.txt`;
+  return { '@context': 'https://schema.org', '@graph': [
+    { '@type': 'WebSite', ...website, url: SITE, name: 'Section 11', description: HOME.description, inLanguage: 'en', license, about: project },
+    { '@type': 'WebPage', '@id': `${SITE}#webpage`, url: SITE, name: headTitle(HOME), description: HOME.description, inLanguage: 'en', isPartOf: website, about: project },
+    { '@type': 'SoftwareSourceCode', ...project, name: 'Section 11', description: 'An open protocol for deterministic, auditable AI-powered endurance coaching.', url: SITE,
+      codeRepository: REPOSITORY, license, programmingLanguage: 'Python', isAccessibleForFree: true },
+  ] };
+}
+// Canonical URLs only. The build has no truthful per-page date, so none is stated.
+const sitemap = routes => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${routes.map(route => `<url><loc>${escape(canonical(route))}</loc></url>\n`).join('')}</urlset>\n`;
 
 // Heading IDs follow the punctuation/space rules used by these source documents.
 // Work on Markdown tokens, never a second Markdown parser.
@@ -123,16 +142,16 @@ function renderDocument(page, documents, root) {
   return md.renderer.render(tokens, md.options, {});
 }
 
-function shell(route, title, description, content, icons) {
+function shell(route, title, description, content, icons, data) {
   // Secondary links stay in every header; site.css hides them only at the mobile breakpoint.
   const nav = [ ['index.html', 'Overview', true], ['getting-started.html', 'Getting started'], ['reports.html', 'Reports', true] ];
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="${escape(description)}">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
-<title>${escape(title)} | Section 11</title><link rel="canonical" href="${SITE}${route === 'index.html' ? '' : route}">
+<title>${escape(title)}</title><link rel="canonical" href="${canonical(route)}">
 ${ICON_LINKS.map(([rel, name, attributes]) => `<link rel="${rel}" href="${relative(route, name)}?v=${icons.get(name)}"${attributes}>`).join('\n')}
-<link rel="stylesheet" href="${relative(route, 'assets/site.css')}"></head>
+<link rel="stylesheet" href="${relative(route, 'assets/site.css')}">${data ? `\n<script type="application/ld+json">${jsonLD(data)}</script>` : ''}</head>
 <body><a class="skip" href="#main">Skip to content</a>
 <header class="site-header"><a class="wordmark" href="${relative(route, 'index.html')}" aria-label="Section 11 home">SECTION <span>11</span></a>
 <nav aria-label="Main navigation">${nav.map(([url, label, secondary]) => `<a${secondary ? ' class="nav-secondary"' : ''} href="${relative(route, url)}"${url === route ? ' aria-current="page"' : ''}>${label}</a>`).join('')}<a href="${REPOSITORY}">Repository <span aria-hidden="true">↗</span></a></nav></header>
@@ -171,7 +190,7 @@ function build(root, output) {
     files.set(name, data);
     icons.set(name, crypto.createHash('sha256').update(data).digest('hex').slice(0, 8));
   }
-  files.set('index.html', shell('index.html', 'AI coaching protocol', 'An open framework for AI-assisted endurance coaching, grounded in your training data.', landing(), icons));
+  files.set('index.html', shell('index.html', headTitle(HOME), HOME.description, landing(), icons, homeGraph()));
   for (const page of documents) {
     const article = renderDocument(page, documents, root);
     const toc = page.headings.filter(h => h.level === (page.section ? 3 : 2));
@@ -179,10 +198,11 @@ function build(root, output) {
     const sidebar = `<aside class="guide-nav"><p class="eyebrow">Setup &amp; examples</p><nav aria-label="Guide navigation">${documents.map(d => `<a href="${relative(page.route, d.route)}"${d.route === page.route ? ' aria-current="page"' : ''}>${escape(d.title)}</a>`).join('')}</nav><a class="source-link" href="${sourceLink}">View Markdown source <span aria-hidden="true">↗</span></a></aside>`;
     const contents = `<details class="toc"><summary>On this page</summary><nav aria-label="On this page"><ul>${toc.map(h => `<li><a href="#${escape(h.id)}">${escape(h.text)}</a></li>`).join('')}</ul></nav></details>`;
     // Article first in reading and focus order; site.css keeps the guide column on the left on desktop.
-    files.set(page.route, shell(page.route, page.title, page.description, `<div class="doc-layout"><div class="doc-content"><p class="eyebrow">${escape(page.title)}</p>${contents}<article class="prose">${article}</article></div>${sidebar}</div>`, icons));
+    files.set(page.route, shell(page.route, headTitle(page), page.description, `<div class="doc-layout"><div class="doc-content"><p class="eyebrow">${escape(page.title)}</p>${contents}<article class="prose">${article}</article></div>${sidebar}</div>`, icons));
   }
   files.set('assets/site.css', ordinary(root, '.github/site/site.css'));
   files.set('LICENSE.txt', ordinary(root, 'LICENSE'));
+  files.set('sitemap.xml', sitemap(['index.html', ...documents.map(d => d.route)]));
   // All rendering and link checks finish before any output is written.
   for (const [name, data] of files) {
     const target = path.join(output, name);
@@ -192,7 +212,7 @@ function build(root, output) {
   return [...files.keys()].sort();
 }
 
-module.exports = { build, prepare, select, parse, linkURL, renderDocument, pages, ICONS };
+module.exports = { build, prepare, select, parse, linkURL, renderDocument, pages, ICONS, shell, headTitle };
 if (require.main === module) {
   const root = path.resolve(__dirname, '../..');
   const output = process.argv[2] || path.join(__dirname, '_site');

@@ -83,7 +83,7 @@ Keep your Intervals.icu data fresh for your AI coach automatically.
 
 Choose your path:
 
-- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.
+- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, and Hermes Agent, etc.
 - **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.
 
 ### 4. Make Files Available to Your AI

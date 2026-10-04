@@ -6,9 +6,12 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { build, prepare, select, parse, linkURL, renderDocument, pages, ICONS } = require('./build.cjs');
+const { build, prepare, select, parse, linkURL, renderDocument, pages, ICONS, shell, headTitle } = require('./build.cjs');
 const icons = require('./generate-icons.cjs');
 const root = path.resolve(__dirname, '../..');
+// The one permitted <script>: an inert JSON-LD data block with no "<" inside. Everything else stays script-free.
+const DATA_BLOCK = /<script type="application\/ld\+json">([^<]*)<\/script>/;
+const withoutDataBlock = html => html.replace(DATA_BLOCK, '');
 
 function scratch(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'section11-site-'));
@@ -24,12 +27,12 @@ function fixture(t) {
 
 test('build emits only the explicit public inventory', t => {
   const output = path.join(scratch(t), 'public');
-  assert.deepEqual(build(root, output), ['LICENSE.txt', 'assets/site.css', 'index.html', ...ICONS, ...pages.map(p => p.route)].sort());
+  assert.deepEqual(build(root, output), ['LICENSE.txt', 'assets/site.css', 'index.html', 'sitemap.xml', ...ICONS, ...pages.map(p => p.route)].sort());
   const index = fs.readFileSync(path.join(output, 'index.html'), 'utf8');
   assert.match(index, /href="getting-started.html"/);
   assert.match(index, /Data first\.<br> Context alongside it\./);
   assert.match(index, /https:\/\/section11\.net\//);
-  assert.doesNotMatch(index, /<script|<form|<iframe|<img/i);
+  assert.doesNotMatch(withoutDataBlock(index), /<script|<form|<iframe|<img/i);
   for (const route of ['index.html', ...pages.map(p => p.route)]) {
     const footer = fs.readFileSync(path.join(output, route), 'utf8').match(/<footer>.*<\/footer>/)[0];
     const license = route.includes('/') ? '../LICENSE.txt' : 'LICENSE.txt';
@@ -94,20 +97,22 @@ test('mobile header keeps Getting started and the repository; the article preced
   assert.match(css, /\nfooter \{ display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem 2rem; border-top: 1px solid var\(--line\); padding-block: 2rem; font-size: \.875rem; color: var\(--muted\); \}/);
 });
 
-test('OpenCode stays a Quick Start example; the T3 Code entry stays in Agentic Setup, not Quick Start', () => {
+test('OpenCode leaves Quick Start; its full entry and T3 Code stay in Agentic Setup', () => {
   const docs = prepare(root);
   const start = docs.find(p => p.route === 'getting-started.html');
   const readme = start.original;
   const titles = parse(readme).headings.filter(h => h.level === 3).map(h => h.text);
   assert.deepEqual(titles.slice(titles.indexOf('Hermes Agent'), titles.indexOf('Agentic Tools') + 1), ['Hermes Agent', 'OpenCode', 'Agentic Tools']);
   const entry = readme.slice(readme.indexOf('\n### OpenCode\n'), readme.indexOf('\n### Agentic Tools\n'));
+  assert.equal(entry, '\n### OpenCode\n\nAn open-source coding agent for the terminal, IDE and desktop. Its Section 11 workflow has not been validated end to end on this runtime.\n\n**Control interfaces.** T3 Code provides an interface for supported agents such as Claude Code, ChatGPT Codex and OpenCode. Section 11 access depends on the underlying agent\'s configured filesystem and tool permissions; T3 Code is not a separate coaching runtime.\n');
   assert.match(entry, /has not been validated end to end on this runtime\.\n\n\*\*Control interfaces\.\*\* T3 Code provides an interface for supported agents[^\n]*T3 Code is not a separate coaching runtime\.\n$/);
   assert.equal(readme.split('T3 Code').length, 3);
-  assert.ok(start.selected.includes('\nChoose your path:\n\n- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.\n- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.\n\n### 4. Make Files Available to Your AI\n'));
-  assert.equal(start.selected.split('OpenCode').length, 2);
+  assert.ok(start.selected.includes('\nChoose your path:\n\n- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, and Hermes Agent, etc.\n- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.\n\n### 4. Make Files Available to Your AI\n'));
+  assert.doesNotMatch(start.selected, /OpenCode/);
   assert.equal(linkURL('#agentic-setup', start, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/README.md#agentic-setup');
   const html = renderDocument(start, docs, root);
-  assert.ok(html.includes('OpenClaw, Claude Code, ChatGPT Codex, OpenCode, Grok Bot, and Hermes Agent, etc.</li>'));
+  assert.ok(html.includes('OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, and Hermes Agent, etc.</li>'));
+  assert.doesNotMatch(html, /OpenCode/);
   assert.doesNotMatch(start.selected + html, /T3 Code|t3\.codes|optional control interface/);
   assert.doesNotMatch(readme + html, /open-weight/i);
 });
@@ -119,11 +124,15 @@ test('local sync Connect Your Agent ends with open-weight options, control inter
   const note = '[T3 Code](https://t3.codes/) is an optional control interface for supported agents, not a separate coaching runtime.';
   const instructions = '### Project instructions\n\nYour coach\'s instructions live in one canonical contract, not in this guide. Which one you use depends on whether the AI has a runtime filesystem at all, not on which sync method you chose, and not on the platform\'s name. If it has one, whether that is this machine or a provider-hosted computer, it is an agentic session: copy the block between the fences in [`PROJECT_INSTRUCTIONS_AGENTIC.md`](../../PROJECT_INSTRUCTIONS_AGENTIC.md) into the agent\'s project settings. That holds even when the data itself arrives through a connector.\n\nThat contract names the Workout Reference Library (`section11/examples/workout-library/WORKOUT_REFERENCE.md`, with a fetch fallback) but not the report templates. Where the agent can actually reach them (a provider-hosted computer often cannot), point it at `section11/examples/reports/` as well.\n';
   const titles = parse(local.original).headings.filter(h => h.level <= 3).map(h => h.text);
-  assert.deepEqual(titles.slice(titles.indexOf('Connect Your Agent'), titles.indexOf('Using with Web Chat Platforms') + 1), ['Connect Your Agent', 'OpenClaw', 'Claude Code', 'Claude Cowork', 'ChatGPT Codex CLI', 'Gemini CLI', 'Hermes Agent', 'Grok Bot (experimental)', 'Open-weight options', 'Control interfaces', 'Project instructions', 'Using with Web Chat Platforms']);
+  assert.deepEqual(titles.slice(titles.indexOf('Connect Your Agent'), titles.indexOf('Using with Web Chat Platforms') + 1), ['Connect Your Agent', 'OpenClaw', 'Claude Code', 'Claude Cowork', 'ChatGPT Codex CLI', 'Gemini CLI', 'OpenCode', 'Hermes Agent', 'Grok Bot (experimental)', 'Open-weight options', 'Control interfaces', 'Project instructions', 'Using with Web Chat Platforms']);
+  const opencode = '[OpenCode](https://opencode.ai/docs/) supports multiple model providers. Start it from `~/training-data/` and use the agentic contract under [Project instructions](#project-instructions) below.';
+  assert.ok(local.original.includes(`Gemini CLI has full filesystem access to the working directory.\n\n### OpenCode\n\n${opencode}\n\n### Hermes Agent\n`));
+  assert.equal(local.original.split('### OpenCode\n').length, 2);
   assert.ok(local.original.includes(`medication or health context.\n\n### Open-weight options\n\n${paragraph}\n\n### Control interfaces\n\n${note}\n\n${instructions}\n---\n\n## Using with Web Chat Platforms\n`));
   assert.equal(local.original.split(/open-weight/i).length, 3);
   assert.equal(local.original.split('T3 Code').length, 2);
   const html = renderDocument(local, docs, root);
+  assert.ok(html.includes('<h3 id="opencode">OpenCode</h3>\n<p><a href="https://opencode.ai/docs/">OpenCode</a> supports multiple model providers. Start it from <code>~/training-data/</code> and use the agentic contract under <a href="local-sync.html#project-instructions">Project instructions</a> below.</p>\n<h3 id="hermes-agent">'));
   const rendered = '<p><a href="https://t3.codes/">T3 Code</a> is an optional control interface for supported agents, not a separate coaching runtime.</p>';
   assert.ok(html.includes(`<h3 id="open-weight-options">Open-weight options</h3>\n<p>${paragraph}</p>\n<h3 id="control-interfaces">Control interfaces</h3>\n${rendered}\n<h3 id="project-instructions">Project instructions</h3>\n<p>Your coach's instructions live in one canonical contract`));
   assert.match(html, /<code>section11\/examples\/reports\/<\/code> as well\.<\/p>\n<hr>\n<h2 id="using-with-web-chat-platforms">/);
@@ -185,8 +194,71 @@ test('favicon set is generated from one mark, copied to the site root and linked
     assert.ok(html.includes(`<link rel="icon" href="${up}favicon.ico?v=${version['favicon.ico']}" sizes="16x16 32x32 48x48">\n<link rel="icon" href="${up}favicon.svg?v=${version['favicon.svg']}" type="image/svg+xml">\n<link rel="apple-touch-icon" href="${up}apple-touch-icon.png?v=${version['apple-touch-icon.png']}">\n<link rel="manifest" href="${up}site.webmanifest?v=${version['site.webmanifest']}">\n<link rel="stylesheet"`), route);
     assert.equal(html.split('<link rel="icon"').length, 3, route);
     assert.match(html, /img-src 'self'; manifest-src 'self';/, route);
-    assert.doesNotMatch(html, /serviceWorker|<script/i, route);
+    assert.doesNotMatch(route === 'index.html' ? withoutDataBlock(html) : html, /serviceWorker|<script/i, route);
   }
+});
+
+test('search metadata, home structured data and sitemap change only the head and add one file', t => {
+  const output = path.join(scratch(t), 'public');
+  build(root, output);
+  const home = { route: 'index.html', searchTitle: 'AI endurance coaching protocol | Section 11',
+    description: 'Use ChatGPT, Claude, OpenClaw and other AI tools as your AI coach. Section 11 is a free, open-source protocol built around your data. No hosted backend.' };
+  const expected = [home,
+    { route: 'getting-started.html', title: 'Getting started', searchTitle: 'Getting started: data sync and AI setup | Section 11', description: 'Set up Section 11 in four steps: write an optional dossier, sync your Intervals.icu training data, choose your AI platform and give it the protocol files.' },
+    { route: 'guides/local-sync.html', title: 'Local sync', searchTitle: 'Local sync setup guide for Intervals.icu data | Section 11', description: 'Run sync.py on a machine you control to refresh your Intervals.icu training data on a timer for your AI coach to read. No GitHub needed.' },
+    { route: 'guides/github-sync.html', title: 'GitHub sync', searchTitle: 'GitHub sync setup guide for Intervals.icu data | Section 11', description: 'Use GitHub Actions to mirror your Intervals.icu training data to a private repository as JSON, on a schedule or on request, for your AI coach to read.' },
+    { route: 'guides/on-demand.html', title: 'On-demand sync', searchTitle: 'On-demand Intervals.icu sync from your browser | Section 11', description: 'Trigger a fresh Intervals.icu sync from your phone or browser, then download the data files as a ZIP for your AI chat. No schedule, no local Python.' },
+    { route: 'guides/manual-export.html', title: 'Manual export', searchTitle: 'Manual JSON export of Intervals.icu data | Section 11', description: 'Run sync.py once to export your Intervals.icu training data as JSON for a time range you choose, then upload the file to your AI. No automation needed.' },
+    { route: 'reports.html', title: 'Report examples', searchTitle: 'AI coaching report templates and examples | Section 11', description: 'Templates and annotated examples for Section 11 AI coaching reports: pre-workout, post-workout, weekly, block and season.' },
+  ];
+  // pages.json keeps its routes and UI labels; searchTitle and description feed the head only.
+  assert.deepEqual(pages.map(({ route, title, searchTitle, description }) => ({ route, title, searchTitle, description })), expected.slice(1));
+  assert.equal(new Set(expected.map(p => p.searchTitle)).size, 7);
+  assert.equal(new Set(expected.map(p => p.description)).size, 7);
+  assert.equal(headTitle({ title: 'Local sync' }), 'Local sync | Section 11');
+  assert.equal(headTitle({ title: 'Local sync', searchTitle: 'Complete | Section 11' }), 'Complete | Section 11');
+  const html = {};
+  for (const page of expected) {
+    const text = html[page.route] = fs.readFileSync(path.join(output, page.route), 'utf8'), up = page.route.includes('/') ? '../' : '';
+    assert.ok(text.includes(`<meta name="description" content="${page.description}">\n<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">\n<title>${page.searchTitle}</title><link rel="canonical" href="https://section11.net/${page.route === 'index.html' ? '' : page.route}">\n`), page.route);
+    assert.equal(page.searchTitle.split(' | Section 11').length, 2, page.route);
+    assert.equal(text.split('<title>').length, 2, page.route);
+    if (page === home) continue;
+    // Labels and headings still come from title; no search title leaks into the body.
+    assert.ok(text.includes(`<p class="eyebrow">${page.title}</p>`), page.route);
+    for (const other of expected.slice(1)) assert.ok(text.includes(`"${other.route === page.route ? ' aria-current="page"' : ''}>${other.title}</a>`), `${page.route}: ${other.title}`);
+    assert.ok(text.endsWith(`<link rel="stylesheet" href="${up}assets/site.css"></head>\n` + text.slice(text.indexOf('<body>'))), page.route);
+    assert.doesNotMatch(text, /<script/i, page.route);
+    for (const leak of expected) assert.ok(!text.slice(text.indexOf('<body>')).includes(leak.searchTitle), `${page.route}: ${leak.searchTitle}`);
+  }
+  // Home only: exactly one data block, directly before </head>, holding exactly the approved graph.
+  const index = html['index.html'];
+  assert.equal(index.split(/<script/i).length, 2);
+  assert.equal(index.split(/<\/script>/i).length, 2);
+  const block = index.match(DATA_BLOCK);
+  assert.ok(index.includes(`<link rel="stylesheet" href="assets/site.css">\n${block[0]}</head>\n<body>`));
+  const license = 'https://section11.net/LICENSE.txt', website = { '@id': 'https://section11.net/#website' }, project = { '@id': 'https://section11.net/#project' };
+  assert.deepEqual(JSON.parse(block[1]), { '@context': 'https://schema.org', '@graph': [
+    { '@type': 'WebSite', ...website, url: 'https://section11.net/', name: 'Section 11', description: home.description, inLanguage: 'en', license, about: project },
+    { '@type': 'WebPage', '@id': 'https://section11.net/#webpage', url: 'https://section11.net/', name: home.searchTitle, description: home.description, inLanguage: 'en', isPartOf: website, about: project },
+    { '@type': 'SoftwareSourceCode', ...project, name: 'Section 11', description: 'An open protocol for deterministic, auditable AI-powered endurance coaching.', url: 'https://section11.net/',
+      codeRepository: 'https://github.com/CrankAddict/section-11', license, programmingLanguage: 'Python', isAccessibleForFree: true },
+  ] });
+  // A hostile value cannot end the data block or add a tag: it stays data and round-trips.
+  const hostile = { note: '</script><script>alert(1)</script><!-- <img src=x onerror=alert(1)> & "quoted"' };
+  const page = shell('index.html', 'T', 'D', '<p>body</p>', new Map(ICONS.map(name => [name, '0'])), hostile);
+  assert.equal(page.split(/<script/i).length, 2);
+  assert.equal(page.split(/<\/script>/i).length, 2);
+  assert.doesNotMatch(page, /<img|<!--|alert\(1\)</);
+  assert.doesNotMatch(page.match(DATA_BLOCK)[1], /</);
+  assert.deepEqual(JSON.parse(page.match(DATA_BLOCK)[1]), hostile);
+  assert.doesNotMatch(shell('index.html', 'T', 'D', '<p>body</p>', new Map(ICONS.map(name => [name, '0']))), /<script/i);
+  // Sitemap: the seven canonical addresses, nothing else, no dates or hints.
+  const canonicals = expected.map(p => html[p.route].match(/<link rel="canonical" href="([^"]*)">/)[1]);
+  assert.equal(fs.readFileSync(path.join(output, 'sitemap.xml'), 'utf8'),
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${canonicals.map(url => `<url><loc>${url}</loc></url>\n`).join('')}</urlset>\n`);
+  assert.deepEqual(canonicals, ['https://section11.net/', ...pages.map(p => `https://section11.net/${p.route}`)]);
+  assert.equal(fs.existsSync(path.join(output, 'robots.txt')), false);
 });
 
 test('Quick Start is an exact source section, excluding adjacent sections', () => {

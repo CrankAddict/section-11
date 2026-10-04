@@ -1,4 +1,4 @@
-# Data Mirror Setup Guide
+# GitHub Sync Setup Guide
 
 This guide explains how to create an automated JSON data mirror of your Intervals.icu training data for use with AI coaching systems.
 

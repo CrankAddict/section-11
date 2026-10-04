@@ -54,7 +54,6 @@ p { margin-bottom: 1.3rem; }
 .reading-links a:first-child { padding-top: 0; }
 .reading-links a > span:first-child { font-weight: 600; }
 .reading-links a > span:last-child { color: var(--muted); font-size: .875rem; text-align: right; }
-.limits h2 { font-size: 1.8rem; }
 .limits p { color: #505050; }
 footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem 2rem; border-top: 1px solid var(--line); padding-block: 2rem; font-size: .875rem; color: var(--muted); }
 .doc-layout { display: grid; grid-template-columns: 195px minmax(0, 1fr); grid-template-areas: "guide content"; gap: 4rem; padding: 3.8rem 0 5rem; }
@@ -81,6 +80,7 @@ footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1r
 .prose blockquote > :last-child { margin-bottom: 0; }
 .prose pre { overflow: auto; padding: 1.2rem; background: #ededed; line-height: 1.6; font-size: .875rem; border: 1px solid #dedede; }
 .prose code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9em; }
+.prose pre code { font-size: inherit; }
 .prose :not(pre) > code { background: #ededed; padding: .12em .25em; }
 .table-scroll { max-width: 100%; overflow-x: auto; margin: 1.5rem 0; }
 table { border-collapse: collapse; width: 100%; font-size: .9375rem; }

@@ -182,22 +182,23 @@ class CompactReportContractTests(unittest.TestCase):
                          'safety','confirmation'):
             self.assertIn(required,template)
         pre = (root/'PRE_WORKOUT_REPORT_TEMPLATE.md').read_text()
-        summary = pre.split('**Current Status Summary**\n',1)[1].split('**Today:',1)[0]
-        groups = [[line.split(':',1)[0] for line in group.splitlines()]
-                  for group in summary.strip().split('\n\n')]
-        self.assertEqual(groups,[
-            ['Phase','RHR','HRV','Sleep','Sleep Quality','Sleep context'],
-            ['TSB','CTL','ATL','ACWR','Recovery Index','Ramp Rate','Load/Recovery',
-             'Durability (cycling)','EF','Monotony ([supplied main sports])','Hard days this week'],
-            ['Polarization ([sport], [basis], [covered/period weeks; covered/sport sessions])',
-             'TID 28d ([sport], [basis], [coverage])'],
-            ['Total hours, last 7 days','Total activities, last 7 days',
-             'Total TSS, last 7 days']])
+        body = pre.split('```', 2)[1]
+        order = ('**[Go / Modify / Skip]**', 'Signals:', 'Verdict:',
+                 '**Today:', '**Readiness**', '**Load**', '**Intensity',
+                 '**Last 7 days**')
+        positions = [body.index(label) for label in order]
+        self.assertEqual(positions, sorted(positions))
+        for field in ('Phase:', 'RHR:', 'HRV:', 'Sleep:', 'Sleep Quality:',
+                      'Sleep context:', 'TSB:', 'CTL:', 'ATL:', 'ACWR:',
+                      'Recovery Index:', 'Ramp Rate:', 'Load/Recovery:',
+                      'Durability (cycling):', 'EF:', 'Monotony (',
+                      'Hard days this week:', 'Hours:', 'Activities:', 'TSS:'):
+            self.assertIn(field, body)
         for required in ('**Pre-workout: [Weekday D Month]**',
                          'Data updated: [local date time + zone',
                          '**Today: [session name]**','**Weather on the route**',
-                         '**Weather at home**','**Recommendation:',
-                         'Indoor sessions, walks and all other sports get no weather',
+                         '**Weather at home**','**[Go / Modify / Skip]**',
+                         'Only a session explicitly marked indoor skips weather',
                          'omitting Main set', 'without a missing-structure line'):
             self.assertIn(required,pre)
         self.assertNotIn('**Interpretation**',pre)
@@ -207,13 +208,13 @@ class CompactReportContractTests(unittest.TestCase):
         fallback = ('Weather data by [MET Norway](https://api.met.no/), '
                     '[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).')
         self.assertIn(fallback,template)
-        self.assertEqual(self.examples.count(fallback),2)
+        self.assertEqual(self.examples.count('Weather data by MET Norway, CC BY 4.0.'),2)
         self.assertIn('Never credit Open-Meteo for MET-only data',template)
 
     def test_no_route_output_and_situation_table_share_capability_gates(self):
         branch = self.template.split('## No planned ride has a usable route within 120 h\n',1)[1]
         branch = branch.split('## No-map and partial paths',1)[0]
-        for required in ('No planned rides with a route in the next 5 days.',
+        for required in ('No planned rides with a route.',
                          'Rides without a route:', 'Attach a GPX/TCX',
                          'actual, permitted weather-fetch capability',
                          'current official dossier', 'explicit current-chat athlete statement',
@@ -240,12 +241,12 @@ class CompactReportContractTests(unittest.TestCase):
         home = example.split('**Weather at home**',1)[1]
         home, attribution = home.split('Weather data by ',1)
         lines = [line.strip() for line in home.splitlines() if line.strip()]
-        self.assertEqual(lines[0],'Place: Aalborg (from Intervals.icu)')
+        self.assertEqual(lines[0],'Place: Roskilde (from Intervals.icu)')
         days = home.split('Date: ')[1:]
         self.assertEqual(len(days),3)
         self.assertEqual([day[:3] for day in days],['Wed','Thu','Fri'])
         for day in days:
-            self.assertRegex(day,r'^\w{3} \d{2} Oct')
+            self.assertRegex(day,r'^\w{3} \d{2} Jun')
             for label in ('Time: ','Wind: ','Gusts: ','Rain: ','Temperature: ','Feels like: '):
                 self.assertEqual(day.count(label),1,day)
             self.assertRegex(day,r'Time: \d{2}:\d{2}–\d{2}:\d{2}\s*\n')
@@ -256,8 +257,7 @@ class CompactReportContractTests(unittest.TestCase):
                               'Section ','Band ','Map ',' km'):
                 self.assertNotIn(forbidden,day)
         self.assertEqual(attribution.splitlines()[0],
-                         '[Open-Meteo](https://open-meteo.com/), '
-                         '[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).')
+                         'Open-Meteo, CC BY 4.0.')
         self.assertNotIn('summarized by Section 11',attribution)
         self.assertNotIn('Location data based on [GeoNames]',example)
 
@@ -265,7 +265,7 @@ class CompactReportContractTests(unittest.TestCase):
         no_fetch = self.examples.split('### Setup without weather-fetch capability\n',1)[1]
         no_fetch = no_fetch.split('### Unknown home or failed fetch',1)[0]
         report = no_fetch.split('**Weather report:',1)[1].split('\nNo Home block,',1)[0]
-        for required in ('No planned rides with a route in the next 5 days.',
+        for required in ('No planned rides with a route.',
                          'Rides without a route:', 'Attach a GPX/TCX',
                          "A home forecast isn't available in this setup."):
             self.assertIn(required,report)
@@ -283,8 +283,10 @@ class CompactReportContractTests(unittest.TestCase):
         empty = self.examples.split('### No planned rides at all\n',1)[1]
         empty, nearby = empty.split('### Nearby cases that do not use this branch',1)
         report = empty.split('**Weather report:',1)[1].split('\nIn a setup',1)[0]
-        self.assertEqual([line for line in report.splitlines()[1:] if line.strip()],
-                         ['Period: next 5 days','No planned rides in the next 5 days.'])
+        self.assertEqual([line for line in report.splitlines()[1:] if line.strip() and line != '```'],
+                         ['Period: next 5 days',
+                          'Summary: No planned ride-day conditions to report.',
+                          'No planned rides in the next 5 days.'])
         self.assertIn('optional Home block',empty)
         self.assertIn('same capability, location and planned-day gates',empty)
         for required in ('expired brief gets its ride/reason line',
@@ -339,7 +341,7 @@ class CompactReportContractTests(unittest.TestCase):
         rows = [line for line in cases.splitlines() if line.startswith('| ')][1:]
         self.assertEqual(len(rows),6)
         self.assertIn('Bergen (you said)',rows[0])
-        self.assertIn('Aalborg (from Intervals.icu)',rows[1])
+        self.assertIn('Roskilde (from Intervals.icu)',rows[1])
         self.assertIn('null/empty',rows[2])
         self.assertIn('Klampenborg (from dossier)',rows[2])
         self.assertIn('unavailable: geocoding ambiguous. Do not switch to the dossier',rows[3])

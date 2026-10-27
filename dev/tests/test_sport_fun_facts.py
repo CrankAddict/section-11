@@ -487,16 +487,16 @@ class FactTemplates(unittest.TestCase):
             fragment = text.split("## Selected-sport fact fragments")[1]
             for sport in ("running", "swimming", "Nordic skiing", "rowing"):
                 self.assertIn("**Fun facts (" + sport + ", descriptive)**", fragment)
-            for value in ("158 bpm, 10 Jul, Lake swim\n(2 of 3 sessions)",
-                          "Distance rowed: 24 km\n(indoor, 2 of 3 sessions)",
-                          "Rowing time: 2h30m (3 of 4 sessions)",
+            for value in ("158 bpm, 10 Jul, Lake swim\nHR coverage: 2 of 3 sessions",
+                          "Distance rowed: 24 km (indoor)\nIndoor distance: 2 of 3 sessions",
+                          "Rowing time: 2h30m\nTime coverage: 3 of 4 sessions",
                           "Distance swum: 2 km (pool/other)"):
                 self.assertIn(value, fragment)
             self.assertNotIn("Climbed: 0", fragment)
             if stem == "SEASON":
                 self.assertNotIn("Longest ", fragment)
             else:
-                self.assertIn("12 km (indoor), 3 of 4 sessions", fragment)
+                self.assertIn("12 km (indoor)\nLongest coverage: 3 of 4 sessions", fragment)
 
 
 if __name__ == "__main__":

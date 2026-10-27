@@ -289,17 +289,18 @@ class ReportContracts(unittest.TestCase):
         good = self.reports("7_DAY")[0]
         for bad in (good.replace("HRRc: 31 bpm", "HRRc: 31 bpm declining"),
                     good.replace("45m, Easy spin", "45m, Easy spin, 09:00"),
-                    good.replace("**Intensity and capability**", "Power curve: higher")):
+                    good.replace("**Intensity (cycling", "Power curve: higher (cycling")):
             with self.assertRaises(AssertionError):
                 self.assert_layout(bad, "7_DAY")
 
     def assert_equivalents(self, block):
         work, work_n, work_basis = re.search(
-            r"Work: (\d+) kJ \(energy of about ([\d.]+) (.*?)\)", block).groups()
+            r"Work: (\d+) kJ\n\(energy of about ([\d.]+) (.*?)\)", block).groups()
         carbs, carb_n, carb_basis = re.search(
-            r"Carbs used: (\d+) g \(about ([\d.]+) (.*?)\)", block).groups()
+            r"Carbs used: (\d+) g\n\(about ([\d.]+) (.*?)\)", block).groups()
         self.assertEqual(work_basis, carb_basis)
-        grams = 27 if carb_basis == "medium bananas" else int(re.search(r"your (\d+) g bottles", carb_basis).group(1))
+        grams = 27 if carb_basis == "medium bananas" else int(
+            re.search(r"\*\*Equivalents \(your (\d+) g bottles\)\*\*", block).group(1))
         self.assertEqual(float(carb_n), round(float(carbs) / grams, 1))
         self.assertEqual(float(work_n), round(float(work) / (105 if carb_basis == "medium bananas" else 4 * grams), 1))
         self.assertNotRegex(block, r"kcal|mechanical|USDA")
@@ -311,7 +312,8 @@ class ReportContracts(unittest.TestCase):
                           "Work:", "Carbs used:", "Most work in a day:", "Time in the saddle:"):
                 self.assertIn(label, block)
             self.assert_equivalents(block)
-            peaks = re.findall(r"^Peak (.*?):", block, re.M)
+            peaks_block = block.split("**Peaks", 1)[1].split("Time in the saddle:")[0] if "**Peaks" in block else ""
+            peaks = re.findall(r"^(5 s|1 min|5 min|20 min|60 min):", peaks_block, re.M)
             self.assertEqual(peaks, [] if stem == "28_DAY" else ["5 s", "1 min", "5 min", "20 min", "60 min"])
             self.assertNotRegex(block, r"Climbed: 0\b")
         banana = self.reports("7_DAY")[0]
@@ -320,26 +322,45 @@ class ReportContracts(unittest.TestCase):
                     banana.replace("about 28.6 medium", "about 27.8 medium")):
             with self.assertRaises(AssertionError):
                 self.assert_equivalents(bad)
-        self.assertIn("58.3 of your 60 g bottles", self.reports("28_DAY")[0])
+        self.assertIn("**Equivalents (your 60 g bottles)**", self.reports("28_DAY")[0])
+        self.assertIn("(energy of about 58.3 bottles)", self.reports("28_DAY")[0])
 
-    def test_plan_counts_and_marker_only_sessions(self):
+    def test_plan_counts_and_marker_only_highlights(self):
         first, second = self.reports("7_DAY")
         for block in (first, second):
-            line = re.search(r"^Plan followed: (.*)$", block, re.M).group(1)
+            line = re.search(r"^Plan: (.*)$", block, re.M).group(1)
             self.assertNotRegex(line, r"\b0 |not.assessed|_")
-            sessions = block.split("**Sessions**\n")[1].split("\n\n", 1)[0]
-            self.assertNotRegex(sessions, r"followed|no steps|not assessed|null|None")
-        self.assertIn("Plan followed: 1 partly followed, 2 planned without steps", first)
-        sessions = first.split("**Sessions**\n")[1].split("\n\n", 1)[0]
-        self.assertEqual(sessions.count("✅"), 2)
-        self.assertEqual(sessions.count("⚠️"), 1)
-        self.assertIn("planned 30m, done 30m", sessions)
-        self.assertIn("planned 55m, ridden 1h", sessions)
+            self.assertNotIn("**Sessions**", block)
+            self.assertNotRegex(block, r"(?m)^[✅⚠️❌].*(?:Walk|Hike)")
+        self.assertIn("Plan: 1 partly followed\nPlanned without steps: 2", first)
+        highlights = first.split("**Highlights**\n")[1].split("\n\n", 1)[0]
+        self.assertEqual(highlights, "⚠️ 10 Jul Stepped, step 2 below target")
+        self.assertNotIn("**Highlights**", second)
         self.assertNotIn("✅", second)
         block = self.reports("28_DAY")[0]
         self.assertIn("Rides: 12 of 14 planned", block)
-        self.assertIn("Walks: 3 of 3 planned ✅", block)
-        self.assertIn("Checked against plan: 9 of 12 followed", block)
+        self.assertIn("Walks: 3 of 3 planned", block)
+        self.assertNotIn("Walks: 3 of 3 planned ✅", block)
+        self.assertIn("Checked: 9 of 12 followed", block)
+
+    def test_every_warning_and_failure_survives_highlight_selection(self):
+        def check(block, required):
+            highlights = block.split("**Highlights**\n")[1].split("\n\n", 1)[0].splitlines()
+            for row in required:
+                self.assertIn(row, highlights)
+            self.assertTrue(all(row.startswith(("✅ ", "⚠️ ", "❌ ")) for row in highlights))
+        block = self.reports("28_DAY")[0]
+        required = ["⚠️ 18 Jun Intervals, steps off", "⚠️ 25 Jun Hill, steps off",
+                    "⚠️ 10 Jul Stepped, step 2 below target"]
+        check(block, required)
+        for row in required:
+            with self.assertRaises(AssertionError):
+                check(block.replace(row + "\n", ""), required)
+        fragment = (REPORTS / "7_DAY_REPORT_EXAMPLES.md").read_text().split("## Deviating sets fragment")[1]
+        check(fragment, ["⚠️ 13 Jul VO2, set 3 stopped", "❌ 14 Jul Tempo, steps off"])
+        self.assertIn("Set 3 (320 W): 2/8, 305 W avg", fragment)
+        self.assertIn("Below target: reps 3-4, 290/288 W", fragment)
+        self.assertIn("Not ridden: reps 5-8", fragment)
 
     def test_report_environment_uses_flag_and_labels_indoor_values(self):
         for stem in ("7_DAY", "28_DAY", "SEASON"):
@@ -359,24 +380,34 @@ class ReportContracts(unittest.TestCase):
                    "start_date_local": "2026-07-09T12:00:00", "trainer": flag}} if flag is not None else {}
             self.assertEqual(sync._fact_activity(row, formatted=True, raw_by_id=raw)["environment"], expected)
             self.assertEqual(sync._fact_activity(row, formatted=True)["environment"], "unknown")
-        self.assertIn("Longest ride: Easy spin, 9 Jul, 20m, 8 km (indoor)", self.reports("7_DAY")[1])
+        self.assertIn("Longest ride: 9 Jul Easy spin, 20m\nDistance: 8 km (indoor)", self.reports("7_DAY")[1])
 
     def test_chunk_totals_order_and_seven_day_agreement(self):
-        block = self.reports("28_DAY")[0]
-        rows = re.findall(r"\*\*(\d+ \w+ to \d+ \w+)\*\*\nHours: ([\d.]+)h\nTSS: (\d+)", block)
-        self.assertEqual([r[0] for r in rows], ["17 Jun to 23 Jun", "24 Jun to 30 Jun", "1 Jul to 7 Jul", "8 Jul to 14 Jul"])
-        hours, sessions, tss = re.search(r"Total: ([\d.]+)h \((\d+) sessions, (\d+) TSS\)", block).groups()
-        self.assertEqual(sum(float(r[1]) for r in rows), float(hours))
-        self.assertEqual(sum(int(r[2]) for r in rows), int(tss))
-        weekly = self.reports("7_DAY")[0]
-        self.assertIn("Hours: " + rows[-1][1] + "h", weekly)
-        self.assertIn("TSS: " + rows[-1][2], weekly)
-        sections = ("**Totals**", "**Plan**", "**Fitness", "**17 Jun", "**24 Jun",
-                    "**1 Jul", "**8 Jul", "**Wellness", "**Intensity**", "**Key sessions**",
+        block, sparse = self.reports("28_DAY")
+        self.assertIn("Weeks: 17 Jun, 24 Jun, 1 Jul, 8 Jul", block)
+        weekly = block.split("**Week by week")[1].split("**Wellness")[0]
+        hours = [float(v.removesuffix("h")) for v in re.search(r"^Hours: (.*)$", weekly, re.M).group(1).split(", ")]
+        tss = [int(v) for v in re.search(r"^TSS: (.*)$", weekly, re.M).group(1).split(", ")]
+        self.assertEqual(hours, [6, 6.5, 4.75, 5])
+        self.assertEqual(tss, [270, 300, 220, 235])
+        total_hours, sessions, total_tss = re.search(
+            r"Total: ([\d.]+)h, (\d+) sessions, (\d+) TSS", block).groups()
+        self.assertEqual(sum(hours), float(total_hours))
+        self.assertEqual(sum(tss), int(total_tss))
+        self.assertIn("Hours: 5h", self.reports("7_DAY")[0])
+        self.assertIn("TSS: 235", self.reports("7_DAY")[0])
+        sections = ("**Totals**", "**Plan**", "**Fitness", "**Week by week",
+                    "**Wellness", "**Intensity (", "**Highlights**", "**Key session:",
                     "**Best efforts", "**DFA a1", "**Section 11 flags**", "**Fun facts", "**Interpretation**")
-        positions = [block.index(s) for s in sections]
+        positions = [block.index(section) for section in sections]
         self.assertEqual(positions, sorted(positions))
-        self.assertEqual(len(block.split("**Interpretation**\n")[1].strip().split("\n\n")), 2)
+        paragraphs = block.split("**Interpretation**\n")[1].strip().split("\n\n")
+        self.assertEqual([p.split(":")[0] for p in paragraphs], ["Load", "Quality", "Watch", "Next"])
+        self.assertIn("Tempo 21 Jun: 3.8%\nTempo 28 Jun: 3.4% (plan changes power)", block)
+        self.assertIn("HRV/RHR/Sleep N (24 Jun): 6/7 days", block)
+        self.assertNotIn("N (17 Jun)", block)
+        self.assertIn("Hours: 1h, 0h, 0h, 0.67h", sparse)
+        self.assertIn("EF: 1.20, unavailable, unavailable, 1.23", sparse)
         self.assertEqual((datetime(2026, 7, 14) - datetime(2026, 6, 17)).days + 1, 28)
 
     def test_season_acwr_phase_gaps_and_sunday_boundaries(self):
@@ -395,6 +426,9 @@ class ReportContracts(unittest.TestCase):
         yoy = block.split("**June 2026 (June 2025 in brackets)**")[1].split("**Notable**")[0]
         self.assertNotRegex(yoy, r"\bvs\b|\(\+|\(-|difference")
         self.assertNotIn("none", block.split("**Notable**")[1].split("**Fun facts")[0])
+        self.assertEqual(block.count("Longest ride:"), 1)
+        self.assertIn("Longest ride: 28 Jun Meadow, 2h45m\nDistance: 72 km (outdoor)", block)
+        self.assertNotIn("Previous phase:", sparse)
 
     def test_sources_aliases_dfa_and_omission_contracts(self):
         for stem, source in (("7_DAY", "latest.json.fun_facts.rolling_7d"),

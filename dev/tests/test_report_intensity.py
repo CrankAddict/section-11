@@ -241,7 +241,8 @@ class ReportIntensity(unittest.TestCase):
             self.assertNotIn("seiler_tid_7d.z1_pct", text)
         weekly = (reports / "7_DAY_REPORT_TEMPLATE.md").read_text()
         self.assertIn("zone_reference", weekly)
-        self.assertIn("only when basis provenance is unavailable", weekly)
+        self.assertIn("whether or not provenance is present", weekly)
+        self.assertNotIn("only when basis provenance is unavailable", weekly)
         output, _, sync = collect(mod, self.folder, [activity("a")])
         for guidance in (output["READ_THIS_FIRST"], mod.DataOverview.build(sync, output)):
             note = guidance["report_intensity_note"]

@@ -291,6 +291,64 @@ def report_rule_issues(name, source):
             if re.search(r'\b(?:endurance_10_50_week_guard|report_sport_identity|report_sport_longest)_v\d+\b', line)]
 
 
+# These two documents own literal report data-format versions.
+REPORT_FORMAT_OWNERS = {'SECTION_11.md', 'examples/json-examples/README.md'}
+REPORT_EXAMPLES = tuple('examples/reports/' + stem + '_REPORT_EXAMPLES.md'
+                        for stem in ('7_DAY', '28_DAY', 'SEASON',
+                                     'PRE_WORKOUT', 'POST_WORKOUT', 'WEATHER'))
+RUNNING_TEXT = re.compile(
+    r'^(?:Summary|Load|Quality|Watch|Next|Year on year|Shift|Verdict|Coach note): \S'
+)
+
+
+def report_format_issues(name, source):
+    if name in REPORT_FORMAT_OWNERS:
+        return []
+    # A function/count suffix such as mean(2) is not the standalone literal.
+    return [f'{name}:{number}: {line}'
+            for number, line in enumerate(source.splitlines(), 1)
+            if re.search(r'(?<![\w])\(2\)(?!\w)', line)]
+
+
+def report_width_issues(name, source):
+    """All fenced report examples/fragments: 40 Unicode code points per data line.
+
+    Blank lines and standalone bold headings are structural. Only the explicit
+    RUNNING_TEXT labels mark narrative paragraphs; those stay on one source line
+    and wrap in the reader. No exemption based on punctuation, length or lack of
+    a colon: unlabelled fact continuations and marker-first session lines count.
+    All fence info strings are checked, so changing text to md cannot evade it.
+    """
+    issues, active, blocks = [], None, 0
+    paragraph = False
+    for number, line in enumerate(source.splitlines(), 1):
+        match = FENCE.match(line)
+        if active:
+            marker, length = active
+            if re.fullmatch(r' {0,3}' + re.escape(marker) + '{' + str(length) + r',}[ \t]*', line):
+                active = None
+                paragraph = False
+                continue
+            if paragraph and line.strip():
+                issues.append(f'{name}:{number}: narrative paragraph needs a blank separator')
+            paragraph = bool(RUNNING_TEXT.match(line))
+            if not line.strip() or re.fullmatch(r'\*\*[^\n]+\*\*', line) or paragraph:
+                continue
+            if len(line) > 40:
+                issues.append(f'{name}:{number}: {len(line)} characters: {line}')
+            if line.startswith((' ', '\t')):
+                issues.append(f'{name}:{number}: indented report line')
+        elif match:
+            fence, _info = match.groups()
+            active = (fence[0], len(fence))
+            blocks += 1
+    if active:
+        issues.append(f'{name}: unclosed report fence')
+    if not blocks:
+        issues.append(f'{name}: no report examples found')
+    return issues
+
+
 def repository_data(root):
     documents, entries = {}, set()
     for path in sorted(root.rglob('*')):
@@ -341,6 +399,54 @@ class TestDocsContract(unittest.TestCase):
         self.assertEqual([], report_rule_issues('guide.md',
             'Use report_intensity blocks matching the same file report_intensity_schema.rule_version; schema_version: 2. '
             'Require the sport_identity_rule marker; decode history.longest_session_schema columns.'))
+
+    def test_repository_report_format_owners(self):
+        documents, _entries = repository_data(ROOT)
+        issues = [issue for name, source in documents.items()
+                  for issue in report_format_issues(name, source)]
+        self.assertEqual([], issues, '\n'.join(issues))
+
+    def test_report_format_violation_and_nearby_valid(self):
+        for source in ('report_intensity_schema (2)', '`report_intensity_schema` (2)',
+                       '~~~text\nFormat: (2)\n~~~', 'Schema\n(2)'):
+            for name in ('guide.md', 'PROJECT_INSTRUCTIONS_AGENTIC.md',
+                         'sub/SECTION_11.md', 'examples/reports/PRE_WORKOUT_REPORT_TEMPLATE.md'):
+                with self.subTest(name=name, source=source):
+                    self.assertEqual(1, len(report_format_issues(name, source)))
+            for name in REPORT_FORMAT_OWNERS:
+                self.assertEqual([], report_format_issues(name, source))
+        self.assertEqual([], report_format_issues('guide.md',
+                         'HRRc: 7d mean(2); avg(2); report_intensity_schema.'))
+
+    def test_all_report_example_data_width(self):
+        for name in REPORT_EXAMPLES:
+            with self.subTest(name=name):
+                issues = report_width_issues(name, (ROOT / name).read_text(encoding='utf-8'))
+                self.assertEqual([], issues, '\n'.join(issues))
+
+    def test_report_width_boundary_narrative_and_fragment_controls(self):
+        def block(line, fence='text'):
+            return '```' + fence + '\n' + line + '\n```\n'
+        self.assertEqual([], report_width_issues('fixture', block('Data: ' + 'x' * 34)))
+        for line in ('Data: ' + 'x' * 35, '⚠️ ' + 'x' * 38,
+                     'x' * 41, '  short continuation'):
+            for fence in ('', 'text', 'md'):
+                with self.subTest(line=line, fence=fence):
+                    self.assertTrue(report_width_issues('fixture', block(line, fence)))
+        for label in ('Summary', 'Load', 'Quality', 'Watch', 'Next', 'Year on year',
+                      'Shift', 'Verdict', 'Coach note'):
+            self.assertEqual([], report_width_issues('fixture', block(
+                label + ': This labelled paragraph wraps naturally on a phone and fills a wide screen.')))
+        self.assertTrue(report_width_issues('fixture', block('Note: ' + 'x' * 41)))
+        self.assertTrue(report_width_issues('fixture', block('Summary: One paragraph.\ncontinued text')))
+        self.assertEqual([], report_width_issues('fixture', block(
+            '**Intensity (cycling, power, 4/4 weeks, 14/14 rides)**\nZ3: 7%\n\n'
+            'Summary: One paragraph.\n\nTSS: 10')))
+        self.assertEqual([], report_width_issues('fixture', 'Outside prose ' + 'x' * 100 + '\n' + block('TSS: 1')))
+        self.assertTrue(report_width_issues('fixture', 'No fenced examples'))
+        self.assertTrue(report_width_issues('fixture', '```text\nTSS: 1'))
+        # A short complete block must not hide a long line in a later fragment.
+        self.assertTrue(report_width_issues('fixture', block('TSS: 1') + block('x' * 41)))
 
     def test_slug_rules_and_collisions(self):
         self.assertEqual('å-2--é-e\u0301-字-ⅱ-a_b', slug('Å 2 & É e\u0301 字 Ⅱ A_B'))

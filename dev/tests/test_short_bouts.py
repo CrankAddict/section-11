@@ -833,9 +833,9 @@ class Documentation(unittest.TestCase):
         self.assertNotIn("steps or sets on target", line)
         self.assertIn("set 2 12/13 on target", line)
         examples = (root / "examples/reports/POST_WORKOUT_REPORT_EXAMPLES.md").read_text()
-        self.assertIn("29/30 work bouts on target (96.67%)", examples)
-        self.assertIn("adherence not evaluable, individual bout detail unavailable", examples)
-        self.assertIn("main work incomplete; set 3/bout 10", examples)
+        self.assertIn("On target: 29/30 bouts (97%)", examples)
+        self.assertIn("Adherence: not evaluable\nReason: individual bout detail expired", examples)
+        self.assertIn("Main work: incomplete\nSet 3/bout 10: 4s standard deficit", examples)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,12 @@
 # Weather Report Template
 
+Read this template together with [Shared report layout](../../SECTION_11.md#shared-report-layout) before writing the report.
+
 > On request only, for example "weather for my rides" or "which planned ride day looks better?" Cover all relevant planned outdoor rides in the next five days (120 hours), deduplicating event IDs shared by workouts and the race calendar. This is a conditions report, not readiness clearance, a safety assessment or permission to move a workout.
 > **Freshness and binding:** Read current `latest.json.data_overview`, then the matching `routes.json`. Match event ID, complete route_ref, departure, cache_key and brief_id. Recheck departure and `expires_at` at report time, even when freshness is not printed. Never use conversation memory, example JSON or retained pre-departure snapshots as a current forecast. When disabled, say so and show no forecast blocks or maps.
 > **Access:** Resolve relative locations against the latest file's local folder, raw URL base or attachments; match filenames for folderless Manual uploads. Presence does not prove AI access. Read matching PNG pages before showing them, in their listed order. Identify missing or unreadable pages; never describe an unseen image, offer a map download, add maps to the artifact ZIP or require an extra Manual upload step.
 > **Display:** Use precomputed labels/values in athlete units from `summary.display` and `bands[].display`, reformatted into the lines below without changing numbers. Forecast `bands` are the single source for lettered detail; never aggregate raw `sections`. Copy their local arrival/end and wettest-period windows when needed. Wind, gusts, temperature and rain use one decimal, including `14.0`, `6.0–6.4 m/s` and `9.0 °C`; equal displayed endpoints collapse. Rain below 0.05 mm with positive probability displays `<0.1 mm/h` for an hourly period, never a dry claim. Fully supported dry weather renders as `Rain: dry, 0%`. Preserve units and native-period duration, including non-hourly amounts; maxima are not ride totals.
-> **Time and direction:** Read `display_time.zone` and full offset-bearing brief timestamps, but display local HH:MM. Add a zone only when different from the athlete's timezone or a UTC fallback; map and data-field zone/offset labels stay unchanged. Retain the assumed label, rendered as `(assumed)`. For `departure.assumed_reason: "unset_time"`, use `Start: 10:00 (assumed)` with the supplied default time, then `No start time set. When are you leaving?` on its own line and a blank line. For `"start_passed"`, use the supplied rolling departure and `planned_local`: `Start: 10:30 (assumed; planned 10:00 has passed.)`, then `When are you leaving?` on its own line and a blank line. Never calculate a newer departure in the report. With verified execution/write capability, preview a push.py time update and wait for confirmation before `--confirm`; read the next sync's newly bound brief. Use compass directions, never degrees; outlook uses compact `display_wind_from`, rendered on the Wind line as `variable` or the supplied compass range, never a long sector list.
+> **Time and direction:** Read `display_time.zone` and full offset-bearing brief timestamps, but display local HH:MM. Add a zone only when different from the athlete's timezone or a UTC fallback; map and data-field zone/offset labels stay unchanged. Retain the assumed label, rendered as `(assumed)`. For `departure.assumed_reason: "unset_time"`, use `Start: 10:00 (assumed)` with the supplied default time, then `No start time set. When are you leaving?` on its own line and a blank line. For `"start_passed"`, use the supplied rolling departure and `planned_local`: `Start: 10:30 (assumed)` then `Planned 10:00 has passed.`, then `When are you leaving?` on its own line and a blank line. Never calculate a newer departure in the report. With verified execution/write capability, preview a push.py time update and wait for confirmation before `--confirm`; read the next sync's newly bound brief. Use compass directions, never degrees; outlook uses compact `display_wind_from`, rendered on the Wind line as `variable` or the supplied compass range, never a long sector list.
 
 ## Output when maps are available
 
@@ -13,6 +15,8 @@ Use one fact per labelled line, with blank lines between header, route identity,
 ```text
 **Weather report: [weekday date HH:MM, zone only if required]**
 Period: next 5 days
+
+Summary: [One conditions-only sentence from comparable supported forecasts; state unavailable when no forecast supports it.]
 
 **[Route name]**
 Date: [Weekday D Month]
@@ -36,18 +40,18 @@ Prepare: [one actionable clothing/fuelling/fluid consequence, if supported]
 
 Note: [material ETA/coverage/fallback/freshness limitation only; outlook uncertainty when applicable]
 
-[Read and show all matching map pages in listed order]
-
 [Next ride in the same layout]
 
-Comparison: [one line of supported differences between scheduled rides]
-Coach note: [one line: practical implication or refresh reminder]
-No route: [one line listing rides with absent/invalid routes and the reasons]
+Coach note: [One naturally wrapping paragraph: practical implication or refresh reminder]
+
+Rides without a route:
+[Day and short ride name: supported reason]
+[One ride per line]
 
 Weather data by Open-Meteo, CC BY 4.0.
 ```
 
-Comparison and Coach note each get one line; No route is a separate single line in a report that also has routed rides. If no planned ride has a usable route within 120 h, use the explicit case below instead. Do not silently drop a ride to meet a length target. Give unusable briefs one line each. The overview lists routed rides beyond the weather horizon for route discovery; this report still covers only the next 120 hours. `rides_total` counts rides eligible for that overview before its 64-ride cap, `rides_omitted` counts cap overflow, and `rides_without_route_beyond_horizon` separately counts later unrouted rides excluded before the cap. A home point forecast must never substitute for route weather inside a ride block; only the separately labelled Home block below is allowed in the no-route case. Completed-activity `weather_summary` cannot fill forecast gaps. No alternate departure, reversed route or unscheduled day is bound by the existing brief, and this report never reschedules training.
+Summary sits immediately under Period and replaces Comparison; it describes conditions only, never readiness or permission to move a workout. Coach note wraps naturally as one labelled paragraph. Rides without a route has one short day/name/reason line per ride, including mixed-route reports. Read matching route_weather_map PNG pages before showing them directly after all report text, in session/page order; name each missing page and never offer downloads. If no planned ride has a usable route within 120 h, use the explicit case below instead. Do not silently drop a ride to meet a length target. Give unusable briefs one line each. The overview lists routed rides beyond the weather horizon for route discovery; this report still covers only the next 120 hours. `rides_total` counts rides eligible for that overview before its 64-ride cap, `rides_omitted` counts cap overflow, and `rides_without_route_beyond_horizon` separately counts later unrouted rides excluded before the cap. A home point forecast must never substitute for route weather inside a ride block; only the separately labelled Home block below is allowed in the no-route case. Completed-activity `weather_summary` cannot fill forecast gaps. No alternate departure, reversed route or unscheduled day is bound by the existing brief, and this report never reschedules training.
 
 ## Supported wind, gust and rain lines
 
@@ -57,7 +61,7 @@ Keep Wind direction/speed separate from Gusts and the estimated route-relative e
 
 For `[Dominant wind effect]: [where]`, use the supplied forecast bands' wind classes and distances, never raw sections or a new classification threshold. Sum the covered distance for each known class; show the unique distance-dominant class only when valid bounds and coverage support it. List its band ranges, combining adjacent ranges; use "first" or "last" only when they reach the route start/end. For example, `Headwind: first 27 km and last 9 km` requires those supplied bounds and a headwind distance exceeding every other class. Omit ties, unknown/incomplete support, and all point-forecast/outlook cases. A band class describes its distance-dominant estimated effect, not constant wind throughout the band. The resulting summary is weighted by supplied-band distance, not exact whole-route class distance or energy.
 
-The Rain line contains the native-period amount, probability and supported timing, such as `Rain: 0.1 mm/h, 25% around the finish (13:00–14:00)`. A band's maximum and wettest window do not establish onset or cessation: say "dry until 12:00" or "rain last hour" only when coverage supports it. Otherwise name the wettest window without inventing an onset. Amount and probability maxima can occur in different intervals; do not imply they coincide. Wind samples approximate conditions across an ETA envelope, not guaranteed arrival conditions.
+The Rain line contains the native-period amount and probability. Put long supported timing on its own short line, for example `Rain: 0.1 mm/h, 25%` then `Wettest: 13:00–14:00`. A band's maximum and wettest window do not establish onset or cessation: say "dry until 12:00" or "rain last hour" only when coverage supports it. Otherwise name the wettest window without inventing an onset. Amount and probability maxima can occur in different intervals; do not imply they coincide. Wind samples approximate conditions across an ETA envelope, not guaranteed arrival conditions.
 
 ## No planned ride has a usable route within 120 h
 
@@ -69,10 +73,15 @@ When rides are planned but all lack usable routes, use this layout. Include each
 **Weather report: [weekday date HH:MM, zone only if required]**
 Period: next 5 days
 
-No planned rides with a route in the next 5 days.
-Rides without a route: [day and ride name]; [next day and ride name]
+Summary: [One conditions-only sentence from comparable supported forecasts; state unavailable when no forecast supports it.]
 
-Attach a GPX/TCX to the workout in Intervals.icu; the next sync makes a route forecast and map.
+No planned rides with a route.
+Rides without a route:
+[Day and short ride name]
+[Next day and short ride name]
+
+Attach a GPX/TCX to the planned workout.
+The next sync makes its forecast/map.
 
 [Optional Home block, only under the gates below; otherwise the applicable unavailable line]
 ```
@@ -111,17 +120,26 @@ When there are no planned rides at all within 120 h, replace the no-route messag
 
 ## No-map and partial paths
 
-Only when a map is unavailable, partial, missing or unreadable, add band lines from `route_weather.bands` after Feels like and before optional Prepare/Note. For a missing continuation page, show its affected bands in text and identify which page is missing; do not repeat rows already visible. If no page is usable, cover every supplied band, without merging away changing conditions.
+Only when a map is unavailable, partial, missing or unreadable, add short band blocks from `route_weather.bands` after Feels like and before optional Prepare/Note. For a missing continuation page, show its affected bands in text and identify which page is missing; do not repeat rows already visible. If no page is usable, cover every supplied band, without merging away changing conditions.
 
 ```text
 Temperature: [range]
 Feels like: [range, or unavailable]
-[Letter]: [display.distance]; time [local arrival-to-end envelope]; [display.wind_class]; wind [display.wind]; temperature [display.temperature]; feels like [display.feels_like]; rain [amount], [probability]%, wettest [rain.wettest_window_local]; [material coverage gap]
+**Band [Letter] ([display.distance])**
+Time: [local arrival-to-end envelope]
+Effect: [display.wind_class]
+Wind: [display.wind]
+Gusts: [display.gust_max; unavailable when absent]
+Temperature: [display.temperature]
+Feels like: [display.feels_like]
+Rain: [native-period amount], [probability]%
+Wettest: [rain.wettest_window_local]
+Coverage: [material gap only]
 
 Note: [map unavailable or missing page and reason; other material limits]
 ```
 
-Keep each fallback band on one line. `wind_speed`, `gust_max`, `temperature` and `feels_like` retain rounded values plus units; `display` supplies matching text. The band's estimated effect class is distance-dominant, with the existing head/cross/tail/calm/unknown tie order. Its from-direction follows the existing distance-weighted compass rule. Neither is a promise of constant wind. Rain amount and probability maxima may occur in different intervals. `coverage` must qualify missing fields/time: unknown rain is never dry. Empty bands have no assigned section; do not invent values. If an older brief lacks `bands`, say band detail is unavailable and retain only supported summary values; do not rebuild bands from raw sections.
+Keep each fallback band in its own short block, one labelled fact per line. Retain every supplied band and every material gap. `wind_speed`, `gust_max`, `temperature` and `feels_like` retain rounded values plus units; `display` supplies matching text. The band's estimated effect class is distance-dominant, with the existing head/cross/tail/calm/unknown tie order. Its from-direction follows the existing distance-weighted compass rule. Neither is a promise of constant wind. Rain amount and probability maxima may occur in different intervals. `coverage` must qualify missing fields/time: unknown rain is never dry. Empty bands have no assigned section; do not invent values. If an older brief lacks `bands`, say band detail is unavailable and retain only supported summary values; do not rebuild bands from raw sections.
 
 | Situation | Handling |
 |---|---|
@@ -138,7 +156,7 @@ Outlooks have empty `sections` and no `bands` array. Use `outlook.window_utc`, c
 
 ## Material limits and preparation
 
-Inspect ETA method/status, sample counts, stop model, extrapolation, transferred route-consistency correction, coverage, provider/fallback and fetch/expiry. Print one compact limits line when thin history, generic assumptions, terrain extrapolation, partial coverage, near expiry, fallback provider or a likely stale main-FTP/zones flag affects the decision. Otherwise these checks need not become separate lines. Moving and elapsed windows remain distinct; they are planning ranges, not guaranteed timing or safe speeds. Do not infer corrected FTP or change settings.
+Inspect ETA method/status, sample counts, stop model, extrapolation, transferred route-consistency correction, coverage, provider/fallback and fetch/expiry. Print short labelled limits lines when thin history, generic assumptions, terrain extrapolation, partial coverage, near expiry, fallback provider or a likely stale main-FTP/zones flag affects the decision. Otherwise these checks need not become separate lines. Moving and elapsed windows remain distinct; they are planning ranges, not guaranteed timing or safe speeds. Do not infer corrected FTP or change settings.
 
 Use [Environmental Conditions Protocol](../../SECTION_11.md#environmental-conditions-protocol) for heat/cold and clothing, and the existing route nutrition/hydration guidance for fuelling and fluid. Read the current official dossier when tested tolerance, clothing, carrying capacity or preferences matter. No new weather thresholds, carbohydrate multipliers, universal fluid volume or invented personalization. Retain the protocol's fallbacks for missing thermal baseline/humidity; disclose a material missing input. A schematic map supplies no basemap, road-surface, shelter or safety evidence.
 

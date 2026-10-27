@@ -4,134 +4,123 @@ Synthetic fixtures only. The four supplied chunks are newest first in JSON and d
 
 ## Example 1: four rolling chunks
 
-Intensity illustrates synthetic period-local report_intensity blocks selecting cycling in each chunk and the whole 28-day window. Walks remain below selection thresholds. Cycling has 4, 4, 3 and 3 covered sessions in chronological chunks, 14 in total. Fetch completeness is unknown. The flagged activity has a synthetic power/outdoor/270 W zone_reference. These illustrations decode the file-level schema 2; counts do not imply exact covered dates.
+Intensity illustrates synthetic period-local report_intensity blocks selecting cycling in each chunk and the whole 28-day window. Walks remain below selection thresholds. Cycling has 4, 4, 3 and 3 covered sessions in chronological chunks, 14 in total. Fetch completeness is unknown. The flagged activity has a synthetic power/outdoor/270 W zone_reference. All twelve checked activities are rides, including three partly-followed sessions on 18 June, 25 June and 10 July; walks are participation only. Hard-day coverage is complete on observed active dates in each chunk. Capability means retain all eligible observations; wellness on the second chunk has only six observed days. The 28 June tempo illustration supplies plan_changes_power. These illustrations decode the file-level report intensity schema; counts do not imply exact covered dates.
 
 ```text
-**28-day report: Wed 17 June to Tue 14 July 2026**
+**28-day report: 17 Jun-14 Jul 2026**
 Data updated: 14 Jul 15:30
 
-The most recent two chunks carry less load than the first two.
+Summary: The most recent two chunks carry less load than the first two.
 
 Phase: Base, week 3
 
 **Totals**
-Ride: 20h45m (14 sessions, 995 TSS)
-Walk: 1h30m (3 sessions, 30 TSS)
-Total: 22.25h (17 sessions, 1025 TSS)
+Ride: 20h45m, 14 sessions, 995 TSS
+Walk: 1h30m, 3 sessions, 30 TSS
+Total: 22.25h, 17 sessions, 1025 TSS
 
 **Plan**
 Rides: 12 of 14 planned
-Walks: 3 of 3 planned ✅
-Checked against plan: 9 of 12 followed
-Detail: older step assessments are retained; full detail covers 14 days.
+Walks: 3 of 3 planned
+Checked: 9 of 12 followed
+Step detail: last 14 days
+Older results: last captured
 
 **Fitness (start of period -> now)**
 CTL: 41.8 -> 42.6 (+0.8)
 ATL: 46.0 -> 44.0 (-2.0)
 TSB: -4.2 -> -1.4 (+2.8)
 
-**17 Jun to 23 Jun**
-Hours: 6h
-TSS: 270
-CTL: 43.2
-Zones (cycling, power, 1/1 rolling week; 4/4 sessions): Z1+Z2 89%, Z3 7%, Z4+ 4%
-Hard days: 2 (18 Jun intervals; 21 Jun tempo)
-Durability (cycling): 7-day avg 3.6% (N=2)
-EF: 7-day avg 1.25 (N=2)
-HRRc: 7-day avg 33 bpm (N=1)
-HRV: 7-day avg 61 ms (7 days)
-RHR: 7-day avg 53 bpm (7 days)
-Sleep: 7-day avg 7.00h (7 days)
+**Week by week (oldest first, 7-day avg for means, Durability/EF cycling)**
+Weeks: 17 Jun, 24 Jun, 1 Jul, 8 Jul
+Hours: 6h, 6.5h, 4.75h, 5h
+TSS: 270, 300, 220, 235
+CTL: 43.2, 43.8, 42.1, 42.6
+Hard days: 2, 2, 1, 1
+Hard-day coverage: complete
+Durability: 3.6, 3.4, 3.1, 3.1%
+EF: 1.25, 1.27, 1.29, 1.30
+HRRc: 33, 32, 32, 31 bpm
+HRV: 61, 62, 62, 63 ms
+RHR: 53, 52, 52, 51 bpm
+Sleep: 7.00h, 7.25h, 7.25h, 7.50h
+HRV/RHR/Sleep N (24 Jun): 6/7 days
 
-**24 Jun to 30 Jun**
-Hours: 6.5h
-TSS: 300
-CTL: 43.8
-Zones (cycling, power, 1/1 rolling week; 4/4 sessions): Z1+Z2 86%, Z3 10%, Z4+ 4%
-Hard days: 2 (25 Jun intervals; 28 Jun by power Z3 only)
-Durability (cycling): 7-day avg 3.4% (N=2)
-EF: 7-day avg 1.27 (N=3)
-HRRc: 7-day avg 32 bpm (N=1)
-HRV: 7-day avg 62 ms (6 days)
-RHR: 7-day avg 52 bpm (6 days)
-Sleep: 7-day avg 7.25h (6 days)
+**Weekly intensity (cycling, power, 4/4 weeks, 14/14 rides)**
+Z1+Z2: 89, 86, 94, 91%
+Z3: 7, 10, 4, 6%
+Z4+: 4, 4, 2, 3%
 
-**1 Jul to 7 Jul**
-Hours: 4.75h
-TSS: 220
-CTL: 42.1
-Zones (cycling, power, 1/1 rolling week; 3/3 sessions): Z1+Z2 94%, Z3 4%, Z4+ 2%
-Hard days: 1 (3 Jul intervals)
-Durability (cycling): 7-day avg 3.1% (N=2)
-EF: 7-day avg 1.29 (N=2)
-HRRc: 7-day avg 32 bpm (N=1)
-HRV: 7-day avg 62 ms (7 days)
-RHR: 7-day avg 52 bpm (7 days)
-Sleep: 7-day avg 7.25h (7 days)
-
-**8 Jul to 14 Jul**
-Hours: 5h
-TSS: 235
-CTL: 42.6
-Zones (cycling, power, 1/1 rolling week; 3/3 sessions): Z1+Z2 91%, Z3 6%, Z4+ 3%
-Hard days: 1 (10 Jul intervals)
-Durability (cycling): 7-day avg 3.1% (N=2)
-EF: 7-day avg 1.30 (N=3)
-HRRc: 7-day avg 31 bpm (N=1)
-HRV: 7-day avg 63 ms (7 days)
-RHR: 7-day avg 51 bpm (7 days)
-Sleep: 7-day avg 7.50h (7 days)
-
-**Wellness (28 days)**
-HRV: 28-day avg 62 ms (27 days)
-RHR: 28-day avg 52 bpm (27 days)
-Sleep: 28-day avg 7.25h (27 days)
-Sleep quality: 28-day avg 2.1/4 (25 days)
-Weight: 68.0 kg, 14 Jul (28-day avg. 68.1 kg, 22 weigh-ins)
+**Wellness (28-day avg)**
+HRV: 62 ms
+RHR: 52 bpm
+Sleep: 7.25h
+HRV/RHR/Sleep coverage: 27/28 days
+Sleep quality: 2.1/4
+Sleep quality coverage: 25/28 days
+Weight latest: 68.0 kg (14 Jul)
+Weight avg: 68.1 kg
+Weigh-ins: 22
 Weight trend: +0.08 kg/week
-Feel: 28-day avg 2.1/5 (N=11)
-RPE: 28-day avg 3.9/10 (N=11)
+Feel: 2.1/5
+RPE: 3.9/10
+Feel/RPE coverage: 11 sessions
 
-**Intensity**
-Zones 28d (cycling, power, 4/4 rolling weeks; 14/14 sessions): Z1+Z2 90%, Z3 7%, Z4+ 3%
-TID 28d (cycling, power, 4/4 rolling weeks; 14/14 sessions): Pyramidal
+**Intensity (cycling, power, 4/4 weeks, 14/14 rides)**
+Z1+Z2: 90%
+Z3: 7%
+Z4+: 3%
+TID 28d: Pyramidal
 
-**Key sessions**
-**⚠️ 10 Jul, Stepped endurance**
+**Highlights**
+⚠️ 18 Jun Intervals, steps off
+⚠️ 25 Jun Hill, steps off
+⚠️ 10 Jul Stepped, step 2 below target
+
+**Key session: ⚠️ 10 Jul Stepped**
 Target: step 2, 190 W for 30m
 Actual: 176 W over 1799 seconds
+Reason: step 2 below target
 
-Long ride: 28 Jun, Meadow route, 2h45m, steady power with VI 1.03
-Tempo whole-ride decoupling: 21 Jun 3.8%; 28 Jun 3.4% (both at least 90m, VI 1.03)
+**Key observations**
+Long ride: 28 Jun Meadow, 2h45m
+VI: 1.03
+Tempo 21 Jun: 3.8%
+Tempo 28 Jun: 3.4% (plan changes power)
 
-**Best efforts (Cycling, last 28 days, previous 28 days in brackets)**
+**Best efforts (cycling, prev 28 days)**
 5 s: 670 W, 25 Jun (700 W)
 1 min: 370 W, 25 Jun (380 W)
 5 min: 265 W, 25 Jun (260 W)
 20 min: 225 W, 28 Jun (219 W)
 60 min: 200 W, 28 Jun (198 W)
 HR 20 min: 158 bpm (160 bpm)
-Shift: short efforts were lower; sustained efforts were slightly higher.
+Shift: Short efforts were lower and sustained efforts were slightly higher.
 
-**DFA a1 (28 days)**
-DFA a1: 28-day avg 1.18
-Drift: 28-day avg -0.04 (3 eligible sessions)
-Sessions: 4 sufficient, from available retained summaries
-Easy-state guard: 138 bpm, 3 eligible sessions (descriptive)
-Easy-state guard Indoor: 151 W, 3 eligible sessions
+**DFA a1 (cycling, 28-day avg, descriptive)**
+DFA a1: 1.18
+Drift: -0.04
+Drift coverage: 3 eligible sessions
+Sufficient sessions: 4
+Coverage: retained summaries only
+Easy-state guard: 138 bpm
+Guard coverage: 3 eligible sessions
+Indoor guard: 151 W, N=3
 
 **Section 11 flags**
 ⚠️ Z3 in easy sessions
-Session: 28 Jun, Meadow route
+Session: 28 Jun Meadow
 Z3 by power: 36m
 Z3 by HR: 3m
 Zones: power, from outdoor FTP 270 W
+Analysis: check the zone reference
 
-**Fun facts (cycling, descriptive)**
-Max power (1 s): 780 W, 25 Jun, Hill circuit
-Max HR: 179 bpm, 25 Jun, Hill circuit
+**Fun facts (cycling, descriptive, 14/14 rides)**
+Max power (1 s): 780 W (25 Jun Hill)
+Max HR: 179 bpm (25 Jun Hill)
 
-Longest ride: Meadow route, 28 Jun, 2h45m, 72 km (outdoor)
+Longest ride: 28 Jun Meadow, 2h45m
+Distance: 72 km (outdoor)
 Distance ridden: 180 km (indoor)
 Distance ridden: 330 km (outdoor)
 Climbed: 350 m (indoor)
@@ -139,53 +128,64 @@ Climbed: 2600 m (outdoor)
 
 Time in the saddle: 20h45m
 
-Work: 14000 kJ (energy of about 58.3 of your 60 g bottles)
-Carbs used: 1200 g (about 20.0 of your 60 g bottles)
-Most work in a day: 28 Jun, 2100 kJ, 180 g carbs
-Most work in a week: 24 Jun to 30 Jun, 4500 kJ, 400 g carbs
+**Equivalents (your 60 g bottles)**
+Work: 14000 kJ
+(energy of about 58.3 bottles)
+Carbs used: 1200 g
+(about 20.0 bottles)
+Most work in a day: 28 Jun
+Work that day: 2100 kJ
+Carbs that day: 180 g
+Most work in a week: 24-30 Jun
+Work that week: 4500 kJ
+Carbs that week: 400 g
 
 **Interpretation**
-Volume fell in the latter two chunks while EF and wellness observations held. Sustained power observations were slightly higher than the previous 28 days.
+Load: Volume fell in the latter two chunks while EF and wellness observations held.
 
-The power-only hard day uses the activity's outdoor FTP reference; its disagreement with HR does not establish intentional intensity or validate zone settings. Retained step assessments and limited DFA coverage constrain the interpretation; the easy-state guard supports no threshold change.
+Quality: Nine of twelve checked rides followed the plan. The two older misses retain last-captured assessments; the recent stepped session's second window was below target.
+
+Watch: The power-only hard day and HR disagreement support a zone check, not a proven cause or intentional intensity. The 28 June tempo value carries a changing-power plan and supplies no drift verdict; limited DFA coverage supports no threshold change.
+
+Next: Review recovery and the zone reference before deciding whether to raise the next block's load.
 ```
 
 ## Example 2: sparse data
 
-Only the shown observations exist. The two middle chunks have zero-only metrics and are omitted; their supplied dates still determine the full window. Paired structured plans without step assessments do not acquire duration-only verdicts.
+Only the shown observations exist. The two middle chunks have supplied zero hours/TSS and unavailable capability/wellness; their positions remain in each populated series. A supplied zero is an observed subtotal, not proof of rest or complete retrieval. Paired structured plans without step assessments do not acquire duration-only verdicts.
 
 ```text
-**28-day report: Wed 17 June to Tue 14 July 2026**
+**28-day report: 17 Jun-14 Jul 2026**
 Data updated: 14 Jul 15:30
 
-The export contains limited observations for the rolling window.
+Summary: The export contains limited observations for the rolling window.
 
 **Totals**
-Ride: 1.67h (5 sessions, 62 TSS)
-Total: 1.67h (5 sessions, 62 TSS)
+Ride: 1.67h, 5 sessions, 62 TSS
+Total: 1.67h, 5 sessions, 62 TSS
 
 **Plan**
 Rides: 5 of 5 planned ✅
 
-**17 Jun to 23 Jun**
-Hours: 1h
-TSS: 40
-EF: 7-day avg 1.20 (N=2)
-HRV: 7-day avg 60 ms (2 days)
+**Week by week (oldest first, 7-day avg for means)**
+Weeks: 17 Jun, 24 Jun, 1 Jul, 8 Jul
+Hours: 1h, 0h, 0h, 0.67h
+TSS: 40, 0, 0, 22
+EF: 1.20, unavailable, unavailable, 1.23
+HRV: 60, unavailable, unavailable, 61 ms
+HRV N (17 Jun): 2/7 days
+HRV N (8 Jul): 1/7 days
 
-**8 Jul to 14 Jul**
-Hours: 0.67h
-TSS: 22
-EF: 7-day avg 1.23 (N=2)
-HRV: 7-day avg 61 ms (1 day)
-
-**Wellness (28 days)**
-HRV: 28-day avg 60.3 ms (3 days)
+**Wellness (28-day avg)**
+HRV: 60.3 ms
+HRV coverage: 3/28 days
 
 **Interpretation**
-Five sessions were paired to plans across the window.
+Quality: Five sessions were paired to plans across the window.
 
-Pairing alone does not establish execution quality, and the sparse observations do not support a continuous training trend.
+Watch: Pairing alone does not establish execution quality, and the sparse observations do not support a continuous training trend.
+
+Next: Obtain the missing observations before choosing a load change.
 ```
 
 When LT1/LT2 estimates are absent, their rows are absent. An eligible easy-state guard remains visible independently of threshold confidence; a null drift estimate is never displayed as zero.
@@ -194,10 +194,18 @@ When LT1/LT2 estimates are absent, their rows are absent. An eligible easy-state
 
 For 28 September to 25 October, cycling supplies 75% TSS/60% time and Nordic skiing 25%/40%. Nordic skiing combines four outdoor Nordic ski sessions and one indoor ski session in the 5-11 October chunk, all using the same five-band HR mapping. Cycling has eight power sessions in the other three chunks. The independently selected whole-period lines are:
 
+**Intensity fragment**
+
 ```
-Zones (cycling, power, 3/4 rolling weeks; 8/8 sessions): Z1+Z2 90%, Z3 7%, Z4+ 3%
-Zones (Nordic skiing, HR, 1/4 rolling weeks; 5/5 sessions): Z1+Z2 85%, Z3 10%, Z4+ 5%
-Nordic skiing coverage: 1 active week; absence in the other chunks is not missing zones
+**Intensity (cycling, power, 3/4 weeks, 8/8 rides, 3 active weeks)**
+Z1+Z2: 90%
+Z3: 7%
+Z4+: 3%
+
+**Intensity (Nordic skiing, HR, 1/4 weeks, 5/5 sessions, 1 active week)**
+Z1+Z2: 85%
+Z3: 10%
+Z4+: 5%
 ```
 
 These describe observed sessions; activity-fetch completeness is unknown. If a sixth ski session lacks zones, show 5/6 and partial coverage without a whole-period drift claim. Keep a separate power or incompatible HR-mapping bucket if one occurs; never label the line mixed.
@@ -219,7 +227,7 @@ Running time: 1h50m
 
 **Fun facts (swimming, descriptive)**
 Max HR: 158 bpm, 10 Jul, Lake swim
-(2 of 3 sessions)
+HR coverage: 2 of 3 sessions
 
 Longest swim: Lake swim, 10 Jul, 40m,
 1.8 km (open water)
@@ -244,10 +252,12 @@ Nordic skiing time: 2h30m
 Max HR: 162 bpm, 12 Jul, Steady row
 
 Longest row: Steady row, 12 Jul, 1h,
-12 km (indoor), 3 of 4 sessions
-Distance rowed: 24 km
-(indoor, 2 of 3 sessions)
+12 km (indoor)
+Longest coverage: 3 of 4 sessions
+Distance rowed: 24 km (indoor)
+Indoor distance: 2 of 3 sessions
 Distance rowed: 6 km (outdoor)
 
-Rowing time: 2h30m (3 of 4 sessions)
+Rowing time: 2h30m
+Time coverage: 3 of 4 sessions
 ```

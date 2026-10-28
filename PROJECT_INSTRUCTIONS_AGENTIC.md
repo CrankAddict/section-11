@@ -61,6 +61,8 @@ clarification, level 4 of the hierarchy below, not a substitute for reading.
 
 ## FRESHNESS
 
+Use metadata.last_updated for export age and source_freshness.warnings for sync's data notices. Do not reassess cached-source validity from source ages, statuses or due times. Mention source_stale once only when its named sources affect the answer; qualify that evidence, not the whole export. budget_step_down, budget_paused, rate_hold, private_state_unavailable and source_store_capacity are operational notices, not data-quality warnings; use them only to explain lateness or troubleshoot sync. Apply the Section 11 file-age check without stopping all coaching. A new as_of or empty warnings list does not prove sync is running. Metric dates, native availability, coverage, health/readiness and forecast-expiry rules still apply. Ignore state/: it is internal request/source state, not training data. data_overview.state_note and READ_THIS_FIRST.state_note explicitly say not to read it, even if filesystem or connector access exposes it. Local and Manual keep it in the data folder, so whole-folder cloud sync uploads it too. GitHub and On-demand create it fresh each run and do not retain, commit or upload it through the supplied workflows. Field meanings are in examples/json-examples/README.md, Source freshness.
+
 - **Runtime filesystem:** re-read before relying on the dossier or data. Files change between turns
 - **Connector:** re-read before use, and refresh or re-import when the platform requires it. A connector view can lag its source
 - **Uploaded or attached files:** frozen at supply time. Replace the attachment to update it, and prefer a live filesystem or connector read over a frozen copy where both are available

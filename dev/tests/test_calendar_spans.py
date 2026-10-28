@@ -187,7 +187,11 @@ class CalendarSpans(unittest.TestCase):
         self.assertEqual(anchor["coggan_watts"], 233)
         self.assertIsNone(anchor["activity_id"])
         self.assertIsNone(anchor["date"])
-        self.assertEqual(calls, uniform_calls)
+        # The second materialization reuses the valid profile and unaffected
+        # curves; the core checks still run and changed activity fields apply.
+        core = lambda rows: [(e, p) for e, p in rows if e in ("activities", "wellness", "events")]
+        self.assertEqual(core(calls), core(uniform_calls))
+        self.assertLess(len(uniform_calls), len(calls))
         self.assertEqual(mixed["rolling_7d_chunks"], uniform["rolling_7d_chunks"])
 
     def test_producer_mixed_raw_window_attributes_each_anchor(self):

@@ -26,6 +26,12 @@ python3 sync.py --setup
 
 Enter your Intervals.icu credentials when prompted. Config saves to `.sync_config.json`.
 
+Normal exports keep private request accounting and cached responses in `<data folder>/state/`, beside the selected output file, between runs. It contains `request-budget/<identity>/`, `sources/<identity>/` and a `README.md` written by sync.py. `SECTION11_STATE_DIR` replaces this whole state folder, with all three inside it. Deleting state makes the next run larger and resets the local count; never delete it to force requests. Inactive hash-named subfolders from an earlier API key or data-folder location can be deleted; the active one changes on every check. See [Private sync state](../json-local-sync/SETUP.md#private-sync-state).
+
+Upload only the normal exported data to the AI. State is not part of those JSON files or the supplied publication paths. If you cloud-sync the whole data folder, state is uploaded too, and a whole-folder connector can technically read it. `data_overview.state_note` and `READ_THIS_FIRST.state_note` in latest.json explicitly tell AI tools to ignore `state/`; use the exported `source_freshness` summary for status.
+
+We recommend one setup per user. Before changing the sync path or moving machines, stop any old timer or workflow first to protect Intervals.icu. The count is per data folder, API key and athlete; separate folders do not coordinate.
+
 **Finding your credentials:**
 - **Athlete ID**: Intervals.icu → Settings → bottom of page (e.g., `i123456`)
 - **API Key**: Intervals.icu → Settings → Developer Settings → API Key
@@ -59,13 +65,19 @@ python3 sync.py --days 90 --output 90days.json
 
 Use [GitHub sync](../json-auto-sync/SETUP.md) or [On-demand sync](../json-on-demand/SETUP.md) for repository delivery through the shared workflow. The legacy direct API publisher is not one of the four supported setup paths.
 
+### Request allowance
+
+Manual exports share the local count with other sync.py and push.py runs using the same data folder, API key, athlete and state location. Other folders, tools and machines are not counted. Intervals.icu allows 8,000 requests per API key per UTC day and 2,500 per 15 minutes; sync keeps 1,000 for other tools, leaving at most 7,000 daily, and respects a lower reported limit.
+
+A normal warm local run makes 4 requests. The first export after updating, a different date range or a due refresh can need more. An earlier live check made 69 requests in about 47 s on the first run, then 4 per run in about 2 s; it predates the state-location and interval-choice changes. An immediate repeat may wait for the next eligible check or a provider hold; it does not necessarily rewrite the export. See [request counts and scheduling](../json-local-sync/SETUP.md#automate-the-refresh).
+
 ## Generated Files
 
 The script creates/maintains these files:
 
 | File | Purpose | When created |
 |------|---------|--------------|
-| `latest.json` | Training data export | Every run with `--output` |
+| `latest.json` | Training data export | Successful admitted refresh with `--output`; may be retained while waiting |
 | `history.json` | Longitudinal data: daily (90d), weekly (180d), monthly (3y) | First run, regenerates when outdated |
 | `intervals.json` | Per-interval data for structured sessions | Every run (incremental, 14-day retention) |
 | `routes.json` | Route/terrain data for events with GPX/TCX attachments | When attachments exist |
@@ -93,7 +105,9 @@ Also includes period summaries, FTP timeline, and data gap detection. Generated 
 
 ## What's Included
 
-Each successful export with updated sync.py includes `sleep_context` in latest.json (or your selected output filename), using one fresh 35-date wellness window (D−34..D) regardless of `--days`. Existing baselines and reports retain their original 28-date slice. No new sleep file, cache or state must persist between exports, and no history refresh is needed for this field. Upload the current export as usual; the AI discovers the field through `READ_THIS_FIRST.sleep_context_note` within it. It is low-confidence context only, never readiness. Missing dates, unknown athlete timezone or current-date mismatch remain explicit unavailable states; an old upload does not become fresh without another export.
+Each successful export with updated sync.py includes `sleep_context` in latest.json (or your selected output filename), using a 35-date wellness window (D−34..D) regardless of `--days`. Existing baselines and reports retain their original 28-date slice. There is no separate sleep file or history-refresh requirement. Retained wellness keeps its acquisition time in `source_updated_at`; `source_freshness` describes its refresh status. Upload the current export as usual; the AI discovers sleep context through `READ_THIS_FIRST.sleep_context_note`. It is low-confidence context only, never readiness. Missing dates, unknown athlete timezone or current-date mismatch remain explicit unavailable states; an old upload does not become fresh without another export.
+
+`source_freshness` also records each source's status (`fresh`, `stale`, `deferred`, `unavailable`), acquisition age and coverage, plus the budget, schedule and warnings. Null age means unknown. Rewriting the export does not reset cached source ages. See the [field reference](../json-examples/README.md#source-freshness).
 
 The export includes pre-calculated **derived metrics** for Section 11 compliance. AI should use these, not calculate its own. Key metrics: ACWR, Recovery Index, Monotony/Strain, Grey Zone %, Quality Intensity %, Easy Time Ratio, Benchmark Index, Phase Detection, Seiler TID, Aggregate Durability, and TID Drift.
 
@@ -147,5 +161,8 @@ Run `python3 sync.py --setup` first.
 
 ### FTP history not updating
 FTP history only adds entries when FTP **changes**. If your FTP is the same, no new entry is added.
+
+### Export unchanged or request allowance warning
+Check the console and `source_freshness` for a deferred check, pause or provider hold. Wait until eligible, and check competing syncs/tools using the key. Do not delete private state to force a new allowance. See [Request allowance and pauses](../json-local-sync/SETUP.md#request-allowance-and-pauses) for the exact pause message and private-state recovery steps.
 
 For general AI platform issues (data not fetching, AI fabricating metrics, connector problems), see the [main README troubleshooting guide](../../README.md#troubleshooting).

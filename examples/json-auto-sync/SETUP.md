@@ -12,6 +12,16 @@ This guide explains how to create an automated JSON data mirror of your Interval
 
 The data mirror syncs your Intervals.icu metrics to a GitHub repository on a schedule, every 30 minutes by default, producing JSON files that AI systems can read through a GitHub connector or other authenticated repository access, or by URL for a public repository. GitHub runs scheduled workflows on a best-effort basis, so a scheduled sync can be late or skipped. For fresh data right after a workout, use [Sync Now](#sync-now). See [Sync Schedule and GitHub Actions Usage](#sync-schedule-and-github-actions-usage) before choosing a different schedule.
 
+GitHub sync keeps its current behavior at about **31 Intervals.icu requests per run**; first runs and larger refreshes can cost more. The four-request local warm run depends on private state retained between runs. GitHub request savings come in a later release, with no schedule change here.
+
+### Private state and request limits
+
+Each run creates private request accounting and cached source responses fresh in the runner's `<data folder>/state/`. It contains `request-budget/<identity>/`, `sources/<identity>/` and a generated `README.md`. The supplied workflow never keeps this state between runs, commits it or uploads it in the download artifact, so the AI does not receive it through the repository, connector or artifact. `latest.json.source_freshness` supplies status, and `data_overview.state_note` and `READ_THIS_FIRST.state_note` explicitly tell AI tools to ignore `state/` if it is exposed by another path. See [state locations and SECTION11_STATE_DIR](../json-local-sync/SETUP.md#private-sync-state). The local `check_interval_minutes` setting does not change GitHub runs.
+
+Intervals.icu allows 8,000 requests per key per UTC day and 2,500 per 15 minutes. sync.py keeps 1,000 for other tools such as push.py, leaving at most 7,000 daily; a lower reported daily limit wins. A fresh runner's local count does not include earlier runners, other machines or tools using the key. These limits are separate from GitHub Actions minutes below.
+
+We recommend one setup per user. Stop the old timer or workflow before changing the sync path or moving machines, to protect Intervals.icu. Counts are per data folder, API key and athlete, with no coordination across folders.
+
 **Result:** these files in your repository, shown here as raw URL patterns. Plain raw URLs work without GitHub authentication only for a public repository; for a private repository, see [Step 6](#step-6-verify) and [Usage with AI](#usage-with-ai).
 - `https://raw.githubusercontent.com/[you]/[repo]/main/latest.json`
 - `https://raw.githubusercontent.com/[you]/[repo]/main/history.json`
@@ -157,9 +167,10 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/saved_workout
 ```
 
 - `latest.json`: current 7-day snapshot with activities, wellness, fitness metrics, and derived Section 11 values. Rewritten on every successful sync.
-- `latest.json.sleep_context`: updated sync.py widens its existing extended wellness read to 35 dates (D−34..D), while all existing baselines/reports retain their original 28-date slice. This is low-confidence context only, never readiness. No new sleep file, cache or persisted state is needed, and history-refresh scheduling does not affect it. The existing `examples/json-auto-sync/auto-sync.yml` output/publishing path carries it inside latest.json, including the manual-run download artifact; no workflow change is needed for this field. The AI discovers it through `READ_THIS_FIRST.sleep_context_note`. Missing dates, unknown athlete timezone or current-date mismatch remain explicit unavailable states; a failed extended fetch does not publish a new assessment. Existing archive and Git-history retention still apply to the whole export.
+- `latest.json.source_freshness`: source status (`fresh`, `stale`, `deferred`, `unavailable`), acquisition age and coverage, plus local budget, effective schedule and warnings. Null age means unknown. A new export timestamp does not make a retained source fresh. See the [field reference](../json-examples/README.md#source-freshness).
+- `latest.json.sleep_context`: uses a 35-date wellness window (D−34..D), while existing baselines/reports retain their original 28-date slice. This is low-confidence context only, never readiness. No separate sleep file or history refresh is needed. The existing workflow carries it inside latest.json, including the manual-run download artifact. The AI discovers it through `READ_THIS_FIRST.sleep_context_note`. Missing dates, unknown athlete timezone or current-date mismatch remain explicit unavailable states. Retained wellness keeps its acquisition time in `source_updated_at` and its refresh status in `source_freshness`; without a usable required snapshot, the previous export is preserved. Existing archive and Git-history retention still apply to the whole export.
 - `history.json`: longitudinal data with tiered granularity: daily (90 days), weekly (180 days), and monthly (up to 3 years). Generated automatically on first run, regenerated when outdated.
-- `intervals.json`: interval/DFA payloads and completed-session structure detail (14-day retention). Written on every successful sync. `has_structure` in latest.json identifies available detail; the compact `interval_data.plan_match` survives detail expiry through the 28-day recent-activity window. These committed JSON files also retain the cache state needed by auto-sync; no additional state file is required. See [Which interval data to use](../../SECTION_11.md#which-interval-data-to-use).
+- `intervals.json`: interval/DFA payloads and completed-session structure detail (14-day retention). Written on every successful sync. `has_structure` in latest.json identifies available detail; the compact `interval_data.plan_match` survives detail expiry through the 28-day recent-activity window. These committed JSON files retain the activity-detail cache needed by auto-sync; private request/source state is separate and is not persisted by the workflow. See [Which interval data to use](../../SECTION_11.md#which-interval-data-to-use).
 - `routes.json`: route/terrain data for planned events with GPX/TCX attachments. Includes climb/descent detection, course character, and polyline. Written on every successful sync, with `"events": []` when no planned event has an applicable attachment. Parsed routes are cached by attachment ID.
 - `route_eta_history.json`: rolling 180-day outdoor ride facts for personal route ETA calibration. The workflow validates it when present and commits it with the other generated data, so the next Actions checkout retains the record. Keep it across releases. It is not included in the downloadable training-data artifact; the current ETA result is already in the route brief. On-demand uses this same workflow with the schedule removed.
 - `saved_workouts.json`: read-only mirror of your Intervals.icu saved workouts, with folders and complete workout definitions. Refreshed on its own 6-hour throttle rather than every sync, and the last good copy is kept when a refresh fails.
@@ -408,6 +419,10 @@ https://raw.githubusercontent.com/[your-username]/[repo-name]/main/saved_workout
 - Verify your Intervals.icu API key is valid
 - Check you have activities in the last 7 days
 - Look at workflow logs for specific errors
+
+### Request allowance, provider holds or stale sources
+
+Read the sync log and `latest.json.source_freshness` if an export was written. Check other runs, machines and tools using the same key before triggering more runs; the runner's local count is not a key-wide daily total. Wait out any provider hold. The [local troubleshooting guide](../json-local-sync/SETUP.md#request-allowance-and-pauses) gives the exact pause message and private-state error explanation. GitHub keeps its configured workflow schedule; it does not gain a persistent one-minute local scheduler.
 
 ### ftp_history.json not updating on GitHub
 - The file only changes when your indoor or outdoor FTP changes

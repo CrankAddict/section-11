@@ -305,10 +305,7 @@ class Producer(unittest.TestCase):
             row.update(hrv=9999, restingHR=9999, weight=199)
         output, calls, _ = collect(mod, self.directory, rows)
         wellness = [p for e, p in calls if e == "wellness"]
-        self.assertEqual(len(wellness), 3)  # display, extended, existing yesterday fallback
-        self.assertIn({"oldest": "2026-05-12", "newest": D}, wellness)
-        self.assertIn({"oldest": "2026-06-09", "newest": D}, wellness)
-        self.assertIn({"oldest": "2026-06-14", "newest": "2026-06-14"}, wellness)
+        self.assertEqual(wellness, [{"oldest": "2026-05-12", "newest": D}])
         self.assertEqual(output["wellness_28d"]["sleep_hours"]["days"], 28)
         self.assertLess(output["wellness_28d"]["weight_kg"]["avg"], 71)
         self.assertIs(output["sleep_context"]["repeat_context"], True)

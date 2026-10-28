@@ -45,7 +45,7 @@ def inputs(powers=(100, 200, 300), duration=100, tail=0):
 
 class Structure(unittest.TestCase):
     def setUp(self):
-        self.sync = object.__new__(Sync)
+        self.sync = Sync("i123", "synthetic")
         self.sync._intervals_data = {}
         self.act, self.event, self.streams = inputs()
 

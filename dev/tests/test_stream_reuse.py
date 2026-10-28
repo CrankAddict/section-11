@@ -13,6 +13,7 @@ Run from the repository root:
 """
 
 import tempfile
+import os
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -108,9 +109,9 @@ class StreamReuseTests(unittest.TestCase):
         responses = [FakeResponse(429, headers={"Retry-After": "120"}), FakeResponse(200, STREAMS)]
         with mock.patch.object(sync_mod.requests, "get", side_effect=responses) as get:
             self.fetch("a1", ["watts"])
-            self.assertEqual(self.fetch("a2", ["watts"]), ("ok", {"watts": [100, 200, 300]}))
+            self.assertEqual(self.fetch("a2", ["watts"]), ("deferred", "request_budget"))
             self.assertIsNone(self.sync._last_retry_after_secs)
-        self.assertEqual(get.call_count, 2)
+        self.assertEqual(get.call_count, 1)
 
     def test_terminal_results_are_shared(self):
         for code in (404, 410):
@@ -210,6 +211,14 @@ class BothConsumersTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def new_run(self):
+        prior = self.sync.request_budget
+        prior.sleep(10800)
+        with mock.patch.dict(os.environ, {"SECTION11_STATE_DIR": str(prior.root.parent.parent)}):
+            self.sync._request_budget = sync_mod.RequestBudget(
+                prior.data_dir, "sync", sync_mod.RequestBudgetRefused, self.sync._budget_identity,
+                clock=prior.clock, sleep=prior.sleep, jitter=lambda: 0)
+        self.assertEqual(self.sync.request_budget.root, prior.root)
+        self.sync._prior_budget_scratch = prior
         class Stop(BaseException):
             pass
         with mock.patch.object(self.sync, "_intervals_get", side_effect=Stop()):

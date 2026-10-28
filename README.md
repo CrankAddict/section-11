@@ -48,6 +48,8 @@ Section 11 operates no hosted backend. Your data passes through the services you
 
 Configured credentials go to their corresponding service: the Intervals.icu API key in its Authorization header, and a GitHub token to GitHub for configured publishing or issue creation. They are never included in exported or published JSON.
 
+sync.py and push.py use [private sync state](examples/json-local-sync/SETUP.md#private-sync-state) in `<data folder>/state/` for request accounting and cached athlete responses. Local and Manual keep it between runs; syncing the whole folder to cloud storage uploads it too, and a whole-folder connector can technically read it. `data_overview.state_note` and `READ_THIS_FIRST.state_note` in latest.json explicitly tell AI tools to ignore it. The supplied publishing and workflow artifact paths never commit or upload state; GitHub and On-demand create it fresh each run and do not keep it. Use `latest.json.source_freshness` for status.
+
 ---
 
 ## Quick Start
@@ -68,12 +70,16 @@ Copy `DOSSIER_TEMPLATE.md` and fill in the context your AI cannot read from your
 
 Choose how your data reaches the AI:
 
-- **[Local sync](examples/json-local-sync/SETUP.md):** runs on a machine you control every 60 seconds. The AI reads the files directly if its runtime can reach them, or through a cloud connector.
+- **[Local sync](examples/json-local-sync/SETUP.md):** uses a one-minute timer on a machine you control. Choose checks every 1, 2, 5 or 10 minutes; sync.py can reduce them to a slower step or pause when allowance requires it. The AI reads the files directly if its runtime can reach them, or through a cloud connector.
 - **[GitHub sync](examples/json-auto-sync/SETUP.md):** writes to a private repository every 30 minutes by default. Schedules are best-effort; **Sync Now** requests a run and may queue. Runs consume Actions minutes. See [schedule options and costs](examples/json-auto-sync/SETUP.md#sync-schedule-and-github-actions-usage) before changing frequency.
 - **[On-demand sync](examples/json-on-demand/SETUP.md):** trigger from your phone or browser, then download the JSON artifact or refresh your connector. No schedule or local Python.
 - **[Manual export](examples/json-manual/SETUP.md):** run once for your chosen date range, then upload. Re-export when data changes.
 
 Plain raw URLs require a public repository. For private data, use authenticated access or uploads.
+
+**We recommend one setup per user.** Before changing the sync path or moving to another machine, stop the old timer or workflow first to protect Intervals.icu. The local count is per data folder, API key and athlete; separate folders do not coordinate, even on the same machine.
+
+A normal local run uses **4 Intervals.icu requests**. The provider allows **8,000 per key per UTC day** and **2,500 per 15 minutes**; sync reserves 1,000 for other tools and uses at most 7,000 daily, or less if the provider reports a lower limit. One-minute checks fit within the limit in the measured offline scenarios; this is not a guarantee for every athlete. sync.py counts only its own and push.py's requests in shared state, so choose a slower interval if other tools use the key. GitHub and On-demand keep their current behavior at about **31 requests per run**; savings for those paths follow in a later release. See [interval choices, measured daily counts and automatic step-down](examples/json-local-sync/SETUP.md#automate-the-refresh), including the larger first run after updating.
 
 ### 3. Configure Your AI Platform
 
@@ -321,7 +327,9 @@ Plain `raw.githubusercontent.com` URLs return 404 for private repositories as we
 
 ### Data appears stale after sync
 
-Compare the source and the AI's `latest.json` using `metadata.last_updated`, which uses the sync machine's clock without a timezone offset. The protocol expects under 24 hours and requests refresh beyond 48 hours.
+Compare the source and the AI's `latest.json` using `metadata.last_updated` and a reliable current time. From sync 3.164 it is UTC (Z); an older value without an offset uses the sync machine's local time. Do not guess that timezone; say age cannot be verified when it matters. Expect under 12 hours. At 12-24 hours, mention age when relevant; beyond 24 hours, request refresh for advice needing current data. Continue qualified coaching; lateness alone is never a global stop.
+
+For ordinary coaching, read `source_freshness.warnings`: mention `source_stale` only when its named sources affect the answer. Other warning codes describe sync operation, not bad data. Sync owns cached-source validity; do not rejudge per-source acquisition ages or statuses. Empty warnings and a recent `as_of` do not certify a live feed. Metric dates and native validity rules still apply. See the [field reference](examples/json-examples/README.md#source-freshness).
 
 If the source is old, check sync below. Otherwise replace uploads, refresh/re-import connectors, or let your cloud folder finish syncing. Raw GitHub content can lag a few minutes. Ask for a fresh read in this response; use a new conversation if old values persist.
 
@@ -329,7 +337,7 @@ If the source is old, check sync below. Otherwise replace uploads, refresh/re-im
 
 Check the API key, athlete ID and run log; no recent activities can legitimately mean no new activity data.
 
-- **Local:** check the timer and `sync.log`, keep `.sync_config.json` at the data root, and try `--debug`. See [local troubleshooting](examples/json-local-sync/SETUP.md#verification-and-troubleshooting).
+- **Local:** check the timer, `sync.log` and `source_freshness` for a step-down, pause or provider hold before treating the timer as broken. Keep `.sync_config.json` at the data root and retain `state/` there unless you set a state override. See [request allowance and pauses](examples/json-local-sync/SETUP.md#request-allowance-and-pauses) for the exact pause message and recovery steps.
 - **GitHub:** inspect **Actions → Auto-Sync Intervals.icu Data**. Check secrets, Actions minutes and workflow permissions; request **Sync Now** when needed. See [workflow troubleshooting](examples/json-auto-sync/SETUP.md#troubleshooting).
 - **On-demand:** trigger the workflow and download its completed `training-data` artifact within seven days, or refresh your connector.
 - **Manual:** export again and replace uploads.

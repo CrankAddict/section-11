@@ -45,6 +45,8 @@ The GitHub Actions workflow in `.github/workflows/auto-sync.yml` keeps this data
 
 ## AI Analysis
 
+GitHub sync and On-demand use about 31 Intervals.icu requests per run, with larger first runs or refreshes possible. Their request savings come in a later release. Each runner creates private request/source state fresh in `<data folder>/state/`. The supplied workflow never keeps it between runs, commits it or uploads it in the download artifact, so the AI does not receive it through this repository or upload. `data_overview.state_note` and `READ_THIS_FIRST.state_note` explicitly tell AI tools to ignore `state/` if another path exposes it. `latest.json.source_freshness` carries source status, acquisition age, local budget/schedule and warnings. A new export does not reset source age; null age means unknown. See the [field reference](https://github.com/CrankAddict/section-11/blob/main/examples/json-examples/README.md#source-freshness).
+
 **GitHub connector or authenticated repository access (private repository):** connect this repository to your AI, then ask:
 
 ```

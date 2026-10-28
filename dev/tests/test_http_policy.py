@@ -38,18 +38,20 @@ import shutil
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
 import requests
 
-from _harness import (NetworkBlocked, PUSH_PATH, REPO_ROOT, RefuseEverything,
+from _harness import (BudgetDateTime as datetime, NetworkBlocked, PUSH_PATH, REPO_ROOT, RefuseEverything,
                       SYNC_PATH, install_verb_guard, load_module_by_path,
                       restore_verb_guard)
 
 sync_mod = load_module_by_path("s11_sync_http", SYNC_PATH)
 push_mod = load_module_by_path("s11_push_http", PUSH_PATH)
+sync_mod.datetime = datetime
+push_mod.datetime = datetime
 
 PULL_PATH = REPO_ROOT / "examples" / "agentic" / "pull.py"
 
@@ -104,6 +106,7 @@ def find_timeout_free_calls(source_path):
         is_requests = (
             (isinstance(base, ast.Name) and base.id == "requests")
             or (isinstance(base, ast.Attribute) and base.attr == "requests")
+            or func.attr == "_intervals_request"
         )
         if not is_requests:
             continue
@@ -342,7 +345,7 @@ class TestSyncReadRetryPolicy(SyncPolicyCase):
         self.assertEqual(len(t.calls), 2)
 
     def test_retryable_statuses_are_retried(self):
-        for status in (429, 500, 502, 503, 504):
+        for status in (500, 502, 503, 504):
             with self.subTest(status=status):
                 sync = make_sync(self.tmp.name)
                 t = Scripted([FakeResponse(status), FakeResponse(200, {"ok": True})])
@@ -379,20 +382,23 @@ class TestSyncReadRetryPolicy(SyncPolicyCase):
             self.sync._intervals_get("")
 
     def test_retry_after_is_honoured_on_429(self):
-        self.install([FakeResponse(429, headers={"Retry-After": "7"}),
-                      FakeResponse(200, {"ok": True})])
-        self.sync._intervals_get("")
-        self.assertEqual(self.clock.sleeps, [7])
+        transport = self.install([FakeResponse(429, headers={"Retry-After": "7"})])
+        with self.assertRaises(requests.exceptions.HTTPError):
+            self.sync._intervals_get("")
+        with self.assertRaises(sync_mod.RequestBudgetRefused):
+            self.sync._intervals_get("")
+        self.assertEqual(len(transport.calls), 1)
+        self.assertEqual(self.clock.sleeps, [])
 
     def test_retry_after_never_lowers_the_ladder_delay(self):
-        self.install([FakeResponse(429, headers={"Retry-After": "0"}),
+        self.install([FakeResponse(503, headers={"Retry-After": "0"}),
                       FakeResponse(200, {"ok": True})])
         self.sync._intervals_get("")
         self.assertEqual(self.clock.sleeps, [1],
                          "Retry-After lowered the backoff below the ladder")
 
     def test_malformed_retry_after_falls_back_to_the_ladder(self):
-        self.install([FakeResponse(429, headers={"Retry-After": "soon"}),
+        self.install([FakeResponse(503, headers={"Retry-After": "soon"}),
                       FakeResponse(200, {})])
         self.sync._intervals_get("")
         self.assertEqual(self.clock.sleeps, [1])
@@ -406,7 +412,7 @@ class TestSyncReadRetryPolicy(SyncPolicyCase):
         self.assertEqual(self.clock.sleeps, [1])
 
     def test_retry_after_does_not_leak_into_the_next_call(self):
-        self.install([FakeResponse(429, headers={"Retry-After": "9"}),
+        self.install([FakeResponse(503, headers={"Retry-After": "9"}),
                       FakeResponse(200, {}),
                       FakeResponse(500),
                       FakeResponse(200, {})])
@@ -423,7 +429,7 @@ class TestSyncReadRetryPolicy(SyncPolicyCase):
         silently corrupt interval retry scheduling.
         """
         self.sync._last_retry_after_secs = "sentinel"
-        self.install([FakeResponse(429, headers={"Retry-After": "5"}),
+        self.install([FakeResponse(503, headers={"Retry-After": "5"}),
                       FakeResponse(200, {})])
         self.sync._intervals_get("")
         self.assertEqual(self.sync._last_retry_after_secs, "sentinel")
@@ -1564,12 +1570,13 @@ class TestPushLostResponseAndStatus(PushCase):
     def test_write_side_429_and_5xx_enter_verification(self):
         for status in (429, 500, 502, 503):
             with self.subTest(status=status):
+                self.pusher = push_mod.IntervalsPush("i123", "synthetic")
                 t = self.install(GET=FakeResponse(200, self.EVENT),
                                  PUT=FakeResponse(status))
                 result = self.pusher.move_event(42, FUTURE)
                 self.assertEqual(result["outcome"], "unknown",
                                  f"write-side {status} was treated as definite")
-                self.assertEqual(len(t.verbs("GET")), 2,
+                self.assertEqual(len(t.verbs("GET")), 1 if status == 429 else 2,
                                  f"write-side {status} skipped verification")
                 self.assertEqual(len(t.verbs("PUT")), 1)
 

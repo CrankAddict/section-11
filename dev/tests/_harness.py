@@ -30,7 +30,9 @@ after it was restored.
 """
 
 import importlib.util
+import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -38,6 +40,35 @@ SYNC_PATH = REPO_ROOT / "examples" / "sync.py"
 PUSH_PATH = REPO_ROOT / "examples" / "agentic" / "push.py"
 
 HTTP_VERBS = ("get", "post", "put", "delete", "patch", "head", "options", "request")
+
+
+def budget_test_start():
+    """An explicit UTC test base, selectable without consulting wall time."""
+    value = datetime.fromisoformat(os.environ.get(
+        "S11_TEST_BUDGET_START", "2026-10-28T12:00:00+00:00"))
+    if value.tzinfo is None or value.utcoffset().total_seconds() != 0:
+        raise ValueError("S11_TEST_BUDGET_START must be an explicit UTC instant")
+    return value.timestamp()
+
+
+class BudgetClock:
+    def __init__(self, stamp=None):
+        self.now = budget_test_start() if stamp is None else stamp
+        self.sleeps = []
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+class BudgetDateTime(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        value = cls.fromtimestamp(budget_test_start(), timezone.utc)
+        return value.astimezone(tz) if tz else value.replace(tzinfo=None)
 
 
 class NetworkBlocked(BaseException):
@@ -63,6 +94,26 @@ def load_module_by_path(name, path):
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
+    if hasattr(module, "RequestBudget"):
+        # Existing transport tests get a real, isolated controller and an elapsed
+        # clock. Acceptance tests inject their own shared ledger explicitly.
+        import tempfile
+
+        def budget_factory(data_dir, caller, error_type, identity):
+            from unittest import mock
+            scratch = tempfile.TemporaryDirectory(prefix="request-budget-")
+            clock = BudgetClock()
+            with mock.patch.dict(os.environ, {"SECTION11_STATE_DIR": str(Path(scratch.name) / "request-budget")}):
+                budget = module.RequestBudget(data_dir if data_dir is not None else scratch.name,
+                                              caller, error_type, identity,
+                                              clock=clock, sleep=clock.sleep,
+                                              jitter=lambda: 0)
+            budget._test_scratch = scratch
+            return budget
+        for name in ("IntervalsSync", "IntervalsPush"):
+            cls = getattr(module, name, None)
+            if cls is not None:
+                cls._budget_factory = staticmethod(budget_factory)
     return module
 
 

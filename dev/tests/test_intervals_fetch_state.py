@@ -30,15 +30,17 @@ across restarts, and the write gates.
 
 import json
 import tempfile
+import os
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
-from _harness import (NetworkBlocked, REPO_ROOT, SYNC_PATH, install_verb_guard,
+from _harness import (BudgetDateTime as datetime, NetworkBlocked, REPO_ROOT, SYNC_PATH, install_verb_guard,
                       load_module_by_path, restore_verb_guard)
 
 sync_mod = load_module_by_path("s11_sync", SYNC_PATH)
+sync_mod.datetime = datetime
 IntervalsSync = sync_mod.IntervalsSync
 
 
@@ -172,7 +174,7 @@ class TestParseRetryAfter(unittest.TestCase):
 
 
 class TestRetryAfterDoesNotLeak(unittest.TestCase):
-    """A 429 value must never influence the next request."""
+    """Endpoint Retry-After metadata clears independently of the shared hold."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -198,10 +200,23 @@ class TestRetryAfterDoesNotLeak(unittest.TestCase):
                                return_value=FakeResponse(429, headers={"Retry-After": "60"})):
             self.sync._fetch_activity_intervals("a1")
         self.assertEqual(self.sync._last_retry_after_secs, 60)
+        prior = self.sync.request_budget
+        # This test needs an admitted optional read, not a new one-minute cadence
+        # that reserves more than 7000 core calls early in the UTC day.
+        prior.sleep(1800)
+        with mock.patch.dict(os.environ, {"SECTION11_STATE_DIR": str(prior.root.parent.parent)}):
+            self.sync._request_budget = sync_mod.RequestBudget(
+                prior.data_dir, "sync", sync_mod.RequestBudgetRefused, self.sync._budget_identity,
+                clock=prior.clock, sleep=prior.sleep, jitter=lambda: 0)
+        self.assertEqual(self.sync.request_budget.root, prior.root)
         with mock.patch.object(sync_mod.requests, "get",
                                return_value=FakeResponse(200, {"icu_intervals": [raw_interval()]})):
             status, _ = self.sync._fetch_activity_intervals("a1")
-        self.assertEqual(status, "ok")
+        budget = self.sync.request_budget
+        self.assertEqual(status, "ok", {
+            "utc_day": budget.day, "remaining": budget._remaining(),
+            "expected_core": budget.expected_core(), "clock": budget.clock(),
+            "hold_until": budget.state["hold_until"], "runs": budget.state["runs"]})
         self.assertIsNone(self.sync._last_retry_after_secs)
 
 

@@ -4,6 +4,12 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.164 - Local request budget: 4 requests per normal local check instead of about 30;
+  shared sync.py/push.py count with automatic 2/5/10-minute step-down and pause;
+  check_interval_minutes; private state/ folder in the data folder; source_freshness in
+  latest.json. Normal schedule waits and successful current-run acquisitions stay fresh;
+  export timestamps use UTC (Z). Pairs with protocol v11.101.
+
 Version 3.163 - Fun facts per main sport: optional sport_fun_facts for selected running,
   swimming, Nordic skiing and rowing (max HR, longest session, time, distance per setting,
   outdoor climbing); no extra requests; cycling facts unchanged. Pairs with protocol v11.99.
@@ -4421,6 +4427,7 @@ class DataOverview:
     local files, not connector reach or forecast freshness. No directory crawl.
     """
     MAX_RIDES = 64
+    STATE_NOTE = "Ignore state/: internal sync state, not training data; AI tools must not read it."
     COMPANIONS = (
         ("routes.json", "Planned route validity, terrain, weather and compact snapshots", "$.events", "_routes_data"),
         ("intervals.json", "Completed session interval, structure and DFA detail", "$.activities", "_intervals_data"),
@@ -4596,6 +4603,7 @@ class DataOverview:
         folder = sync.data_dir / RouteWeatherMap.DIRECTORY
         folder_present = folder.is_dir() and not folder.is_symlink() and not folder.parent.is_symlink()
         return {"version": 1, "base": "latest_file_directory", "files": files,
+                "state_note": cls.STATE_NOTE,
                 "interval_data_note": sync.INTERVAL_DATA_NOTE,
                 "report_intensity_note": sync.REPORT_INTENSITY_NOTE,
                 "folders": [{"path": "maps/weather/", "present": folder_present,
@@ -4606,10 +4614,1055 @@ class DataOverview:
                 "managed_files": sorted({f["path"] for f in files if f["present"]})}
 
 
+class RequestBudgetRefused(requests.exceptions.RequestException):
+    """No request was sent; preserve prior data and attempt state."""
+
+
+# Shared request controller. Keep this block identical in both standalone scripts.
+class RequestBudget:
+    PROVIDER_DAILY_LIMIT = 8000
+    EXTERNAL_RESERVE = 1000
+    SYNC_DAILY_LIMIT = 7000
+    WINDOW_SECONDS = 900
+    WINDOW_LIMIT = 200
+    RUN_LIMIT = 128
+    SEND_INTERVAL = 0.5
+    CORE_PER_RUN = 4
+    UNKNOWN_RUN_LIMIT = 3
+    STATE_ENV = "SECTION11_STATE_DIR"
+    SCOPE = "local_data_folder_key_athlete"
+
+    @staticmethod
+    def fingerprint(athlete_id, api_key):
+        import hashlib
+        identity = json.dumps([str(athlete_id).strip(), api_key.strip()],
+                              separators=(",", ":")).encode()
+        return hashlib.sha256(identity).hexdigest()[:32]
+
+    @classmethod
+    def state_base(cls, data_dir, environ=None):
+        env = os.environ if environ is None else environ
+        if data_dir is None:
+            raise OSError("data folder unavailable")
+        if env.get(cls.STATE_ENV):
+            return Path(env[cls.STATE_ENV]).expanduser() / "request-budget"
+        return Path(data_dir) / "state" / "request-budget"
+
+    def __init__(self, data_dir, caller, error_type, identity, clock=None, sleep=None, jitter=None):
+        from datetime import timezone as utc_timezone
+        import random
+        self.utc = utc_timezone.utc
+        self.root = None
+        self.data_dir = Path(data_dir).resolve() if data_dir is not None else None
+        # Even an explicit shared base must not coordinate different data folders.
+        import hashlib
+        self.identity = hashlib.sha256(json.dumps(
+            [str(self.data_dir), identity], separators=(",", ":")).encode()).hexdigest()[:32]
+        self.caller, self.error_type = caller, error_type
+        self.clock = clock or time.time
+        self.sleep = sleep or time.sleep
+        self.jitter = jitter or random.random
+        self.count = 0
+        self.core_count = 0
+        self.degraded = False
+        self._last_local_send = None
+        self._local_hold = 0
+        self.stopped = False
+        self.refused = False
+        self.refusals = 0
+        self.started = False
+        self._handle = None
+        self._reserved = False
+        self._write_sent = False
+        try:
+            self.root = self.state_base(self.data_dir).resolve() / self.identity
+        except OSError:
+            self._degrade()
+
+    def _degrade(self):
+        if not self.degraded:
+            import sys
+            print("Warning: private request state unavailable; capacity unknown; "
+                  "at most 3 core reads, no optional reads or writes this run.",
+                  file=sys.stderr)
+        self.degraded = True
+
+    def _load_storage(self):
+        if self.degraded:
+            return
+        try:
+            self._load()
+        except self.error_type:
+            raise
+        except OSError:
+            self._degrade()
+
+    def _save_storage(self):
+        try:
+            self._save()
+        except OSError:
+            self._degrade()
+
+    def _refuse(self, reason):
+        self.refused = True
+        self.refusals += 1
+        raise self.error_type("request budget: " + reason)
+
+    def _atomic(self, path, value):
+        import tempfile
+        fd, name = tempfile.mkstemp(prefix=".state-", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as out:
+                json.dump(value, out, separators=(",", ":"), allow_nan=False)
+                out.flush()
+                os.fsync(out.fileno())
+            os.replace(name, path)
+        finally:
+            if os.path.exists(name):
+                os.unlink(name)
+
+    def _lock(self):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def locked():
+            if self.degraded:
+                yield
+                return
+            if self._handle is not None:
+                yield
+                return
+            handle = None
+            try:
+                self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
+                if os.name != "nt":
+                    os.chmod(self.root, 0o700)
+                    os.chmod(self.root.parent, 0o700)
+                    os.chmod(self.root.parent.parent, 0o700)
+                fd = os.open(self.root / "ledger.lock", os.O_RDWR | os.O_CREAT, 0o600)
+                handle = os.fdopen(fd, "a+b")
+                if os.name != "nt":
+                    os.fchmod(handle.fileno(), 0o600)
+                if os.name == "nt":
+                    import msvcrt
+                    handle.seek(0, 2)
+                    if handle.tell() == 0:
+                        handle.write(b"0")
+                        handle.flush()
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                if handle is not None:
+                    handle.close()
+                self._degrade()
+                yield
+                return
+            self._handle = handle
+            try:
+                yield
+            finally:
+                self._handle = None
+                handle.close()
+        return locked()
+
+    def _day(self, stamp):
+        return datetime.fromtimestamp(stamp, self.utc).strftime("%Y-%m-%d")
+
+    @staticmethod
+    def _number(value):
+        return type(value) in (float, int) and math.isfinite(value) and value >= 0
+
+    def _load(self):
+        now = self.clock()
+        if not self._number(now):
+            self._refuse("invalid clock")
+        anchor_path = self.root / "ledger.anchor"
+        state_path = self.root / "ledger.json"
+        try:
+            anchor = json.loads(anchor_path.read_text())
+            if not self._number(anchor["high_water"]) or not self._number(anchor.get("hold_until", 0)):
+                raise ValueError()
+            high = max(now, anchor["high_water"])
+        except FileNotFoundError:
+            if state_path.exists():
+                self._refuse("missing recovery anchor")
+            high = now
+            anchor = None
+        except (ValueError, KeyError, TypeError):
+            self._refuse("invalid recovery anchor")
+        day = self._day(high)
+        try:
+            state = json.loads(state_path.read_text())
+            def require(valid):
+                if not valid:
+                    raise ValueError("invalid private state")
+            require(state["version"] == 1 and isinstance(state["days"], dict))
+            require(self._number(state["high_water"]) and self._number(state["hold_until"]))
+            require(type(state["backoff"]) is int and 0 <= state["backoff"] <= 5)
+            require(isinstance(state["window"], list))
+            require(all(self._number(t) for t in state["window"]))
+            require(self._number(state["last_send"]))
+            require(isinstance(state["runs"], list) and all(self._number(t) for t in state["runs"]))
+            for key, row in state["days"].items():
+                require(self._day(datetime.strptime(key, "%Y-%m-%d").replace(tzinfo=self.utc).timestamp()) == key)
+                require(isinstance(row, dict))
+                for caller in ("sync", "push"):
+                    require(isinstance(row[caller], dict))
+                    require(all(type(n) is int and n >= 0 for n in row[caller].values()))
+            high = max(high, state["high_water"])
+            day = self._day(high)
+        except (FileNotFoundError, ValueError, KeyError, TypeError):
+            # A durable anchor distinguishes first use from lost/corrupt state.
+            # Exhaust the anchored day; repeated restarts cannot replenish it.
+            state = {"version": 1, "days": {}, "window": [], "runs": [],
+                     "high_water": high, "hold_until": high if anchor else 0,
+                     "last_send": high if anchor else 0, "backoff": 0,
+                     "last_run": {}}
+            if anchor:
+                anchored_day = self._day(anchor["high_water"])
+                state["days"][anchored_day] = {
+                    "sync": {"recovery_unknown": self.SYNC_DAILY_LIMIT},
+                    "push": {"recovery_unknown": self.EXTERNAL_RESERVE}}
+                state["hold_until"] = max(anchor["high_water"] + self.WINDOW_SECONDS,
+                                          anchor.get("hold_until", 0))
+        state["high_water"] = high
+        state["window"] = [t for t in state["window"] if t > high - self.WINDOW_SECONDS]
+        state["days"].setdefault(day, {"sync": {}, "push": {}})
+        # Preserve all daily counts. The only reset is selecting a later UTC day.
+        if not self.started:
+            if self.caller == "sync":
+                state["runs"] = (state["runs"] + [high])[-16:]
+            state["last_run"] = {"caller": self.caller, "count": 0, "core": 0, "at": high}
+            self.started = True
+        self.state, self.now, self.day = state, high, day
+        self._save()
+        if now < high:
+            self._refuse("clock rollback; waiting for the recorded clock")
+
+    def _save(self):
+        # Write anchor first: interruption cannot turn a lost state into first use.
+        self._atomic(self.root / "ledger.anchor", {"high_water": self.state["high_water"],
+                                                 "hold_until": self.state["hold_until"]})
+        self._atomic(self.root / "ledger.json", self.state)
+
+    def _effective_allowances(self):
+        reported = getattr(self, "state", {}).get("provider_limit", self.PROVIDER_DAILY_LIMIT)
+        if type(reported) is not int or reported < 0:
+            reported = self.PROVIDER_DAILY_LIMIT
+        daily = min(self.PROVIDER_DAILY_LIMIT, reported)
+        return daily, min(self.SYNC_DAILY_LIMIT, max(0, daily - self.EXTERNAL_RESERVE))
+
+    def _remaining(self):
+        row = self.state["days"][self.day]
+        sync = sum(row["sync"].values())
+        total = sync + sum(row["push"].values())
+        daily, sync_limit = self._effective_allowances()
+        return min(daily - total, sync_limit - sync) if self.caller == "sync" else daily - total
+
+    def expected_core(self):
+        if hasattr(self, "scheduled_reserve"):
+            return self.scheduled_reserve()
+        runs = self.state["runs"]
+        gaps = [b - a for a, b in zip(runs, runs[1:]) if b > a]
+        # Until spacing is observed, use the existing 30-minute hosted cadence.
+        spacing = max(60, min(gaps[-8:])) if gaps else 1800
+        tomorrow = (datetime.fromtimestamp(self.now, self.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)).timestamp()
+        future = max(0, math.ceil((tomorrow - self.now) / spacing) - 1)
+        current = max(0, self.CORE_PER_RUN - self.core_count)
+        return future * self.CORE_PER_RUN + current
+
+    def _admit(self, priority, needed=1, method="get"):
+        hold = max(self._local_hold, getattr(self, "state", {}).get("hold_until", 0))
+        if self.stopped or self.clock() < hold:
+            self._refuse("provider hold active")
+        if self.degraded:
+            if priority != "core" or method != "get" or self.count + needed > self.UNKNOWN_RUN_LIMIT:
+                self._refuse("capacity unknown; conservative core-read allowance only")
+            return
+        if self.count + needed > self.RUN_LIMIT:
+            self._refuse("invocation allowance exhausted")
+        if len(self.state["window"]) + needed > self.WINDOW_LIMIT:
+            self._refuse("rolling allowance exhausted")
+        if self._remaining() < needed:
+            self._refuse("daily allowance exhausted")
+        if priority == "optional" and self._remaining() < needed + self.expected_core():
+            self._refuse("remaining allowance reserved for core reads")
+
+    def reserve_write(self):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def reserved():
+            if self._reserved:
+                yield
+                return
+            with self._lock():
+                self._load_storage()
+                if self.degraded:
+                    self._refuse("capacity unknown; cannot reserve a verified write")
+                self._admit("core", 3)
+                self._reserved, self._write_sent = True, False
+                try:
+                    yield
+                finally:
+                    self._reserved = False
+        return reserved()
+
+    def _hold(self, response):
+        from email.utils import parsedate_to_datetime
+        received = self.clock()
+        raw = str(getattr(response, "headers", {}).get("Retry-After", "")).strip()
+        delay = None
+        if raw.isascii() and raw.isdigit():
+            delay = int(raw)
+        elif raw:
+            try:
+                stamp = parsedate_to_datetime(raw)
+                if stamp.tzinfo is not None:
+                    delay = max(0, stamp.timestamp() - received)
+            except (ValueError, TypeError, OverflowError):
+                pass
+        state = getattr(self, "state", {})
+        if delay is None:
+            delay = min(900, 60 * 2 ** state.get("backoff", 0) * (1 + self.jitter() * .25))
+        self._local_hold = max(self._local_hold, received + delay)
+        self.stopped = True
+        if not self.degraded:
+            self.state["backoff"] = min(5, self.state["backoff"] + 1)
+            self.state["high_water"] = max(self.state["high_water"], received)
+            self.state["hold_until"] = max(self.state["hold_until"], self._local_hold)
+            self._save_storage()
+
+    def private_log(self, line):
+        if self.degraded or self.root is None:
+            return
+        try:
+            fd = os.open(self.root / "budget.log", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            with os.fdopen(fd, "a", encoding="utf-8") as out:
+                if os.name != "nt":
+                    os.fchmod(out.fileno(), 0o600)
+                out.write(line + "\n")
+        except OSError:
+            self._degrade()
+
+    def _provider_headers(self, response):
+        if self.degraded:
+            return
+        headers = getattr(response, "headers", {})
+        seen = self.state.setdefault("header_days", {}).setdefault(self._day(self.clock()), [])
+        for name in ("X-RateLimit-Limit", "X-RateLimit-Remaining"):
+            raw = headers.get(name)
+            if raw is None:
+                continue
+            safe = "".join(c for c in str(raw)[:256] if " " <= c <= "~")
+            if name not in seen:
+                self.private_log("Provider header " + name + ": " + safe)
+                seen.append(name)
+            if name == "X-RateLimit-Limit":
+                parts = safe.split(",")
+                if len(parts) == 2 and all(p.strip().isascii() and p.strip().isdigit() for p in parts):
+                    self.state["provider_limit"] = min(
+                        self.state.get("provider_limit", self.PROVIDER_DAILY_LIMIT), int(parts[1]))
+        self._save_storage()
+
+    def _dirty_write(self, url):
+        from urllib.parse import urlsplit
+        path = urlsplit(url).path.split("/")
+        if path[3:4] == ["activity"] and len(path) > 4:
+            groups = ["activities", "messages:" + path[4]]
+        elif len(path) > 5 and path[5] == "events":
+            groups = ["calendar", "health_events", "wellness"]
+        else:
+            groups = ["profile", "wellness", "calendar", "aggregate_curves"]
+        dirty = self.state.setdefault("dirty", {})
+        generation = self.state.get("dirty_generation", 0) + 1
+        self.state["dirty_generation"] = generation
+        for group in groups:
+            dirty[group] = generation
+        self._save_storage()
+        if self.degraded:
+            self._refuse("dirty generation could not be persisted")
+
+    def request(self, transport, method, url, endpoint_class, priority="optional", **kwargs):
+        # No automatic redirects: a second send must never escape admission.
+        kwargs["allow_redirects"] = False
+        with self._lock():
+            self._load_storage()
+            needed = 1
+            if self._reserved and not self._write_sent:
+                needed = 3 if method == "get" else 2
+            if method != "get" and not self._reserved:
+                self._refuse("write has no pre-read/write/verification reservation")
+            self._admit(priority, needed, method)
+            last = max(self._last_local_send or 0, getattr(self, "state", {}).get("last_send", 0))
+            delay = max(0, last + self.SEND_INTERVAL - self.clock())
+            if delay:
+                self.sleep(delay)
+                self._load_storage()
+                self._admit(priority, needed, method)
+                if self.clock() < last + self.SEND_INTERVAL:
+                    self._refuse("pacing clock did not advance")
+            if not self.degraded:
+                row = self.state["days"][self.day][self.caller]
+                row[endpoint_class] = row.get(endpoint_class, 0) + 1
+                self.state["window"].append(self.now)
+                self.state["last_send"] = self.now
+                self.state["last_run"] = {"caller": self.caller, "count": self.count + 1,
+                                          "core": self.core_count + int(priority == "core"), "at": self.now}
+                self._save_storage()
+                if self.degraded:
+                    self._admit(priority, needed, method)
+            self.count += 1
+            self.core_count += int(priority == "core")
+            self._last_local_send = self.clock()
+            if method != "get":
+                self._dirty_write(url)
+                self._write_sent = True
+            response = getattr(transport, method)(url, **kwargs)
+            self._provider_headers(response)
+            if response.status_code == 429:
+                self._hold(response)
+            elif not self.degraded and 200 <= response.status_code < 300:
+                self.state["backoff"] = 0
+                self._save_storage()
+            return response
+
+    def summary(self):
+        if self.degraded:
+            return (f"Intervals requests: run={self.count}, today=unknown, allowance_left=unknown, "
+                    f"hold_until={self._local_hold or 'unknown'}, private_state=unavailable, scope={self.SCOPE}")
+        if not self.started:
+            return f"Intervals requests: run=0, today=unknown, allowance_left=unknown, hold_until=unknown, scope={self.SCOPE}"
+        with self._lock():
+            self._load_storage()
+            if self.degraded:
+                return self.summary()
+            total = sum(sum(v.values()) for v in self.state["days"][self.day].values())
+            hold = self.state["hold_until"] if self.state["hold_until"] > self.now else None
+            return (f"Intervals requests: run={self.count}, today={total}, "
+                    f"allowance_left={max(0, self._remaining())}, hold_until={hold}, scope={self.SCOPE}")
+# End shared request controller.
+
+class AcquisitionStore:
+    """Private response snapshots; calculations receive independent copies."""
+    VERSION = 1
+    CORE = ("activities", "wellness", "calendar", "health_events")
+    SCHEDULED = CORE + ("profile", "aggregate_curves", "messages", "saved_workouts", "history")
+    TERMINAL_HTTP = ("http_404", "http_410")
+    NATIVE_OUTCOMES = TERMINAL_HTTP + ("resource_gone", "no_gps", "no_elevation", "unsupported_format")
+    SOURCES = CORE + ("profile", "aggregate_curves", "messages", "activity_details",
+        "activity_streams", "activity_power", "activity_decoupling", "activity_terrain",
+        "route_attachments", "saved_workouts", "history")
+    PROFILE_FIELDS = frozenset(("icu_date_of_birth", "icu_activated", "height", "sex",
+        "city", "state", "country", "timezone", "icu_notes", "fahrenheit", "wind_speed",
+        "rain", "measurement_preference", "weight_pref_lb", "height_units", "icu_weight",
+        "icu_resting_hr", "sportSettings"))
+    SPORT_FIELDS = frozenset(("types", "threshold_pace", "pace_units", "lthr", "max_hr",
+        "ftp", "indoor_ftp", "power_zones"))
+    PAUSE_MESSAGE = ("Request allowance cannot sustain a ten-minute check. Another sync or tool "
+        "may be using this key. Check other syncs and tools, or use a new key.")
+    STATE_README = (
+        "Internal sync state, not training data. AI tools must ignore this folder.\n"
+        "Deleting it increases requests on the next run and resets the local count.\n"
+        "Never delete it to force requests.\n"
+        "Hash-named subfolders that stop changing belong to an earlier API key or data-folder location "
+        "and can be deleted; the active one changes on every check.\n"
+        "Status: latest.json source_freshness and request-budget/<identity>/budget.log.\n")
+
+    def __init__(self, sync):
+        self.sync, self.budget = sync, sync.request_budget
+        self.entries, self.consumed = {}, {}
+        # Successful acquisitions in this invocation do not age out mid-export.
+        self.acquired, self.companion_success = set(), {}
+        self._disk_versions, self._pending = {}, {}
+        # Two activities/day across every source, with eightfold headroom.
+        window = max(sync.ACTIVITY_WINDOW_DAYS, sync.INTERVAL_RETENTION_DAYS)
+        self.entry_limit = window * 2 * len(self.SOURCES) * 8
+        self.byte_limit = self.entry_limit * 16 * 1024
+        self.activities = []
+        self.root = None
+        requested = 60 if os.environ.get("GITHUB_ACTIONS") == "true" else getattr(sync, "check_interval_seconds", 60)
+        self.schedule = {"requested_interval_seconds": requested, "effective_interval_seconds": requested,
+                         "state": "running", "reason": None, "changed_at": self.stamp(self.now())}
+        self.warnings = []
+        self.next_tick = None
+        self.admitted = False
+        with self.budget._lock():
+            self.budget._load_storage()
+            if not self.budget.degraded:
+                try:
+                    self.root = self.budget.root.parent.parent / "sources" / self.budget.identity
+                    self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
+                    if os.name != "nt":
+                        os.chmod(self.root, 0o700)
+                        os.chmod(self.root.parent, 0o700)
+                    self._state_readme()
+                    for path in self.root.glob("*.json"):
+                        try:
+                            if path.is_symlink() or not path.is_file():
+                                continue
+                            entry = json.loads(path.read_text())
+                            if (entry["version"] != self.VERSION or entry["key"] != path.stem
+                                    or entry["group"] not in self.SOURCES
+                                    or not isinstance(entry["descriptor"], dict)
+                                    or set(entry["descriptor"]) != {"origin", "endpoint", "params", "schema"}
+                                    or entry["descriptor"]["schema"] != self.VERSION
+                                    or not isinstance(entry["descriptor"]["endpoint"], str)
+                                    or not isinstance(entry["descriptor"]["params"], dict)
+                                    or type(entry.get("snapshot_present")) is not bool
+                                    or type(entry.get("generation")) is not int or entry["generation"] < 0
+                                    or not self.budget._number(entry.get("ttl")) or entry["ttl"] <= 0
+                                    or entry.get("status", "stale") not in ("fresh", "deferred", "stale", "unavailable")):
+                                continue
+                            if entry.get("native_outcome") is not None and entry["native_outcome"] not in self.NATIVE_OUTCOMES:
+                                continue
+                            for field in ("last_attempt", "last_success"):
+                                if entry.get(field) is not None and not self.budget._number(entry[field]):
+                                    raise ValueError("invalid acquisition time")
+                            if entry.get("snapshot_present"):
+                                if entry.get("last_success") is None and not (
+                                        entry.get("provenance") == "adopted"
+                                        and (entry["group"].startswith("activity_") or entry["group"] == "route_attachments")
+                                        and self.budget._number(entry.get("adopted_at"))):
+                                    continue
+                                entry["payload"] = self.project(entry["group"], entry["payload"])
+                            self.entries[path.stem] = entry
+                            self._disk_versions[path.stem] = self._file_version(path)
+                        except (ValueError, KeyError, TypeError):
+                            continue
+                except OSError:
+                    self.budget._degrade()
+
+    def _state_readme(self):
+        path = self.budget.root.parent.parent / "README.md"
+        if path.is_symlink():
+            raise OSError("state README is not an ordinary file")
+        if path.is_file() and path.read_bytes() == self.STATE_README.encode("utf-8"):
+            return
+        fd, name = tempfile.mkstemp(prefix=".readme-", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(self.STATE_README)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(name, path)
+        finally:
+            if os.path.exists(name):
+                os.unlink(name)
+
+    def now(self):
+        return self.budget.clock()
+
+    @staticmethod
+    def stamp(value):
+        return datetime.fromtimestamp(value, timezone.utc).isoformat().replace("+00:00", "Z") if value is not None else None
+
+    @staticmethod
+    def clone(value):
+        return json.loads(json.dumps(value, allow_nan=False))
+
+    @classmethod
+    def project(cls, group, value):
+        if group == "profile":
+            if not isinstance(value, dict):
+                raise ValueError("profile is not an object")
+            result = {k: cls.clone(v) for k, v in value.items() if k in cls.PROFILE_FIELDS}
+            settings = result.get("sportSettings")
+            if settings is not None:
+                if not isinstance(settings, list) or any(not isinstance(v, dict) for v in settings):
+                    raise ValueError("invalid sport settings")
+                result["sportSettings"] = [{k: v for k, v in s.items() if k in cls.SPORT_FIELDS} for s in settings]
+            return result
+        if group in cls.CORE:
+            if not isinstance(value, list) or any(not isinstance(v, dict) for v in value):
+                raise ValueError("source is not a list of objects")
+        elif group == "aggregate_curves":
+            if not isinstance(value, dict) or not isinstance(value.get("list"), list):
+                raise ValueError("invalid curve collection")
+            value = {k: v for k, v in value.items() if k in ("list", "activities")}
+        elif group == "messages":
+            if not isinstance(value, list) or any(not isinstance(v, str) for v in value):
+                raise ValueError("invalid message texts")
+
+        def private_projection(item):
+            if isinstance(item, dict):
+                return {k: private_projection(v) for k, v in item.items()
+                        if not any(word in k.lower() for word in ("api_key", "invite", "authorization", "password", "access_token", "refresh_token"))}
+            if isinstance(item, list):
+                return [private_projection(v) for v in item]
+            return item
+        return cls.clone(private_projection(value))
+
+    def key(self, endpoint, params):
+        # Relative date shapes identify the fallback slot; the stored descriptor
+        # retains exact bounds and forces a fetch on every date-window change.
+        today = datetime.now().date()
+        def date_shape(match):
+            return "D" + str((datetime.strptime(match.group(), "%Y-%m-%d").date() - today).days)
+        descriptor = {"origin": "https://intervals.icu/api/v1", "endpoint": endpoint,
+                      "params": self.clone(params or {}), "schema": self.VERSION}
+        shape = re.sub(r"\d{4}-\d{2}-\d{2}", date_shape,
+                       json.dumps(descriptor, sort_keys=True, separators=(",", ":")))
+        return hashlib.sha256(shape.encode()).hexdigest(), descriptor
+
+    def dependency(self, group, endpoint, params):
+        rows = self.activities
+        if group == "messages":
+            identity = endpoint.split("/")[1]
+            rows = [a for a in rows if str(a.get("id")) == identity]
+        elif group == "aggregate_curves":
+            typ = (params or {}).get("type")
+            if typ:
+                rows = [a for a in rows if a.get("type") == typ]
+            bounds = re.findall(r"\d{4}-\d{2}-\d{2}", str((params or {}).get("curves", "")))
+            if bounds:
+                rows = [a for a in rows if min(bounds) <= str(a.get("start_date_local", ""))[:10] <= max(bounds)]
+        else:
+            return None
+        return hashlib.sha256(json.dumps(rows, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+
+    def dirty(self, group, endpoint):
+        values = getattr(self.budget, "state", {}).get("dirty", {})
+        resource = "messages:" + endpoint.split("/")[1] if group == "messages" else group
+        return max(values.get(group, 0), values.get(resource, 0))
+
+    def save(self, entry):
+        self.entries[entry["key"]] = entry
+        if self.budget.degraded or self.root is None:
+            return
+        with self.budget._lock():
+            if self.budget.degraded:
+                return
+            try:
+                self._persist(entry)
+            except OSError:
+                self.budget._degrade()
+
+    @staticmethod
+    def _file_version(path):
+        info = path.stat(follow_symlinks=False)
+        return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns
+
+    def _capacity_warning(self):
+        code = "source_store_capacity"
+        message = ("Private source cache is full; new responses remain usable this run "
+                   "but may need fetching again until cache space is available.")
+        self.warn(code, message, None, emit=False)
+        marker = self.root / ".capacity-warning"
+        try:
+            previous = json.loads(marker.read_text()) if marker.is_file() and not marker.is_symlink() else {}
+        except (ValueError, TypeError):
+            previous = {}
+        day = self.budget._day(self.now())
+        if previous.get("day") != day:
+            print("Warning: " + message)
+            self.budget.private_log("Warning: " + message)
+            if not marker.is_symlink():
+                self.budget._atomic(marker, {"day": day})
+
+    def _persist(self, entry):
+        """Called under the budget lock; never evict live data for capacity."""
+        files = {p.stem: p.stat().st_size for p in self.root.glob("*.json")
+                 if re.fullmatch(r"[0-9a-f]{64}", p.stem) and not p.is_symlink() and p.is_file()}
+        key = entry["key"]
+        size = len(json.dumps(entry, separators=(",", ":"), allow_nan=False).encode("utf-8"))
+        count, total = len(files), sum(files.values())
+        growth = size - files.get(key, 0)
+        if ((key not in files and count >= self.entry_limit)
+                or (growth > 0 and total + growth > self.byte_limit)):
+            self._pending[key] = entry
+            self._capacity_warning()
+            return False
+        path = self.root / (key + ".json")
+        self.budget._atomic(path, entry)
+        self._disk_versions[key] = self._file_version(path)
+        self._pending.pop(key, None)
+        if not self._pending:
+            self.warnings = [w for w in self.warnings if w["code"] != "source_store_capacity"]
+        return True
+
+    def prune(self, data):
+        """Remove only obsolete snapshots after a complete, healthy generation."""
+        sources = data.get("source_freshness", {}).get("sources", {})
+        if (not self.admitted or self.root is None or self.budget.degraded
+                or self.budget.stopped or self.budget.refusals
+                or not sources or any(s.get("status") != "fresh" for s in sources.values())):
+            return
+        # Reuse the producer's actual retained sets, including pending interval
+        # state. No second date cutoff can drift away from the native caches.
+        active = {str(a["id"]) for a in data.get("recent_activities", []) if a.get("id") is not None}
+        intervals = getattr(self.sync, "_intervals_data", {}) or {}
+        active.update(str(a["activity_id"]) for a in intervals.get("activities", [])
+                      if a.get("activity_id") is not None)
+        active.update(intervals.get("fetch_state", {}))
+        routes = getattr(self.sync, "_route_source_ids", set())
+        keep = set(self.consumed)
+        for key, entry in self.entries.items():
+            group, resource = entry["group"], entry["descriptor"]["endpoint"].split("/")[-1]
+            if ((group.startswith("activity_") and resource in active)
+                    or (group == "route_attachments" and resource in routes)):
+                keep.add(key)
+        obsolete = sorted((e for k, e in self.entries.items() if k not in keep),
+                          key=lambda e: (e.get("last_success") or e.get("adopted_at")
+                                         or e.get("last_attempt") or 0, e["key"]))
+        with self.budget._lock():
+            if self.budget.degraded:
+                return
+            try:
+                for entry in obsolete:
+                    key = entry["key"]
+                    if not re.fullmatch(r"[0-9a-f]{64}", key):
+                        continue
+                    path = self.root / (key + ".json")
+                    if (not path.is_symlink() and path.is_file()
+                            and self._disk_versions.get(key) == self._file_version(path)):
+                        # Unlink is atomic; all store readers use this same lock.
+                        # A concurrent replacement is never deleted.
+                        path.unlink()
+                        self._disk_versions.pop(key, None)
+                        self.entries.pop(key, None)
+                for entry in list(self._pending.values()):
+                    self._persist(entry)
+                data["source_freshness"]["warnings"] = self.clone(self.warnings)
+            except OSError:
+                self.budget._degrade()
+
+    def adopt(self, group, resource, valid, outcome=None):
+        """Record a native cache's accepted legacy provenance once, without a send."""
+        key, descriptor = self.key(group + "/" + str(resource), {})
+        entry = self.entries.get(key)
+        if entry is not None:
+            # Native rejection applies equally to acquired and adopted entries.
+            # A genuine failed acquisition must never become adoption.
+            if not valid and entry.get("status") == "fresh":
+                entry.update(status="stale", reason="invalid_native_cache")
+                entry.pop("native_outcome", None)
+                self.save(entry)
+            elif valid and outcome in self.NATIVE_OUTCOMES and entry.get("status") == "fresh" and not entry.get("native_outcome"):
+                entry["native_outcome"] = outcome
+                self.save(entry)
+            self.consumed[key] = entry
+            return
+        if self.budget.degraded or self.root is None:
+            return
+        entry = {"version": self.VERSION, "key": key, "group": group, "descriptor": descriptor,
+                 "snapshot_present": bool(valid), "payload": True, "generation": 0, "ttl": 86400,
+                 "last_attempt": None, "last_success": None,
+                 "status": "fresh" if valid else "unavailable",
+                 "reason": "legacy_cache_adopted" if valid else "invalid_native_cache"}
+        if valid:
+            entry.update(provenance="adopted", adopted_at=self.now())
+            if outcome in self.NATIVE_OUTCOMES:
+                entry["native_outcome"] = outcome
+        # Do not overwrite a concurrent adoption or an unreadable provenance file.
+        with self.budget._lock():
+            if not self.budget.degraded and not (self.root / (key + ".json")).exists():
+                try:
+                    self._persist(entry)
+                except OSError:
+                    self.budget._degrade()
+                    return
+                self.entries[key] = entry
+                self.consumed[key] = entry
+
+    def acquire(self, group, endpoint, params, fetch, ttl):
+        key, descriptor = self.key(endpoint, params)
+        entry = self.clone(self.entries.get(key, {"version": self.VERSION, "key": key,
+            "group": group, "descriptor": descriptor, "snapshot_present": False,
+            "last_attempt": None, "last_success": None, "ttl": ttl, "generation": 0}))
+        with self.budget._lock():
+            self.budget._load_storage()
+            generation = self.dirty(group, endpoint)
+        dependency = self.dependency(group, endpoint, params)
+        stamp = entry.get("last_success")
+        due = (group in self.CORE or not entry["snapshot_present"] or stamp is None
+               or not 0 <= self.now() - stamp < ttl or entry["descriptor"] != descriptor
+               or entry.get("dependency") != dependency or generation > entry.get("generation", 0))
+        self.consumed[key] = entry
+        if due:
+            before = self.budget.count
+            error = None
+            try:
+                payload = self.project(group, fetch())
+            except (requests.exceptions.RequestException, ValueError, TypeError, KeyError) as exc:
+                error = exc
+                entry["status"] = "deferred" if isinstance(exc, RequestBudgetRefused) or self.budget.stopped else "stale"
+                entry["reason"] = "request_budget" if entry["status"] == "deferred" else "refresh_failed"
+            else:
+                entry.update(payload=payload, snapshot_present=True, descriptor=descriptor,
+                    last_success=self.now(), dependency=dependency, generation=generation,
+                    status="fresh", reason=None, ttl=ttl)
+                self.acquired.add(key)
+            if self.budget.count > before:
+                entry["last_attempt"] = self.now()
+            self.save(entry)
+            if not entry["snapshot_present"]:
+                entry["status"] = "unavailable"
+                if error is not None:
+                    raise error
+        else:
+            entry.update(status="fresh", reason=None)
+        entry["scope_current"] = entry["descriptor"] == descriptor
+        if group == "activities":
+            self.activities = self.clone(entry["payload"])
+        return self.clone(entry["payload"])
+
+    def committed(self, now):
+        midnight = (datetime.fromtimestamp(now, timezone.utc).replace(hour=0, minute=0, second=0,
+                     microsecond=0) + timedelta(days=1)).timestamp()
+        total = 0
+        for entry in self.entries.values():
+            if entry["group"] not in ("profile", "aggregate_curves", "messages"):
+                continue
+            ttl = entry.get("ttl", 21600)
+            due = (entry.get("last_success") or now - ttl) + ttl
+            total += max(0, math.ceil((midnight - max(now, due)) / ttl))
+        # Existing library lifecycle: at most two sends every six hours.
+        total += 2 * math.ceil((midnight - now) / 21600)
+        return total
+
+    def reserve(self):
+        now = self.budget.now
+        midnight = (datetime.fromtimestamp(now, timezone.utc).replace(hour=0, minute=0, second=0,
+                    microsecond=0) + timedelta(days=1)).timestamp()
+        interval = self.schedule["effective_interval_seconds"] or 600
+        return 4 * max(0, math.ceil((midnight - now) / interval) - 1) + max(0, 4 - self.budget.core_count) + self.committed(now)
+
+    def begin(self):
+        if self.admitted:
+            return True
+        budget = self.budget
+        with budget._lock():
+            budget._load_storage()
+            if budget.degraded:
+                self.warn("private_state_unavailable", "Private source state unavailable; source capacity is unknown.", None)
+                self.admitted = True
+                return True
+            now = budget.now
+            state = budget.state
+            old = state.get("schedule", {})
+            midnight = (datetime.fromtimestamp(now, timezone.utc).replace(hour=0, minute=0, second=0,
+                        microsecond=0) + timedelta(days=1)).timestamp()
+            slow = self.committed(now)
+            if not self.entries:
+                slow += 128  # One bounded cold acquisition, then measure its population.
+            requested = self.schedule["requested_interval_seconds"]
+            interval = next((s for s in (60, 120, 300, 600) if s >= requested
+                             if 4 * math.ceil((midnight - now) / s) + slow <= budget._remaining()), None)
+            changed = interval != old.get("effective_interval_seconds", requested)
+            self.schedule.update(effective_interval_seconds=interval,
+                state="paused" if interval is None else "stepped_down" if interval > requested else "running",
+                reason="daily_allowance" if interval != requested else None,
+                changed_at=self.stamp(now) if changed else old.get("changed_at", self.stamp(now)))
+            if interval != requested:
+                self.warn("budget_paused" if interval is None else "budget_step_down",
+                          self.PAUSE_MESSAGE if interval is None else f"Request budget: checks reduced to every {interval // 60} minutes.",
+                          midnight if interval is None else now + interval, emit=changed)
+            elif changed:
+                message = ("Request budget: one-minute checks restored." if requested == 60 else
+                           f"Request budget: checks restored to every {requested // 60} minutes.")
+                self.warn("budget_step_down", message, now, emit=True)
+            last = old.get("last_tick")
+            self.next_tick = now if last is None else last + (interval or 600)
+            hold = max(state["hold_until"], budget._local_hold)
+            if hold > now:
+                self.next_tick = max(self.next_tick, hold)
+                self.warn("rate_hold", "Requests held until " + self.stamp(hold) + ".", hold,
+                          emit=old.get("hold_until") != hold)
+            due = interval is not None and now >= self.next_tick and hold <= now
+            state["schedule"] = dict(self.schedule, last_tick=now if due else last,
+                                     utc_day=budget.day, hold_until=hold)
+            budget._save_storage()
+            budget.scheduled_reserve = self.reserve
+            self.admitted = due
+            return due
+
+    def warn(self, code, message, eligible, emit=True):
+        history = getattr(self.budget, "state", {}).setdefault("warning_since", {})
+        prior = history.get(code, {})
+        since = prior.get("since") if prior.get("message") == message else self.stamp(self.now())
+        history[code] = {"message": message, "since": since}
+        self.warnings = [w for w in self.warnings if w["code"] != code]
+        self.warnings.append({"code": code, "message": message,
+                              "since": since, "next_eligible_at": self.stamp(eligible)})
+        if emit:
+            print("Warning: " + message)
+            self.budget.private_log("Warning: " + message)
+
+    def source_status(self, group, retained=False):
+        rows = [e for e in self.consumed.values() if e["group"] == group]
+        if not rows:
+            return None
+        now = self.now()
+        success = [e["last_success"] for e in rows if e.get("last_success") is not None]
+        attempts = [e["last_attempt"] for e in rows if e.get("last_attempt") is not None]
+        statuses = [e.get("status", "stale") if e["snapshot_present"] else "unavailable" for e in rows]
+        for index, entry in enumerate(rows):
+            acquired = entry.get("last_success")
+            if (statuses[index] == "fresh" and acquired is not None
+                    and (acquired > now or group in self.SCHEDULED
+                         and (retained or entry["key"] not in self.acquired)
+                         and now - acquired >= entry["ttl"])):
+                statuses[index] = "stale"
+        status = next(s for s in ("unavailable", "deferred", "stale", "fresh") if s in statuses)
+        adopted = [e for e in rows if e.get("provenance") == "adopted"]
+        oldest = min(success) if success and not adopted else None
+        # Native activity/route validity comes from their existing cache checks,
+        # not elapsed acquisition age. Keep the real age without a fake deadline.
+        ttl = min(e["ttl"] for e in rows) if group in self.SCHEDULED else None
+        due = min((e["last_success"] + e["ttl"] for e in rows
+                   if e.get("last_success") is not None), default=None) if ttl is not None else None
+        if oldest is not None and oldest > now:
+            status = "stale"
+        scopes = [dict(e["descriptor"]["params"], resource=e["descriptor"]["endpoint"]) for e in rows]
+        reason = next((e.get("reason") for e, s in zip(rows, statuses) if s == status and e.get("reason")), None)
+        if status == "stale" and reason is None:
+            reason = "validity_expired"
+        result = {"status": status, "reason": reason,
+            "snapshot_present": any(e["snapshot_present"] for e in rows), "last_attempt_at": self.stamp(max(attempts) if attempts else None),
+            "last_success_at": self.stamp(oldest), "source_acquired_at": self.stamp(oldest),
+            "age_seconds": now - oldest if oldest is not None and oldest <= now else None,
+            "max_age_seconds": ttl, "next_due_at": self.stamp(due),
+            "next_eligible_at": self.stamp(max(due or now, getattr(self.budget, "state", {}).get("hold_until", 0))),
+            "coverage": "complete" if all(e["snapshot_present"] and e.get("scope_current", True) for e in rows) else "partial" if any(e["snapshot_present"] for e in rows) else "unknown",
+            "scope": scopes[0] if len(scopes) == 1 else {"resources": scopes}}
+        outcomes = [{"resource": e["descriptor"]["endpoint"], "outcome": e["native_outcome"]}
+                    for e in rows if e.get("native_outcome") in self.NATIVE_OUTCOMES]
+        if outcomes:
+            result["native_outcomes"] = outcomes
+            if status == "fresh":
+                result["reason"] = "native_terminal_result"
+                result["next_eligible_at"] = None
+        if adopted:
+            result.update(provenance="adopted" if len(adopted) == len(rows) else "mixed",
+                          adopted_at=self.stamp(min(e["adopted_at"] for e in adopted)))
+            if status == "fresh":
+                result["reason"] = "legacy_cache_adopted"
+        return result
+
+
+def observe_source(group):
+    """Record acquisition times without changing existing detail cache ladders."""
+    from functools import wraps
+
+    def decorate(operation):
+        @wraps(operation)
+        def run(self, *args, **kwargs):
+            store = getattr(self, "_acquisition", None)
+            if store is None:
+                return operation(self, *args, **kwargs)
+            resource = str(args[0]) if args else "collection"
+            if group == "route_attachments":
+                resource = hashlib.sha256(resource.encode()).hexdigest()
+            key, descriptor = store.key(group + "/" + resource, {})
+            prior = store.clone(store.entries.get(key, {"version": store.VERSION, "key": key,
+                "group": group, "descriptor": descriptor, "snapshot_present": False,
+                "last_attempt": None, "last_success": None, "ttl": 86400, "generation": 0}))
+            before, refused = self.request_budget.count, self.request_budget.refusals
+            external = getattr(self, "_external_attachment_sends", 0)
+            try:
+                result = operation(self, *args, **kwargs)
+            except BaseException:
+                result = None
+                raise
+            finally:
+                sent = (self.request_budget.count > before
+                        or getattr(self, "_external_attachment_sends", 0) > external)
+                status = result[0] if isinstance(result, tuple) else (
+                    result.get("route_status") if isinstance(result, dict) else None)
+                payload = result[1] if isinstance(result, tuple) else None
+                if status == "result" and isinstance(payload, tuple):
+                    status, payload = payload
+                outcome = (payload if status == "terminal_error" and payload in store.TERMINAL_HTTP
+                           else status if status in ("no_elevation", "no_gps", "unsupported_format") else None)
+                if sent:
+                    prior["last_attempt"] = store.now()
+                if sent and (status in ("ok", "data", "no_data") or outcome is not None):
+                    prior.pop("adopted_at", None)
+                    prior.pop("native_outcome", None)
+                    if outcome is not None:
+                        prior["native_outcome"] = outcome
+                    prior["provenance"] = "acquired"
+                    prior.update(last_success=store.now(), snapshot_present=True, payload=True,
+                                 status="fresh", reason="native_terminal_result" if outcome is not None else None)
+                elif self.request_budget.refusals > refused or self.request_budget.stopped:
+                    prior.update(status="deferred", reason="request_budget")
+                elif sent:
+                    prior.update(status="stale", reason="refresh_failed")
+                if not sent and outcome is not None:
+                    store.adopt(group, resource, True, outcome)
+                else:
+                    store.save(prior)
+                    store.consumed[key] = prior
+            return result
+        return run
+    return decorate
+
+
+def preserve_budget_outputs(operation):
+    """A budget-deferred generation cannot replace a last-good export."""
+    from functools import wraps
+
+    @wraps(operation)
+    def run(self, *args, **kwargs):
+        budget = self.request_budget
+        before = budget.refusals
+        stopped_before = budget.stopped
+        names = ("latest.json", "history.json", "ftp_history.json", "intervals.json",
+                 "routes.json", "saved_workouts.json", "route_eta_history.json")
+        paths = [self.data_dir / name for name in names]
+        map_dir = self.data_dir / RouteWeatherMap.DIRECTORY
+        def managed_maps():
+            return [p for p in map_dir.glob("*.png")
+                    if re.fullmatch(r"weather-[0-9a-f]{32}(?:-p0[2-4])?\.png", p.name)]
+        paths += managed_maps() if map_dir.is_dir() else []
+        snapshots = {p: (p.read_bytes(), p.stat().st_atime_ns, p.stat().st_mtime_ns)
+                     for p in paths if p.is_file() and not p.is_symlink()}
+        failed = None
+        try:
+            return operation(self, *args, **kwargs)
+        except BaseException as error:
+            failed = error
+            raise
+        finally:
+            restore = budget.refusals > before or (budget.stopped and not stopped_before)
+            if operation.__name__ == "collect_training_data" and getattr(self, "_acquisition", None) is not None:
+                restore = failed is not None
+            if restore:
+                if map_dir.is_dir():
+                    paths += managed_maps()
+                for path in set(paths):
+                    if path.is_symlink():
+                        continue
+                    prior = snapshots.get(path)
+                    if prior is None:
+                        if path.is_file():
+                            path.unlink()
+                    else:
+                        if not path.exists() or path.read_bytes() != prior[0]:
+                            fd, name = tempfile.mkstemp(prefix=".restore-", dir=path.parent)
+                            try:
+                                with os.fdopen(fd, "wb") as handle:
+                                    handle.write(prior[0])
+                                os.replace(name, path)
+                            finally:
+                                if os.path.exists(name):
+                                    os.unlink(name)
+                        os.utime(path, ns=prior[1:])
+                if failed is None or isinstance(failed, RequestBudgetRefused):
+                    raise RequestBudgetRefused("export deferred; last-good files kept")
+    return run
+
+
 class IntervalsSync:
     """Sync Intervals.icu data to GitHub repository or local file"""
 
     INTERVAL_DATA_VERSION = 1
+    ACTIVITY_WINDOW_DAYS = 28
     REPORT_INTENSITY_NOTE = (
         "Decode report_intensity_schema (2), endurance_10_50_week_guard_v2 only: "
         "report_intensity_7d / report_intensity_28d, "
@@ -4635,7 +5688,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.163"
+    VERSION = "3.164"
     ROUTE_TERRAIN_VERSION = "3.142"
     ROUTE_RETRY_BACKOFF_SECONDS = 15 * 60
     INTERVALS_FILE = "intervals.json"
@@ -4942,6 +5995,7 @@ class IntervalsSync:
                  github_repo: str = None, debug: bool = False, week_start_day: int = None,
                  zone_preference: dict = None, report_main_sports=None):
         self.athlete_id = athlete_id
+        self._budget_identity = RequestBudget.fingerprint(athlete_id, intervals_api_key)
         self.intervals_auth = base64.b64encode(f"API_KEY:{intervals_api_key}".encode()).decode()
         self.github_token = github_token
         self.github_repo = github_repo
@@ -4968,6 +6022,244 @@ class IntervalsSync:
         self._power_curve_run_cache = {}
         self._decoupling_fetches_used = 0
         self._decoupling_run_cache = {}
+
+    _budget_factory = RequestBudget
+
+    @staticmethod
+    def _check_interval(config, environ=None):
+        env = os.environ if environ is None else environ
+        if env.get("GITHUB_ACTIONS") == "true":
+            return 60
+        value = config.get("check_interval_minutes", 1)
+        if type(value) is not int or value not in (1, 2, 5, 10):
+            print("Warning: invalid check_interval_minutes; using one-minute checks (choose 1, 2, 5 or 10).")
+            return 60
+        return value * 60
+
+    @property
+    def request_budget(self):
+        if not hasattr(self, "_request_budget"):
+            self._request_budget = self._budget_factory(
+                getattr(self, "data_dir", Path.cwd()), "sync", RequestBudgetRefused,
+                self._budget_identity)
+        return self._request_budget
+
+    def begin_tick(self):
+        if not hasattr(self, "_acquisition"):
+            self._acquisition = AcquisitionStore(self)
+        return self._acquisition.begin()
+
+    def _source_freshness(self, data, retained=False):
+        store, budget = self._acquisition, self.request_budget
+        now = store.now()
+        sources = {}
+        def unknown(group, present=False, empty=False):
+            return {"status": "fresh" if empty else "stale" if present else "unavailable",
+                "reason": "not_required" if empty else "acquisition_age_unknown" if present else "no_snapshot",
+                "snapshot_present": present or empty, "last_attempt_at": None,
+                "last_success_at": None, "source_acquired_at": None, "age_seconds": None,
+                "max_age_seconds": 86400 if group in store.SCHEDULED else None,
+                "next_due_at": None, "next_eligible_at": None,
+                "coverage": "complete" if empty else "partial" if present else "unknown", "scope": {"resources": []}}
+
+        def stamp(value):
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                return parsed.astimezone(timezone.utc).timestamp()
+            except (ValueError, TypeError, AttributeError):
+                return None
+
+        previous = data.get("source_freshness", {}).get("sources", {}) if retained else {}
+        evaluated = {}
+        for group in store.SOURCES:
+            evaluated[group] = store.source_status(group, retained=retained)
+            sources[group] = evaluated[group] or store.clone(previous.get(group, unknown(group)))
+
+        if not retained:
+            recent = data.get("recent_activities", [])
+            active_ids = {str(a.get("id")) for a in recent}
+            def identities(*fields):
+                return {str(a.get("id")) for a in recent if any(a.get(field) for field in fields)}
+            required = {
+                "activity_details": identities("has_intervals", "has_dfa", "has_structure"),
+                "activity_streams": identities("has_dfa", "has_structure", "dfa_rollup"),
+                "activity_power": identities("power_curve_expected"),
+                "activity_decoupling": identities("decoupling_detail", "decoupling_detail_status"),
+                "activity_terrain": identities("has_terrain"),
+                "route_attachments": getattr(self, "_route_source_ids", set()),
+            }
+            for group, needed in required.items():
+                observed_ids = set()
+                for key, entry in store.entries.items():
+                    resource = entry["descriptor"]["endpoint"].split("/")[-1]
+                    if entry["group"] == group and resource in (needed if group == "route_attachments" else active_ids):
+                        store.consumed.setdefault(key, entry)
+                        observed_ids.add(resource)
+                observed = store.source_status(group)
+                sources[group] = observed or unknown(group, present=bool(needed), empty=not needed)
+                if observed and needed - observed_ids:
+                    row = sources[group]
+                    if row["status"] == "fresh":
+                        row.update(status="stale", reason="acquisition_age_unknown")
+                    row.update(coverage="partial", last_success_at=None, source_acquired_at=None, age_seconds=None)
+                    row["scope"]["untracked_resources"] = sorted(needed - observed_ids)
+            if not any(str(a.get("start_date_local", a.get("date", "")))[:10] >= (
+                    datetime.now() - timedelta(days=6)).strftime("%Y-%m-%d") for a in recent):
+                if store.source_status("messages") is None:
+                    sources["messages"] = unknown("messages", empty=True)
+            for group, filename, ttl in (("saved_workouts", "saved_workouts.json", 21600),
+                                          ("history", "history.json", 29 * 86400)):
+                try:
+                    value = getattr(self, "_saved_workouts_data", None) if group == "saved_workouts" else None
+                    if value is None:
+                        value = json.loads((self.data_dir / filename).read_text())
+                    if group == "saved_workouts":
+                        refresh, state = value.get("refresh", {}), value.get("fetch_state", {})
+                        success = stamp(refresh.get("last_success_at"))
+                        attempt = stamp(state.get("last_attempt_at"))
+                        valid = self._sw_cache_is_valid(value)
+                        status = "fresh" if refresh.get("status") == "ok" else "stale"
+                    else:
+                        success = stamp(value.get("generated_at"))
+                        attempt = stamp(value.get("refresh_state", {}).get("last_attempt_at"))
+                        valid = isinstance(value.get("weekly_180d"), list)
+                        status = "stale" if value.get("refresh_state", {}).get("consecutive_failures") else "fresh"
+                    if valid and success is not None:
+                        due = success + ttl
+                        sources[group] = dict(unknown(group, present=True), status=status, reason=None,
+                            last_attempt_at=store.stamp(attempt), last_success_at=store.stamp(success),
+                            source_acquired_at=store.stamp(success), age_seconds=now - success if success <= now else None,
+                            max_age_seconds=ttl, next_due_at=store.stamp(due), next_eligible_at=store.stamp(due),
+                            coverage="complete", scope={"resource": filename})
+                except (OSError, ValueError, TypeError, AttributeError):
+                    pass
+
+        with budget._lock():
+            budget._load_storage()
+            state = getattr(budget, "state", {})
+            hold = max(state.get("hold_until", 0), budget._local_hold)
+            known = not budget.degraded
+            if not known and not any(w["code"] == "private_state_unavailable" for w in store.warnings):
+                store.warn("private_state_unavailable", "Private source state unavailable; source capacity is unknown.", None)
+            totals = state.get("days", {}).get(getattr(budget, "day", ""), {})
+            daily, sync_limit = budget._effective_allowances()
+            last_tick = state.get("schedule", {}).get("last_tick") or now
+            eligible = max(hold, last_tick + (store.schedule["effective_interval_seconds"] or 600))
+            active_wait = (store.schedule["state"] in ("running", "stepped_down")
+                           and hold <= now and not budget.stopped)
+            for group, row in sources.items():
+                if group not in store.SCHEDULED:
+                    row.update(max_age_seconds=None, next_due_at=None)
+                success = stamp(row["source_acquired_at"])
+                if retained and active_wait and group in store.CORE and success is not None:
+                    interval = store.schedule["effective_interval_seconds"]
+                    row.update(max_age_seconds=interval, next_due_at=store.stamp(success + interval),
+                               next_eligible_at=store.stamp(eligible))
+                if success is not None:
+                    row["age_seconds"] = now - success if success <= now else None
+                    # Consumed rows were checked individually, including mixed groups.
+                    # Only a real success in this invocation bypasses scheduled expiry.
+                    if (success > now or group in store.SCHEDULED
+                            and (retained or evaluated[group] is None)
+                            and (retained or store.companion_success.get(group) != success)
+                            and now - success >= row["max_age_seconds"]):
+                        if row["status"] == "fresh":
+                            row.update(status="stale", reason="validity_expired")
+                if (group in ("saved_workouts", "history") and row["status"] == "stale"
+                        and budget.stopped):
+                    row.update(status="deferred", reason="request_budget")
+                if retained and not active_wait and row["status"] != "unavailable" and group in store.CORE:
+                    row.update(status="deferred", reason="scheduler", next_eligible_at=store.stamp(eligible))
+                if row["status"] in ("deferred", "stale", "unavailable"):
+                    row["next_eligible_at"] = store.stamp(max(hold, stamp(row["next_eligible_at"]) or now))
+            affected = sorted(group for group, row in sources.items() if row["status"] != "fresh")
+            if affected:
+                store.warn("source_stale", "Sources need refresh: " + ", ".join(affected) + ".", eligible,
+                           emit=affected != state.get("source_warning"))
+            if hold > now and not any(w["code"] == "rate_hold" for w in store.warnings):
+                store.warn("rate_hold", "Requests held until " + store.stamp(hold) + ".", hold)
+            if known:
+                state["source_warning"] = affected
+                active_warnings = {w["code"] for w in store.warnings}
+                state["warning_since"] = {k: v for k, v in state.get("warning_since", {}).items() if k in active_warnings}
+                budget._save_storage()
+            return {"version": 1, "as_of": store.stamp(now), "budget": {
+                "scope": budget.SCOPE, "capacity_status": "known" if known else "unknown",
+                "utc_day": getattr(budget, "day", budget._day(now)), "requests_this_run": budget.count,
+                "requests_today": sum(sum(v.values()) for v in totals.values()) if known else None,
+                "sync_requests_today": sum(totals.get("sync", {}).values()) if known else None,
+                "provider_daily_limit": daily, "sync_daily_limit": sync_limit,
+                "reserved_external": budget.EXTERNAL_RESERVE,
+                "sync_remaining": max(0, budget._remaining()) if known else None,
+                "window_requests": len(state.get("window", [])) if known else None,
+                "window_limit": budget.WINDOW_LIMIT, "hold_until": store.stamp(hold) if hold > now else None,
+                "next_eligible_at": store.stamp(eligible)}, "schedule": store.clone(store.schedule),
+                "warnings": store.clone(store.warnings), "sources": sources}
+
+    def _adopt_native_cache(self, group, activity_id, valid, outcome=None):
+        store = getattr(self, "_acquisition", None)
+        if store is not None:
+            store.adopt(group, activity_id, valid, outcome)
+
+    def _save_schedule_transition(self):
+        path = self.data_dir / "latest.json"
+        try:
+            prior = json.loads(path.read_text())
+        except (OSError, ValueError):
+            return
+        old = prior.get("source_freshness", {})
+        store, budget = self._acquisition, self.request_budget
+        hold = max(getattr(budget, "state", {}).get("hold_until", 0), budget._local_hold)
+        # An ordinary timer tick before the chosen deadline is not a deferral.
+        if (store.schedule["state"] in ("running", "stepped_down")
+                and old.get("schedule") == store.schedule and not budget.stopped
+                and old.get("budget", {}).get("hold_until") is None and hold <= store.now()):
+            return
+        fresh = self._source_freshness(prior, retained=True)
+        if (old.get("schedule") == fresh["schedule"]
+                and old.get("budget", {}).get("hold_until") == fresh["budget"]["hold_until"]):
+            return
+        prior["source_freshness"] = fresh
+        fd, name = tempfile.mkstemp(prefix=".freshness-", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as out:
+                json.dump(prior, out, indent=2, default=str)
+            os.replace(name, path)
+        finally:
+            if os.path.exists(name):
+                os.unlink(name)
+
+    def _intervals_request(self, url, **kwargs):
+        """One accounted send, including specialised reads and attachments."""
+        path = urlsplit(url).path.split("/")
+        attachment = kwargs.pop("budget_attachment", False)
+        if attachment:
+            # Each hop is anonymous, including when local netrc auth is configured.
+            kwargs.pop("headers", None)
+            kwargs.pop("cookies", None)
+            kwargs["auth"] = lambda prepared: prepared
+        if urlsplit(url).hostname != "intervals.icu":
+            if not attachment:
+                raise ValueError("unexpected API origin")
+            self._external_attachment_sends = getattr(self, "_external_attachment_sends", 0) + 1
+            return requests.get(url, timeout=kwargs.pop("timeout"), allow_redirects=False, **kwargs)
+        endpoint = path[5] if len(path) > 5 else (
+            "activity_detail" if path[3:4] == ["activity"] else "profile")
+        priority = "optional"
+        if attachment:
+            endpoint = "attachment"
+        elif getattr(self, "_budget_history", False):
+            endpoint = "history_" + endpoint
+        elif path[3:4] == ["athlete"] and endpoint in ("activities", "wellness", "events"):
+            if endpoint != "events" or len(path) == 6:
+                priority = "core"
+        if endpoint == "events" and (kwargs.get("params") or {}).get("category") == "INJURED,SICK":
+            endpoint = "health_events"
+        response = self.request_budget.request(
+            requests, "get", url, endpoint, priority, **kwargs)
+        if not attachment and 300 <= response.status_code < 400:
+            raise requests.exceptions.HTTPError("redirect not followed", response=response)
+        return response
     
     @property
     def script_hash(self) -> str:
@@ -5065,12 +6357,19 @@ class IntervalsSync:
             retry_after = None
             try:
                 response = send()
+            except RequestBudgetRefused as error:
+                if attempt > 1 and charge_instance_budget:
+                    self._read_retry_extra_attempts_used -= 1
+                error.had_send = attempt > 1
+                raise
             except (requests.exceptions.Timeout,
                     requests.exceptions.ConnectionError) as e:
                 error = e
             except requests.exceptions.RequestException:
                 raise
             else:
+                if charge_instance_budget and response.status_code == 429:
+                    return response
                 if response.status_code not in self.READ_RETRY_STATUSES:
                     return response
                 if response.status_code in (429, 503):
@@ -5086,6 +6385,19 @@ class IntervalsSync:
             time.sleep(delay)
 
     def _intervals_get(self, endpoint: str, params: Dict = None) -> Dict:
+        store = getattr(self, "_acquisition", None)
+        if store is not None and not getattr(self, "_budget_history", False):
+            group = {"": "profile", "activities": "activities", "wellness": "wellness",
+                     "events": "health_events" if (params or {}).get("category") == "INJURED,SICK" else "calendar",
+                     "power-curves": "aggregate_curves", "hr-curves": "aggregate_curves"}.get(endpoint)
+            if group is not None:
+                ttl = 3600 if group == "profile" else 21600 if group == "aggregate_curves" else (
+                    store.schedule["effective_interval_seconds"] or 60)
+                return store.acquire(group, endpoint, params,
+                                     lambda: self._fetch_intervals_json(endpoint, params), ttl)
+        return self._fetch_intervals_json(endpoint, params)
+
+    def _fetch_intervals_json(self, endpoint: str, params: Dict = None) -> Dict:
         """Fetch from Intervals.icu API"""
         if endpoint:
             url = f"{self.INTERVALS_BASE_URL}/athlete/{self.athlete_id}/{endpoint}"
@@ -5098,18 +6410,38 @@ class IntervalsSync:
         if endpoint == "activity-power-curves":
             # Descriptive season data has a strict one-send budget. No redirect
             # or retry may turn its one admission into multiple HTTP requests.
-            response = requests.get(url, headers=headers, params=params,
+            response = self._intervals_request(url, headers=headers, params=params,
                                     timeout=self.INTERVALS_READ_TIMEOUT, allow_redirects=False)
             if response.status_code != 200:
                 raise requests.exceptions.HTTPError("season_curve_read_failed", response=response)
         else:
             response = self._read_with_retry(
-                lambda: requests.get(url, headers=headers, params=params,
+                lambda: self._intervals_request(url, headers=headers, params=params,
                                      timeout=self.INTERVALS_READ_TIMEOUT))
         response.raise_for_status()
         return response.json()
 
     def _get_activity_messages(self, activity_id: str) -> Tuple[str, List[str]]:
+        store = getattr(self, "_acquisition", None)
+        if store is None:
+            return self._read_activity_messages(activity_id)
+        def fetch():
+            status, texts = self._read_activity_messages(activity_id)
+            if status == "deferred":
+                raise RequestBudgetRefused("messages deferred")
+            if status != "ok":
+                raise requests.exceptions.RequestException("messages unavailable")
+            return texts
+        try:
+            texts = store.acquire("messages", "activity/" + str(activity_id) + "/messages", {}, fetch, 21600)
+        except RequestBudgetRefused:
+            return "deferred", []
+        except requests.exceptions.RequestException:
+            return "unavailable", []
+        key, _ = store.key("activity/" + str(activity_id) + "/messages", {})
+        return ("ok" if store.consumed[key].get("status") == "fresh" else "deferred"), texts
+
+    def _read_activity_messages(self, activity_id: str) -> Tuple[str, List[str]]:
         """
         Fetch messages/notes for a completed activity.
 
@@ -5134,10 +6466,12 @@ class IntervalsSync:
         }
         try:
             response = self._read_with_retry(
-                lambda: requests.get(url, headers=headers,
+                lambda: self._intervals_request(url, headers=headers,
                                      timeout=self.INTERVALS_READ_TIMEOUT))
             response.raise_for_status()
             messages = response.json()
+        except RequestBudgetRefused:
+            return ("deferred", [])
         except Exception:
             self._messages_consecutive_failures += 1
             return ("unavailable", [])
@@ -5170,6 +6504,7 @@ class IntervalsSync:
         self._messages_consecutive_failures = 0
         return ("ok", texts)
     
+    @observe_source("activity_details")
     def _fetch_activity_intervals(self, activity_id: str) -> tuple:
         """
         Fetch interval segments for a single activity.
@@ -5196,7 +6531,9 @@ class IntervalsSync:
             "Accept": "application/json"
         }
         try:
-            response = requests.get(url, headers=headers, params={"intervals": "true"}, timeout=30)
+            response = self._intervals_request(url, headers=headers, params={"intervals": "true"}, timeout=30)
+        except RequestBudgetRefused:
+            return ("deferred", "request_budget")
         except requests.exceptions.Timeout:
             return ("transient", "timeout")
         except requests.exceptions.RequestException as e:
@@ -5270,6 +6607,8 @@ class IntervalsSync:
         if entry is None or (entry[2] < 2 and self._stream_failure_retryable(entry[0])):
             attempts = 1 if entry is None else entry[2] + 1
             result = self._request_activity_streams(activity_id)
+            if result == ("result", ("deferred", "request_budget")):
+                attempts -= 1
             entry = (result, self._last_retry_after_secs, attempts)
             memo[activity_id] = entry
         (kind, value), retry_after, _attempts = entry
@@ -5299,6 +6638,7 @@ class IntervalsSync:
         kind, value = result
         return kind == "result" and value[0] == "transient" and value[1] != "http_429"
 
+    @observe_source("activity_streams")
     def _request_activity_streams(self, activity_id: str) -> tuple:
         """
         Make the single /streams request for one activity.
@@ -5313,7 +6653,9 @@ class IntervalsSync:
             "Accept": "application/json"
         }
         try:
-            response = requests.get(url, headers=headers, timeout=30)
+            response = self._intervals_request(url, headers=headers, timeout=30)
+        except RequestBudgetRefused:
+            return ("result", ("deferred", "request_budget"))
         except requests.exceptions.Timeout:
             return ("result", ("transient", "timeout"))
         except requests.exceptions.RequestException as e:
@@ -5339,6 +6681,7 @@ class IntervalsSync:
                     response.headers.get("Retry-After"))
             return ("result", ("transient", f"http_{status_code}"))
 
+    @observe_source("activity_terrain")
     def _fetch_terrain_streams(self, activity_id: str) -> tuple:
         """
         Fetch latlng + altitude streams for terrain analysis.
@@ -5369,7 +6712,9 @@ class IntervalsSync:
             "Accept": "application/json"
         }
         try:
-            response = requests.get(url, headers=headers, timeout=30)
+            response = self._intervals_request(url, headers=headers, timeout=30)
+        except RequestBudgetRefused:
+            return ("transient", "request_budget")
         except requests.exceptions.Timeout:
             return ("transient", "timeout")
         except requests.exceptions.RequestException as e:
@@ -5405,6 +6750,7 @@ class IntervalsSync:
     POWER_CURVE_MAX_ACTIVITIES = 8
     POWER_CURVE_SECONDS = (1, 5, 60, 300, 1200, 3600)
 
+    @observe_source("activity_power")
     def _fetch_activity_power_curve(self, activity_id: str) -> tuple:
         """Exact per-activity watts only; transient failures never become truth."""
         if self._power_curve_fetches_used >= self.POWER_CURVE_MAX_ACTIVITIES:
@@ -5415,8 +6761,12 @@ class IntervalsSync:
                    "Accept": "application/json"}
         try:
             response = self._read_with_retry(
-                lambda: requests.get(url, headers=headers,
+                lambda: self._intervals_request(url, headers=headers,
                                      timeout=self.INTERVALS_READ_TIMEOUT))
+        except RequestBudgetRefused as error:
+            if not getattr(error, "had_send", False):
+                self._power_curve_fetches_used -= 1
+            return ("transient", "request_budget")
         except requests.exceptions.RequestException:
             return ("transient", "transport_error")
         if response.status_code in (404, 410):
@@ -5461,8 +6811,14 @@ class IntervalsSync:
 
         prev = previous_lookup.get(key, {})
         if isinstance(prev.get("power_curve"), dict):
+            self._adopt_native_cache("activity_power", key, all(
+                sec in {str(s) for s in self.POWER_CURVE_SECONDS}
+                and self._structure_number(watts) and watts >= 0
+                for sec, watts in prev["power_curve"].items()))
             return {"power_curve": within_duration(prev["power_curve"])}
         if prev.get("power_curve_status") == "failed":
+            error = prev.get("power_curve_error")
+            self._adopt_native_cache("activity_power", key, error in AcquisitionStore.TERMINAL_HTTP, error)
             return {k: prev[k] for k in ("power_curve_status", "power_curve_error") if k in prev}
         if key not in self._power_curve_run_cache:
             status, payload = self._fetch_activity_power_curve(key)
@@ -5482,6 +6838,7 @@ class IntervalsSync:
     DECOUPLING_MAX_ACTIVITIES = 8
     DECOUPLING_DETAIL_VERSION = 1
 
+    @observe_source("activity_decoupling")
     def _fetch_activity_power_vs_hr(self, activity_id: str) -> tuple:
         """Sibling of the curve read; only 404/410 are terminal cache truth."""
         if self._decoupling_fetches_used >= self.DECOUPLING_MAX_ACTIVITIES:
@@ -5492,8 +6849,12 @@ class IntervalsSync:
                    "Accept": "application/json"}
         try:
             response = self._read_with_retry(
-                lambda: requests.get(url, headers=headers,
+                lambda: self._intervals_request(url, headers=headers,
                                      timeout=self.INTERVALS_READ_TIMEOUT))
+        except RequestBudgetRefused as error:
+            if not getattr(error, "had_send", False):
+                self._decoupling_fetches_used -= 1
+            return ("transient", "request_budget")
         except requests.exceptions.RequestException:
             return ("transient", "transport_error")
         if response.status_code in (404, 410):
@@ -5673,6 +7034,20 @@ class IntervalsSync:
                 and cache.get("activity_key") == fingerprint
                 and (isinstance(prev.get("decoupling_detail"), dict) or cache.get("status") == "failed")):
             result = {k: prev[k] for k in ("decoupling_detail", "decoupling_cache") if k in prev}
+            detail = prev.get("decoupling_detail") or {}
+            if cache.get("status") != "failed":
+                valid = (cache.get("status") == "ok" and detail.get("method") == "intervals_power_vs_hr_v1"
+                    and detail.get("power_trend") in ("steady", "rising", "falling")
+                    and all(self._structure_number(detail.get(k)) for k in
+                            ("power_hr_first", "power_hr_second", "upstream_decoupling", "bucket_decoupling"))
+                    and all(isinstance(detail.get(half), dict) and all(
+                        self._structure_number(detail[half].get(field)) for field in
+                        ("duration_s", "span_s", "paired_s", "avg_power_w", "avg_hr_bpm", "work_kj"))
+                        for half in ("early", "late")))
+                self._adopt_native_cache("activity_decoupling", key[0], valid)
+            else:
+                error = cache.get("error")
+                self._adopt_native_cache("activity_decoupling", key[0], error in AcquisitionStore.TERMINAL_HTTP, error)
         else:
             if key not in self._decoupling_run_cache:
                 status, payload = self._fetch_activity_power_vs_hr(key[0])
@@ -6634,7 +8009,7 @@ class IntervalsSync:
             summary = self._activity_plan_match(act)
             if summary is not None:
                 entry["structure_summary"] = summary
-            for key in ("power_curve", "power_curve_status", "power_curve_error", "plan_pairing", "dfa_rollup",
+            for key in ("power_curve", "power_curve_status", "power_curve_error", "plan_pairing", "dfa_rollup", "chat_notes",
                         "decoupling_detail", "decoupling_cache"):
                 if key in act:
                     entry[key] = act[key]
@@ -6678,10 +8053,19 @@ class IntervalsSync:
         
         # Copy-forward: success — refresh display blocks from canonical fields
         if "terrain_summary" in prev:
+            terrain = prev["terrain_summary"]
+            self._adopt_native_cache("activity_terrain", act_id, isinstance(terrain, dict)
+                and all(self._structure_number(terrain.get(k)) and terrain[k] >= 0
+                        for k in ("total_distance_km", "total_elevation_m", "elevation_per_km"))
+                and all(isinstance(terrain.get(k), list) and all(isinstance(v, dict) for v in terrain[k])
+                        for k in ("climbs", "descents")))
             return {"terrain_summary": self._refresh_terrain_display(prev["terrain_summary"], athlete_units)}
         # Copy-forward: terminal non-success
         prev_status = prev.get("terrain_status")
         if prev_status in {"no_gps", "no_elevation", "failed"}:
+            outcome = prev.get("terrain_error") if prev_status == "failed" else prev_status
+            self._adopt_native_cache("activity_terrain", act_id,
+                prev_status != "failed" or outcome in AcquisitionStore.TERMINAL_HTTP, outcome)
             out = {"terrain_status": prev_status}
             if "terrain_error" in prev:
                 out["terrain_error"] = prev["terrain_error"]
@@ -7746,7 +9130,9 @@ class IntervalsSync:
                 status, payload = self._fetch_activity_intervals(act_id)
                 retry_after = self._last_retry_after_secs
                 token = act.get("icu_sync_date")
-                if status == "ok":
+                if status == "deferred":
+                    pass
+                elif status == "ok":
                     segments, zone_basis = self._format_interval_segments(payload, act)
                     upd["intervals"] = segments
                     upd["zone_basis"] = zone_basis
@@ -7803,7 +9189,9 @@ class IntervalsSync:
                 status, payload = self._fetch_activity_streams(
                     act_id, ["dfa_a1", "artifacts", "heartrate", "watts", "time"])
                 retry_after = self._last_retry_after_secs
-                if status == "terminal_error":
+                if status == "deferred":
+                    pass
+                elif status == "terminal_error":
                     state["streams"] = self._advance_endpoint_state(
                         state.get("streams"), "streams", "tombstone", "terminal_error",
                         now, act_start, paired)
@@ -7899,7 +9287,34 @@ class IntervalsSync:
                 continue
             pruned_state[act_id] = state
 
+        # Terminal endpoint tombstones are settled even without a payload row.
+        for aid, state in pruned_state.items():
+            for endpoint, group in (("intervals", "activity_details"), ("streams", "activity_streams")):
+                ep = state.get(endpoint, {})
+                refresh = ep.get("refresh") or {}
+                if ((ep.get("status") == "tombstone" and ep.get("reason") == "terminal_error")
+                        or (ep.get("status") == "ok" and refresh.get("status") == "exhausted"
+                            and refresh.get("reason") == "terminal_error")):
+                    self._adopt_native_cache(group, aid, True, "resource_gone")
+
         # Build intervals.json
+        # Only settled, retained payloads qualify. Pending refreshes and newly
+        # fetched payloads keep their real observation or existing failure state.
+        for entry in all_entries:
+            aid = str(entry.get("activity_id"))
+            state = pruned_state.get(aid, {})
+            for endpoint, group, payload in (("intervals", "activity_details", entry.get("intervals")),
+                                             ("streams", "activity_streams", entry.get("dfa"))):
+                ep = state.get(endpoint, {})
+                if not payload or endpoint in updates.get(aid, {}) or (endpoint == "streams" and "dfa" in updates.get(aid, {})):
+                    continue
+                if ep.get("status", "ok") != "ok" or ep.get("refresh"):
+                    continue
+                valid = (isinstance(payload, list) and all(isinstance(v, dict) for v in payload)
+                         if endpoint == "intervals" else isinstance(payload, dict)
+                         and isinstance(payload.get("quality"), dict)
+                         and type(payload.get("quality", {}).get("sufficient")) is bool)
+                self._adopt_native_cache(group, aid, valid)
         self._intervals_data = {
             "generated_at": now_iso,
             "interval_data_note": self.INTERVAL_DATA_NOTE,
@@ -8191,8 +9606,10 @@ class IntervalsSync:
         for endpoint in ("folders", "workouts"):
             url = f"{self.INTERVALS_BASE_URL}/athlete/{self.athlete_id}/{endpoint}"
             try:
-                response = requests.get(url, headers=headers,
+                response = self._intervals_request(url, headers=headers,
                                         timeout=self.SAVED_WORKOUTS_TIMEOUT_SECS)
+            except RequestBudgetRefused:
+                raise
             except requests.exceptions.Timeout:
                 return False, None, None, {"endpoint": endpoint, "kind": "timeout",
                                            "status": None, "retry_after": None}
@@ -8677,8 +10094,13 @@ class IntervalsSync:
                 ok = error is None
             if ok:
                 data = self._sw_build_success(prev, folders_raw, workouts_raw, now)
+                if getattr(self, "_acquisition", None) is not None:
+                    self._acquisition.companion_success["saved_workouts"] = now.timestamp()
             else:
                 data = self._sw_build_failure(prev, error, now)
+        except RequestBudgetRefused:
+            self._saved_workouts_data = None
+            return None
         except Exception:
             # Bounded, sanitized classification only: no exception text, which could
             # carry a URL, a token or athlete data.
@@ -8801,10 +10223,12 @@ class IntervalsSync:
 
         new_entries = []
         self._planned_routes = {}
+        self._route_source_ids = set()
         for evt in events:
             att = self._select_route_attachment(evt.get("attachments"))
             if att is None:
                 continue
+            self._route_source_ids.add(hashlib.sha256(str(att.get("url")).encode()).hexdigest())
             evt_id, att_id = evt.get("id"), att.get("id")
             filename = str(att.get("filename") or "")
             # Detect filename replacement; potentially rotating URLs are not identity.
@@ -8825,6 +10249,14 @@ class IntervalsSync:
                               cache_hit=False)
             # A legacy error dictionary or an incomplete parser result is never terrain.
             result = self._validated_route_result(result)
+            if result.get("cache_hit") and result["route_status"] == "ok":
+                # A prior capacity refusal can leave valid native terrain without
+                # private provenance. Reuse remains valid; its acquisition age is unknown.
+                self._adopt_native_cache("route_attachments",
+                    hashlib.sha256(str(att.get("url")).encode()).hexdigest(), True)
+            if result["route_status"] in ("unsupported_format", "no_elevation"):
+                self._adopt_native_cache("route_attachments",
+                    hashlib.sha256(str(att.get("url")).encode()).hexdigest(), True, result["route_status"])
             revision = result.pop("revision", None)
             entry = {
                 "event_id": evt_id,
@@ -8935,6 +10367,7 @@ class IntervalsSync:
             out.pop("route_geometry", None)
         return out
 
+    @observe_source("route_attachments")
     def _download_and_parse_route(self, url: str, filename: str,
                                   athlete_units: Optional[Dict[str, str]] = None) -> Dict:
         """Download and analyze a new or retry-due attachment, recording its hash."""
@@ -8943,12 +10376,30 @@ class IntervalsSync:
         if not url:
             return {"route_status": "failed", "route_error": "missing_url"}
         try:
-            response = requests.get(url, timeout=30)
+            seen = set()
+            for hop in range(6):  # Initial download plus at most five redirects.
+                target = urlsplit(url)
+                if target.scheme not in ("http", "https") or not target.hostname:
+                    raise requests.exceptions.RequestException("invalid attachment URL")
+                # Preserve signed query parameters, but never send URL userinfo.
+                url = target._replace(netloc=target.netloc.rsplit("@", 1)[-1],
+                                      fragment="").geturl()
+                if url in seen:
+                    raise requests.exceptions.TooManyRedirects("attachment redirect loop")
+                seen.add(url)
+                response = self._intervals_request(url, timeout=30, budget_attachment=True)
+                if response.status_code not in (301, 302, 303, 307, 308):
+                    break
+                location = response.headers.get("Location")
+                response.close()
+                if not isinstance(location, str) or not location.strip() or hop == 5:
+                    raise requests.exceptions.RequestException("invalid attachment redirect")
+                url = urljoin(url, location.strip())
             if response.status_code != 200:
                 return {"route_status": "failed",
                         "route_error": f"download failed (HTTP {response.status_code})"}
             content = response.content
-        except requests.exceptions.RequestException:
+        except (requests.exceptions.RequestException, ValueError):
             return {"route_status": "failed", "route_error": "download failed"}
         if not content:
             return {"route_status": "failed", "route_error": "empty_file"}
@@ -9533,6 +10984,12 @@ class IntervalsSync:
         - VO2max, sleep quality/hours, etc.
         """
         today = datetime.now().strftime("%Y-%m-%d")
+        if hasattr(self, "_wellness_union") and not getattr(self, "_wellness_separate", False):
+            row = next((w for w in self._wellness_union if w.get("id") == today), None)
+            if row is not None:
+                return AcquisitionStore.clone(row)
+            # A missing list row cannot prove that the day object is absent.
+            # Preserve its direct-read fallback, including generated-only fields.
         try:
             data = self._intervals_get(f"wellness/{today}")
             return data
@@ -9738,12 +11195,15 @@ class IntervalsSync:
         parts = [p.strip() for p in (city, state, country) if p and p.strip()]
         return ", ".join(parts) if parts else None
     
+    @preserve_budget_outputs
     def collect_training_data(self, days_back: int = 7) -> Dict:
         """Collect all training data for LLM analysis"""
+        if not self.begin_tick():
+            raise RequestBudgetRefused("top-level tick is not due")
         # v3.157: stream responses are reused only within this sync run.
         self._stream_responses = {}
         # Extended range for ACWR calculation (need 28 days minimum)
-        days_for_acwr = 28
+        days_for_acwr = self.ACTIVITY_WINDOW_DAYS
         oldest_extended = (datetime.now() - timedelta(days=days_for_acwr - 1)).strftime("%Y-%m-%d")
         oldest_display = (datetime.now() - timedelta(days=days_back - 1)).strftime("%Y-%m-%d")
         newest = datetime.now().strftime("%Y-%m-%d")
@@ -9818,14 +11278,30 @@ class IntervalsSync:
                              if a.get("start_date_local", "")[:10] >= oldest_display]
         
         print("Fetching wellness data...")
-        wellness = self._intervals_get("wellness", {"oldest": oldest_display, "newest": newest})
-        
-        # One fresh 35-date read for sleep context. Every existing consumer keeps
-        # its exact 28-date input, in source order, including duplicate rows.
         oldest_sleep = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=34)).strftime("%Y-%m-%d")
-        wellness_sleep = self._intervals_get("wellness", {"oldest": oldest_sleep, "newest": newest})
+        self._wellness_union = self._intervals_get("wellness", {
+            "oldest": min(oldest_display, oldest_sleep), "newest": newest})
+        union_oldest = min(oldest_display, oldest_sleep)
+        wellness_status = self._acquisition.source_status("wellness")
+        current_wellness = wellness_status is None or wellness_status["status"] == "fresh"
+        self._wellness_separate = current_wellness and any(not isinstance(w.get("id"), str)
+            or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", w["id"])
+            or not union_oldest <= w["id"] <= newest for w in self._wellness_union)
+        def wellness_slice(oldest, newest):
+            # A malformed or out-of-range row cannot safely be assigned to a
+            # narrower endpoint. Preserve the original endpoint's raw response.
+            if self._wellness_separate:
+                if oldest == union_oldest:
+                    return AcquisitionStore.clone(self._wellness_union)
+                return self._intervals_get("wellness", {"oldest": oldest, "newest": newest})
+            return [AcquisitionStore.clone(w) for w in self._wellness_union
+                    if isinstance(w.get("id"), str) and oldest <= w["id"] <= newest]
+        wellness = wellness_slice(oldest_display, newest)
+        wellness_sleep = wellness_slice(oldest_sleep, newest)
+        acquired = wellness_status["source_acquired_at"] if wellness_status else None
         sleep_context = self._build_sleep_context(
-            wellness_sleep, today, athlete.get("timezone"), datetime.now(timezone.utc))
+            wellness_sleep, today, athlete.get("timezone"),
+            datetime.fromisoformat(acquired.replace("Z", "+00:00")) if acquired else datetime.now(timezone.utc))
         wellness_extended = [w for w in wellness_sleep if isinstance(w, dict)
                              and isinstance(w.get("id"), str)
                              and oldest_extended <= w["id"] <= newest]
@@ -9849,7 +11325,7 @@ class IntervalsSync:
         print("Fetching fitness metrics...")
         try:
             yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-            yesterday_wellness = self._intervals_get("wellness", {"oldest": yesterday, "newest": yesterday})
+            yesterday_wellness = wellness_slice(yesterday, yesterday)
             yesterday_data = yesterday_wellness[0] if yesterday_wellness else {}
             
             # PMC decay constants
@@ -10175,6 +11651,7 @@ class IntervalsSync:
         data = {
             "report_intensity_schema": self._report_intensity_schema(),
             "READ_THIS_FIRST": {
+                "state_note": DataOverview.STATE_NOTE,
                 "interval_data_note": self.INTERVAL_DATA_NOTE,
                 "report_intensity_note": self.REPORT_INTENSITY_NOTE,
                 "instruction_for_ai": "DO NOT calculate totals from individual activities. Use the pre-calculated values in 'summary', 'weekly_summary', and 'derived_metrics' sections below. These are already computed accurately from the API data.",
@@ -10232,7 +11709,7 @@ class IntervalsSync:
             },
             "metadata": {
                 "athlete_id": "REDACTED",
-                "last_updated": datetime.now().isoformat(),
+                "last_updated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "data_range_days": days_back,
                 "extended_range_days": days_for_acwr,
                 "version": self.VERSION
@@ -10357,6 +11834,8 @@ class IntervalsSync:
         if weight_signal:
             data["current_status"]["weight"] = weight_signal
 
+        data["source_freshness"] = self._source_freshness(data)
+        self._acquisition.prune(data)
         return data
 
     def _build_sleep_context(self, wellness, as_of_date, timezone_name, source_updated_at):
@@ -11264,7 +12743,7 @@ class IntervalsSync:
             "vo2max": vo2max,
             
             # Validation metadata
-            "calculation_timestamp": datetime.now().isoformat(),
+            "calculation_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "data_quality": {
                 "hrv_data_points": len(hrv_values_7d),
                 "rhr_data_points": len(rhr_values_7d),
@@ -16042,7 +17521,15 @@ class IntervalsSync:
             print(f"  history.json is {age_days} days old — fresh enough")
         return False
     
+    @preserve_budget_outputs
     def generate_history(self) -> Dict:
+        self._budget_history = True
+        try:
+            return self._generate_history_impl()
+        finally:
+            self._budget_history = False
+
+    def _generate_history_impl(self) -> Dict:
         """
         Generate history.json with tiered granularity.
         
@@ -16253,6 +17740,8 @@ class IntervalsSync:
         
         # Save locally (atomic: a failed write leaves any previous file intact)
         history_path = self._history_write(history)
+        if getattr(self, "_acquisition", None) is not None:
+            self._acquisition.companion_success["history"] = now.timestamp()
         print(f"  ✅ history.json saved to {history_path} ({len(daily_90d)} daily, {len(weekly_180d)} weekly rows)")
         
         return history
@@ -16342,6 +17831,8 @@ class IntervalsSync:
         that fails later discards it, so the next runner attempts again once the
         run budget (_history_run_budget_hold) allows it.
         """
+        if isinstance(error, RequestBudgetRefused):
+            return None
         try:
             history_path = self.data_dir / self.HISTORY_FILE
             if not history_path.exists():
@@ -18129,6 +19620,9 @@ class IntervalsSync:
                                 for s in old.get("steps", [])))
                     and cache.get("event_key") == event_key and due and now < due):
                 result[aid] = old
+                if cache.get("status") not in ("stale", "unavailable") and old.get("status") not in ("unavailable", "unknown"):
+                    self._adopt_native_cache("activity_details", aid, True)
+                    self._adopt_native_cache("activity_streams", aid, True)
                 continue
             reason, failures, retry_after = None, [], 0
             if len(matches) > 1:
@@ -18147,6 +19641,10 @@ class IntervalsSync:
                     failures.append(reason)
             plan_key = self._plan_definition_key(event.get("workout_doc")) if isinstance(event, dict) else None
             status, streams = self._fetch_activity_streams(aid, ["time", "watts", "heartrate", "cadence"])
+            if status == "deferred":
+                if old:
+                    result[aid] = old
+                continue
             retry_after = max(retry_after, getattr(self, "_last_retry_after_secs", None) or 0)
             if status != "ok":
                 streams = {}
@@ -18473,6 +19971,11 @@ class IntervalsSync:
                 retained = (previous_latest_lookup.get(str(act.get("id"))) or {}).get("dfa_rollup")
                 if isinstance(retained, dict) and retained.get("date") == activity["date"]:
                     activity["dfa_rollup"] = retained
+                    block = retained.get("dfa")
+                    self._adopt_native_cache("activity_streams", act.get("id"),
+                        retained.get("schema_version") == 2 and isinstance(block, dict)
+                        and isinstance(block.get("quality"), dict)
+                        and type(block.get("quality", {}).get("sufficient")) is bool)
 
             # Terrain summary (v3.107) — fetched on first encounter, copied
             # forward thereafter via previous_latest_lookup. Indoor activities
@@ -18514,9 +20017,11 @@ class IntervalsSync:
                     # with "not retrieved". The marker is emitted ONLY on degradation,
                     # so a healthy payload is byte-identical to before.
                     msg_status, notes = self._get_activity_messages(activity_id)
+                    if msg_status == "deferred" and not notes:
+                        notes = (previous_latest_lookup.get(str(activity_id)) or {}).get("chat_notes", [])
                     if notes:
                         activity["chat_notes"] = notes
-                    if msg_status == "unavailable":
+                    if msg_status in ("unavailable", "deferred"):
                         activity["chat_notes_status"] = "unavailable"
             
             formatted.append(activity)
@@ -19546,6 +21051,10 @@ class IntervalsSync:
                 "newest": newest_health,
                 "category": ",".join(sorted(self.HEALTH_EVENT_CATEGORIES))
             })
+            store = getattr(self, "_acquisition", None)
+            health_status = store.source_status("health_events") if store else None
+            if health_status and health_status["status"] != "fresh":
+                source_status = "partial"
         except requests.exceptions.RequestException as e:
             # Degraded, not fatal: fall back to the events already fetched. They cover
             # a narrower window, so coverage is incomplete and must be reported as such.
@@ -19619,6 +21128,10 @@ class IntervalsSync:
                 except ValueError:
                     days_old = None
             freshness = "current" if days_old == 0 else "stale"
+            store = getattr(self, "_acquisition", None)
+            wellness_status = store.source_status("wellness") if store else None
+            if wellness_status and wellness_status["status"] != "fresh":
+                freshness = "stale"
             wellness_injury = {
                 "value": injury,
                 "date": injury_date,
@@ -21230,10 +22743,38 @@ def main():
         sync.data_dir = Path(args.output).absolute().parent
         sync.data_dir.mkdir(parents=True, exist_ok=True)
     sync._force_saved_workouts = args.refresh_saved_workouts
+    sync.check_interval_seconds = sync._check_interval(config) if args.output else 60
     # Default-on; either off switch disables forecast requests. See privacy/setup docs.
     sync.route_weather_enabled = RouteWeather.enabled(config)
     sync.route_weather_default_start = RouteWeather.default_start(config)
     
+    try:
+        _run_sync(sync, args, github_token, github_repo)
+    except RequestBudgetRefused as error:
+        print(f"Sync deferred: {error}")
+    finally:
+        try:
+            line = sync.request_budget.summary()
+        except RequestBudgetRefused as error:
+            line = (f"Intervals requests: run={sync.request_budget.count}, today=unknown, allowance_left=unknown, "
+                    f"hold={error}, scope={sync.request_budget.SCOPE}")
+        print(line)
+        if not sync.request_budget.degraded and sync.request_budget.root is not None:
+            try:
+                sync.request_budget.root.mkdir(mode=0o700, parents=True, exist_ok=True)
+                if os.name != "nt":
+                    os.chmod(sync.request_budget.root, 0o700)
+                    os.chmod(sync.request_budget.root.parent, 0o700)
+                fd = os.open(sync.request_budget.root / "budget.log", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+                with os.fdopen(fd, "a", encoding="utf-8") as log:
+                    if os.name != "nt":
+                        os.fchmod(log.fileno(), 0o600)
+                    log.write(line + "\n")
+            except OSError:
+                sync.request_budget._degrade()
+
+
+def _run_sync(sync, args, github_token, github_repo):
     # Manual history generation
     if args.generate_history:
         print(f"\n📊 Generating history.json (up to 3 years)...")
@@ -21255,6 +22796,10 @@ def main():
     if not args.output and (not github_token or not github_repo):
         print("\n❌ Error: Missing GitHub credentials for push.")
         print("   Either use --output to save locally, or configure GitHub in --setup")
+        return
+
+    if not sync.begin_tick():
+        sync._save_schedule_transition()
         return
     
     print(f"\n🔄 Fetching {args.days} days of data (extended 28 days for ACWR)...")

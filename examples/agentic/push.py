@@ -85,6 +85,456 @@ class WriteStatusError(Exception):
         self.detail = detail
 
 
+class RequestBudgetRefused(Exception):
+    """No request was sent; preserve prior data and attempt state."""
+
+
+# Shared request controller. Keep this block identical in both standalone scripts.
+class RequestBudget:
+    PROVIDER_DAILY_LIMIT = 8000
+    EXTERNAL_RESERVE = 1000
+    SYNC_DAILY_LIMIT = 7000
+    WINDOW_SECONDS = 900
+    WINDOW_LIMIT = 200
+    RUN_LIMIT = 128
+    SEND_INTERVAL = 0.5
+    CORE_PER_RUN = 4
+    UNKNOWN_RUN_LIMIT = 3
+    STATE_ENV = "SECTION11_STATE_DIR"
+    SCOPE = "local_data_folder_key_athlete"
+
+    @staticmethod
+    def fingerprint(athlete_id, api_key):
+        import hashlib
+        identity = json.dumps([str(athlete_id).strip(), api_key.strip()],
+                              separators=(",", ":")).encode()
+        return hashlib.sha256(identity).hexdigest()[:32]
+
+    @classmethod
+    def state_base(cls, data_dir, environ=None):
+        env = os.environ if environ is None else environ
+        if data_dir is None:
+            raise OSError("data folder unavailable")
+        if env.get(cls.STATE_ENV):
+            return Path(env[cls.STATE_ENV]).expanduser() / "request-budget"
+        return Path(data_dir) / "state" / "request-budget"
+
+    def __init__(self, data_dir, caller, error_type, identity, clock=None, sleep=None, jitter=None):
+        from datetime import timezone as utc_timezone
+        import random
+        self.utc = utc_timezone.utc
+        self.root = None
+        self.data_dir = Path(data_dir).resolve() if data_dir is not None else None
+        # Even an explicit shared base must not coordinate different data folders.
+        import hashlib
+        self.identity = hashlib.sha256(json.dumps(
+            [str(self.data_dir), identity], separators=(",", ":")).encode()).hexdigest()[:32]
+        self.caller, self.error_type = caller, error_type
+        self.clock = clock or time.time
+        self.sleep = sleep or time.sleep
+        self.jitter = jitter or random.random
+        self.count = 0
+        self.core_count = 0
+        self.degraded = False
+        self._last_local_send = None
+        self._local_hold = 0
+        self.stopped = False
+        self.refused = False
+        self.refusals = 0
+        self.started = False
+        self._handle = None
+        self._reserved = False
+        self._write_sent = False
+        try:
+            self.root = self.state_base(self.data_dir).resolve() / self.identity
+        except OSError:
+            self._degrade()
+
+    def _degrade(self):
+        if not self.degraded:
+            import sys
+            print("Warning: private request state unavailable; capacity unknown; "
+                  "at most 3 core reads, no optional reads or writes this run.",
+                  file=sys.stderr)
+        self.degraded = True
+
+    def _load_storage(self):
+        if self.degraded:
+            return
+        try:
+            self._load()
+        except self.error_type:
+            raise
+        except OSError:
+            self._degrade()
+
+    def _save_storage(self):
+        try:
+            self._save()
+        except OSError:
+            self._degrade()
+
+    def _refuse(self, reason):
+        self.refused = True
+        self.refusals += 1
+        raise self.error_type("request budget: " + reason)
+
+    def _atomic(self, path, value):
+        import tempfile
+        fd, name = tempfile.mkstemp(prefix=".state-", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as out:
+                json.dump(value, out, separators=(",", ":"), allow_nan=False)
+                out.flush()
+                os.fsync(out.fileno())
+            os.replace(name, path)
+        finally:
+            if os.path.exists(name):
+                os.unlink(name)
+
+    def _lock(self):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def locked():
+            if self.degraded:
+                yield
+                return
+            if self._handle is not None:
+                yield
+                return
+            handle = None
+            try:
+                self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
+                if os.name != "nt":
+                    os.chmod(self.root, 0o700)
+                    os.chmod(self.root.parent, 0o700)
+                    os.chmod(self.root.parent.parent, 0o700)
+                fd = os.open(self.root / "ledger.lock", os.O_RDWR | os.O_CREAT, 0o600)
+                handle = os.fdopen(fd, "a+b")
+                if os.name != "nt":
+                    os.fchmod(handle.fileno(), 0o600)
+                if os.name == "nt":
+                    import msvcrt
+                    handle.seek(0, 2)
+                    if handle.tell() == 0:
+                        handle.write(b"0")
+                        handle.flush()
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                if handle is not None:
+                    handle.close()
+                self._degrade()
+                yield
+                return
+            self._handle = handle
+            try:
+                yield
+            finally:
+                self._handle = None
+                handle.close()
+        return locked()
+
+    def _day(self, stamp):
+        return datetime.fromtimestamp(stamp, self.utc).strftime("%Y-%m-%d")
+
+    @staticmethod
+    def _number(value):
+        return type(value) in (float, int) and math.isfinite(value) and value >= 0
+
+    def _load(self):
+        now = self.clock()
+        if not self._number(now):
+            self._refuse("invalid clock")
+        anchor_path = self.root / "ledger.anchor"
+        state_path = self.root / "ledger.json"
+        try:
+            anchor = json.loads(anchor_path.read_text())
+            if not self._number(anchor["high_water"]) or not self._number(anchor.get("hold_until", 0)):
+                raise ValueError()
+            high = max(now, anchor["high_water"])
+        except FileNotFoundError:
+            if state_path.exists():
+                self._refuse("missing recovery anchor")
+            high = now
+            anchor = None
+        except (ValueError, KeyError, TypeError):
+            self._refuse("invalid recovery anchor")
+        day = self._day(high)
+        try:
+            state = json.loads(state_path.read_text())
+            def require(valid):
+                if not valid:
+                    raise ValueError("invalid private state")
+            require(state["version"] == 1 and isinstance(state["days"], dict))
+            require(self._number(state["high_water"]) and self._number(state["hold_until"]))
+            require(type(state["backoff"]) is int and 0 <= state["backoff"] <= 5)
+            require(isinstance(state["window"], list))
+            require(all(self._number(t) for t in state["window"]))
+            require(self._number(state["last_send"]))
+            require(isinstance(state["runs"], list) and all(self._number(t) for t in state["runs"]))
+            for key, row in state["days"].items():
+                require(self._day(datetime.strptime(key, "%Y-%m-%d").replace(tzinfo=self.utc).timestamp()) == key)
+                require(isinstance(row, dict))
+                for caller in ("sync", "push"):
+                    require(isinstance(row[caller], dict))
+                    require(all(type(n) is int and n >= 0 for n in row[caller].values()))
+            high = max(high, state["high_water"])
+            day = self._day(high)
+        except (FileNotFoundError, ValueError, KeyError, TypeError):
+            # A durable anchor distinguishes first use from lost/corrupt state.
+            # Exhaust the anchored day; repeated restarts cannot replenish it.
+            state = {"version": 1, "days": {}, "window": [], "runs": [],
+                     "high_water": high, "hold_until": high if anchor else 0,
+                     "last_send": high if anchor else 0, "backoff": 0,
+                     "last_run": {}}
+            if anchor:
+                anchored_day = self._day(anchor["high_water"])
+                state["days"][anchored_day] = {
+                    "sync": {"recovery_unknown": self.SYNC_DAILY_LIMIT},
+                    "push": {"recovery_unknown": self.EXTERNAL_RESERVE}}
+                state["hold_until"] = max(anchor["high_water"] + self.WINDOW_SECONDS,
+                                          anchor.get("hold_until", 0))
+        state["high_water"] = high
+        state["window"] = [t for t in state["window"] if t > high - self.WINDOW_SECONDS]
+        state["days"].setdefault(day, {"sync": {}, "push": {}})
+        # Preserve all daily counts. The only reset is selecting a later UTC day.
+        if not self.started:
+            if self.caller == "sync":
+                state["runs"] = (state["runs"] + [high])[-16:]
+            state["last_run"] = {"caller": self.caller, "count": 0, "core": 0, "at": high}
+            self.started = True
+        self.state, self.now, self.day = state, high, day
+        self._save()
+        if now < high:
+            self._refuse("clock rollback; waiting for the recorded clock")
+
+    def _save(self):
+        # Write anchor first: interruption cannot turn a lost state into first use.
+        self._atomic(self.root / "ledger.anchor", {"high_water": self.state["high_water"],
+                                                 "hold_until": self.state["hold_until"]})
+        self._atomic(self.root / "ledger.json", self.state)
+
+    def _effective_allowances(self):
+        reported = getattr(self, "state", {}).get("provider_limit", self.PROVIDER_DAILY_LIMIT)
+        if type(reported) is not int or reported < 0:
+            reported = self.PROVIDER_DAILY_LIMIT
+        daily = min(self.PROVIDER_DAILY_LIMIT, reported)
+        return daily, min(self.SYNC_DAILY_LIMIT, max(0, daily - self.EXTERNAL_RESERVE))
+
+    def _remaining(self):
+        row = self.state["days"][self.day]
+        sync = sum(row["sync"].values())
+        total = sync + sum(row["push"].values())
+        daily, sync_limit = self._effective_allowances()
+        return min(daily - total, sync_limit - sync) if self.caller == "sync" else daily - total
+
+    def expected_core(self):
+        if hasattr(self, "scheduled_reserve"):
+            return self.scheduled_reserve()
+        runs = self.state["runs"]
+        gaps = [b - a for a, b in zip(runs, runs[1:]) if b > a]
+        # Until spacing is observed, use the existing 30-minute hosted cadence.
+        spacing = max(60, min(gaps[-8:])) if gaps else 1800
+        tomorrow = (datetime.fromtimestamp(self.now, self.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)).timestamp()
+        future = max(0, math.ceil((tomorrow - self.now) / spacing) - 1)
+        current = max(0, self.CORE_PER_RUN - self.core_count)
+        return future * self.CORE_PER_RUN + current
+
+    def _admit(self, priority, needed=1, method="get"):
+        hold = max(self._local_hold, getattr(self, "state", {}).get("hold_until", 0))
+        if self.stopped or self.clock() < hold:
+            self._refuse("provider hold active")
+        if self.degraded:
+            if priority != "core" or method != "get" or self.count + needed > self.UNKNOWN_RUN_LIMIT:
+                self._refuse("capacity unknown; conservative core-read allowance only")
+            return
+        if self.count + needed > self.RUN_LIMIT:
+            self._refuse("invocation allowance exhausted")
+        if len(self.state["window"]) + needed > self.WINDOW_LIMIT:
+            self._refuse("rolling allowance exhausted")
+        if self._remaining() < needed:
+            self._refuse("daily allowance exhausted")
+        if priority == "optional" and self._remaining() < needed + self.expected_core():
+            self._refuse("remaining allowance reserved for core reads")
+
+    def reserve_write(self):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def reserved():
+            if self._reserved:
+                yield
+                return
+            with self._lock():
+                self._load_storage()
+                if self.degraded:
+                    self._refuse("capacity unknown; cannot reserve a verified write")
+                self._admit("core", 3)
+                self._reserved, self._write_sent = True, False
+                try:
+                    yield
+                finally:
+                    self._reserved = False
+        return reserved()
+
+    def _hold(self, response):
+        from email.utils import parsedate_to_datetime
+        received = self.clock()
+        raw = str(getattr(response, "headers", {}).get("Retry-After", "")).strip()
+        delay = None
+        if raw.isascii() and raw.isdigit():
+            delay = int(raw)
+        elif raw:
+            try:
+                stamp = parsedate_to_datetime(raw)
+                if stamp.tzinfo is not None:
+                    delay = max(0, stamp.timestamp() - received)
+            except (ValueError, TypeError, OverflowError):
+                pass
+        state = getattr(self, "state", {})
+        if delay is None:
+            delay = min(900, 60 * 2 ** state.get("backoff", 0) * (1 + self.jitter() * .25))
+        self._local_hold = max(self._local_hold, received + delay)
+        self.stopped = True
+        if not self.degraded:
+            self.state["backoff"] = min(5, self.state["backoff"] + 1)
+            self.state["high_water"] = max(self.state["high_water"], received)
+            self.state["hold_until"] = max(self.state["hold_until"], self._local_hold)
+            self._save_storage()
+
+    def private_log(self, line):
+        if self.degraded or self.root is None:
+            return
+        try:
+            fd = os.open(self.root / "budget.log", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            with os.fdopen(fd, "a", encoding="utf-8") as out:
+                if os.name != "nt":
+                    os.fchmod(out.fileno(), 0o600)
+                out.write(line + "\n")
+        except OSError:
+            self._degrade()
+
+    def _provider_headers(self, response):
+        if self.degraded:
+            return
+        headers = getattr(response, "headers", {})
+        seen = self.state.setdefault("header_days", {}).setdefault(self._day(self.clock()), [])
+        for name in ("X-RateLimit-Limit", "X-RateLimit-Remaining"):
+            raw = headers.get(name)
+            if raw is None:
+                continue
+            safe = "".join(c for c in str(raw)[:256] if " " <= c <= "~")
+            if name not in seen:
+                self.private_log("Provider header " + name + ": " + safe)
+                seen.append(name)
+            if name == "X-RateLimit-Limit":
+                parts = safe.split(",")
+                if len(parts) == 2 and all(p.strip().isascii() and p.strip().isdigit() for p in parts):
+                    self.state["provider_limit"] = min(
+                        self.state.get("provider_limit", self.PROVIDER_DAILY_LIMIT), int(parts[1]))
+        self._save_storage()
+
+    def _dirty_write(self, url):
+        from urllib.parse import urlsplit
+        path = urlsplit(url).path.split("/")
+        if path[3:4] == ["activity"] and len(path) > 4:
+            groups = ["activities", "messages:" + path[4]]
+        elif len(path) > 5 and path[5] == "events":
+            groups = ["calendar", "health_events", "wellness"]
+        else:
+            groups = ["profile", "wellness", "calendar", "aggregate_curves"]
+        dirty = self.state.setdefault("dirty", {})
+        generation = self.state.get("dirty_generation", 0) + 1
+        self.state["dirty_generation"] = generation
+        for group in groups:
+            dirty[group] = generation
+        self._save_storage()
+        if self.degraded:
+            self._refuse("dirty generation could not be persisted")
+
+    def request(self, transport, method, url, endpoint_class, priority="optional", **kwargs):
+        # No automatic redirects: a second send must never escape admission.
+        kwargs["allow_redirects"] = False
+        with self._lock():
+            self._load_storage()
+            needed = 1
+            if self._reserved and not self._write_sent:
+                needed = 3 if method == "get" else 2
+            if method != "get" and not self._reserved:
+                self._refuse("write has no pre-read/write/verification reservation")
+            self._admit(priority, needed, method)
+            last = max(self._last_local_send or 0, getattr(self, "state", {}).get("last_send", 0))
+            delay = max(0, last + self.SEND_INTERVAL - self.clock())
+            if delay:
+                self.sleep(delay)
+                self._load_storage()
+                self._admit(priority, needed, method)
+                if self.clock() < last + self.SEND_INTERVAL:
+                    self._refuse("pacing clock did not advance")
+            if not self.degraded:
+                row = self.state["days"][self.day][self.caller]
+                row[endpoint_class] = row.get(endpoint_class, 0) + 1
+                self.state["window"].append(self.now)
+                self.state["last_send"] = self.now
+                self.state["last_run"] = {"caller": self.caller, "count": self.count + 1,
+                                          "core": self.core_count + int(priority == "core"), "at": self.now}
+                self._save_storage()
+                if self.degraded:
+                    self._admit(priority, needed, method)
+            self.count += 1
+            self.core_count += int(priority == "core")
+            self._last_local_send = self.clock()
+            if method != "get":
+                self._dirty_write(url)
+                self._write_sent = True
+            response = getattr(transport, method)(url, **kwargs)
+            self._provider_headers(response)
+            if response.status_code == 429:
+                self._hold(response)
+            elif not self.degraded and 200 <= response.status_code < 300:
+                self.state["backoff"] = 0
+                self._save_storage()
+            return response
+
+    def summary(self):
+        if self.degraded:
+            return (f"Intervals requests: run={self.count}, today=unknown, allowance_left=unknown, "
+                    f"hold_until={self._local_hold or 'unknown'}, private_state=unavailable, scope={self.SCOPE}")
+        if not self.started:
+            return f"Intervals requests: run=0, today=unknown, allowance_left=unknown, hold_until=unknown, scope={self.SCOPE}"
+        with self._lock():
+            self._load_storage()
+            if self.degraded:
+                return self.summary()
+            total = sum(sum(v.values()) for v in self.state["days"][self.day].values())
+            hold = self.state["hold_until"] if self.state["hold_until"] > self.now else None
+            return (f"Intervals requests: run={self.count}, today={total}, "
+                    f"allowance_left={max(0, self._remaining())}, hold_until={hold}, scope={self.SCOPE}")
+# End shared request controller.
+
+def budgeted_write(operation):
+    """Reserve the whole safety sequence without changing preview commands."""
+    from functools import wraps
+
+    @wraps(operation)
+    def run(self, *args, **kwargs):
+        reserved = False
+        try:
+            with self.request_budget.reserve_write():
+                reserved = True
+                return operation(self, *args, **kwargs)
+        except RequestBudgetRefused as error:
+            outcome = "unknown" if reserved and self.request_budget._write_sent else "not_applied"
+            return {"success": False, "outcome": outcome, "error": str(error)}
+    return run
+
+
 class IntervalsPush:
     """Manage planned workouts on Intervals.icu calendar."""
 
@@ -147,7 +597,7 @@ class IntervalsPush:
     # Valid threshold fields for set-threshold
     THRESHOLD_FIELDS = {"ftp", "indoor_ftp", "lthr", "max_hr", "threshold_pace"}
 
-    def __init__(self, athlete_id: str, api_key: str):
+    def __init__(self, athlete_id: str, api_key: str, data_dir=None):
         if not athlete_id or not api_key:
             raise ValueError("athlete_id and api_key are required")
         # The rejected value is never echoed: a misplaced API key would land in logs.
@@ -167,7 +617,42 @@ class IntervalsPush:
                 "Check .sync_config.json / ATHLETE_ID / --athlete-id."
             )
         self.athlete_id = athlete_id
+        self._budget_identity = RequestBudget.fingerprint(athlete_id, api_key)
         self.auth = base64.b64encode(f"API_KEY:{api_key}".encode()).decode()
+        self.data_dir = self.find_data_dir(data_dir)
+
+    _budget_factory = RequestBudget
+
+    @staticmethod
+    def find_data_dir(explicit=None):
+        if explicit is not None:
+            return Path(explicit).expanduser().resolve()
+        source = Path(__file__).resolve()
+        for parent in source.parents:
+            if parent.name == "section11" and (parent.parent / "latest.json").is_file():
+                return parent.parent
+        cwd = Path.cwd()
+        return cwd if (cwd / "latest.json").is_file() else None
+
+    @property
+    def request_budget(self):
+        if not hasattr(self, "_request_budget"):
+            if self.data_dir is None:
+                print("Warning: data folder not found; use --data-dir or run beside latest.json. "
+                      "Request capacity is unknown.", file=sys.stderr)
+            self._request_budget = self._budget_factory(
+                self.data_dir, "push", RequestBudgetRefused, self._budget_identity)
+        return self._request_budget
+
+    def _intervals_request(self, method, url, **kwargs):
+        from urllib.parse import urlsplit
+        if urlsplit(url).hostname != "intervals.icu":
+            raise ValueError("unexpected API origin")
+        endpoint = "verification" if self.request_budget._write_sent else "pre_read"
+        if method != "get":
+            endpoint = "write_" + method
+        return self.request_budget.request(
+            _ensure_requests(), method, url, endpoint, "core", **kwargs)
 
     def _headers(self) -> dict:
         return {
@@ -277,6 +762,8 @@ class IntervalsPush:
             except (Timeout, ConnectionError_) as e:
                 error = e
             else:
+                if response.status_code == 429:
+                    return response
                 if response.status_code not in self.READ_RETRY_STATUSES:
                     return response
                 if response.status_code in (429, 503):
@@ -430,7 +917,7 @@ class IntervalsPush:
         """GET from Intervals.icu API."""
         requests = _ensure_requests()
         response = self._read_with_retry(
-            lambda: requests.get(self._url(endpoint), headers=self._headers(),
+            lambda: self._intervals_request("get", self._url(endpoint), headers=self._headers(),
                                  params=params, timeout=self.READ_TIMEOUT))
         response.raise_for_status()
         return response.json()
@@ -438,7 +925,7 @@ class IntervalsPush:
     def _post(self, endpoint: str, payload) -> any:
         """POST to Intervals.icu API. One attempt, never retried."""
         requests = _ensure_requests()
-        response = requests.post(self._url(endpoint), headers=self._headers(),
+        response = self._intervals_request("post", self._url(endpoint), headers=self._headers(),
                                  json=payload, timeout=self.WRITE_TIMEOUT)
         self._check_write_status(response)
         return response.json()
@@ -446,7 +933,7 @@ class IntervalsPush:
     def _put(self, endpoint: str, payload: dict) -> any:
         """PUT to Intervals.icu API. One attempt, never retried."""
         requests = _ensure_requests()
-        response = requests.put(self._url(endpoint), headers=self._headers(),
+        response = self._intervals_request("put", self._url(endpoint), headers=self._headers(),
                                 json=payload, timeout=self.WRITE_TIMEOUT)
         self._check_write_status(response)
         return response.json()
@@ -454,7 +941,7 @@ class IntervalsPush:
     def _delete(self, endpoint: str) -> bool:
         """DELETE on Intervals.icu API. One attempt, never retried."""
         requests = _ensure_requests()
-        response = requests.delete(self._url(endpoint), headers=self._headers(),
+        response = self._intervals_request("delete", self._url(endpoint), headers=self._headers(),
                                    timeout=self.WRITE_TIMEOUT)
         self._check_write_status(response)
         return True
@@ -642,6 +1129,7 @@ class IntervalsPush:
         """Validate and push a single workout."""
         return self.push_workouts([workout])
 
+    @budgeted_write
     def push_workouts(self, workouts: list) -> dict:
         """
         Validate and push multiple workouts through the bulk upsert endpoint.
@@ -908,6 +1396,7 @@ class IntervalsPush:
         except Exception as e:
             return {"state": "error", "error": self._handle_error(e)}
 
+    @budgeted_write
     def update_event(self, event_id: int, updates: dict) -> dict:
         """Partial update of an event, gated by a pre-write read."""
         pre = self._event_presence(event_id)
@@ -1008,6 +1497,7 @@ class IntervalsPush:
             "message": "Preview only - add --confirm to move this workout",
         }
 
+    @budgeted_write
     def move_event(self, event_id: int, new_date: str, new_time: str = None) -> dict:
         """Move a workout to a new date."""
         if new_time is not None and not self._valid_time(new_time):
@@ -1055,6 +1545,7 @@ class IntervalsPush:
             "message": "Preview only - add --confirm to delete this workout",
         }
 
+    @budgeted_write
     def delete_event(self, event_id: int) -> dict:
         """
         Delete a single event.
@@ -1102,7 +1593,7 @@ class IntervalsPush:
         """GET from an absolute Intervals.icu URL."""
         requests = _ensure_requests()
         response = self._read_with_retry(
-            lambda: requests.get(url, headers=self._headers(),
+            lambda: self._intervals_request("get", url, headers=self._headers(),
                                  timeout=self.READ_TIMEOUT))
         response.raise_for_status()
         return response.json()
@@ -1110,7 +1601,7 @@ class IntervalsPush:
     def _post_raw(self, url: str, payload) -> any:
         """POST to an absolute Intervals.icu URL. One attempt, never retried."""
         requests = _ensure_requests()
-        response = requests.post(url, headers=self._headers(), json=payload,
+        response = self._intervals_request("post", url, headers=self._headers(), json=payload,
                                  timeout=self.WRITE_TIMEOUT)
         self._check_write_status(response)
         return response.json()
@@ -1118,7 +1609,7 @@ class IntervalsPush:
     def _put_raw(self, url: str, payload: dict) -> any:
         """PUT to an absolute Intervals.icu URL. One attempt, never retried."""
         requests = _ensure_requests()
-        response = requests.put(url, headers=self._headers(), json=payload,
+        response = self._intervals_request("put", url, headers=self._headers(), json=payload,
                                 timeout=self.WRITE_TIMEOUT)
         self._check_write_status(response)
         return response.json()
@@ -1180,6 +1671,7 @@ class IntervalsPush:
             "message": "Preview only - add --confirm to update thresholds",
         }
 
+    @budgeted_write
     def set_threshold(self, sport: str, updates: dict) -> dict:
         """Update sport-specific thresholds."""
         sport_type = self._resolve_sport_type(sport)
@@ -1279,6 +1771,7 @@ class IntervalsPush:
 
         return result
 
+    @budgeted_write
     def annotate_activity(self, activity_id: str, message: str, chat: bool = False) -> dict:
         """Add a note to a completed activity. Default: description. --chat: messages endpoint."""
         if not message or not message.strip():
@@ -1434,6 +1927,7 @@ class IntervalsPush:
             "note": "Preview only - add --confirm to add this note",
         }
 
+    @budgeted_write
     def annotate_event(self, event_id: int, message: str) -> dict:
         """Add a NOTE: line to a planned workout's description."""
         text = message.strip() if message else ""
@@ -1657,6 +2151,7 @@ def main():
     )
     parser.add_argument("--athlete-id", help="Intervals.icu athlete ID")
     parser.add_argument("--api-key", help="Intervals.icu API key")
+    parser.add_argument("--data-dir", help="Data folder shared with sync.py (contains latest.json)")
 
     subparsers = parser.add_subparsers(dest="command")
 
@@ -1716,7 +2211,7 @@ def main():
     # --athlete-id/--api-key, before subcommand-specific flags like --json).
     known_commands = {"push", "list", "move", "delete", "set-threshold", "annotate"}
     # Top-level flags that consume a value
-    top_level_value_flags = {"--athlete-id", "--api-key"}
+    top_level_value_flags = {"--athlete-id", "--api-key", "--data-dir"}
 
     argv = sys.argv[1:]
     has_subcommand = False
@@ -1748,7 +2243,7 @@ def main():
 
     pusher = None
     try:
-        pusher = IntervalsPush(athlete_id, api_key)
+        pusher = IntervalsPush(athlete_id, api_key, data_dir=args.data_dir)
     except ValueError as e:
         _reject_local(args, str(e))
 

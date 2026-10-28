@@ -174,7 +174,7 @@ class RouteValidity(unittest.TestCase):
         self.persist()
         self.advance(1)
         flags, rows, get = self.run_routes([rotated_event])
-        get.assert_called_once_with(rotated_url, timeout=30)
+        get.assert_called_once_with(rotated_url, timeout=30, allow_redirects=False, auth=mock.ANY)
         self.assertEqual(flags, {7})
         self.assertFalse(rows[0]["cache_hit"])
         self.assertNotEqual(rows[0]["last_attempt_at"], first_attempt)
@@ -431,7 +431,7 @@ class RouteValidity(unittest.TestCase):
             _, rows, get = self.run_routes([event(attachments=sequence)])
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0]["attachment_id"], 10)
-            get.assert_called_once_with("https://example.invalid/10.gpx", timeout=30)
+        get.assert_called_once_with("https://example.invalid/10.gpx", timeout=30, allow_redirects=False, auth=mock.ANY)
 
     def test_selected_failure_does_not_switch_routes(self):
         flags, rows, get = self.run_routes([event(attachments=[attachment(2), attachment(1)])], [response(status=503)])

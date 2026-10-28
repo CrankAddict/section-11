@@ -72,6 +72,12 @@ Both sync methods work with both platform types, and agentic runtimes split by w
 - **Local sync:** Follow Steps 1–2 (prerequisites + credentials), skip Steps 3–7, then follow **Local Path** in Step 8 which covers the full local setup including dossier, automated sync, and connecting the AI.
 - **Agentic + GitHub:** Follow the Golden Path for Steps 1–7, then follow the platform instructions in Step 8 (GitHub sub-path for each platform).
 
+**Request allowance:** Intervals.icu allows 8,000 requests per API key per UTC day and 2,500 per 15 minutes. sync.py reserves 1,000 for other tools such as push.py, leaving at most 7,000 daily; a lower reported limit wins. A normal local run makes 4 requests. GitHub sync and On-demand keep their current behavior at about 31 requests per run; their savings come later. See [request counts and scheduling](examples/json-local-sync/SETUP.md#automate-the-refresh).
+
+**Private state:** Local and Manual keep request accounting and cached responses in `<data folder>/state/` between runs. It contains `request-budget/<identity>/`, `sources/<identity>/` and a generated `README.md`; `SECTION11_STATE_DIR` replaces the whole state folder. Whole-folder cloud sync uploads it too, and a connector with access to that folder can technically read it. `data_overview.state_note` and `READ_THIS_FIRST.state_note` in latest.json explicitly tell AI tools to ignore it; use `source_freshness` for status. GitHub and On-demand create state fresh each run and never keep, commit or upload it through the supplied workflows. Deleting it makes the next run larger and resets the local count; never delete it to force requests. Inactive hash-named subfolders from an earlier key or data-folder location can be deleted. See [Private sync state](examples/json-local-sync/SETUP.md#private-sync-state).
+
+**One setup:** We recommend one setup per user. Before changing the sync path or moving machines, stop the old timer or workflow first to protect Intervals.icu. The count is per data folder, API key and athlete, with no coordination across folders. This is a recommendation, not a restriction on supported setups.
+
 ---
 
 ## Setup Flow
@@ -254,6 +260,7 @@ Walk them through:
 - `latest.json.recent_activities[].interval_data` separates plan-match labels, gated Section 11 compliance evidence and descriptive detected intervals; see [Which interval data to use](SECTION_11.md#which-interval-data-to-use).
 - A `routes.json` file is written on every sync; its `events` list is empty unless the athlete has planned events with GPX/TCX file attachments
 - A `saved_workouts.json` file appears once the first sync completes: a read-only mirror of the athlete's Intervals.icu saved workouts
+- `latest.json.source_freshness` records each source's status and acquisition age, the local request count, effective schedule and warnings. A new export timestamp is not proof that every source was just fetched; null age means unknown. See [Source freshness](examples/json-examples/README.md#source-freshness).
 
 Have them check these files in the repository's **Code** view. Do not have them check a private repository with plain `raw.githubusercontent.com` URLs: those normally return 404 without GitHub authentication.
 
@@ -460,7 +467,9 @@ The GitHub vs Local question was already answered in Step 0. If they're here, th
    python3 section11/examples/sync.py --output latest.json
    ```
 
-7. Set up automated refresh: walk them through `examples/json-local-sync/SETUP.md` for their OS (macOS launchd, Linux systemd, cron, or Windows Task Scheduler). The default interval is 1 minute.
+   The first run after updating is larger while private state is populated. An earlier live check made 69 requests in about 47 s on that run, then 4 per run in about 2 s; these observations predate the state-location and interval-choice changes and are not fixed runtimes.
+
+7. Set up automated refresh: walk them through `examples/json-local-sync/SETUP.md` for their OS (macOS launchd, Linux systemd, cron, or Windows Task Scheduler). Keep the timer at 1 minute. The optional `.sync_config.json` field `check_interval_minutes` accepts integers 1, 2, 5 or 10, default 1; an invalid value warns and falls back to 1. One-minute checks fit within the limit in the [measured offline scenarios](examples/json-local-sync/SETUP.md#automate-the-refresh), not as a guarantee for every athlete. Only sync.py's and push.py's requests in shared state are counted, so choose a slower interval if other tools use the key. This setting applies to local sync only. sync.py starts at the chosen interval, selects a slower step on the 1/2/5/10-minute ladder when needed, and pauses only if ten minutes cannot fit. It restores the chosen interval when allowance returns; the UTC reset does not bypass an unelapsed interval or provider hold. See [Request allowance and pauses](examples/json-local-sync/SETUP.md#request-allowance-and-pauses) for exact messages and recovery steps.
 
 ---
 
@@ -503,7 +512,7 @@ For web chat users on the local path, sync.py writes to a cloud-synced folder an
 
 1. Install Google Drive for Desktop (or OneDrive/Dropbox, whichever their AI platform has a connector for)
 2. Set the data directory inside the synced folder (e.g., `~/Google Drive/My Drive/training-data/`)
-3. The timer's `--output` points to this folder (same setup as above, just a different path)
+3. The timer's `--output` points to this folder (same setup as above, just a different path). Its `state/` folder is kept there and uploaded by whole-folder cloud sync. The connector can technically expose it, but the AI must ignore it as the two `state_note` fields in latest.json instruct. `SECTION11_STATE_DIR`, if set, selects the whole state folder, including request accounting, source responses and its README.
 4. Connect the AI platform's cloud connector to the folder. See the Platform Setup tables in the README for current Google Drive support by platform: https://github.com/CrankAddict/section-11#platform-setup
 
 See `examples/json-local-sync/SETUP.md` for more details and alternative setups (VPS + rclone, NAS with cloud sync, etc.).
@@ -556,7 +565,7 @@ A good answer gives the bottle exactly as their official dossier records it. Whe
 
 **If it doesn't work (local path):**
 - "I don't have access" or file not found → Check the agent can access the data directory (`~/training-data/` or wherever they created it). On platforms like OpenClaw where the agent workspace differs, verify the `Data directory` in DOSSIER.md is set correctly. Verify `latest.json` exists: `ls -la ~/training-data/latest.json`
-- Data appears stale → Timer may not be running. Check: `launchctl list | grep section11` (macOS) or `systemctl --user status section11-sync.timer` (Linux). Check `sync.log` for errors.
+- Data appears stale → Check `source_freshness` and `sync.log` for a step-down, pause, provider hold or unavailable private state, then check the timer: `launchctl list | grep section11` (macOS) or `systemctl --user status section11-sync.timer` (Linux). Follow [Request allowance and pauses](examples/json-local-sync/SETUP.md#request-allowance-and-pauses); do not delete state to reset the count.
 - Agent can't find SECTION_11.md → Verify `section11/` directory exists in the data directory and contains the protocol files.
 - "Missing credentials" in sync.log → `.sync_config.json` must be in the data directory root, not inside `section11/`. Re-run `--setup` from the data directory root.
 

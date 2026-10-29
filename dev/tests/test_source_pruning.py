@@ -291,6 +291,17 @@ class Growth(unittest.TestCase):
                     files = list(store.root.glob("*.json"))
                     records.append({"day": day + 1, "entries": len(files),
                         "bytes": sum(p.stat().st_size for p in files), "calls": daily_calls})
+                    if hasattr(module, "HostedSlowCache"):
+                        cache = harness.sync._hosted_cache
+                        slow = [dict((name, entry.get(name)) for name in cache.FIELDS)
+                                for entry in store.entries.values() if entry["group"] in cache.GROUPS]
+                        envelope = {"version": cache.VERSION, "source_version": store.VERSION,
+                                    "scope": cache.scope, "entries": slow}
+                        cache.validate(envelope)
+                        size = len(cache.canonical(envelope))
+                        self.assertGreaterEqual(cache.MAX_ENTRIES, 4 * len(slow))
+                        self.assertGreaterEqual(cache.MAX_BYTES, 4 * size)
+                        records[-1].update(slow_entries=len(slow), slow_bytes=size)
                 return records, outputs, (getattr(store, "entry_limit", 0), getattr(store, "byte_limit", 0))
             finally:
                 harness.doCleanups()
@@ -313,6 +324,8 @@ class Growth(unittest.TestCase):
         self.assertLess(new[-1]["entries"], old[-1]["entries"] // 2)
         self.assertGreaterEqual(limits[0], 4 * max(r["entries"] for r in new))
         self.assertGreaterEqual(limits[1], 4 * max(r["bytes"] for r in new))
+        print("Ninety-day slow envelope maxima:", max(r["slow_entries"] for r in new),
+              "entries;", max(r["slow_bytes"] for r in new), "bytes")
 
     def test_cap_never_changes_training_outputs_or_current_acquisition_times(self):
         normal, outputs, _ = self.simulate(fixtures.sync_mod, 1)

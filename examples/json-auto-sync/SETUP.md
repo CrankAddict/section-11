@@ -12,13 +12,17 @@ This guide explains how to create an automated JSON data mirror of your Interval
 
 The data mirror syncs your Intervals.icu metrics to a GitHub repository on a schedule, every 30 minutes by default, producing JSON files that AI systems can read through a GitHub connector or other authenticated repository access, or by URL for a public repository. GitHub runs scheduled workflows on a best-effort basis, so a scheduled sync can be late or skipped. For fresh data right after a workout, use [Sync Now](#sync-now). See [Sync Schedule and GitHub Actions Usage](#sync-schedule-and-github-actions-usage) before choosing a different schedule.
 
-GitHub sync keeps its current behavior at about **31 Intervals.icu requests per run**; first runs and larger refreshes can cost more. The four-request local warm run depends on private state retained between runs. GitHub request savings come in a later release, with no schedule change here.
+With the updated workflow, GitHub sync can use **4 Intervals.icu requests on a quiet cache-hit run instead of about 31**. First runs, scheduled refreshes, changed activities and misses cost more. The schedule is unchanged.
 
 ### Private state and request limits
 
-Each run creates private request accounting and cached source responses fresh in the runner's `<data folder>/state/`. It contains `request-budget/<identity>/`, `sources/<identity>/` and a generated `README.md`. The supplied workflow never keeps this state between runs, commits it or uploads it in the download artifact, so the AI does not receive it through the repository, connector or artifact. `latest.json.source_freshness` supplies status, and `data_overview.state_note` and `READ_THIS_FIRST.state_note` explicitly tell AI tools to ignore `state/` if it is exposed by another path. See [state locations and SECTION11_STATE_DIR](../json-local-sync/SETUP.md#private-sync-state). The local `check_interval_minutes` setting does not change GitHub runs.
+Each run creates private request accounting and source state in the runner's `<data folder>/state/`. The workflow retains only profile settings, aggregate curves and current-window messages in a separate plain Actions cache under runner temporary storage. It never commits the cache or includes it in the training-data download or published outputs. Raw activities, wellness, calendar and health responses, native payloads and request accounting are not cached remotely. The AI uses the training files and `latest.json.source_freshness`, never `state/` or Actions caches. See [state locations and SECTION11_STATE_DIR](../json-local-sync/SETUP.md#private-sync-state).
 
-Intervals.icu allows 8,000 requests per key per UTC day and 2,500 per 15 minutes. sync.py keeps 1,000 for other tools such as push.py, leaving at most 7,000 daily; a lower reported daily limit wins. A fresh runner's local count does not include earlier runners, other machines or tools using the key. These limits are separate from GitHub Actions minutes below.
+In a public repository, someone who deliberately opens a pull request can read the workflow cache: full power/HR curves, sport/zone settings, profile details (location, birth date, sex, height, weight and resting-HR fallbacks, and profile notes), and recent activity-note text. Most of this also appears in the published training files; the cache never holds keys, credentials, raw activities, wellness or health events.
+
+GitHub deletes caches unused for 7 days, so rarely run On-demand gains little; a cache miss just means normal reads.
+
+Intervals.icu allows 8,000 requests per key per UTC day and 2,500 per 15 minutes. Hosted runs keep per-run limits, pacing and provider holds, but have no daily balance, step-down or budget pause. The local `check_interval_minutes` setting does not change hosted runs. Counts cover this invocation, not earlier runners or other tools using the key. The local/manual daily controller is unchanged. These limits are separate from GitHub Actions minutes below.
 
 We recommend one setup per user. Stop the old timer or workflow before changing the sync path or moving machines, to protect Intervals.icu. Counts are per data folder, API key and athlete, with no coordination across folders.
 
@@ -33,6 +37,8 @@ We recommend one setup per user. Stop the old timer or workflow before changing 
 ---
 
 ## Prerequisites
+
+**Existing repositories upgrading to sync 3.165:** replace both `sync.py` and `.github/workflows/auto-sync.yml` from the supplied files, preserving your trigger schedule and optional settings. The workflow needs the two environment lines that pass the trigger event (`SECTION11_EXPORT_EVENT`) and schedule (`SECTION11_EXPORT_CRON`), plus the staging, restore and changed-only save steps. Save follows verified publication. No new secret or library is needed. Old workflows still work, with normal reads and no cache savings.
 
 - [Intervals.icu](https://intervals.icu) account with training data
 - [GitHub](https://github.com) account

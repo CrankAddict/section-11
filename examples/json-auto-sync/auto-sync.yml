@@ -19,6 +19,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    cache-mode: write
     # A sync normally finishes in under a minute; this stops a stuck run from using up Actions minutes.
     timeout-minutes: 15
 
@@ -81,8 +82,55 @@ jobs:
           fi
           echo "✅ All secrets configured"
 
-      - name: Run sync
+      - name: Prepare slow cache staging
+        id: slow_cache_context
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          # BEGIN SLOW CACHE STAGING
+          import hashlib
+          import os
+          from pathlib import Path
+
+          stage = Path(os.environ['RUNNER_TEMP']) / 'section11-slow-cache'
+          checkout = Path(os.environ['GITHUB_WORKSPACE']).resolve()
+          if any(p.is_symlink() for p in (stage, *stage.parents)):
+              raise ValueError('symlink cache staging')
+          if stage.resolve() == checkout or checkout in stage.resolve().parents:
+              raise ValueError('cache staging is inside checkout')
+          stage.mkdir(mode=0o700, exist_ok=True)
+          for path in stage.iterdir():
+              if path.name not in ('cache.json', 'next.json') or path.is_symlink() or not path.is_file():
+                  raise ValueError('unexpected cache staging entry')
+              path.unlink()
+          digest = hashlib.sha256(Path('sync.py').read_bytes()).hexdigest()
+          prefix = 'section11-slow-v1-' + '-'.join((os.environ['RUNNER_OS'], os.environ['GITHUB_REPOSITORY_ID'], digest)) + '-'
+          key = prefix + os.environ['GITHUB_RUN_ID'] + '-' + os.environ['GITHUB_RUN_ATTEMPT']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('enabled=true\nprefix=' + prefix + '\nkey=' + key + '\n')
+          # END SLOW CACHE STAGING
+          PY
+
+      - name: Restore slow sources
+        id: slow_cache_restore
+        if: steps.slow_cache_context.outputs.enabled == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 2
         env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+        with:
+          path: ${{ runner.temp }}/section11-slow-cache/cache.json
+          key: ${{ steps.slow_cache_context.outputs.key }}
+          restore-keys: ${{ steps.slow_cache_context.outputs.prefix }}
+          fail-on-cache-miss: false
+          enableCrossOsArchive: false
+
+      - name: Run sync
+        id: sync
+        env:
+          SECTION11_EXPORT_EVENT: ${{ github.event_name }}
+          SECTION11_EXPORT_CRON: ${{ github.event.schedule }}
           ATHLETE_ID: ${{ secrets.ATHLETE_ID }}
           INTERVALS_KEY: ${{ secrets.INTERVALS_KEY }}
           GITHUB_REPO: ${{ github.repository }}
@@ -293,6 +341,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Publish data and update README
+        id: publish
         env:
           RUN_BRANCH: ${{ github.ref_name }}
         run: |
@@ -429,6 +478,39 @@ jobs:
             ATTEMPT=$((ATTEMPT + 1))
             UPSTREAM_SHA="$REMOTE_SHA"
           done
+
+      - name: Prepare changed slow sources for saving
+        id: slow_cache_save_file
+        if: success() && steps.publish.outcome == 'success' && steps.sync.outputs.cache_changed == 'true' && steps.slow_cache_context.outputs.enabled == 'true'
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          # BEGIN SLOW CACHE PROMOTION
+          import os
+          import stat
+          from pathlib import Path
+
+          stage = Path(os.environ['RUNNER_TEMP']) / 'section11-slow-cache'
+          source, target = stage / 'next.json', stage / 'cache.json'
+          if any(p.is_symlink() for p in (stage, *stage.parents, source, target)):
+              raise ValueError('symlink cache staging')
+          info = source.stat()
+          if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= 8 * 1024 * 1024:
+              raise ValueError('invalid cache snapshot')
+          os.replace(source, target)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('ready=true\n')
+          # END SLOW CACHE PROMOTION
+          PY
+
+      - name: Save changed slow sources
+        if: success() && steps.publish.outcome == 'success' && steps.slow_cache_save_file.outputs.ready == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 2
+        with:
+          path: ${{ runner.temp }}/section11-slow-cache/cache.json
+          key: ${{ steps.slow_cache_context.outputs.key }}
 
       - name: Show result
         env:

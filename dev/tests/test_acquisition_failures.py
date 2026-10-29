@@ -144,8 +144,14 @@ class AcquisitionFailures(unittest.TestCase):
         start = self.clock.now
         self.after_send = lambda path: setattr(self.clock, "now", self.clock.now + 12)
         data = self.produce()
-        self.assertEqual(len(self.sent), 13)
-        self.assertEqual(self.clock.now - start, 156)
+        # The night base crosses UTC midnight: the producer then needs its
+        # existing current-day wellness fallback in addition to the 13 reads.
+        crossed_midnight = (datetime.fromtimestamp(start, timezone.utc).date() !=
+                            datetime.fromtimestamp(self.clock.now, timezone.utc).date())
+        expected = 14 if crossed_midnight else 13
+        self.assertEqual(len(self.sent), expected)
+        self.assertEqual(self.clock.now - start, expected * 12)
+        self.assertEqual(sum("/wellness/" in path for _, path, _ in self.sent), int(crossed_midnight))
         fresh = data["source_freshness"]
         self.assertNotIn("source_stale", [w["code"] for w in fresh["warnings"]])
         self.assertGreater(fresh["sources"]["activities"]["age_seconds"], 60)

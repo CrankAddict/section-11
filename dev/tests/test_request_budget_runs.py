@@ -53,6 +53,8 @@ class FullRuns(unittest.TestCase):
         if getattr(self, "rollover_after_wellness", False):
             FrozenDate.fixed = self.rollover_start
         sync = mod.IntervalsSync("i123", "synthetic", report_main_sports=["cycling"])
+        # Compare training bytes across releases, excluding only the release label.
+        sync.VERSION = "parity"
         sync.data_dir = directory
         sync._cached_script_hash = "frozen-input"
         sync.route_weather_enabled = False
@@ -156,6 +158,12 @@ class FullRuns(unittest.TestCase):
         return calls, {p.name: p.read_bytes() for p in directory.glob("*.json")}
 
     def normalize_state_notes(self, old, new):
+        if "export_freshness" not in old:
+            export = new.pop("export_freshness")
+            self.assertEqual(export["version"], 1)
+            self.assertEqual(export["generated_at"], new["metadata"]["last_updated"])
+            self.assertEqual(export["mode"], "unknown")
+            self.assertIsNone(export["expected_update_by"])
         for section in ("READ_THIS_FIRST", "data_overview"):
             if "state_note" not in old[section]:
                 self.assertEqual(new[section].pop("state_note"), module.DataOverview.STATE_NOTE)

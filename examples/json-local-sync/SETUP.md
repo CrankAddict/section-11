@@ -246,6 +246,8 @@ We can't list every combination; there are many. The pattern is always the same:
 
 Set up a timer to run sync.py every **60 seconds**. Keep the timer at one minute even if you choose a slower check interval; sync.py decides when a check is due.
 
+Declare `SECTION11_EXPORT_MODE=local_scheduled` in the timer's environment so `latest.json.export_freshness` can give the AI a delivery deadline. Existing users who run `sync.py --update` and change nothing keep the same checks, state and exports; without this declaration the mode is `unknown`, the deadline is null, and the AI uses the 12/24-hour age fallback. For an existing shell wrapper, the one-line change is `export SECTION11_EXPORT_MODE=local_scheduled`. This declaration describes the timer; it does not create or change one.
+
 The optional `.sync_config.json` field `check_interval_minutes` accepts the integers **1, 2, 5 or 10**, with **1** as the default. To choose five-minute checks, add `"check_interval_minutes": 5` to your existing config, keeping its credentials and other settings. Strings such as `"5"`, booleans and other invalid values fall back to one minute with this warning:
 
 ```text
@@ -283,7 +285,7 @@ Request budget: checks reduced to every 10 minutes.
 
 It returns to your chosen interval when allowance permits, including after the UTC daily reset. Restoring one-minute checks prints `Request budget: one-minute checks restored.` Other choices print `Request budget: checks restored to every N minutes.`, with N replaced by 2, 5 or 10. It pauses only if even ten-minute checks cannot fit; see [Request allowance and pauses](#request-allowance-and-pauses). A UTC reset does not bypass the wait until the next chosen check, and provider holds remain in force.
 
-These savings apply to local runs with retained private state. GitHub sync and On-demand keep their current behavior at about **31 requests per run**; their request savings come in a later release.
+These local totals use retained private state. The updated [GitHub and On-demand workflow](../json-auto-sync/SETUP.md#private-state-and-request-limits) separately reuses slow sources, reducing a quiet cache-hit tick from about 31 requests to 4; it has no daily allowance controller or step-down.
 
 Command for all platforms:
 
@@ -314,6 +316,8 @@ Create `~/Library/LaunchAgents/com.section11.sync.plist`:
     </array>
     <key>WorkingDirectory</key>
     <string>/Users/YOUR_USERNAME/training-data</string>
+    <key>EnvironmentVariables</key>
+    <dict><key>SECTION11_EXPORT_MODE</key><string>local_scheduled</string></dict>
     <key>StartInterval</key>
     <integer>60</integer>
     <key>StandardOutPath</key>
@@ -354,6 +358,7 @@ Description=Section 11 Intervals.icu Sync
 
 [Service]
 Type=oneshot
+Environment=SECTION11_EXPORT_MODE=local_scheduled
 WorkingDirectory=%h/training-data
 ExecStart=/usr/bin/python3 %h/training-data/section11/examples/sync.py --output %h/training-data/latest.json --lockfile
 ```
@@ -398,7 +403,7 @@ crontab -e
 Add:
 
 ```
-* * * * * cd ~/training-data && python3 section11/examples/sync.py --output latest.json --lockfile >> sync.log 2>&1
+* * * * * cd ~/training-data && SECTION11_EXPORT_MODE=local_scheduled python3 section11/examples/sync.py --output latest.json --lockfile >> sync.log 2>&1
 ```
 
 ### Windows (Task Scheduler)
@@ -411,6 +416,8 @@ Add:
    - Start in: `C:\Users\YOUR_USERNAME\training-data`
 
 See [Microsoft's Task Scheduler docs](https://learn.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page) for detailed instructions.
+
+For this task's process environment, set `SECTION11_EXPORT_MODE` to `local_scheduled` (for example, `set SECTION11_EXPORT_MODE=local_scheduled` in a batch wrapper before calling Python). A separate manual export should declare `manual` instead; avoid a machine-wide mode that mislabels both paths.
 
 ---
 

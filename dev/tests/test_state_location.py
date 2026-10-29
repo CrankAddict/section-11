@@ -253,6 +253,9 @@ class StateLocation(unittest.TestCase):
         stage = self.root / "publication"
         rules["prepare"](self.data, previous, stage)
         self.assertFalse((stage / "files/state").exists())
+        self.assertEqual((stage / "files/latest.json").read_bytes(), (self.data / "latest.json").read_bytes())
+        self.assertEqual(json.loads((stage / "files/latest.json").read_text())["export_freshness"],
+                         data["export_freshness"])
         # The manual artifact and daily archive use these exact fixed selections.
         workflow = (SYNC_PATH.parent / "json-auto-sync/auto-sync.yml").read_text()
         artifact = workflow.split("name: training-data\n", 1)[1].split("retention-days:", 1)[0]
@@ -273,6 +276,7 @@ class StateLocation(unittest.TestCase):
                                days=7, debug=False), "synthetic-token", "synthetic-repo")
         self.assertEqual([call.kwargs.get("filepath", "latest.json") for call in publish.call_args_list],
                          ["latest.json", "intervals.json", "routes.json", "saved_workouts.json"])
+        self.assertEqual(publish.call_args_list[0].args[0]["export_freshness"], data["export_freshness"])
 
 
 class ChosenInterval(unittest.TestCase):

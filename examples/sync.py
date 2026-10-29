@@ -4,6 +4,15 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.165 - Export delivery deadlines from explicit setup and schedule inputs.
+  One UTC generation time is shared with metadata.last_updated; status-only changes
+  preserve it. Local cadence and authoritative holds/pauses set a fixed deadline;
+  supported hosted schedules allow twice the interval plus one hour. Manual,
+  On-demand and unknown schedules have no deadline. Pairs with protocol v11.102.
+  Hosted runs reuse validated profile, aggregate curves and messages through a
+  separate slow-only Actions cache. Raw core and accounting stay runner-only;
+  restores preserve acquisition times. No hosted daily allowance or step-down.
+
 Version 3.164 - Local request budget: 4 requests per normal local check instead of about 30;
   shared sync.py/push.py count with automatic 2/5/10-minute step-down and pause;
   check_interval_minutes; private state/ folder in the data folder; source_freshness in
@@ -4618,6 +4627,93 @@ class RequestBudgetRefused(requests.exceptions.RequestException):
     """No request was sent; preserve prior data and attempt state."""
 
 
+class ExportFreshness:
+    """Delivery expectation only; never grants requests or changes cache validity."""
+
+    @staticmethod
+    def context(environ):
+        if environ.get("GITHUB_ACTIONS") == "true":
+            event = environ.get("SECTION11_EXPORT_EVENT")
+            if event == "workflow_dispatch":
+                return {"mode": "on_demand", "interval": None}
+            if event == "schedule":
+                fields = environ.get("SECTION11_EXPORT_CRON", "").split()
+                if len(fields) == 5 and fields[1:] == ["*"] * 4:
+                    minutes = fields[0]
+                    if minutes in ("*/15", "*/30"):
+                        return {"mode": "hosted_scheduled", "interval": int(minutes[2:]) * 60}
+                    if re.fullmatch(r"[0-9]{1,2}(?:,[0-9]{1,2})+", minutes):
+                        values = sorted(int(value) for value in minutes.split(","))
+                        if len(values) in (2, 4) and len(set(values)) == len(values) and values[-1] < 60:
+                            step = 60 // len(values)
+                            if all(b - a == step for a, b in zip(values, values[1:] + [values[0] + 60])):
+                                return {"mode": "hosted_scheduled", "interval": step * 60}
+            return {"mode": "unknown", "interval": None}
+        mode = environ.get("SECTION11_EXPORT_MODE")
+        return {"mode": mode if mode in ("local_scheduled", "manual") else "unknown", "interval": None}
+
+    @staticmethod
+    def parse(value):
+        if not isinstance(value, str):
+            return None
+        try:
+            stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return stamp.astimezone(timezone.utc) if stamp.tzinfo is not None else None
+        except (ValueError, OverflowError):
+            return None
+
+    @staticmethod
+    def stamp(value):
+        return value.isoformat().replace("+00:00", "Z")
+
+    @classmethod
+    def build(cls, generated_at, context, freshness, now, previous=None):
+        generated = cls.parse(generated_at)
+        if generated is None:
+            # A legacy naive timestamp needs the sync machine's known timezone.
+            # A status rewrite must not invent that timezone or a new generation.
+            return None
+        mode = context["mode"]
+        result = {"version": 1, "generated_at": cls.stamp(generated), "mode": mode,
+                  "expected_update_by": None, "reason": "unknown_schedule"}
+        if mode in ("manual", "on_demand"):
+            result["reason"] = mode
+            return result
+        if mode == "unknown" or generated > now:
+            return result
+        schedule = freshness.get("schedule", {})
+        paused = mode == "local_scheduled" and schedule.get("state") == "paused"
+        interval = (schedule.get("requested_interval_seconds") if paused else
+                    schedule.get("effective_interval_seconds")) if mode == "local_scheduled" else context["interval"]
+        if type(interval) is not int or interval not in ((60, 120, 300, 600) if mode == "local_scheduled" else (900, 1800)):
+            return result
+        grace = max(600, 2 * interval) if mode == "local_scheduled" else 2 * interval + 3600
+        deadline = generated + timedelta(seconds=grace)
+        reason = "cadence"
+        resume = None
+        if paused:
+            if isinstance(previous, dict) and previous.get("version") == 1 and previous.get("mode") == mode:
+                old = cls.parse(previous.get("expected_update_by"))
+                if cls.parse(previous.get("generated_at")) == generated and old is not None:
+                    deadline = max(deadline, old)
+            pauses = [cls.parse(w.get("next_eligible_at")) for w in freshness.get("warnings", [])
+                      if w.get("code") == "budget_paused"]
+            if len(pauses) != 1 or pauses[0] is None or pauses[0] <= now:
+                return result
+            resume, reason = pauses[0], "budget_pause"
+        raw_hold = freshness.get("budget", {}).get("hold_until")
+        if raw_hold is not None:
+            hold = cls.parse(raw_hold)
+            if hold is None or hold <= now:
+                return result
+            if resume is None or hold > resume:
+                resume, reason = hold, "provider_hold"
+        if resume is not None:
+            deadline = max(deadline, resume + timedelta(seconds=grace))
+        result.update(expected_update_by=cls.stamp(deadline), reason=reason)
+        return result
+
+
 # Shared request controller. Keep this block identical in both standalone scripts.
 class RequestBudget:
     PROVIDER_DAILY_LIMIT = 8000
@@ -5047,6 +5143,45 @@ class RequestBudget:
                     f"allowance_left={max(0, self._remaining())}, hold_until={hold}, scope={self.SCOPE}")
 # End shared request controller.
 
+class HostedRequestBudget(RequestBudget):
+    """Invocation-only admission; never reload another runner's allowance."""
+    SCOPE = "hosted_invocation"
+
+    def _load(self):
+        now = self.clock()
+        if not self._number(now):
+            self._refuse("invalid clock")
+        if not self.started:
+            self.state = {"version": 1, "days": {}, "window": [], "runs": [],
+                          "high_water": now, "hold_until": 0, "last_send": 0,
+                          "backoff": 0, "last_run": {}}
+            self.started = True
+        if now < self.state["high_water"]:
+            self._refuse("clock rollback")
+        self.now, self.day = now, self._day(now)
+        self.state["high_water"] = now
+        self.state["days"].setdefault(self.day, {"sync": {}, "push": {}})
+        self.state["window"] = [t for t in self.state["window"] if t > now - self.WINDOW_SECONDS]
+        self._save()
+
+    def _admit(self, priority, needed=1, method="get"):
+        hold = max(self._local_hold, getattr(self, "state", {}).get("hold_until", 0))
+        if self.stopped or self.clock() < hold:
+            self._refuse("provider hold active")
+        if self.degraded:
+            if priority != "core" or method != "get" or self.count + needed > self.UNKNOWN_RUN_LIMIT:
+                self._refuse("capacity unknown; conservative core-read allowance only")
+            return
+        if self.count + needed > self.RUN_LIMIT:
+            self._refuse("invocation allowance exhausted")
+        if len(self.state["window"]) + needed > self.WINDOW_LIMIT:
+            self._refuse("rolling allowance exhausted")
+
+    def summary(self):
+        return (f"Intervals requests: run={self.count}, today=unknown, allowance_left=unknown, "
+                f"hold_until={self._local_hold or None}, scope={self.SCOPE}")
+
+
 class AcquisitionStore:
     """Private response snapshots; calculations receive independent copies."""
     VERSION = 1
@@ -5444,6 +5579,13 @@ class AcquisitionStore:
                 return True
             now = budget.now
             state = budget.state
+            if isinstance(budget, HostedRequestBudget):
+                # Each hosted invocation is independently due; holds still win.
+                self.next_tick = max(now, state["hold_until"], budget._local_hold)
+                self.admitted = self.next_tick <= now and not budget.stopped
+                if not self.admitted:
+                    self.warn("rate_hold", "Requests held until " + self.stamp(self.next_tick) + ".", self.next_tick)
+                return self.admitted
             old = state.get("schedule", {})
             midnight = (datetime.fromtimestamp(now, timezone.utc).replace(hour=0, minute=0, second=0,
                         microsecond=0) + timedelta(days=1)).timestamp()
@@ -5658,6 +5800,274 @@ def preserve_budget_outputs(operation):
     return run
 
 
+class HostedSlowCache:
+    """Portable, slow-only snapshots. Restoring never records an acquisition."""
+    VERSION = 1
+    MAX_BYTES = 8 * 1024 * 1024
+    MAX_ENTRIES = 2048
+    GROUPS = ("profile", "aggregate_curves", "messages")
+    FIELDS = {"group", "descriptor", "payload", "last_success", "last_attempt", "ttl", "dependency"}
+    ERROR_REASONS = frozenset((
+        "symlink staging", "staging inside published tree", "invalid staging",
+        "not an ordinary cache", "invalid cache size or type", "oversize cache",
+        "duplicate field", "non-finite number", "descriptor", "descriptor types",
+        "endpoint or parameters", "envelope", "oversize envelope", "entry fields",
+        "ttl", "acquisition time", "dependency", "unexpected payload fields",
+        "curve metadata", "curve shape", "curve values", "profile shape", "sport shape",
+        "duplicate entry", "incomplete slow snapshot", "invalid output",
+        "profile is not an object", "invalid sport settings",
+        "invalid curve collection", "invalid message texts"))
+
+    def __init__(self, sync):
+        self.sync, self.store = sync, sync._acquisition
+        self.stage, self.original = None, None
+        self.scope = None
+        env = os.environ
+        if ExportFreshness.context(env)["mode"] not in ("hosted_scheduled", "on_demand"):
+            return
+        try:
+            repository = env.get("GITHUB_REPOSITORY_ID", "")
+            branch = env.get("GITHUB_REF_NAME", "")
+            if not re.fullmatch(r"[0-9]{1,24}", repository) or not branch or len(branch) > 255:
+                return
+            if not env.get("RUNNER_TEMP") or not env.get("GITHUB_WORKSPACE"):
+                return
+            stage = Path(env["RUNNER_TEMP"]) / "section11-slow-cache"
+            # Old workflows do not prepare staging, so continue without savings.
+            if not stage.exists():
+                return
+            for path in (stage, *stage.parents):
+                if path.is_symlink():
+                    raise ValueError("symlink staging")
+            stage = stage.resolve()
+            for root in (Path(env["GITHUB_WORKSPACE"]).resolve(), sync.data_dir.resolve()):
+                if stage == root or root in stage.parents:
+                    raise ValueError("staging inside published tree")
+            if not stage.is_dir():
+                raise ValueError("invalid staging")
+            self.stage = stage
+            self.scope = {"repository": repository, "branch": branch,
+                          "producer": sync.script_hash,
+                          "athlete": hashlib.sha256(str(sync.athlete_id).strip().encode()).hexdigest()}
+        except (OSError, ValueError) as error:
+            self.notice("staging unavailable", error)
+
+    @classmethod
+    def notice(cls, reason, error):
+        # Only fixed validation reasons or known exception categories, never
+        # exception values, paths, identifiers or authentication material.
+        category = "error"
+        if (type(error) is ValueError and len(error.args) == 1
+                and isinstance(error.args[0], str) and error.args[0] in cls.ERROR_REASONS):
+            category = error.args[0]
+        else:
+            for kind in (json.JSONDecodeError, FileNotFoundError, PermissionError,
+                         OSError, ValueError, TypeError, KeyError, RecursionError, OverflowError):
+                if isinstance(error, kind):
+                    category = kind.__name__
+                    break
+        print("hosted_cache_unavailable: " + reason + " (" + category
+              + "); normal reads remain available.")
+
+    @staticmethod
+    def canonical(value):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+    def _read(self, path):
+        import stat
+        if path.is_symlink() or not stat.S_ISREG(path.lstat().st_mode):
+            raise ValueError("not an ordinary cache")
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as handle:
+            info = os.fstat(handle.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > self.MAX_BYTES:
+                raise ValueError("invalid cache size or type")
+            content = handle.read(self.MAX_BYTES + 1)
+        if len(content) > self.MAX_BYTES:
+            raise ValueError("oversize cache")
+        def pairs(items):
+            result = {}
+            for key, value in items:
+                if key in result:
+                    raise ValueError("duplicate field")
+                result[key] = value
+            return result
+        def invalid(value):
+            raise ValueError("non-finite number")
+        value = json.loads(content, object_pairs_hook=pairs, parse_constant=invalid)
+        return value
+
+    def _descriptor(self, group, descriptor):
+        if (not isinstance(descriptor, dict)
+                or set(descriptor) != {"origin", "endpoint", "params", "schema"}
+                or descriptor["origin"] != "https://intervals.icu/api/v1"
+                or type(descriptor["schema"]) is not int or descriptor["schema"] != AcquisitionStore.VERSION):
+            raise ValueError("descriptor")
+        endpoint, params = descriptor["endpoint"], descriptor["params"]
+        if not isinstance(endpoint, str) or not isinstance(params, dict):
+            raise ValueError("descriptor types")
+        if group == "profile":
+            valid = endpoint == "" and params == {}
+        elif group == "messages":
+            valid = bool(re.fullmatch(r"activity/[A-Za-z0-9_-]{1,128}/messages", endpoint)) and params == {}
+        else:
+            valid = (endpoint in ("power-curves", "hr-curves")
+                     and set(params) in ({"curves"}, {"type", "curves"}, {"type", "curves", "subMaxEfforts"}))
+            if valid:
+                curve = params.get("curves")
+                valid = isinstance(curve, str) and bool(re.fullmatch(
+                    r"r\.\d{4}-\d{2}-\d{2}\.\d{4}-\d{2}-\d{2}(,r\.\d{4}-\d{2}-\d{2}\.\d{4}-\d{2}-\d{2})?", curve))
+            if valid:
+                ranges = [[datetime.strptime(v, "%Y-%m-%d").date() for v in part.split(".")[1:]]
+                          for part in curve.split(",")]
+                valid = ((len(ranges) == 1 and (ranges[0][1] - ranges[0][0]).days == self.sync.SUSTAINABILITY_WINDOW_DAYS - 1)
+                         or (len(ranges) == 2 and all((b - a).days == 27 for a, b in ranges)
+                             and (ranges[0][0] - ranges[1][1]).days == 1))
+                if "type" in params:
+                    valid = valid and params["type"] in self.sync.REPORT_SPORTS
+                elif endpoint != "hr-curves" or len(ranges) != 2:
+                    valid = False
+                if "subMaxEfforts" in params:
+                    valid = valid and type(params["subMaxEfforts"]) is int and params["subMaxEfforts"] == 3 and len(ranges) == 2
+                elif len(ranges) == 2:
+                    valid = valid and (params.get("type") == "Ride" if endpoint == "power-curves" else "type" not in params)
+                else:
+                    families = (self.sync.SUSTAINABILITY_POWER_TYPES if endpoint == "power-curves"
+                                else self.sync.SUSTAINABILITY_HR_TYPES)
+                    valid = valid and params.get("type") in {typ for types in families.values() for typ in types}
+                valid = valid and max(b for _, b in ranges) <= datetime.now().date()
+        if not valid:
+            raise ValueError("endpoint or parameters")
+
+    def validate(self, envelope):
+        if (not isinstance(envelope, dict) or set(envelope) != {"version", "source_version", "scope", "entries"}
+                or type(envelope["version"]) is not int or envelope["version"] != self.VERSION
+                or type(envelope["source_version"]) is not int or envelope["source_version"] != AcquisitionStore.VERSION
+                or envelope["scope"] != self.scope or not isinstance(envelope["entries"], list)
+                or not 1 <= len(envelope["entries"]) <= self.MAX_ENTRIES):
+            raise ValueError("envelope")
+        if len(self.canonical(envelope)) > self.MAX_BYTES:
+            raise ValueError("oversize envelope")
+        entries, seen = {}, set()
+        now = self.store.now()
+        for row in envelope["entries"]:
+            if not isinstance(row, dict) or set(row) != self.FIELDS or row["group"] not in self.GROUPS:
+                raise ValueError("entry fields")
+            group, descriptor = row["group"], row["descriptor"]
+            self._descriptor(group, descriptor)
+            ttl = 3600 if group == "profile" else 21600
+            if type(row["ttl"]) is not int or row["ttl"] != ttl:
+                raise ValueError("ttl")
+            success, attempt = row["last_success"], row["last_attempt"]
+            if (not RequestBudget._number(success) or not RequestBudget._number(attempt)
+                    or not success <= attempt <= now):
+                raise ValueError("acquisition time")
+            dependency = row["dependency"]
+            if (dependency is not None if group == "profile" else
+                    not isinstance(dependency, str) or not re.fullmatch(r"[0-9a-f]{64}", dependency)):
+                raise ValueError("dependency")
+            payload = AcquisitionStore.project(group, row["payload"])
+            if payload != row["payload"]:
+                raise ValueError("unexpected payload fields")
+            if group == "aggregate_curves":
+                if not isinstance(payload.get("activities", []), (list, dict)):
+                    raise ValueError("curve metadata")
+                for curve in payload["list"]:
+                    if (not isinstance(curve, dict) or not isinstance(curve.get("id"), str)
+                            or curve["id"] not in descriptor["params"]["curves"].split(",")
+                            or not isinstance(curve.get("secs"), list)
+                            or any(not RequestBudget._number(v) or v <= 0 for v in curve["secs"])):
+                        raise ValueError("curve shape")
+                    values = curve.get("watts", curve.get("values"))
+                    if (not isinstance(values, list)
+                            or any(v is not None and not RequestBudget._number(v) for v in values)):
+                        raise ValueError("curve values")
+            if group == "profile":
+                # Reject nested objects in scalar fields, including field-name traps.
+                for name, value in payload.items():
+                    if name != "sportSettings" and isinstance(value, (dict, list)):
+                        raise ValueError("profile shape")
+                for setting in payload.get("sportSettings") or []:
+                    for name, value in setting.items():
+                        if name in ("types", "power_zones"):
+                            if value is not None and (not isinstance(value, list)
+                                    or any(isinstance(v, (list, dict)) for v in value)):
+                                raise ValueError("sport shape")
+                        elif isinstance(value, (dict, list)):
+                            raise ValueError("sport shape")
+            signature = self.canonical(descriptor)
+            key, _ = self.store.key(descriptor["endpoint"], descriptor["params"])
+            if signature in seen or key in entries:
+                raise ValueError("duplicate entry")
+            seen.add(signature)
+            entries[key] = dict(self.store.clone(row), version=AcquisitionStore.VERSION, key=key,
+                                generation=0, snapshot_present=True, status="fresh", reason=None)
+        return entries
+
+    def restore(self):
+        if self.stage is None:
+            return
+        try:
+            envelope = self._read(self.stage / "cache.json")
+            entries = self.validate(envelope)  # Validate all rows before adopting any.
+        except FileNotFoundError:
+            print("Hosted slow cache: miss.")
+            return
+        except (OSError, ValueError, TypeError, KeyError, RecursionError, OverflowError) as error:
+            self.notice("restore rejected", error)
+            return
+        self.original = self.canonical(envelope)
+        # Use this runner's ordinary store paths and version receipts so its
+        # existing coherent-generation pruning can remove obsolete restored rows.
+        # save() does not change times or mark an entry acquired in this run.
+        for entry in entries.values():
+            self.store.save(entry)
+        print("Hosted slow cache: restored", len(entries), "entries.")
+
+    def export(self, data):
+        if self.stage is None or data is not getattr(self.sync, "_hosted_generation", None):
+            return False
+        store, budget = self.store, self.store.budget
+        sources = data.get("source_freshness", {}).get("sources", {})
+        if (not store.admitted or budget.degraded or budget.stopped or budget.refusals
+                or any(sources.get(g, {}).get("status") != "fresh" for g in (*store.CORE, *self.GROUPS))):
+            return False
+        try:
+            rows = []
+            for entry in store.entries.values():
+                if entry["group"] not in self.GROUPS:
+                    continue
+                if not entry.get("snapshot_present") or entry.get("status") != "fresh":
+                    raise ValueError("incomplete slow snapshot")
+                rows.append({name: entry.get(name) for name in self.FIELDS})
+            rows.sort(key=lambda row: self.canonical(row["descriptor"]))
+            envelope = {"version": self.VERSION, "source_version": store.VERSION, "scope": self.scope, "entries": rows}
+            self.validate(envelope)
+            content = self.canonical(envelope)
+            if content == self.original:
+                return False
+            target = self.stage / "next.json"
+            if target.is_symlink() or target.exists() and not target.is_file():
+                raise ValueError("invalid output")
+            fd, name = tempfile.mkstemp(prefix=".slow-", dir=self.stage)
+            try:
+                with os.fdopen(fd, "wb") as handle:
+                    handle.write(content)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(name, target)
+            finally:
+                if os.path.exists(name):
+                    os.unlink(name)
+            if os.environ.get("GITHUB_OUTPUT"):
+                with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+                    handle.write("cache_changed=true\n")
+            print("Hosted slow cache: changed snapshot prepared.")
+            return True
+        except (OSError, ValueError, TypeError, KeyError, RecursionError, OverflowError) as error:
+            self.notice("export refused", error)
+            return False
+
+
 class IntervalsSync:
     """Sync Intervals.icu data to GitHub repository or local file"""
 
@@ -5688,7 +6098,7 @@ class IntervalsSync:
     HISTORY_FILE = "history.json"
     UPSTREAM_REPO = "CrankAddict/section-11"
     CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.164"
+    VERSION = "3.165"
     ROUTE_TERRAIN_VERSION = "3.142"
     ROUTE_RETRY_BACKOFF_SECONDS = 15 * 60
     INTERVALS_FILE = "intervals.json"
@@ -6039,7 +6449,10 @@ class IntervalsSync:
     @property
     def request_budget(self):
         if not hasattr(self, "_request_budget"):
-            self._request_budget = self._budget_factory(
+            factory = self._budget_factory
+            if factory is RequestBudget and ExportFreshness.context(os.environ)["mode"] in ("hosted_scheduled", "on_demand"):
+                factory = HostedRequestBudget
+            self._request_budget = factory(
                 getattr(self, "data_dir", Path.cwd()), "sync", RequestBudgetRefused,
                 self._budget_identity)
         return self._request_budget
@@ -6047,6 +6460,8 @@ class IntervalsSync:
     def begin_tick(self):
         if not hasattr(self, "_acquisition"):
             self._acquisition = AcquisitionStore(self)
+            self._hosted_cache = HostedSlowCache(self)
+            self._hosted_cache.restore()
         return self._acquisition.begin()
 
     def _source_freshness(self, data, retained=False):
@@ -6183,14 +6598,15 @@ class IntervalsSync:
                 active_warnings = {w["code"] for w in store.warnings}
                 state["warning_since"] = {k: v for k, v in state.get("warning_since", {}).items() if k in active_warnings}
                 budget._save_storage()
+            hosted = isinstance(budget, HostedRequestBudget)
             return {"version": 1, "as_of": store.stamp(now), "budget": {
                 "scope": budget.SCOPE, "capacity_status": "known" if known else "unknown",
                 "utc_day": getattr(budget, "day", budget._day(now)), "requests_this_run": budget.count,
-                "requests_today": sum(sum(v.values()) for v in totals.values()) if known else None,
-                "sync_requests_today": sum(totals.get("sync", {}).values()) if known else None,
-                "provider_daily_limit": daily, "sync_daily_limit": sync_limit,
-                "reserved_external": budget.EXTERNAL_RESERVE,
-                "sync_remaining": max(0, budget._remaining()) if known else None,
+                "requests_today": sum(sum(v.values()) for v in totals.values()) if known and not hosted else None,
+                "sync_requests_today": sum(totals.get("sync", {}).values()) if known and not hosted else None,
+                "provider_daily_limit": daily, "sync_daily_limit": None if hosted else sync_limit,
+                "reserved_external": None if hosted else budget.EXTERNAL_RESERVE,
+                "sync_remaining": max(0, budget._remaining()) if known and not hosted else None,
                 "window_requests": len(state.get("window", [])) if known else None,
                 "window_limit": budget.WINDOW_LIMIT, "hold_until": store.stamp(hold) if hold > now else None,
                 "next_eligible_at": store.stamp(eligible)}, "schedule": store.clone(store.schedule),
@@ -6220,6 +6636,14 @@ class IntervalsSync:
                 and old.get("budget", {}).get("hold_until") == fresh["budget"]["hold_until"]):
             return
         prior["source_freshness"] = fresh
+        previous = prior.get("export_freshness") or {}
+        if not isinstance(previous, dict):
+            previous = {}
+        export = ExportFreshness.build(
+            previous.get("generated_at", prior.get("metadata", {}).get("last_updated")),
+            ExportFreshness.context(os.environ), fresh, datetime.now(timezone.utc), previous)
+        if export is not None:
+            prior["export_freshness"] = export
         fd, name = tempfile.mkstemp(prefix=".freshness-", dir=path.parent)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as out:
@@ -11198,6 +11622,7 @@ class IntervalsSync:
     @preserve_budget_outputs
     def collect_training_data(self, days_back: int = 7) -> Dict:
         """Collect all training data for LLM analysis"""
+        self._hosted_generation = None
         if not self.begin_tick():
             raise RequestBudgetRefused("top-level tick is not due")
         # v3.157: stream responses are reused only within this sync run.
@@ -11709,7 +12134,7 @@ class IntervalsSync:
             },
             "metadata": {
                 "athlete_id": "REDACTED",
-                "last_updated": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "last_updated": None,  # Filled once the coherent training generation is complete.
                 "data_range_days": days_back,
                 "extended_range_days": days_for_acwr,
                 "version": self.VERSION
@@ -11836,6 +12261,13 @@ class IntervalsSync:
 
         data["source_freshness"] = self._source_freshness(data)
         self._acquisition.prune(data)
+        # Capture once, after the complete training body and source evaluation.
+        generated = datetime.now(timezone.utc)
+        data["metadata"]["last_updated"] = ExportFreshness.stamp(generated)
+        data["export_freshness"] = ExportFreshness.build(
+            data["metadata"]["last_updated"], ExportFreshness.context(os.environ),
+            data["source_freshness"], generated)
+        self._hosted_generation = data
         return data
 
     def _build_sleep_context(self, wellness, as_of_date, timezone_name, source_updated_at):
@@ -21776,7 +22208,11 @@ class IntervalsSync:
             data["READ_THIS_FIRST"] = first
         data["data_overview"] = overview
         data.update(remaining)
-        return self.save_to_file(data, filepath)
+        result = self.save_to_file(data, filepath)
+        cache = getattr(self, "_hosted_cache", None)
+        if cache is not None:
+            cache.export(data)
+        return result
 
     def save_to_file(self, data: Dict, filepath: str = "latest.json"):
         """Save data to local JSON file"""

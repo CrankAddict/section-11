@@ -40,6 +40,8 @@ We recommend one setup per user. Before changing the sync path or moving machine
 
 ### Export to local file
 
+Declare the invocation as Manual before exporting: `export SECTION11_EXPORT_MODE=manual` in a POSIX shell, or `$env:SECTION11_EXPORT_MODE = 'manual'` in PowerShell. The export then has `export_freshness.mode: "manual"`, `reason: "manual"` and a null delivery deadline. Its snapshot age still follows the 12/24-hour rule. If you omit the declaration, exports still work with mode `unknown` and the same age fallback; no scheduled refresh is assumed. Set this only for manual invocations, not for a local timer.
+
 ```bash
 # Last 7 days (default)
 python3 sync.py --output latest.json

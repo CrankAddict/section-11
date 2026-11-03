@@ -88,173 +88,33 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: section11-writer
+  cancel-in-progress: false
+  queue: max
+
 jobs:
   run:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
+        with:
+          persist-credentials: false
+      - name: Require installed Section 11
+        run: |
+          if [ ! -f section11/examples/agentic/push.py ]; then
+            echo 'Section 11 is not installed yet; run Sync once first'
+            exit 1
+          fi
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11'
-
       - name: Install dependencies
-        run: pip install requests
-
-      - name: Verify push.py exists
-        run: |
-          if [ ! -f push.py ]; then
-            echo "push.py not found in repository root!"
-            echo "Copy from https://github.com/CrankAddict/section-11/tree/main/examples/agentic/"
-            exit 1
-          fi
-          echo "push.py found"
-
-      - name: Verify secrets
-        run: |
-          if [ -z "${{ secrets.ATHLETE_ID }}" ]; then
-            echo "ATHLETE_ID secret not set!"
-            exit 1
-          fi
-          if [ -z "${{ secrets.INTERVALS_KEY }}" ]; then
-            echo "INTERVALS_KEY secret not set!"
-            exit 1
-          fi
-          echo "Secrets configured"
-
-      - name: Run push.py
+        run: python -m pip install requests
+      - name: Run managed push
         env:
           ATHLETE_ID: ${{ secrets.ATHLETE_ID }}
           INTERVALS_KEY: ${{ secrets.INTERVALS_KEY }}
-          MOVE_TIME: ${{ github.event.inputs.time }}
-        run: |
-          CMD="${{ github.event.inputs.command }}"
-          CONFIRM="${{ github.event.inputs.confirm }}"
-
-          # Validate the environment value before it can enter the command.
-          if [ -n "$MOVE_TIME" ]; then
-            if [[ ! "$MOVE_TIME" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]]; then
-              echo '{"success": false, "error": "time must be HH:MM local"}'
-              exit 1
-            fi
-            if [ "$CMD" != "move" ]; then
-              echo '{"success": false, "error": "time input is for move; push uses per-workout JSON time"}'
-              exit 1
-            fi
-          fi
-
-          case "$CMD" in
-            push)
-              if [ -z "${{ github.event.inputs.workouts }}" ]; then
-                echo '{"success": false, "error": "workouts input is required for push"}'
-                exit 1
-              fi
-              cat << 'PAYLOAD_EOF' > /tmp/workouts.json
-          ${{ github.event.inputs.workouts }}
-          PAYLOAD_EOF
-              echo "Payload:"
-              cat /tmp/workouts.json
-              ARGS="push --json /tmp/workouts.json"
-              ;;
-            list)
-              ARGS="list"
-              if [ -n "${{ github.event.inputs.oldest }}" ]; then
-                ARGS="$ARGS --oldest ${{ github.event.inputs.oldest }}"
-              fi
-              if [ -n "${{ github.event.inputs.newest }}" ]; then
-                ARGS="$ARGS --newest ${{ github.event.inputs.newest }}"
-              fi
-              ;;
-            move)
-              if [ -z "${{ github.event.inputs.event_id }}" ] || [ -z "${{ github.event.inputs.date }}" ]; then
-                echo '{"success": false, "error": "event_id and date are required for move"}'
-                exit 1
-              fi
-              ARGS="move --event-id ${{ github.event.inputs.event_id }} --date ${{ github.event.inputs.date }}"
-              if [ -n "$MOVE_TIME" ]; then
-                ARGS="$ARGS --time $MOVE_TIME"
-              fi
-              ;;
-            delete)
-              if [ -z "${{ github.event.inputs.event_id }}" ]; then
-                echo '{"success": false, "error": "event_id is required for delete"}'
-                exit 1
-              fi
-              ARGS="delete --event-id ${{ github.event.inputs.event_id }}"
-              ;;
-            set-threshold)
-              if [ -z "${{ github.event.inputs.sport }}" ]; then
-                echo '{"success": false, "error": "sport is required for set-threshold"}'
-                exit 1
-              fi
-              ARGS="set-threshold --sport ${{ github.event.inputs.sport }}"
-              if [ -n "${{ github.event.inputs.ftp }}" ]; then
-                ARGS="$ARGS --ftp ${{ github.event.inputs.ftp }}"
-              fi
-              if [ -n "${{ github.event.inputs.indoor_ftp }}" ]; then
-                ARGS="$ARGS --indoor-ftp ${{ github.event.inputs.indoor_ftp }}"
-              fi
-              if [ -n "${{ github.event.inputs.lthr }}" ]; then
-                ARGS="$ARGS --lthr ${{ github.event.inputs.lthr }}"
-              fi
-              if [ -n "${{ github.event.inputs.max_hr }}" ]; then
-                ARGS="$ARGS --max-hr ${{ github.event.inputs.max_hr }}"
-              fi
-              ;;
-            annotate)
-              if [ -z "${{ github.event.inputs.message }}" ]; then
-                echo '{"success": false, "error": "message is required for annotate"}'
-                exit 1
-              fi
-              ARGS="annotate --message \"${{ github.event.inputs.message }}\""
-              if [ -n "${{ github.event.inputs.activity_id }}" ]; then
-                ARGS="$ARGS --activity-id ${{ github.event.inputs.activity_id }}"
-              elif [ -n "${{ github.event.inputs.event_id }}" ]; then
-                ARGS="$ARGS --event-id ${{ github.event.inputs.event_id }}"
-              else
-                echo '{"success": false, "error": "activity_id or event_id is required for annotate"}'
-                exit 1
-              fi
-              if [ "${{ github.event.inputs.chat }}" = "true" ]; then
-                ARGS="$ARGS --chat"
-              fi
-              ;;
-            *)
-              echo '{"success": false, "error": "unknown command: '"$CMD"'"}'
-              exit 1
-              ;;
-          esac
-
-          # Add --confirm for write operations when approved
-          if [ "$CONFIRM" = "true" ] && [ "$CMD" != "list" ]; then
-            ARGS="$ARGS --confirm"
-          fi
-
-          echo "Running: python push.py $ARGS"
-          eval python push.py $ARGS
-
-      - name: Notify when the run did not complete with a confirmed success
-        if: failure()
-        run: |
-          echo "push.py did not complete with a confirmed success. Check logs above."
-          echo "Exit 1 with a JSON body carrying outcome not_applied means the"
-          echo "operation definitely did not happen. Exit 1 from an unstructured"
-          echo "failure, a traceback or a crash before any JSON was printed, carries"
-          echo "no such guarantee: treat that like exit 2 and check the calendar."
-          echo "Exit 2 means the outcome is UNKNOWN: see the note at the end."
-          echo "Common issues behind exit 1:"
-          echo "  - Invalid workout JSON format"
-          echo "  - Invalid date (must be today or future)"
-          echo "  - Event/activity ID not found"
-          echo "  - 403 Access denied: ATHLETE_ID secret must match the ID shown in Intervals.icu Settings exactly (i123456 form, or digits only for some early accounts), and INTERVALS_KEY must be the raw API key string"
-          echo "  - Intervals.icu API unreachable"
-          echo ""
-          echo "Exit code 2 is different: the outcome is UNKNOWN, not failed. push.py"
-          echo "issued one write, could not confirm whether it landed, and issued no"
-          echo "write retry. The change may or may not be in place. Do not report it"
-          echo "as failed. Check the calendar or activity first, then follow the"
-          echo "per-operation recovery table in examples/agentic/README.md."
-          echo "This step is marked non-successful only so the run draws attention."
+        run: python section11/examples/agentic/push.py --workflow

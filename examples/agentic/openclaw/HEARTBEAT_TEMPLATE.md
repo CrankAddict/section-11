@@ -17,7 +17,12 @@ Copy this file to your agent workspace as `HEARTBEAT.md` and fill in the bracket
 
 ### Data Sources
 
-`interval_data.plan_match` supplies timeline labels; `interval_data.compliance` summarizes gated Section 11 evidence from session_structure; `interval_data.icu_detected` is descriptive only. See [Which interval data to use](../../../SECTION_11.md#which-interval-data-to-use).
+Data folder or connected data repository root: [DATA_SOURCE_ROOT]. Resolve every
+`section11/` path below from that root, regardless of where this template is
+copied. These file paths and heading IDs refer to the installed release, not the
+agent workspace. If a required installed file is unavailable, ask for it.
+
+`interval_data.plan_match` supplies timeline labels; `interval_data.compliance` summarizes gated Section 11 evidence from session_structure; `interval_data.icu_detected` is descriptive only. See Which interval data to use (`section11/SECTION_11.md#which-interval-data-to-use`).
 
 | Source | URL/Path |
 |--------|----------|
@@ -65,7 +70,7 @@ For planned rides with a route, read sync.py's route weather through `latest.jso
 
 A separate cron is optional for general/home-location weather when there is no route. Its timing and notification policy are the athlete's choice. An athlete may prefer "silence = not rideable"; that is a notification preference, not a Section 11 rule or a safety assessment.
 
-Use the shared [Point-weather location](../../../SECTION_11.md#point-weather-location) rule: explicit current-chat location first, valid only for that conversation; otherwise `athlete_profile.location` in current `latest.json`, then the current official dossier's Home region only when that profile location is null/empty. Show the place and `(you said)`, `(from Intervals.icu)` or `(from dossier)` in the point-forecast output. Do not store or read a weather location in heartbeat configuration, or carry a chat travel override into a later cron run. If travel is indicated but unresolved, omit weather or ask. Geocode city-level text using [EXTERNAL_APIS.md](../EXTERNAL_APIS.md#geocoding-for-point-weather); ambiguity or failure means unavailable, never a guess.
+Use the shared Point-weather location rule (`section11/SECTION_11.md#point-weather-location`): explicit current-chat location first, valid only for that conversation; otherwise `athlete_profile.location` in current `latest.json`, then the current official dossier's Home region only when that profile location is null/empty. Show the place and `(you said)`, `(from Intervals.icu)` or `(from dossier)` in the point-forecast output. Do not store or read a weather location in heartbeat configuration, or carry a chat travel override into a later cron run. If travel is indicated but unresolved, omit weather or ask. Geocode city-level text using `section11/examples/agentic/EXTERNAL_APIS.md#geocoding-for-point-weather`; ambiguity or failure means unavailable, never a guess.
 
 ---
 

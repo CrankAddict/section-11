@@ -31,7 +31,7 @@ class SourceCase(unittest.TestCase):
                 value = cls.fromtimestamp(clock(), timezone.utc)
                 return value.astimezone(tz) if tz else value.replace(tzinfo=None)
         self.Date = Date
-        env = mock.patch.dict(os.environ, {"SECTION11_STATE_DIR": str(self.root / "private/request-budget")})
+        env = mock.patch.dict(os.environ, {"SECTION11_STATE_DIR": str(self.root / "private/request-budget"), "GITHUB_ACTIONS": ""})
         env.start()
         self.addCleanup(env.stop)
         dates = mock.patch.object(sync_mod, "datetime", Date)

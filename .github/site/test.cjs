@@ -25,6 +25,22 @@ function fixture(t) {
   return directory;
 }
 
+test('published update guide describes direct updates and sealed release templates', t => {
+  const output = path.join(scratch(t), 'public');
+  build(root, output);
+  const updating = fs.readFileSync(path.join(output, 'guides/updating.html'), 'utf8');
+  assert.match(updating, /SECTION11_AUTO_UPDATE/);
+  assert.match(updating, /blob-pinned source reads/);
+  assert.match(updating, /daily allowance limits automatic discovery/);
+  assert.doesNotMatch(updating, /review GitHub update PRs/);
+  for (const [route, asset] of [['github-sync.html', 'auto-sync.yml'], ['on-demand.html', 'on-demand.yml']]) {
+    const guide = fs.readFileSync(path.join(output, 'guides', route), 'utf8');
+    assert.ok(guide.includes('section11-YYYY.MM.DD-' + asset));
+    assert.match(guide, /UNSEALED/);
+    assert.match(guide, /releases\/latest/);
+  }
+});
+
 test('build emits only the explicit public inventory', t => {
   const output = path.join(scratch(t), 'public');
   assert.deepEqual(build(root, output), ['LICENSE.txt', 'assets/site.css', 'index.html', 'robots.txt', 'sitemap.xml', ...ICONS, ...pages.map(p => p.route)].sort());
@@ -208,13 +224,14 @@ test('search metadata, home structured data and sitemap change only the head and
     { route: 'guides/local-sync.html', title: 'Local sync', searchTitle: 'Local sync setup guide for Intervals.icu data | Section 11', description: 'Run sync.py on a machine you control to refresh your Intervals.icu training data on a timer for your AI coach to read. No GitHub needed.' },
     { route: 'guides/github-sync.html', title: 'GitHub sync', searchTitle: 'GitHub sync setup guide for Intervals.icu data | Section 11', description: 'Use GitHub Actions to mirror your Intervals.icu training data to a private repository as JSON, on a schedule or on request, for your AI coach to read.' },
     { route: 'guides/on-demand.html', title: 'On-demand sync', searchTitle: 'On-demand Intervals.icu sync from your browser | Section 11', description: 'Trigger a fresh Intervals.icu sync from your phone or browser, then download the data files as a ZIP for your AI chat. No schedule, no local Python.' },
-    { route: 'guides/manual-export.html', title: 'Manual export', searchTitle: 'Manual JSON export of Intervals.icu data | Section 11', description: 'Run sync.py once to export your Intervals.icu training data as JSON for a time range you choose, then upload the file to your AI. No automation needed.' },
+    { route: 'guides/manual-export.html', title: 'Manual export', searchTitle: 'Manual JSON export of Intervals.icu data | Section 11', description: 'Export Intervals.icu training data as JSON for your AI. Setup includes automatic sync by default; use --no-timer to run exports by hand.' },
     { route: 'reports.html', title: 'Report examples', searchTitle: 'AI coaching report templates and examples | Section 11', description: 'Templates and annotated examples for Section 11 AI coaching reports: pre-workout, post-workout, 7-day, 28-day and season.' },
+    { route: 'guides/updating.html', title: 'Updates and rollback', searchTitle: 'Section 11 updates, automatic updates and rollback | Section 11', description: 'Install verified Section 11 releases locally or on GitHub, choose automatic updates, and restore a previous installation when needed.' },
   ];
   // pages.json keeps its routes and UI labels; searchTitle and description feed the head only.
   assert.deepEqual(pages.map(({ route, title, searchTitle, description }) => ({ route, title, searchTitle, description })), expected.slice(1));
-  assert.equal(new Set(expected.map(p => p.searchTitle)).size, 7);
-  assert.equal(new Set(expected.map(p => p.description)).size, 7);
+  assert.equal(new Set(expected.map(p => p.searchTitle)).size, 8);
+  assert.equal(new Set(expected.map(p => p.description)).size, 8);
   assert.equal(headTitle({ title: 'Local sync' }), 'Local sync | Section 11');
   assert.equal(headTitle({ title: 'Local sync', searchTitle: 'Complete | Section 11' }), 'Complete | Section 11');
   const html = {};
@@ -253,7 +270,7 @@ test('search metadata, home structured data and sitemap change only the head and
   assert.doesNotMatch(page.match(DATA_BLOCK)[1], /</);
   assert.deepEqual(JSON.parse(page.match(DATA_BLOCK)[1]), hostile);
   assert.doesNotMatch(shell('index.html', 'T', 'D', '<p>body</p>', new Map(ICONS.map(name => [name, '0']))), /<script/i);
-  // Sitemap: the seven canonical addresses, nothing else, no dates or hints.
+  // Sitemap: the eight canonical addresses, nothing else, no dates or hints.
   const canonicals = expected.map(p => html[p.route].match(/<link rel="canonical" href="([^"]*)">/)[1]);
   assert.equal(fs.readFileSync(path.join(output, 'sitemap.xml'), 'utf8'),
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${canonicals.map(url => `<url><loc>${url}</loc></url>\n`).join('')}</urlset>\n`);
@@ -293,6 +310,7 @@ test('local, unselected and partial-document links preserve their destination', 
   const docs = prepare(root);
   const manual = docs.find(p => p.title === 'Manual export');
   assert.equal(linkURL('../json-auto-sync/SETUP.md#ftp-history-tracking', manual, docs, root), 'github-sync.html#ftp-history-tracking');
+  assert.equal(linkURL('../maintenance/UPDATING.md#github-update-review', manual, docs, root), 'updating.html#github-update-review');
   assert.equal(linkURL('../../README.md#quick-start', manual, docs, root), '../getting-started.html#quick-start');
   assert.equal(linkURL('../../README.md#platform-setup', manual, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/README.md#platform-setup');
   assert.equal(linkURL('../../SETUP_ASSISTANT.md', manual, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/SETUP_ASSISTANT.md');

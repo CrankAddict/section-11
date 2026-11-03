@@ -2,6 +2,8 @@
 
 Run Section 11 from a machine you control: no GitHub needed. A script syncs your training data from Intervals.icu on a timer, and your AI coach reads the output, either directly from a filesystem its runtime can reach (agentic platforms) or via a cloud connector (AI chats with no runtime filesystem; [platform support varies](../../README.md#platform-setup)).
 
+> **Already using Section 11 locally?** Keep your data folder. Obtain the release bootstrap in [Initial Setup](#initial-setup), run it with `--update` from that folder, and accept once. Guide, root/manual, copy-only and clone installations use this same route. See [Staying Up to Date](#staying-up-to-date): installation replaces all of `section11/`, removes copies selected by the [shared name rule](../maintenance/UPDATING.md#local-updates-and-automatic-toggle) and manages auto sync.
+
 > **Other setup paths:** If you prefer GitHub-based sync, see [json-auto-sync](../json-auto-sync/SETUP.md). For one-off manual exports, see [json-manual](../json-manual/SETUP.md).
 
 ---
@@ -40,9 +42,15 @@ Each successful updated sync produces `latest.json.sleep_context` from a 35-date
 
 ## Prerequisites
 
-- Python 3.8+
-- `requests` library: `pip install requests`
+- Python 3.11 or newer
+- `requests` library in that interpreter: `python3 -m pip install requests` (Windows: `py -3 -m pip install requests`)
 - [Intervals.icu](https://intervals.icu) account with training data
+
+Check `python3 --version` and `python3 -c "import requests"` first (PowerShell: `py -3 --version` and `py -3 -c "import requests"`). macOS `/usr/bin/python3` is too old (3.9); select Python 3.11 or newer.
+
+If pip reports `externally-managed-environment` (Homebrew Python or recent Debian/Ubuntu), create a venv **outside the data folder**, which is often cloud-synced: `python3 -m venv "$HOME/.venvs/section11"`, then `"$HOME/.venvs/section11/bin/python" -m pip install requests`. Use that interpreter for all commands below, starting with `"$HOME/.venvs/section11/bin/python" "$HOME/Downloads/section11-bootstrap/section11/examples/sync.py" --init`, so the standard timer uses it too.
+
+Windows equivalent: `py -3 -m venv "$env:LOCALAPPDATA\Section11\venv"`, then `& "$env:LOCALAPPDATA\Section11\venv\Scripts\python.exe" -m pip install requests`; run `--init` and later commands with `& "$env:LOCALAPPDATA\Section11\venv\Scripts\python.exe"` instead of `py -3`. Keep that environment outside the data folder.
 
 **Finding your Intervals.icu credentials:**
 - **Athlete ID**: Intervals.icu → Settings → bottom of page (e.g., `i123456`)
@@ -52,39 +60,67 @@ Each successful updated sync produces `latest.json.sleep_context` from a 35-date
 
 ## Initial Setup
 
-Three commands to get started:
+Choose the final data directory before `--init`. For cloud connector access, use
+the cloud-synced folder here instead of `~/training-data/` throughout these steps.
+From the official [latest date release](https://github.com/CrankAddict/section-11/releases/latest), download its canonical
+`section11-YYYY.MM.DD.zip` asset and extract it under `~/Downloads/section11-bootstrap/`.
+Use the extracted `section11/examples/sync.py` as the bootstrap, outside your data
+folder. Do not overwrite an old root script to stage it. The installer independently
+verifies the latest official release before replacement. If no compatible release
+exists yet, stop and wait; never substitute a development/source archive or raw main.
 
 ```bash
-mkdir ~/training-data && cd ~/training-data
+mkdir -p "$HOME/training-data" && cd "$HOME/training-data"
 
-# Download sync.py (the bootstrap copy)
-curl -O https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/sync.py
+# Install the complete verified date release and auto sync; accept once
+python3 "$HOME/Downloads/section11-bootstrap/section11/examples/sync.py" --init
 
-# Configure credentials
-python3 sync.py --setup
-
-# Download the full Section 11 repo
-python3 sync.py --init
+# Configure credentials through the managed entry
+python3 section11/examples/sync.py --setup
 ```
 
-After `--init`, the bootstrap `sync.py` in the data directory root is removed. It's now at `section11/examples/sync.py`. All commands from here use the repo copy:
+For an existing data folder, use the same bootstrap with `--update`. After verified
+installation, root `sync.py`, `push.py` and `pull.py` are removed. All commands use
+the managed entries. Missing `custom/` and its README are created without replacing
+existing custom files. Auto sync is installed by default; `--no-timer` explicitly
+opts out and persists that choice. `--timer` re-enables it on a later install/update.
 
 ```bash
-# Create your athlete profile from the template. -n refuses to overwrite an existing one
-cp -n section11/DOSSIER_TEMPLATE.md DOSSIER.md
+# Copy the template only when no dossier file or symlink exists
+[ -e DOSSIER.md ] || [ -L DOSSIER.md ] || cp section11/DOSSIER_TEMPLATE.md DOSSIER.md
 
 # Run your first sync
 python3 section11/examples/sync.py --output latest.json
 ```
 
+**Windows PowerShell:** extract the same release ZIP outside the data folder, then:
+
+```powershell
+$DataFolder = Join-Path $HOME "Training data" # e.g. C:\Users\René Martin\Training data
+New-Item -ItemType Directory -Path $DataFolder -Force | Out-Null
+Set-Location -LiteralPath $DataFolder
+py -3 "$HOME\Downloads\section11-bootstrap\section11\examples\sync.py" --init
+py -3 ".\section11\examples\sync.py" --setup
+# Create only if missing; existing files, folders and links stay untouched
+if (-not (Get-ChildItem -LiteralPath . -Force -ErrorAction Stop | Where-Object Name -eq "DOSSIER.md")) {
+    Copy-Item -LiteralPath ".\section11\DOSSIER_TEMPLATE.md" -Destination ".\DOSSIER.md" -ErrorAction Stop
+}
+py -3 ".\section11\examples\sync.py" --output ".\latest.json"
+```
+
+Root `DOSSIER.md` is the authoritative dossier; web-chat uploads are delivery copies. If a dossier already lives elsewhere, use that copy until you move it to the data-folder root yourself; the AI asks once and never moves or copies it. Do not create a competing dossier. Keep a repository containing it private; Git keeps old versions.
+
+If a run is already in progress, wait a minute before trying your first sync again.
+
 ### Workspace layout
 
 ```
 ~/training-data/
-├── section11/                  # the repo — exact mirror of github.com/CrankAddict/section-11
+├── section11/                  # complete verified managed release
 │   ├── SECTION_11.md
 │   ├── DOSSIER_TEMPLATE.md
 │   ├── manifest.json
+│   ├── .section11-release.json  # verified release identity
 │   ├── examples/
 │   │   ├── sync.py
 │   │   ├── agentic/
@@ -101,7 +137,10 @@ python3 section11/examples/sync.py --output latest.json
 │   │   └── ...
 │   └── ...
 ├── .sync_config.json           # credentials and preferences (created by --setup)
-├── DOSSIER.md                  # your athlete profile, and the official copy unless you record another location
+├── .section11-state/           # update lock, journal, daily attempt and rollback ZIP
+├── sync.log                    # standard timer output, including macOS launchd
+├── custom/                    # personal code and overrides
+├── DOSSIER.md                  # authoritative athlete dossier in the data-folder root
 ├── latest.json                 # auto-generated by sync.py
 ├── history.json                # auto-generated by sync.py
 ├── intervals.json              # auto-generated by sync.py (structured sessions)
@@ -120,7 +159,10 @@ Key principle: `section11/` holds the Section 11 files that `--update` keeps cur
 
 With sync 3.146, every data companion lives next to the file selected by `--output`, even when it names another directory. Retain that export folder between runs. The AI reads `latest.json.data_overview` first for available files, route validity, weather and map status, then resolves relative paths against that folder or its connector equivalent. File presence does not guarantee connector access. The AI reads and shows matching PNG pages in their listed order on request or in the weather/pre-workout report; otherwise it uses text. Maps are never user downloads. Display times use the event/athlete timezone with DST-aware labels or an explicit UTC fallback; wind uses compass directions.
 
-**Alternative to `--init`:** If you prefer git, `git clone https://github.com/CrankAddict/section-11.git section11` gives you the complete repository, including maintainer files that `--init` does not install. Run `--update` once afterward to check the copy against the current manifest.
+**Clone used as an install:** the same accepted installer replaces its ordinary
+Git metadata along with the tree. That history survives only in the single rollback
+slot, until the next successful installation. Keep an actual development checkout
+separate; external worktree/submodule metadata requires owner resolution.
 
 ### Private sync state
 
@@ -218,16 +260,27 @@ An agent on a provider-hosted computer is a different case. It has a runtime fil
 ### How to set it up
 
 1. Install [Google Drive for Desktop](https://www.google.com/drive/download/) (or OneDrive, Dropbox, whatever your AI platform has a connector for)
-2. Set your data directory inside the synced folder:
+2. Choose the final data directory inside the synced folder before `--init`:
    ```
    ~/Google Drive/My Drive/training-data/
    ```
-3. Point your timer's `--output` at that folder (same as the regular local setup, just a different path)
+3. Complete [Initial Setup](#initial-setup) from that folder, including `--init` and
+   `--setup`. The installed `section11/`, `.sync_config.json` and exported data
+   then share the same data folder, which the standard timer uses.
 4. Connect the AI platform's Drive connector to the folder
+
+For an existing installation, stop the old timer, move the whole data folder
+including `section11/` and `.sync_config.json`, then run
+`python3 section11/examples/sync.py --update` once from the new folder to point
+the standard timer there. Keep the folder's credentials private.
 
 Your AI coach now reads your data from the synced folder: no URLs, no GitHub, no manual uploads. Refresh behavior varies by platform; see the [connector table](../../README.md#platform-setup).
 
-> **Tip:** If your data directory already contains `DOSSIER.md` and `section11/`, and you sync the whole directory rather than the JSON alone, one connection gives the AI your data, your dossier and the protocol files together. Check what the connector is actually scoped to; where it exposes only the JSON, supply `SECTION_11.md` and the dossier separately.
+> **Tip:** Check that the connector exposes the installed `section11/` folder and
+> current exported data. For manual uploads, supply exported data files, `DOSSIER.md` if used, and a ZIP
+> of the `section11/` folder only. Never zip the whole data folder, which can contain
+> credentials and rollback state. An uploaded ZIP is a snapshot; re-upload for fresh
+> data and after updates. Keep the optional dossier as root `DOSSIER.md`; uploads are delivery copies.
 
 ### Many ways to do this
 
@@ -244,9 +297,11 @@ We can't list every combination; there are many. The pattern is always the same:
 
 ## Automate the Refresh
 
-Set up a timer to run sync.py every **60 seconds**. Keep the timer at one minute even if you choose a slower check interval; sync.py decides when a check is due.
-
-Declare `SECTION11_EXPORT_MODE=local_scheduled` in the timer's environment so `latest.json.export_freshness` can give the AI a delivery deadline. Existing users who run `sync.py --update` and change nothing keep the same checks, state and exports; without this declaration the mode is `unknown`, the deadline is null, and the AI uses the 12/24-hour age fallback. For an existing shell wrapper, the one-line change is `export SECTION11_EXPORT_MODE=local_scheduled`. This declaration describes the timer; it does not create or change one.
+Both `--init` and `--update` install or refresh the standard Section 11 timer at
+`check_interval_minutes`. If you set up your own timer before, remove it.
+The installer manages only its standard timer and never inspects other commands.
+The standard timer declares `SECTION11_EXPORT_MODE=local_scheduled`, so export
+freshness can supply a delivery deadline.
 
 The optional `.sync_config.json` field `check_interval_minutes` accepts the integers **1, 2, 5 or 10**, with **1** as the default. To choose five-minute checks, add `"check_interval_minutes": 5` to your existing config, keeping its credentials and other settings. Strings such as `"5"`, booleans and other invalid values fall back to one minute with this warning:
 
@@ -287,137 +342,45 @@ It returns to your chosen interval when allowance permits, including after the U
 
 These local totals use retained private state. The updated [GitHub and On-demand workflow](../json-auto-sync/SETUP.md#private-state-and-request-limits) separately reuses slow sources, reducing a quiet cache-hit tick from about 31 requests to 4; it has no daily allowance controller or step-down.
 
-Command for all platforms:
-
-```bash
-python3 ~/training-data/section11/examples/sync.py --output ~/training-data/latest.json --lockfile
-```
-
-The `--lockfile` flag prevents overlapping runs if a sync takes longer than the interval.
+The single installation confirmation also covers the standard timer. It runs
+`section11/examples/sync.py` with `--lockfile` from the data directory. Existing
+API-publishing configuration remains API publishing; otherwise it exports to
+`latest.json`. After changing the interval, run `--update` to refresh the timer.
 
 ### macOS (launchd)
 
-Create `~/Library/LaunchAgents/com.section11.sync.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.section11.sync</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/local/bin/python3</string>
-        <string>/Users/YOUR_USERNAME/training-data/section11/examples/sync.py</string>
-        <string>--output</string>
-        <string>/Users/YOUR_USERNAME/training-data/latest.json</string>
-        <string>--lockfile</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>/Users/YOUR_USERNAME/training-data</string>
-    <key>EnvironmentVariables</key>
-    <dict><key>SECTION11_EXPORT_MODE</key><string>local_scheduled</string></dict>
-    <key>StartInterval</key>
-    <integer>60</integer>
-    <key>StandardOutPath</key>
-    <string>/Users/YOUR_USERNAME/training-data/sync.log</string>
-    <key>StandardErrorPath</key>
-    <string>/Users/YOUR_USERNAME/training-data/sync.log</string>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
-```
-
-**Replace `/usr/local/bin/python3` with your actual Python path** (`which python3`); launchd doesn't inherit your shell PATH.
-
-**Replace `YOUR_USERNAME` with your macOS username.**
-
-Load it:
-
-```bash
-launchctl load ~/Library/LaunchAgents/com.section11.sync.plist
-```
-
-To stop:
-
-```bash
-launchctl unload ~/Library/LaunchAgents/com.section11.sync.plist
-```
+The standard name is `com.section11.sync`, with its definition at
+`~/Library/LaunchAgents/com.section11.sync.plist`. The installer registers it.
+Inspect its status through launchd and `sync.log`; do not add another plist.
 
 ### Linux / VPS (systemd)
 
-Create two files:
-
-**`~/.config/systemd/user/section11-sync.service`:**
-
-```ini
-[Unit]
-Description=Section 11 Intervals.icu Sync
-
-[Service]
-Type=oneshot
-Environment=SECTION11_EXPORT_MODE=local_scheduled
-WorkingDirectory=%h/training-data
-ExecStart=/usr/bin/python3 %h/training-data/section11/examples/sync.py --output %h/training-data/latest.json --lockfile
-```
-
-**`~/.config/systemd/user/section11-sync.timer`:**
-
-```ini
-[Unit]
-Description=Section 11 sync timer
-
-[Timer]
-OnBootSec=30
-OnUnitActiveSec=60
-AccuracySec=10
-
-[Install]
-WantedBy=timers.target
-```
-
-Enable:
-
-```bash
-mkdir -p ~/.config/systemd/user
-# (create both files above)
-systemctl --user daemon-reload
-systemctl --user enable --now section11-sync.timer
-```
-
-Check status:
-
-```bash
-systemctl --user status section11-sync.timer
-journalctl --user -u section11-sync.service -f
-```
+The standard user units are `section11-sync.service` and `section11-sync.timer`
+under `~/.config/systemd/user/`. The installer enables the timer. Inspect with
+`systemctl --user status section11-sync.timer` and
+`journalctl --user -u section11-sync.service`. A usable user systemd session is
+required. Cron is used only when systemd is missing.
 
 ### cron (universal fallback)
 
-```bash
-crontab -e
-```
-
-Add:
-
-```
-* * * * * cd ~/training-data && SECTION11_EXPORT_MODE=local_scheduled python3 section11/examples/sync.py --output latest.json --lockfile >> sync.log 2>&1
-```
+The installer manages only the exact `# section11-sync` entry. It reads the
+crontab solely to preserve unrelated lines unchanged, without inspecting their commands. It runs from the data directory with the declared export mode.
 
 ### Windows (Task Scheduler)
 
-1. Open Task Scheduler → Create Basic Task
-2. Trigger: repeat every 1 minute
-3. Action: Start a program
-   - Program: `python`
-   - Arguments: `section11\examples\sync.py --output latest.json --lockfile`
-   - Start in: `C:\Users\YOUR_USERNAME\training-data`
+The installer registers the `Section11Sync` task, with a literal Python action,
+the data directory as its working folder, and the selected interval. Its action
+sets `SECTION11_EXPORT_MODE=local_scheduled` before running the managed script.
+Inspect the task's result in Task Scheduler.
 
-See [Microsoft's Task Scheduler docs](https://learn.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page) for detailed instructions.
+### Explicit manual-only choice
 
-For this task's process environment, set `SECTION11_EXPORT_MODE` to `local_scheduled` (for example, `set SECTION11_EXPORT_MODE=local_scheduled` in a batch wrapper before calling Python). A separate manual export should declare `manual` instead; avoid a machine-wide mode that mislabels both paths.
+Use `python3 section11/examples/sync.py --update --no-timer` to remove only
+the standard Section 11 timer and persist `"auto_sync": false` in the existing configuration.
+Later updates will not add a timer. `--timer` re-enables auto sync. The same flags
+work on `--init`; no timer menu is presented. Other timers remain owner-managed.
+A separate manual export declares `SECTION11_EXPORT_MODE=manual`; never apply
+that declaration machine-wide to scheduled invocations.
 
 ---
 
@@ -436,39 +399,41 @@ Recommended for intervals under 5 minutes. If you're running every 5+ minutes, o
 
 ## Staying Up to Date
 
-sync.py checks for Section 11 updates once per day during normal sync runs. If any operational files in `section11/` are behind, it prints:
-
-```
-⚠️  2 Section 11 updates available — run: python3 section11/examples/sync.py --update
-```
-
-To update:
+Automatic installation is off by default. Check the official release status, run a
+confirmed update or roll back from the data directory:
 
 ```bash
 cd ~/training-data
+python3 section11/examples/sync.py --status
 python3 section11/examples/sync.py --update
+python3 section11/examples/sync.py --rollback
 ```
 
-This shows what changed, then asks for confirmation before downloading:
+From an old local setup, obtain the release bootstrap described in
+[Initial Setup](#initial-setup) and run it with `--update` from the existing data
+folder. The old 3.165 `--update` still runs but may clear `history.json`,
+`intervals.json` and `routes.json`. The first installation asks once, after this
+fixed warning:
 
-```
-   Updates available (2 files):
+> Anything you added or changed inside section11/ will be deleted. Move what you want to keep to custom/ first.
 
-   sync.py          3.75 → 3.76   Data sync engine
-   SECTION_11.md    11.13 → 11.14  Coaching protocol
+Updates replace the complete `section11/` tree and keep data, settings, `custom/`
+and your dossier. Outside `section11/`, any file in any folder named exactly like
+a release or historical Section 11 file is removed, except the keep list in the
+update guide. Protection ignores case; removal requires exact spelling. Keep your
+own files in `custom/` or outside the data folder. Every removal is listed before
+acceptance and logged in full mode. The rollback ZIP is short-term recovery until
+the next changing install, not a backup; only unprotected parents emptied by
+removal are pruned. By default an outstanding verified update shows a fixed
+`update_notice` in the next export; set `"auto_update": true` in the existing
+config or pass `--auto-update` to install automatically. The check runs once per
+UTC day, on the first run starting at or after **04:00 UTC**. `--rollback` restores
+the one previous installation without network.
 
-   Already current (6):
-
-   ✅ push.py          0.3
-   ✅ WORKOUT_REF      0.6
-   ...
-
-   Pull 2 updates? [y/N]
-```
-
-Only changed files are downloaded. Personal files at the data directory root (dossier, config, data) are never touched. Nothing changes without your confirmation. Same principle as `--confirm` on push.py writes.
-
-**Renames and removals use a second confirmation.** After checking downloads, `--update` lists files that no longer exist upstream as orphaned items and asks separately before deleting them. Approve that prompt to complete a rename or removal. Declining it, or running non-interactively, leaves the old files in place.
+See [Updating Section 11](../maintenance/UPDATING.md#local-updates-and-automatic-toggle)
+for the full rules and the
+[recovery guide](../maintenance/UPDATING.md#rollback-and-interruption-recovery)
+for interrupted updates.
 
 ---
 
@@ -524,7 +489,9 @@ tail -f ~/training-data/sync.log
 
 ### Common gotchas
 
-**`--init` zip download fails**: corporate firewalls or proxies may block GitHub's archive endpoint. Alternative: `git clone https://github.com/CrankAddict/section-11.git section11` produces the same result, then run `--update` once to check it against the current manifest.
+**`--init` download fails:** read the exact error. No published date release means
+wait for the first official release. Otherwise check access to the release asset
+and pinned manifest endpoints; a development clone is not an equivalent install.
 
 **macOS launchd doesn't inherit shell PATH**: specify the full Python path in the plist (e.g., `/usr/local/bin/python3`). Find yours with `which python3`.
 
@@ -532,6 +499,7 @@ tail -f ~/training-data/sync.log
 
 **Optional config fields** (add manually to `.sync_config.json` or re-run `--setup`):
 
+- `auto_update`: boolean, default `false`; opt in to verified daily automatic installation after data work, including definitive failure or defer. Unknown data publication holds maintenance. Edit this field manually; the setup wizard preserves existing optional settings.
 - `route_weather_default_start`: local HH:MM, default `"10:00"`, used only for date-only/exact-midnight workouts. `SECTION11_ROUTE_WEATHER_DEFAULT_START` in the timer environment overrides it. The AI labels ASSUMED and asks for the actual time. See [departure handling](../../README.md#route-weather-departure), including genuine midnight rides and confirmed push.py time updates.
 - `week_start`: training week start day (`mon`–`sun`, default: `mon`)
 - `zone_preference`: per-sport zone override for aggregations, e.g. `"run:hr,cycling:power"`. Only override what you need; unspecified sports default to power-preferred with HR fallback.
@@ -545,7 +513,7 @@ tail -f ~/training-data/sync.log
 
 ### Request allowance and pauses
 
-Step-down warnings describe sync.py's effective interval; keep the timer at one minute. When even ten-minute checks cannot fit the allowance, the exact message is:
+Step-down warnings describe sync.py's effective interval; keep the timer at its configured check interval. When even ten-minute checks cannot fit the allowance, the exact message is:
 
 > Request allowance cannot sustain a ten-minute check. Another sync or tool may be using this key. Check other syncs and tools, or use a new key.
 
@@ -567,4 +535,18 @@ Activity and event IDs are always real (opaque database keys, not PII) to enable
 
 Your data stays on this machine unless you send it somewhere: cloud storage for connector access, or a repository you configure. Where you do, it lands in an account you control, and Section 11 does not share it with anyone else, but the provider's own terms then apply to it.
 
-sync.py reaches the network in more places than the data path alone, and which calls happen depends on what you ran. A normal sync run calls the Intervals.icu API, and checks `raw.githubusercontent.com` for a newer manifest at most once a day. `--setup`, `--init`, `--update` and `--generate-manifest` return before that data path, so they make no Intervals.icu call: `--init` downloads the repository from GitHub's archive endpoint, and `--update` downloads each changed file from raw content, once per file. Where a planned event carries a route file, sync.py fetches that attachment from whatever host Intervals.icu records for it. Where you configure GitHub publishing, it also calls `api.github.com` to read and write your repository. After publishing, and only when you have configured both a GitHub token and a repository, it reads the upstream changelog and may open an issue. The `api.github.com` calls carry the token you supply; the changelog read carries none, though it happens only because both are set. On that publish path sync.py applies no cadence gate of its own, unlike the once-a-day manifest check.
+sync.py reaches the network in more places than the data path alone, and which calls happen depends on what you ran.
+
+Normal sync reads the training API and route attachments recorded there. After
+data work on an eligible run, including definitive failure or defer, both half-mode advisories and full-mode updates use the official
+release API, release asset and pinned raw manifest at most once per UTC day,
+including failed attempts. They never advise from unpublished main content.
+`--no-auto-update` suppresses this maintenance for the run. Local release requests
+are anonymous. `--init`, `--status` and `--update` use those release endpoints
+without reading training data; `--rollback` is offline.
+`--setup` and `--generate-manifest` also return before that data path, so they make no Intervals.icu call.
+
+Where a planned event carries a route file, sync.py fetches that attachment from whatever host Intervals.icu records for it. Where you configure GitHub publishing, it also calls `api.github.com` to read and write your repository using the token you supply. Confirmed local API publication uses the same daily release policy as file exports. It does not run the old separate changelog-Issue check; an uncertain publication holds maintenance.
+
+Supported GitHub setups use the shared workflow
+and its verified direct Update operation instead.

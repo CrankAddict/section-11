@@ -4,6 +4,7 @@ No live requests or athlete data. Generated manifests/installations stay in
 TemporaryDirectory under the caller's test scratch. This is source validation,
 not a claim about arbitrary model-generated reports.
 """
+import ast
 import contextlib
 import copy
 import io
@@ -46,6 +47,22 @@ def stale_references(root):
         if path.name in RENAMES or path.name in ("manifest.json", "changelog.json"):
             continue
         content = path.read_text()
+        if path.relative_to(root).as_posix() == "examples/sync.py":
+            # The updater must name retired files to remove them. Exempt only
+            # its historical-name assignment, never active report references.
+            lines = content.splitlines(keepends=True)
+            for node in ast.parse(content).body:
+                if isinstance(node, ast.ClassDef) and node.name == "Distribution":
+                    for item in node.body:
+                        if (isinstance(item, ast.Assign) and len(item.targets) == 1
+                                and isinstance(item.targets[0], ast.Name)
+                                and item.targets[0].id == "HISTORICAL_NAMES"
+                                and isinstance(item.value, ast.Call)
+                                and isinstance(item.value.func, ast.Name)
+                                and item.value.func.id == "frozenset"):
+                            lines[item.lineno - 1:item.end_lineno] = [
+                                "\n" for _ in range(item.end_lineno - item.lineno + 1)]
+            content = "".join(lines)
         if path.name == "SECTION_11.md":
             # Historical release notes are the one prose exception.
             content = content.split("### Changelog", 1)[-1]
@@ -210,6 +227,8 @@ class Transition(unittest.TestCase):
     def test_normal_generator_init_and_update_keep_all_eight_files_managed(self):
         files = {"examples/reports/" + name: (REPORTS / name).read_bytes()
                  for name in list(RENAMES) + list(RENAMES.values())}
+        files["examples/sync.py"] = b"# permanent installation entry\n"
+        files["examples/maintenance/CUSTOM_README.md"] = (REPO_ROOT / "examples/maintenance/CUSTOM_README.md").read_bytes()
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             dist.write_tree(repo, files)
@@ -218,25 +237,18 @@ class Transition(unittest.TestCase):
             manifest = json.loads((repo / "manifest.json").read_text())
         self.assertEqual(set(manifest["files"]), set(files))
         installed = dist.run_init(dist.repo_archive(manifest, files=files), bootstrap=False)
-        self.assertEqual({p: b for p, b in installed.installed.items() if p != "manifest.json"}, files)
+        receipt_name = dist.sync_mod.Distribution.RECEIPT
+        self.assertEqual({p: b for p, b in installed.installed.items() if p not in ("manifest.json", receipt_name)}, files)
+        self.assertEqual(installed.installed[receipt_name], dist.sync_mod.Distribution.receipt(
+            installed.installed["manifest.json"], {"tag": "2026.10.23", "commit": "a" * 40}))
         before = {"section11/examples/reports/" + name: b"old report\n" for name in RENAMES}
-        def get(url, **kwargs):
-            return dist.FakeResponse(files[url.removeprefix(dist.sync_mod.SECTION11_REPO_RAW + "/")])
-        updated = dist.run_update(before, ["y"], manifest=manifest, patches=[
-            mock.patch.object(dist.requests, "get", side_effect=get)])
+        before["section11/manifest.json"] = dist.manifest_bytes(dist.manifest_for(
+            {p.removeprefix("section11/"): b for p, b in before.items()}))
+        updated = dist.run_update(before, ["y"], manifest=manifest, release_files=files)
         for name, body in files.items():
             self.assertEqual(updated.files["section11/" + name], body)
         self.assertEqual(len(updated.prompts), 1)
         self.assertNotIn("orphaned", updated.prompts[0])
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            dist.write_tree(root, files)
-            self.assertEqual(mod._find_orphaned_files(manifest["files"], root), [])
-            bad = dict(manifest["files"])
-            removed = "examples/reports/" + next(iter(RENAMES))
-            del bad[removed]
-            self.assertEqual(mod._find_orphaned_files(bad, root), [removed])
-
     def test_pointer_date_target_and_reference_sweep(self):
         for old, new in RENAMES.items():
             pointer = (REPORTS / old).read_text()
@@ -255,6 +267,21 @@ class Transition(unittest.TestCase):
             self.assertEqual(stale_references(root), [])
             doc.write_text("use " + next(iter(RENAMES)))
             self.assertEqual(len(stale_references(root)), 1)
+
+    def test_cleanup_history_exception_does_not_hide_active_references(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "examples").mkdir()
+            source = root / "examples/sync.py"
+            name = next(iter(RENAMES))
+            history = "class Distribution:\n    HISTORICAL_NAMES = frozenset((" + repr(name) + ",))\n"
+            source.write_text(history)
+            self.assertEqual(stale_references(root), [])
+            source.write_text(history + "    ACTIVE_REPORT = " + repr(name) + "\n")
+            self.assertEqual(stale_references(root), [("examples/sync.py", name)])
+            source.write_text(history)
+            (root / "other.py").write_text(history)
+            self.assertEqual(stale_references(root), [("other.py", name)])
 
 
 class ReportContracts(unittest.TestCase):

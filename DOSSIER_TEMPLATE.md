@@ -10,11 +10,13 @@
 
 **Athlete:** [Name or alias]
 
-**Privacy:** [Private local file / private repository / private document store]
+**Privacy:** Private data-folder file. Keep any repository containing this dossier private; Git keeps old versions.
 
-**Official dossier location:** [Absolute path, private repository path, or "not applicable — uploaded manually"]
+**Dossier location:** `DOSSIER.md` in the data-folder root (repository root on GitHub).
 
-**Authority:** This is the current official dossier and the single source of truth for stable private athlete context. All older dossier files, drafts, exports, and uploaded copies are superseded and must not be used as current context. If more than one copy is present, do not merge them; identify this authority block, compare the dossier revision and last-reviewed date, and ask the athlete which copy is official.
+**Authority:** Root `DOSSIER.md` is the authoritative copy for stable private athlete context. Web-chat uploads are delivery copies of it. Older files, drafts, exports and superseded uploads must not be used as current context. If delivery copies conflict, do not merge them; compare this authority block, the dossier revision and last-reviewed date, and ask the athlete which copy matches the current root file.
+
+If the dossier is configured or kept elsewhere, including an old `Official dossier location` field naming another location, tell the athlete once that the standard location is the data-folder root and ask them to move it. The AI never moves or copies it itself; until the athlete moves it, use the copy they point to.
 
 **The official dossier is private.** A sanitized or shareable copy is a separate, non-authoritative artifact: it never carries this authority statement, never replaces the private original, and requires its own explicit sharing approval.
 
@@ -313,15 +315,15 @@ Fill in the method(s) the athlete actually uses. Delete unused examples.
 
 **Data directory:** [Runtime-accessible location where training data is read (local path, provider-hosted path, mounted folder, connector root) or "not applicable"]
 
-This is where a runtime reads training data. It is **not** the authoritative dossier copy; that is recorded as **Official dossier location** in the header block at the top of this file.
+This identifies the data folder when the agent workspace is elsewhere. Its root `DOSSIER.md` is the authoritative dossier; uploaded files are delivery copies.
 
 **Last data-source check:** [Date]
 
 ### Privacy choices
 
-- Recommended local setup: keep the completed dossier outside the public Section 11 repository and point the AI to its path.
-- Connector setup: store it only in a private repository or private document source if the athlete accepts that access model.
-- Manual handoff: upload the dossier directly to the AI for the task or conversation.
+- Local setup: keep the completed dossier as `DOSSIER.md` in the data-folder root, outside the managed `section11/` tree.
+- GitHub or connector setup: keep the repository containing root `DOSSIER.md` private. Git keeps old versions, including content removed from the current file.
+- Manual handoff: upload a delivery copy of root `DOSSIER.md` for the task or conversation.
 - Public sharing: create a sanitized copy rather than publishing the private original.
 
 Never store API credentials in this file, even when the data source requires authentication.

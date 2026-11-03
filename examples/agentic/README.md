@@ -11,6 +11,12 @@ Read and write tools for runtimes that can execute code or trigger GitHub Action
 
 The `push.py` CLI requires safety preview/confirm. `pull.py` is read-only and has no confirm gate.
 
+For local use, run the examples below from your data folder using the managed
+tools in `section11/examples/agentic/`. The local installer removes root `push.py`
+and `pull.py`; update external commands and Python imports to these paths.
+Personal overrides are explicit choices, not root-file precedence. The GitHub
+dispatch setup below is a separate workflow installation.
+
 ---
 
 ## push.py: Workouts & Thresholds
@@ -25,7 +31,7 @@ All CLI write operations (push, move, delete, set-threshold, annotate) default t
 
 ```bash
 # Step 1: Agent runs preview
-python push.py push --json week.json
+python3 section11/examples/agentic/push.py push --json week.json
 # → Returns preview JSON showing what WOULD be pushed
 
 # Step 2: Agent shows athlete the summary
@@ -33,7 +39,7 @@ python push.py push --json week.json
 # Step 3: Athlete says "looks good" / "go" / "yes" / etc.
 
 # Step 4: Agent runs with --confirm
-python push.py push --json week.json --confirm
+python3 section11/examples/agentic/push.py push --json week.json --confirm
 # → Actually writes to calendar
 ```
 
@@ -47,11 +53,12 @@ Read operations (`list`) have no safety gate. They never modify anything.
 
 For anyone already running auto-sync. Uses the same `ATHLETE_ID` and `INTERVALS_KEY` secrets (zero new credential setup).
 
-1. Copy `push.py` to your data repo root (next to `sync.py`)
-2. Copy `push-workout.yml` to `.github/workflows/push-workout.yml`
-3. Done. Your agent triggers the workflow via GitHub API dispatch.
+1. Complete the [verified GitHub installation](../json-auto-sync/SETUP.md) first.
+2. Copy the thin `push-workout.yml` to `.github/workflows/push-workout.yml`.
+3. Your agent uses the existing workflow dispatch URL and inputs. The stub calls
+   `section11/examples/agentic/push.py`; no root tool copy is kept.
 
-Use the v0.8 workflow with push.py v0.8. Its optional `time` input is strict local HH:MM for `command: move`. Keep `date` equal to the event's current date to change only the time; leave `time` empty to preserve the existing time. The workflow validates a nonempty time before calling push.py and rejects that input for other commands. For `command: push`, put `"time": "09:30"` inside each workout in the `workouts` JSON instead; omission still writes unset midnight.
+The managed dispatcher preserves the v0.8 inputs. Its optional `time` input is strict local HH:MM for `command: move`. Keep `date` equal to the event's current date to change only the time; leave `time` empty to preserve the existing time. It validates a nonempty time before invoking the command and rejects that input for other commands. For `command: push`, put `"time": "09:30"` inside each workout in the `workouts` JSON instead; omission still writes unset midnight.
 
 For example, dispatch inputs `{"command":"move","event_id":"42","date":"2026-10-20","time":"09:30","confirm":"false"}` preview that update. Read the result and obtain user confirmation before dispatching the same change with `confirm: "true"`. Replace the illustrative event/date with the verified planned event. Existing pre-read, one-attempt writes and outcome verification remain in push.py; an unknown result is not permission to dispatch again.
 
@@ -102,12 +109,12 @@ For agents running locally with direct filesystem access.
 
 ```bash
 # Single workout (preview)
-python push.py push --name "Sweet Spot 3x15" --date 2026-03-10 --type Ride \
+python3 section11/examples/agentic/push.py push --name "Sweet Spot 3x15" --date 2026-03-10 --type Ride \
   --description "- 15m 55%\n\n3x\n- 15m 88-92%\n- 5m 55%\n\n- 10m 50%" \
   --duration 85 --tss 75
 
 # Batch from JSON file (execute)
-python push.py push --json week.json --confirm
+python3 section11/examples/agentic/push.py push --json week.json --confirm
 ```
 
 Credentials loaded from (first match wins):
@@ -119,16 +126,16 @@ Credentials loaded from (first match wins):
 
 ```bash
 # CLI flags
-python push.py list --athlete-id i123456 --api-key abc123...
+python3 section11/examples/agentic/push.py list --athlete-id i123456 --api-key abc123...
 
 # Env vars
 export ATHLETE_ID=i123456
 export INTERVALS_KEY=abc123...
-python push.py list
+python3 section11/examples/agentic/push.py list
 
-# .sync_config.json (next to push.py)
+# .sync_config.json (in the data folder)
 # {"athlete_id": "i123456", "intervals_key": "abc123..."}
-python push.py list
+python3 section11/examples/agentic/push.py list
 ```
 
 For scheduled refreshes of your local JSON data, see [json-local-sync](../json-local-sync/SETUP.md).
@@ -136,7 +143,7 @@ For scheduled refreshes of your local JSON data, see [json-local-sync](../json-l
 Python import also works, but library write methods write directly without the CLI preview/confirmation gate. Obtain the athlete's approval before calling them; use the CLI for the preview-first flow:
 
 ```python
-from push import IntervalsPush
+from section11.examples.agentic.push import IntervalsPush
 pusher = IntervalsPush(athlete_id, api_key)
 result = pusher.push_workout({
     "name": "Sweet Spot 3x15",
@@ -154,9 +161,9 @@ result = pusher.push_workout({
 #### push: Add workouts to calendar
 
 ```bash
-python push.py push --json week.json                    # preview
-python push.py push --json week.json --confirm           # execute
-python push.py push --name "Endurance" --date 2026-03-10 --type Ride --confirm
+python3 section11/examples/agentic/push.py push --json week.json                    # preview
+python3 section11/examples/agentic/push.py push --json week.json --confirm           # execute
+python3 section11/examples/agentic/push.py push --name "Endurance" --date 2026-03-10 --type Ride --confirm
 ```
 
 Output (preview):
@@ -172,10 +179,10 @@ Output (execute):
 #### list: Show planned workouts
 
 ```bash
-python push.py list                          # this week (today → +6 days)
-python push.py list --newest +13             # next two weeks
-python push.py list --oldest 2026-03-01 --newest 2026-03-31  # March
-python push.py list --category RACE_A        # races only
+python3 section11/examples/agentic/push.py list                          # this week (today → +6 days)
+python3 section11/examples/agentic/push.py list --newest +13             # next two weeks
+python3 section11/examples/agentic/push.py list --oldest 2026-03-01 --newest 2026-03-31  # March
+python3 section11/examples/agentic/push.py list --category RACE_A        # races only
 ```
 
 Read-only (no `--confirm` needed). Supports `+N` syntax for relative dates.
@@ -183,16 +190,16 @@ Read-only (no `--confirm` needed). Supports `+N` syntax for relative dates.
 #### move: Move a workout to a different date
 
 ```bash
-python push.py move --event-id 33375903 --date 2026-03-06          # preview
-python push.py move --event-id 33375903 --date 2026-03-06 --confirm # execute
+python3 section11/examples/agentic/push.py move --event-id 33375903 --date 2026-03-06          # preview
+python3 section11/examples/agentic/push.py move --event-id 33375903 --date 2026-03-06 --confirm # execute
 ```
 
 push.py v0.8 preserves the existing local time of day, including seconds, when `--time` is omitted. Preview shows both old/new date and time. To set only the time, keep the existing date:
 
 ```bash
-python push.py move --event-id 33375903 --date 2026-10-20 --time 09:30
+python3 section11/examples/agentic/push.py move --event-id 33375903 --date 2026-10-20 --time 09:30
 # After the user approves that preview:
-python push.py move --event-id 33375903 --date 2026-10-20 --time 09:30 --confirm
+python3 section11/examples/agentic/push.py move --event-id 33375903 --date 2026-10-20 --time 09:30 --confirm
 ```
 
 `push` accepts optional per-workout JSON `"time": "09:30"`, or `--time 09:30` for a single CLI workout. Use strict local HH:MM (00:00 through 23:59); omitted time still writes T00:00:00. A JSON batch uses each workout's own time, not a batch-wide `--time`. Malformed existing timestamps stop a move without a write unless an explicit valid time resolves them. Date-only/missing existing times remain unset midnight.
@@ -204,22 +211,22 @@ After a provided or assumed start passes, sync can supply a rolling departure ro
 #### delete: Remove a workout
 
 ```bash
-python push.py delete --event-id 33375903              # preview (shows what would be deleted)
-python push.py delete --event-id 33375903 --confirm    # execute
+python3 section11/examples/agentic/push.py delete --event-id 33375903              # preview (shows what would be deleted)
+python3 section11/examples/agentic/push.py delete --event-id 33375903 --confirm    # execute
 ```
 
 #### set-threshold: Update sport-specific thresholds
 
 ```bash
 # Preview (shows current → new values)
-python push.py set-threshold --sport cycling --ftp 295
+python3 section11/examples/agentic/push.py set-threshold --sport cycling --ftp 295
 
 # Execute after athlete confirms
-python push.py set-threshold --sport cycling --ftp 295 --indoor-ftp 283 --confirm
+python3 section11/examples/agentic/push.py set-threshold --sport cycling --ftp 295 --indoor-ftp 283 --confirm
 
 # Other sports
-python push.py set-threshold --sport run --lthr 172 --max-hr 192 --confirm
-python push.py set-threshold --sport swim --threshold-pace 0.82 --confirm
+python3 section11/examples/agentic/push.py set-threshold --sport run --lthr 172 --max-hr 192 --confirm
+python3 section11/examples/agentic/push.py set-threshold --sport swim --threshold-pace 0.82 --confirm
 ```
 
 Accepts sport families (`cycling`, `run`, `swim`, `walk`, `ski`, `rowing`) or Intervals.icu activity types (`Ride`, `Run`, `Swim`, etc.). Only sends fields you provide; omitted fields stay unchanged.
@@ -231,19 +238,19 @@ Accepts sport families (`cycling`, `run`, `swim`, `walk`, `ski`, `rowing`) or In
 **Completed activities**: prepends `NOTE:` line to activity description (default):
 
 ```bash
-python push.py annotate --activity-id i12345:abc123 --message "Cut short - knee pain" --confirm
+python3 section11/examples/agentic/push.py annotate --activity-id i12345:abc123 --message "Cut short - knee pain" --confirm
 ```
 
 To post to the activity's chat/messages panel instead, add `--chat`:
 
 ```bash
-python push.py annotate --activity-id i12345:abc123 --message "Cut short - knee pain" --chat --confirm
+python3 section11/examples/agentic/push.py annotate --activity-id i12345:abc123 --message "Cut short - knee pain" --chat --confirm
 ```
 
 **Planned workouts**: prepends a `NOTE:` line to the workout description:
 
 ```bash
-python push.py annotate --event-id 33375903 --message "Focus on cadence >90rpm" --confirm
+python3 section11/examples/agentic/push.py annotate --event-id 33375903 --message "Focus on cadence >90rpm" --confirm
 ```
 
 This shows up in Intervals.icu as:
@@ -451,13 +458,13 @@ No GitHub Actions workflow: `pull.py` is local-execution only. The streams respo
 
 ```bash
 # All available streams (1Hz: time, distance, latlng, altitude, watts, HR, cadence, …)
-python pull.py trace --activity-id i142557875
+python3 section11/examples/agentic/pull.py trace --activity-id i142557875
 
 # Just GPS + altitude — smaller payload, common subset for terrain analysis
-python pull.py trace --activity-id i142557875 --types latlng,altitude
+python3 section11/examples/agentic/pull.py trace --activity-id i142557875 --types latlng,altitude
 
 # Save to disk for downstream analysis (e.g. feeding into custom scripts)
-python pull.py trace --activity-id i142557875 --out /tmp/ride.json
+python3 section11/examples/agentic/pull.py trace --activity-id i142557875 --out /tmp/ride.json
 ```
 
 The streams response is a JSON list of stream objects. **Important shape gotcha:** the `latlng` stream uses two parallel arrays: `data` holds latitudes, `data2` holds longitudes. This is **not** Strava's paired-array convention. See `EXTERNAL_APIS.md` for full details and the list of available stream types.
@@ -465,7 +472,7 @@ The streams response is a JSON list of stream objects. **Important shape gotcha:
 #### units: Show the athlete's unit preferences
 
 ```bash
-python pull.py units
+python3 section11/examples/agentic/pull.py units
 ```
 
 Returns the athlete's wind/temp/rain/distance/weight unit settings from Intervals. `sync.py` already reads this on every run to label `weather_summary.units` correctly; `pull.py units` is for ad-hoc inspection (debugging unit mismatches, confirming what `latest.json` will show).
@@ -497,8 +504,8 @@ Section 11 protocol defines the reasoning rules for what to do with this data. `
 
 | File | Goes to | Description |
 |------|---------|-------------|
-| `push.py` | Data repo root (next to sync.py) | Validates and manages workouts + thresholds |
-| `pull.py` | Repo tool (`section-11/examples/agentic/pull.py`): run from your data repo root, or copy alongside sync.py for convenience | Read-only fetcher for activity streams + athlete units |
+| `push.py` | `section11/examples/agentic/push.py` | Validates and manages workouts + thresholds |
+| `pull.py` | `section11/examples/agentic/pull.py`, run from your data folder | Read-only fetcher for activity streams + athlete units |
 | `push-workout.yml` | `.github/workflows/push-workout.yml` | GitHub Actions workflow for dispatch |
 | `EXTERNAL_APIS.md` | Reference only (stays in section-11) | External endpoints; read sync's brief/maps for covered planned-route weather, call providers only outside that coverage |
 | `README.md` | Reference only (stays in section-11) | This file |

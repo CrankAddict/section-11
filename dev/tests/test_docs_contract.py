@@ -12,7 +12,12 @@ code remains visible to the version check, since prose often quotes filenames.
 Plain fences in the two copyable instruction files contain prose, not code.
 """
 
+import ast
+import difflib
+import hashlib
 import html
+import json
+import os
 from pathlib import Path, PurePosixPath
 import posixpath
 import re
@@ -39,6 +44,22 @@ RUNTIME_FILES = {
 DEPLOYMENT_LINKS = {
     ('examples/json-auto-sync/DATA_REPO_README_TEMPLATE.md',
      '../../actions/workflows/auto-sync.yml'),
+    ('examples/json-auto-sync/DATA_REPO_README_TEMPLATE.md',
+     'section11/examples/maintenance/UPDATING.md'),
+    ('examples/json-auto-sync/DATA_REPO_README_TEMPLATE.md',
+     'section11/examples/json-examples/README.md'),
+    ('examples/json-auto-sync/DATA_REPO_README_TEMPLATE.md', 'section11/LICENSE'),
+    ('dev/demo/templates/README.md', '../../actions/workflows/auto-sync.yml'),
+    ('dev/demo/templates/README.md', 'demo/generate.py'),
+    ('dev/demo/templates/README.md', '../../pulls'),
+    ('dev/demo/templates/README.md', '../../actions'),
+    ('dev/demo/templates/README.md',
+     'section11/examples/maintenance/UPDATING.md#automatic-github-updates'),
+    ('dev/demo/templates/SETUP_DEMO.md', 'section11/examples/maintenance/UPDATING.md'),
+    ('dev/demo/templates/README.md', 'section11/examples/json-local-sync/SETUP.md'),
+    ('dev/demo/templates/README.md', 'section11/examples/maintenance/UPDATING.md'),
+    ('dev/demo/templates/README.md', 'custom/'),
+    ('dev/demo/templates/README.md', 'LICENSE'),
 }
 
 
@@ -124,13 +145,28 @@ def markdown_links(source):
             label, target = match.groups()
             definitions.setdefault(label_key(label), destination(target))
             definition_lines.add(number)
-    links = []
+    # Links and inline code may wrap across lines in one paragraph. Keep fence,
+    # blank-line and definition boundaries so unrelated blocks cannot join.
+    paragraphs, paragraph = [], []
     for number, raw in lines:
-        if number in definition_lines:
+        if number in definition_lines or not raw.strip():
+            if paragraph:
+                paragraphs.append(paragraph)
+                paragraph = []
             continue
-        line = INLINE_CODE.sub(lambda m: ' ' * len(m[0]), raw)
+        if paragraph and number != paragraph[-1][0] + 1:
+            paragraphs.append(paragraph)
+            paragraph = []
+        paragraph.append((number, raw))
+    if paragraph:
+        paragraphs.append(paragraph)
+    links = []
+    for paragraph in paragraphs:
+        number = paragraph[0][0]
+        raw = '\n'.join(line for _number, line in paragraph)
+        line = INLINE_CODE.sub(lambda m: ''.join('\n' if c == '\n' else ' ' for c in m[0]), raw)
         for match in re.finditer(r'<((?:https?://|mailto:)[^<>\s]+)>', line):
-            links.append((number, html.unescape(match[1]), 'autolink'))
+            links.append((number + line[:match.start()].count('\n'), html.unescape(match[1]), 'autolink'))
         consumed = set()
         for start, char in enumerate(line):
             if start in consumed or char != '[' or (len(line[:start]) - len(line[:start].rstrip('\\'))) % 2:
@@ -139,11 +175,12 @@ def markdown_links(source):
             if end is None:
                 continue
             label = line[start + 1:end]
+            link_number = number + line[:start].count('\n')
             tail = end + 1
             if line[tail:tail + 1] == '(':
                 stop = closing(line, tail, '(', ')')
                 target = None if stop is None else destination(line[tail + 1:stop])
-                links.append((number, target, 'inline'))
+                links.append((link_number, target, 'inline'))
                 if stop is not None:
                     consumed.update(range(tail, stop + 1))
             elif line[tail:tail + 1] == '[':
@@ -151,10 +188,10 @@ def markdown_links(source):
                 if stop is not None:
                     key = label_key(line[tail + 1:stop] or label)
                     if key in definitions:
-                        links.append((number, definitions[key], 'reference'))
+                        links.append((link_number, definitions[key], 'reference'))
                         consumed.update(range(tail, stop + 1))
             elif label_key(label) in definitions:
-                links.append((number, definitions[label_key(label)], 'reference'))
+                links.append((link_number, definitions[label_key(label)], 'reference'))
     return links
 
 
@@ -181,7 +218,8 @@ def slug(text):
                    if unicodedata.category(char)[0] in 'LNM' or char in '_-' + JS_SPACE)
 
 
-def heading_ids(source):
+def headings(source):
+    """Yield GitHub-style unique anchors, levels and source line numbers."""
     used = set()
     previous = ''
     previous_number = 0
@@ -190,8 +228,10 @@ def heading_ids(source):
         title = None
         if match:
             title = re.sub(r'[ \t]+#+[ \t]*$', '', match[2] or '').strip()
+            level, start = len(match[1]), number
         elif previous.strip() and number == previous_number + 1 and re.fullmatch(r' {0,3}(?:=+|-+)[ \t]*', line):
             title = previous.strip()
+            level, start = (1 if line.strip().startswith('=') else 2), previous_number
         if title is not None:
             base = slug(heading_text(title))
             anchor = base
@@ -200,8 +240,61 @@ def heading_ids(source):
                 anchor = base + '-' + str(count)
                 count += 1
             used.add(anchor)
+            yield anchor, level, start
         previous, previous_number = line, number
-    return used
+
+
+def heading_ids(source):
+    return {anchor for anchor, _level, _number in headings(source)}
+
+
+def heading_section(source, anchor):
+    outline = list(headings(source))
+    for index, (identifier, level, start) in enumerate(outline):
+        if identifier == anchor:
+            end = next((number for _id, depth, number in outline[index + 1:]
+                        if depth <= level), len(source.splitlines()) + 1)
+            return '\n'.join(source.splitlines()[start:end - 1])
+    raise AssertionError('missing heading: ' + anchor)
+
+
+def markdown_fragment_target(source, target):
+    """Resolve source and known installed Markdown paths, never bypass anchors."""
+    url = urlsplit(target)
+    if url.scheme or url.netloc or not url.fragment:
+        return None
+    path = unquote(url.path)
+    if path and not path.lower().endswith('.md'):
+        return None
+    if path.startswith('/') or '\\' in path:
+        raise AssertionError('unsupported fragment path: ' + target)
+    if (source, target) in DEPLOYMENT_LINKS and path.startswith('section11/'):
+        resolved = path.removeprefix('section11/')
+    else:
+        resolved = posixpath.normpath(posixpath.join(posixpath.dirname(source), path)) if path else source
+    if resolved == '..' or resolved.startswith('../'):
+        raise AssertionError('fragment path leaves source tree: ' + target)
+    return resolved, unquote(url.fragment)
+
+
+def markdown_fragment_issues(documents):
+    issues = []
+    for name, source in sorted(documents.items()):
+        for line, target, _syntax in markdown_links(source):
+            if target is None:
+                continue  # The general link check reports malformed syntax.
+            try:
+                result = markdown_fragment_target(name, target)
+                if result is None:
+                    continue
+                resolved, anchor = result
+                if resolved not in documents:
+                    raise AssertionError('missing Markdown target: ' + resolved)
+                if anchor not in heading_ids(documents[resolved]):
+                    raise AssertionError('missing heading: ' + resolved + '#' + anchor)
+            except AssertionError as error:
+                issues.append(f'{name}:{line}: {error}')
+    return issues
 
 
 def classify_link(source, target, documents, entries):
@@ -349,6 +442,130 @@ def report_width_issues(name, source):
     return issues
 
 
+# Digests keep the regression from publishing the private identifier it rejects.
+PRIVATE_IDENTIFIER_DIGESTS = {(11, 'b8e53c35a5cb98fe9a96c62fb84b7706a93dadc9147630f9e136fca8009bf801')}
+INTERNAL_CODE_TERMS = re.compile(
+    r'\b(?:Coach|Astra|T3|workers?)\b|\b[Rr]ound[\s_-]+\d+\b'
+    r'|pilot-workspace|(?:reference|working)/jobs/'
+)
+PUBLIC_CODE_TERMS = re.compile(r'\b(?:AI Coach|Coach (?:note|Guidance|Protocol)|T3 Code|service worker)\b')
+# These existing producer comments describe the AI reader, not an operator.
+PUBLIC_CODE_LINES = {
+    'examples/sync.py': {
+        "# Has GPS but no altitude. Coach can't reason about climbs/grade,",
+        "climbs (and therefore don't appear in the climbs[] array). Coach",
+    },
+}
+# Only policy definitions and explicit negative-test data may name these terms.
+# The private-identifier check has no such exemption.
+INTERNAL_TERM_TEST_SCOPES = {
+    'dev/tests/test_demo_kit.py': {'INTERNAL_TERMS', 'test_public_templates_use_user_facing_terms'},
+    'dev/tests/test_docs_contract.py': {
+        'INTERNAL_CODE_TERMS', 'PUBLIC_CODE_TERMS', 'PUBLIC_CODE_LINES',
+        'test_internal_code_term_controls',
+    },
+}
+
+# Historical executable fixtures preserve the supplied public source verbatim.
+# Only these exact byte identities are exempt from current-code wording rules;
+# private-identifier scanning still covers every fixture.
+HISTORICAL_EXECUTABLES = {
+    'dev/fixtures/hosted/sync-0ab6e9d.py': 'c8d1b8eff4b66c512a789dad9cd54623849604d5c53392e2621f3381fa937b3d',
+    'dev/fixtures/hosted/sync-2c8a813.py': '225d4308be9627bb882ef17a2f3c50afcdc672ba9b2207e93f9363612a96ffca',
+    'dev/fixtures/hosted/sync-2d3980e.py': 'a60c2ee19b3469c2e34d51df9d075c6b5e8e1e9d81764f1f60c672ff440da152',
+    'dev/fixtures/hosted/sync-fdde807.py': '75e927e95770356e5c9042280ac3fc1829763b15898aad397d246b8df9c1feb7',
+    'dev/fixtures/b1-legacy/sync-0ab6e9d.py': 'c8d1b8eff4b66c512a789dad9cd54623849604d5c53392e2621f3381fa937b3d',
+    'dev/fixtures/b1-legacy/sync-2c8a813.py': '225d4308be9627bb882ef17a2f3c50afcdc672ba9b2207e93f9363612a96ffca',
+    'dev/fixtures/b1-legacy/sync-2d3980e.py': 'a60c2ee19b3469c2e34d51df9d075c6b5e8e1e9d81764f1f60c672ff440da152',
+    'dev/fixtures/b1-legacy/sync-fdde807.py': '75e927e95770356e5c9042280ac3fc1829763b15898aad397d246b8df9c1feb7',
+    'dev/fixtures/b1-legacy/sync-7db221d8.py': '0c49f8829426e3b5f0f912f49eead764463e2402cd313fcd6490e35af19a73e0',
+}
+
+
+def private_identifier_issues(name, content, forbidden=PRIVATE_IDENTIFIER_DIGESTS):
+    for length, digest in forbidden:
+        for token in re.findall(rb'[A-Za-z0-9-]{' + str(length).encode() + rb',}', content.lower()):
+            if any(hashlib.sha256(token[i:i + length]).hexdigest() == digest
+                   for i in range(len(token) - length + 1)):
+                return [name + ': private account identifier']
+    return []
+
+
+def internal_code_issues(name, source, lines):
+    if name in HISTORICAL_EXECUTABLES:
+        if hashlib.sha256(source.encode()).hexdigest() != HISTORICAL_EXECUTABLES[name]:
+            return [name + ': modified historical executable fixture']
+        return []
+    exempt = set()
+    if name in INTERNAL_TERM_TEST_SCOPES:
+        for node in ast.walk(ast.parse(source)):
+            names = {node.name} if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else set()
+            if isinstance(node, ast.Assign):
+                names = {target.id for target in node.targets if isinstance(target, ast.Name)}
+            if names & INTERNAL_TERM_TEST_SCOPES[name]:
+                exempt.update(range(node.lineno, node.end_lineno + 1))
+    issues = []
+    for number, line in lines:
+        # These are real product/protocol/report terms, not project operators.
+        if line.strip() in PUBLIC_CODE_LINES.get(name, set()):
+            continue
+        text = PUBLIC_CODE_TERMS.sub('', line)
+        if number not in exempt and INTERNAL_CODE_TERMS.search(text):
+            issues.append(f'{name}:{number}: internal project wording')
+    return issues
+
+
+def release_review_inputs(root):
+    manifest = os.environ.get('S11_RELEASE_CHANGED_FILES')
+    baseline = os.environ.get('S11_RELEASE_BASELINE')
+    if bool(manifest) != bool(baseline):
+        raise AssertionError('supply both release changed-file list and baseline')
+    if manifest:
+        names = Path(manifest).read_text().splitlines()
+        if not names or names != sorted(set(names)):
+            raise AssertionError('release changed-file list must be sorted and unique')
+        for name in names:
+            path = PurePosixPath(name)
+            if path.is_absolute() or '..' in path.parts or not (root / name).is_file():
+                raise AssertionError('invalid release source path: ' + name)
+        return names, Path(baseline)
+    # Standalone repository runs check every current file/line, with no skips.
+    _documents, entries = repository_data(root)
+    return sorted(name for name in entries if (root / name).is_file()), None
+
+
+def release_added_lines(name, source, baseline):
+    lines = source.splitlines()
+    if baseline is None or not (baseline / name).exists():
+        return list(enumerate(lines, 1))
+    before = (baseline / name).read_text().splitlines()
+    added = []
+    for tag, _a, _b, start, end in difflib.SequenceMatcher(a=before, b=lines).get_opcodes():
+        if tag in ('insert', 'replace'):
+            added.extend((i + 1, lines[i]) for i in range(start, end))
+    return added
+
+
+# Relocated historical documents are frozen journey fixtures, not current guides.
+# Exact hashes protect this exception; private-identifier checks still scan them.
+HISTORICAL_DOCUMENTS = {
+    'dev/fixtures/hosted/github-SETUP-0ab6e9d.md': '29795b7bfacae1e3071b26382637f79383243f6990044a698b83fdd776f58675',
+    'dev/fixtures/hosted/github-SETUP-2c8a813.md': '4a6d6684ed46c21b5e15463683012e019d568afcfa1712fe7f77552af47daa65',
+    'dev/fixtures/hosted/github-SETUP-2d3980e.md': '63e4e14a4f59daf3f6ed2056a54f912d6d675052a2d3ca168f7e0358e0595932',
+    'dev/fixtures/hosted/github-SETUP-fdde807.md': 'a00e2cbe8c45ddf0102ae3a66d9d2240b5f91a768788cc36f424de19c6d1a8d8',
+    'dev/fixtures/hosted/on-demand-2d3980e-SETUP.md': '8a4cf6b9f4406ee0c237f23ca26cbc423ecc4d97f0c81f79b0ac79df47a4d102',
+    'dev/fixtures/hosted/on-demand-2c8a813-SETUP.md': '4452683bb7311a02d93d5473f8803dfd3e786ecc1f0bc1175728af105e860fef',
+}
+
+
+def historical_document(name, data):
+    if name not in HISTORICAL_DOCUMENTS:
+        return False
+    if hashlib.sha256(data).hexdigest() != HISTORICAL_DOCUMENTS[name]:
+        raise AssertionError('modified historical document: ' + name)
+    return True
+
+
 def repository_data(root):
     documents, entries = {}, set()
     for path in sorted(root.rglob('*')):
@@ -362,11 +579,114 @@ def repository_data(root):
             raise AssertionError('source input is a symlink: ' + relative.as_posix())
         entries.add(relative.as_posix())
         if path.is_file() and path.suffix == '.md':
+            if historical_document(relative.as_posix(), path.read_bytes()):
+                continue
             documents[relative.as_posix()] = path.read_text(encoding='utf-8')
     return documents, entries
 
 
 class TestDocsContract(unittest.TestCase):
+    def test_historical_executable_fixture_integrity_and_changed_byte_control(self):
+        for name, expected in HISTORICAL_EXECUTABLES.items():
+            content = (ROOT / name).read_bytes()
+            self.assertEqual(hashlib.sha256(content).hexdigest(), expected)
+            self.assertEqual(internal_code_issues(name, content.decode(), []), [])
+            self.assertTrue(internal_code_issues(name, content.decode() + '\n# edited\n', []))
+
+    def test_historical_document_exact_bytes_and_changed_byte_control(self):
+        for name in HISTORICAL_DOCUMENTS:
+            data = (ROOT / name).read_bytes()
+            self.assertTrue(historical_document(name, data))
+            with self.assertRaises(AssertionError):
+                historical_document(name, data + b'edited')
+        self.assertFalse(historical_document('ordinary.md', b'ordinary'))
+
+    def test_release_files_contain_no_private_account_identifiers(self):
+        names, _baseline = release_review_inputs(ROOT)
+        issues = [issue for name in names
+                  for issue in private_identifier_issues(name, (ROOT / name).read_bytes())]
+        self.assertEqual([], issues, '\n'.join(issues))
+
+    def test_added_code_lines_contain_no_internal_project_wording(self):
+        names, baseline = release_review_inputs(ROOT)
+        issues = []
+        for name in names:
+            if name.endswith(('.md', '.txt')):
+                continue
+            try:
+                source = (ROOT / name).read_text()
+            except UnicodeDecodeError:
+                continue
+            issues.extend(internal_code_issues(name, source, release_added_lines(name, source, baseline)))
+        self.assertEqual([], issues, '\n'.join(issues))
+
+    def test_private_identifier_controls_do_not_embed_private_values(self):
+        token = b'private-test-owner'
+        forbidden = {(len(token), hashlib.sha256(token).hexdigest())}
+        for content in (token, b'prefix' + token + b'suffix', token.upper(), b'https://example.invalid/' + token):
+            self.assertTrue(private_identifier_issues('test.py', content, forbidden))
+        self.assertEqual([], private_identifier_issues('test.py', b'example-owner', forbidden))
+
+    def test_internal_code_term_controls(self):
+        for text in ('Only Coach creates repositories', 'Astra review', 'worker checkout',
+                     'Round 4', 'T3 job', 'reference/jobs/example', 'working/jobs/example'):
+            source = 'print(' + repr(text) + ')\n'
+            self.assertTrue(internal_code_issues('module.py', source, [(1, source)]))
+        valid = 'print("AI Coach Guidance; Coach note:; T3 Code; test_update_round3.py; fixture-source; dev/prototype")'
+        self.assertEqual([], internal_code_issues('module.py', valid, [(1, valid)]))
+        self.assertEqual([], internal_code_issues('site.cjs', '', [(1, '// no service worker')]))
+        for line in PUBLIC_CODE_LINES['examples/sync.py']:
+            self.assertEqual([], internal_code_issues('examples/sync.py', '', [(1, line)]))
+            self.assertTrue(internal_code_issues('examples/sync.py', '', [(1, line + ' Only Coach operates')]))
+        # A new unrelated test cannot hide a project-operator string.
+        source = 'def test_unrelated():\n    print("Only Coach creates repositories")\n'
+        self.assertTrue(internal_code_issues('dev/tests/test_docs_contract.py', source,
+                                            list(enumerate(source.splitlines(), 1))))
+        # The diff selects inserted/replaced lines, never unchanged context.
+        before = ['same', 'old', 'tail']
+        after = ['same', 'new', 'added', 'tail']
+        changed = [(i + 1, after[i]) for tag, _a, _b, start, end in
+                   difflib.SequenceMatcher(a=before, b=after).get_opcodes()
+                   if tag in ('insert', 'replace') for i in range(start, end)]
+        self.assertEqual(changed, [(2, 'new'), (3, 'added')])
+
+    def test_unrelated_guidance_survives_update_documentation(self):
+        required = {
+            'dev/README.md': (
+                'A copy left by an older install can be\nignored entirely.',
+                'compact snapshots after display additions.',
+                'for offline validation, fallback, deletion and reset/retry restoration tests.',
+            ),
+            'examples/json-manual/SETUP.md': (
+                'The legacy direct API publisher is not one of the four supported setup paths.',
+            ),
+            'examples/json-auto-sync/SETUP.md': (
+                'Publication rules allow up to 128 ordinary JSON/PNG files, 64 MiB each, with relative paths up to 240 characters, no hidden components, traversal or symlinks.',
+                'Paths that dropped from a valid prior declaration are the only deletion candidates; unrelated repository files remain.',
+                'All companions are relative to the folder holding latest.json.',
+                'Install, update and rollback refresh the standard README while retaining its sync timestamp; Sync changes only that timestamp between updates.',
+                '**Keep your secrets.**',
+                'Archive files written by either version can stay side by side.',
+            ),
+            'examples/json-on-demand/SETUP.md': (
+                'Compact forecast snapshots stay bounded.',
+                '## Updating an Existing Repository',
+                'Use the On-demand template as supplied; do not add the scheduled',
+            ),
+            'examples/json-local-sync/SETUP.md': (
+                'Where a planned event carries a route file, sync.py fetches that attachment from whatever host Intervals.icu records for it.',
+                'it also calls `api.github.com` to read and write your repository using the token you supply.',
+                'Confirmed local API publication uses the same daily release policy as file exports.',
+                'It does not run the old separate changelog-Issue check; an uncertain publication holds maintenance.',
+                'including failed attempts. They never advise from unpublished main content.',
+            ),
+        }
+        for name, phrases in required.items():
+            text = (ROOT / name).read_text()
+            for phrase in phrases:
+                with self.subTest(name=name, phrase=phrase):
+                    self.assertIn(phrase, text)
+
     def test_repository_links(self):
         documents, entries = repository_data(ROOT)
         self.assertIn('SECTION_11.md', documents)
@@ -376,10 +696,101 @@ class TestDocsContract(unittest.TestCase):
         self.assertGreater(counts.get('deployment-relative', 0), 0)
         self.assertEqual([], issues, '\n'.join(issues))
 
+    def test_all_repository_markdown_fragment_targets(self):
+        # A superset of every Markdown file in the release changed-file list.
+        # No external delivery manifest is needed to run the repository suite.
+        documents, _entries = repository_data(ROOT)
+        issues = markdown_fragment_issues(documents)
+        self.assertEqual([], issues, '\n'.join(issues))
+
+    def test_markdown_fragment_controls_include_installed_templates(self):
+        documents = {
+            'a.md': '# Start\n[local](#start) [other](sub/b.md#caf%C3%A9-1)',
+            'sub/b.md': '# Café\n# Café\n',
+            'dev/demo/templates/README.md':
+                '[update](section11/examples/maintenance/UPDATING.md#automatic-github-updates)',
+            'examples/maintenance/UPDATING.md': '# Automatic GitHub updates\n',
+        }
+        self.assertEqual([], markdown_fragment_issues(documents))
+        for name, before, after in (
+            ('a.md', '#start)', '#absent)'),
+            ('a.md', '#caf%C3%A9-1)', '#caf%C3%A9-2)'),
+            ('sub/b.md', '# Café\n# Café', '# Renamed\n# Renamed'),
+            ('examples/maintenance/UPDATING.md', 'GitHub updates', 'GitHub review'),
+        ):
+            with self.subTest(name=name, after=after):
+                broken = dict(documents)
+                broken[name] = broken[name].replace(before, after)
+                self.assertEqual(1, len(markdown_fragment_issues(broken)))
+
+    def test_on_demand_migration_points_to_its_manual_only_editor_route(self):
+        source = (ROOT / 'examples/json-on-demand/SETUP.md').read_text()
+        section = heading_section(source, 'updating-an-existing-repository')
+        self.assertIn('Replace the one sync workflow using Step 2', section)
+        self.assertIn('do not add the scheduled', section)
+        self.assertIn("template's cron", section)
+        self.assertIn('replace both stubs in the same owner commit, before the first Sync', ' '.join(section.split()))
+        sample = '# Guide\n## Wrong\nText.\n## Right\n2. **Choose a schedule**\n'
+        self.assertNotIn('2.', heading_section(sample, 'wrong'))
+
+    def test_multiline_fragment_links_and_ignored_code(self):
+        source = ('# Start\n[local\nlabel](#start)\n'
+                  '[other](\nsub/b.md#topic\n)\n'
+                  '[reference\nlabel][target]\n\n[target]: sub/b.md#topic\n'
+                  '`[code\nlabel](#missing)`\n\n'
+                  '```md\n[hidden\nlabel](#missing)\n```\n')
+        documents = {'a.md': source, 'sub/b.md': '# Topic\n'}
+        self.assertEqual([(2, '#start', 'inline'),
+                          (4, 'sub/b.md#topic', 'inline'),
+                          (7, 'sub/b.md#topic', 'reference')], markdown_links(source))
+        self.assertEqual([], markdown_fragment_issues(documents))
+        documents['a.md'] = source.replace('sub/b.md#topic', 'sub/b.md#missing')
+        self.assertEqual(2, len(markdown_fragment_issues(documents)))
+
+    def test_restored_context_and_migration_links(self):
+        auto = (ROOT / 'examples/json-auto-sync/SETUP.md').read_text()
+        demand = (ROOT / 'examples/json-on-demand/SETUP.md').read_text()
+        notifications = heading_section(auto, 'update-notifications')
+        self.assertIn('owner-controlled copies outside `section11/`', notifications)
+        self.assertIn('**`README.md`** is not comparable by template hash.', notifications)
+        self.assertIn('[Owner-controlled workflow maintenance](#owner-controlled-workflow-maintenance)', notifications)
+        self.assertIn('[migration steps](#updating-an-existing-repository)', auto)
+        self.assertIn('[migration steps](#updating-an-existing-repository)', demand)
+        overview = heading_section(demand, 'overview')
+        self.assertEqual(1, overview.count('sync-declared JSON/PNG file list'))
+        self.assertIn('#owner-controlled-workflow-maintenance)', overview)
+        self.assertIn('future companion names/folders need only a script update.', overview)
+        self.assertIn('Personal files, private request state and active workflows stay outside the managed release.', overview)
+
     def test_repository_release_prose(self):
         documents, _entries = repository_data(ROOT)
         issues = [issue for name, source in documents.items() for issue in version_issues(name, source)]
         self.assertEqual([], issues, '\n'.join(issues))
+
+    def test_workflow_compatibility_and_history_are_explained(self):
+        updating = (ROOT / 'examples/maintenance/UPDATING.md').read_text()
+        section = ' '.join(heading_section(updating, 'workflow-compatibility').split())
+        self.assertIn('`--wrapper-api` value on its `run:` line', section)
+        self.assertIn('[`examples/maintenance/wrapper-api.json`](wrapper-api.json)', section)
+        requirements = json.loads((ROOT / 'examples/maintenance/wrapper-api.json').read_text())
+        for name, value in requirements.items():
+            self.assertIn(f'`{name}` {value}', section)
+        self.assertIn('A mismatch stops the updater with `owner wrapper update required`.', section)
+        self.assertIn('bootstrap separately pins its trusted verifier', section)
+        self.assertIn('unsealed pin stops', section)
+        self.assertIn('no raw-main fallback', section)
+        self.assertNotIn('### Opt-in automatic GitHub merging', updating)
+        rollback = ' '.join(heading_section(updating, 'utc-timing-rejection-and-rollback').split())
+        self.assertIn('claims the UTC day before latest-target discovery', rollback)
+        self.assertIn('**Update** installs the selected date and clears its skip', rollback)
+        self.assertIn('pre-adoption root-only setup requires owner workflow recovery', rollback)
+        auto = (ROOT / 'examples/json-auto-sync/SETUP.md').read_text()
+        notices = heading_section(auto, 'update-notifications')
+        self.assertIn('../maintenance/UPDATING.md#workflow-compatibility', notices)
+        self.assertNotIn('API 4', notices)
+        local = next(p for p in notices.split('\n\n') if 'For local setups' in p)
+        self.assertIn('its automatic toggle never enables automatic GitHub updates.', local)
+        self.assertEqual(1, notices.count('../json-local-sync/SETUP.md#staying-up-to-date'))
 
     def test_repository_report_rule_owners(self):
         documents, _entries = repository_data(ROOT)
@@ -494,6 +905,10 @@ class TestDocsContract(unittest.TestCase):
         for target in ('latset.json', 'missing/DOSSIER.md', '../../actions/workflows/typo.yml'):
             self.assertIsNotNone(classify_link(source, target, docs, entries)[1])
         self.assertIsNotNone(classify_link('README.md', '../../actions/workflows/auto-sync.yml', docs, entries)[1])
+        for owner, target in DEPLOYMENT_LINKS:
+            self.assertEqual(('deployment-relative', None), classify_link(owner, target, docs, entries))
+            self.assertIsNotNone(classify_link('wrong/' + owner, target, docs, entries)[1])
+            self.assertIsNotNone(classify_link(owner, target + '-typo', docs, entries)[1])
 
     def test_release_news_violations(self):
         for text in ('Updated exports add fields.', 'New in v2.1',

@@ -249,17 +249,22 @@ class DeadlineProducer(unittest.TestCase):
 
     def test_update_without_mode_keeps_config_and_normal_export(self):
         import test_init_update_distribution as update
-        before = update.legacy_install(github=False, dev=False)
+        before = {'section11/' + path: content for path, content in update.MANAGED.items()}
+        before['section11/manifest.json'] = update.manifest_bytes(update.manifest_for(update.MANAGED))
+        before['.sync_config.json'] = b'{"check_interval_minutes": 5, "auto_update": false}'
+        before['state/request-budget/fixture/ledger.json'] = b'{"private": "retained"}'
+        before['custom/README.md'] = b'Owner instructions remain unchanged.'
         script = Path(fixtures.sync_mod.__file__).read_bytes()
         managed = dict(update.MANAGED, **{"examples/sync.py": script})
-        reply = requests.Response()
-        reply.status_code = 200
-        reply._content = script
         with mock.patch.dict(os.environ, {"SECTION11_EXPORT_MODE": "", "GITHUB_ACTIONS": "false"}):
-            with mock.patch.object(update.sync_mod.requests, "get", return_value=reply) as download:
-                result = update.run_update(before, ["y"], manifest=update.manifest_for(managed))
-            self.assertEqual(download.call_count, 1)
+            # The harness supplies a complete verified release; individual-file
+            # downloads from the former updater must not be used.
+            with mock.patch.object(update.sync_mod.requests, "get", side_effect=AssertionError('unexpected download')) as download:
+                result = update.run_update(before, ["y"], manifest=update.manifest_for(managed),
+                                           release_files=managed)
+            download.assert_not_called()
             self.assertEqual(result.files["section11/examples/sync.py"], script)
+            self.assertIn('section11/.section11-release.json', result.files)
             for path, content in before.items():
                 if path not in ("section11/examples/sync.py", "section11/manifest.json"):
                     self.assertEqual(result.files[path], content, path)
@@ -304,8 +309,10 @@ class DeadlineConsumerContract(unittest.TestCase):
         self.assertIn("treat a future generation timestamp as fresh", protocol)
         self.assertIn("metadata.last_updated is also UTC (Z) from sync 3.164", protocol)
         workflow = (root / "examples/json-auto-sync/auto-sync.yml").read_text()
-        self.assertIn("SECTION11_EXPORT_EVENT: ${{ github.event_name }}", workflow)
-        self.assertIn("SECTION11_EXPORT_CRON: ${{ github.event.schedule }}", workflow)
+        self.assertIn('hosted.py" sync --wrapper-api 2', workflow)
+        controller = (root / 'examples/maintenance/hosted.py').read_text()
+        self.assertIn("'SECTION11_EXPORT_EVENT': info['event']", controller)
+        self.assertIn("'SECTION11_EXPORT_CRON': info['cron']", controller)
 
 
 if __name__ == "__main__":

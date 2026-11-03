@@ -1,0 +1,4 @@
+.section11-state/
+.sync_config.json
+__pycache__/
+*.pyc

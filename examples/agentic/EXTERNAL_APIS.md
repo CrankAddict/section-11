@@ -309,18 +309,20 @@ sync.py reads these once per run and populates the `units` block on `weather_sum
 
 ### Quick CLI Reference (pull.py)
 
+Run from the data folder with the managed tool. Local installation removes the old root copy.
+
 ```bash
 # Full streams for an activity (writes to stdout or a file)
-python pull.py trace --activity-id i142557875
+python3 section11/examples/agentic/pull.py trace --activity-id i142557875
 
 # Just GPS + altitude
-python pull.py trace --activity-id i142557875 --types latlng,altitude
+python3 section11/examples/agentic/pull.py trace --activity-id i142557875 --types latlng,altitude
 
 # Save to disk for further analysis
-python pull.py trace --activity-id i142557875 --out /tmp/ride.json
+python3 section11/examples/agentic/pull.py trace --activity-id i142557875 --out /tmp/ride.json
 
 # Show the athlete's unit preferences
-python pull.py units
+python3 section11/examples/agentic/pull.py units
 ```
 
 ### Caveats

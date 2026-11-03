@@ -241,28 +241,26 @@ class SnapshotTests(unittest.TestCase):
 class WorkflowPersistenceTests(unittest.TestCase):
     def test_eta_history_validated_published_and_excluded_from_artifact(self):
         workflow = (REPO_ROOT / "examples/json-auto-sync/auto-sync.yml").read_text()
-        validation = workflow.split("- name: Verify generated data", 1)[1].split("- name: Upload data", 1)[0]
         publish = workflow.split("- name: Publish data and update README", 1)[1]
         artifact = workflow.split("- name: Upload data files for download", 1)[1].split("- name: Publish", 1)[0]
         expected = {"history.json", "intervals.json", "routes.json", "saved_workouts.json",
                     "ftp_history.json", "route_eta_history.json"}
         from test_data_overview import workflow_rules
         self.assertEqual(set(workflow_rules()['FALLBACK']), expected | {"latest.json"})
-        self.assertIn('python "$RUNNER_TEMP/validate-data.py" prepare', validation)
-        self.assertIn('mapfile -t GENERATED < "$STAGE_DIR/touched.txt"', publish)
+        self.assertIn('hosted.py" publish --wrapper-api 2', publish)
         self.assertNotIn("route_eta_history.json", artifact)
-        self.assertIn('json.loads(content, parse_constant=invalid_constant)', validation)
-        self.assertIn('python "$RUNNER_TEMP/validate-data.py" restore', publish)
-        self.assertIn('git add -- "${SAVED[@]}" "$ARCHIVE_PATH"', publish)
-        self.assertIn('"$CHECKOUT_SHA" "$UPSTREAM_SHA" -- "${GENERATED[@]}" "$ARCHIVE_PATH"', publish)
-        self.assertIn('MAX_ATTEMPTS=3', publish)
-        self.assertIn('git merge-base --is-ancestor', publish)
-        self.assertIn('cp latest.json "$ARCHIVE_PATH"', publish)
+        rules = (REPO_ROOT / "examples/maintenance/validate_data.py").read_text()
+        self.assertIn('json.loads(content, parse_constant=invalid_constant)', rules)
+        hosted = (REPO_ROOT / "examples/maintenance/hosted.py").read_text()
+        self.assertIn('validate_data.prepare(root, previous_path, stage)', hosted)
+        self.assertIn("plan['removed']", hosted)
+        self.assertIn("changes[archive] = latest", hosted)
+
 
     def test_on_demand_uses_shared_workflow_without_schedule(self):
         doc = (REPO_ROOT / "examples/json-on-demand/SETUP.md").read_text()
-        self.assertIn('[examples/json-auto-sync/auto-sync.yml](../json-auto-sync/auto-sync.yml)', doc)
-        self.assertIn('Remove the `schedule` block so only `workflow_dispatch` remains', doc)
+        self.assertIn('[On-demand workflow](auto-sync.yml)', doc)
+        self.assertIn('It already has only `workflow_dispatch`', doc)
         self.assertIn('route_eta_history.json', doc)
 
 

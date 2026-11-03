@@ -6,13 +6,18 @@ Trigger a fresh Intervals.icu sync from your phone or browser, then download the
 
 > **Running an agentic platform locally?** See [json-local-sync](../json-local-sync/SETUP.md). No GitHub needed.
 
+> **Already using On-demand sync?** Keep your repository, secrets, settings and data. Replace the one `auto-sync.yml` in GitHub's editor with the published [On-demand template](auto-sync.yml), then run its default **Sync**. Hosted push users replace `auto-sync.yml` and `push-workout.yml` together in the same owner commit, before the first Sync. No ZIP upload, PR setting or merge is required.
+
 ---
 
 ## Overview
 
 Date-only/exact-midnight workouts use the labelled 10:00 local default. Optional repository variables are set under **Settings > Secrets and variables > Actions > Variables**: `SECTION11_ROUTE_WEATHER=0` disables weather, and `SECTION11_ROUTE_WEATHER_DEFAULT_START=09:30` chooses a strict local HH:MM default. Unset/empty means on and 10:00; an invalid nonempty start makes assumed-departure weather unavailable. The shared workflow passes both settings, with details in [Optional route-weather variables](../json-auto-sync/SETUP.md#optional-route-weather-variables). The AI asks for the actual start or asks you to set it in Intervals.icu. New points/hours can fetch on the next user-triggered sync, subject to request limits and failure/provider backoff. No extra export/upload step is required. See [departure handling](../../README.md#route-weather-departure).
 
-Uses the same GitHub Actions workflow as auto-sync, but without the cron schedule. You tap a link in your repo's README to trigger a sync, and download the resulting files as a ZIP artifact from the completed run.
+Uses the same GitHub Actions workflow as auto-sync, but without the cron schedule.
+Tap Sync Now in your repo's README, then use the repository delivery flow below.
+The completed run's artifact is a data-only extra; it does not include the
+installed Section 11 files needed by the coach.
 
 On-demand can use **4 requests on a quiet cache hit instead of about 31** with the updated workflow. Only profile settings, aggregate curves and current-window messages persist in a plain Actions cache outside the checkout. Raw core responses and request accounting stay runner-only. Neither the cache nor `state/` is committed or included in the download; AI tools use the training files and ignore both. First runs, refreshes and misses cost more. There is no hosted daily balance, step-down or budget pause; pacing and provider holds remain. See [private state and request limits](../json-auto-sync/SETUP.md#private-state-and-request-limits).
 
@@ -20,7 +25,7 @@ In a public repository, someone who deliberately opens a pull request can read t
 
 GitHub deletes caches unused for 7 days, so rarely run On-demand gains little; a cache miss just means normal reads.
 
-**Existing repositories upgrading to sync 3.165:** replace both `sync.py` and the shared workflow, retaining only `workflow_dispatch` as the trigger. Include the two environment lines that pass the trigger event (`SECTION11_EXPORT_EVENT`) and schedule (`SECTION11_EXPORT_CRON`), and the staging, restore and changed-only save steps after verified publication. No new secret or library is needed. Old workflows still work without cache savings.
+**Existing repositories:** keep optional environment settings and secret names in the published manual-only template. It has no schedule or unattended maintenance. Verified managed code retains export freshness, staging, cache restore and changed-only save after confirmed publication. Follow the [migration steps](#updating-an-existing-repository).
 
 We recommend one setup per user. Stop the old timer or workflow before changing the sync path or moving machines, to protect Intervals.icu. Counts are per data folder, API key and athlete, with no coordination across folders.
 
@@ -28,11 +33,18 @@ We recommend one setup per user. Stop the old timer or workflow before changing 
 
 Each successful run with updated sync.py produces `latest.json.sleep_context`, using a 35-date wellness window (D−34..D) and preserving the original 28-date slice for existing consumers. There is no separate sleep file or history-refresh requirement. Retained wellness keeps its acquisition time in `source_updated_at`; `source_freshness` describes its refresh status. The shared workflow already includes latest.json in repository delivery and the download artifact, so this field needs no workflow or upload change. The AI discovers it through `READ_THIS_FIRST.sleep_context_note`. It is low-confidence context only, never readiness; missing dates, unknown athlete timezone or current-date mismatch remain explicit unavailable states. It refreshes only when you run sync, so an old attachment is not a current assessment.
 
-For 11.80 / sync 3.146, replace sync.py and the shared workflow once, keeping your manual-only trigger. It publishes the sync-declared JSON/PNG file list under fixed validation rules, so future companion names/folders need only a script update. See the [GitHub setup update instructions](../json-auto-sync/SETUP.md#updating-an-existing-repository) for limits, safe fallback and the replacement steps. Compact forecast snapshots stay bounded.
+The shared publisher retains the sync-declared JSON/PNG file list and fixed
+validation rules, so future companion names/folders need only a script update.
+See [Owner-controlled workflow maintenance](../json-auto-sync/SETUP.md#owner-controlled-workflow-maintenance)
+for limits, safe fallback and the replacement steps. Compact forecast snapshots stay bounded.
+Personal files, private request state and active workflows stay outside the managed release.
 
-The repository retains `route_eta_history.json` and up to four ordered `maps/weather/` PNG pages per ride, for six rides (24 pages) between runs. All companion locations in `latest.json.data_overview` are relative to the latest file's folder. The AI reads that overview first and resolves paths against the current data source. It reads and shows matching map pages in their listed order only when it can actually read each PNG; otherwise it uses the text brief. Maps and ETA history are not added to the download artifact ZIP. Download users keep their existing JSON workflow with no extra steps; folderless uploads are matched by filename.
+The repository retains `route_eta_history.json` and up to four ordered `maps/weather/` PNG pages per ride, for six rides (24 pages) between runs. All companion locations in `latest.json.data_overview` are relative to the latest file's folder. The AI reads that overview first and resolves paths against the current data source. It reads and shows matching map pages in their listed order only when it can actually read each PNG; otherwise it uses the text brief. Maps and ETA history are not added to the data-only run artifact. Use the repository delivery below for the installed protocol and available companions; folderless uploads are matched by filename.
 
-**Flow:** Tap Sync Now → Run workflow → Download artifact ZIP → Attach to AI chat.
+**Flow:** Tap Sync Now → Run workflow → use a connector or link to your own repo.
+If the chat can use neither, use GitHub **Code > Download ZIP** on your own
+repository and give that ZIP to the chat or project. It includes `section11/`.
+An uploaded ZIP is a snapshot; re-upload for fresh data and after updates.
 
 **GitHub connector users:** If your AI platform has a GitHub connector, you can skip the download, but refresh, sync, or re-import after the workflow commits, since not all connectors pick up changes automatically. See the [connector table](../../README.md#platform-setup).
 
@@ -58,31 +70,46 @@ The repository retains `route_eta_history.json` and up to four ordered `maps/wea
 1. Go to [github.com/new](https://github.com/new)
 2. Name it something like `training-data`
 3. Set to **Private** (recommended)
-4. Check **Add a README file**
+4. Leave **Add a README file** unchecked. The first Sync installs the standard README with your Sync Now link; successful syncs update its timestamp.
 5. Click **Create repository**
 
-Then add these files:
+Use the published [On-demand workflow](auto-sync.yml), or the exact
+`section11-YYYY.MM.DD-on-demand.yml` asset on the matching
+[official release](https://github.com/CrankAddict/section-11/releases/latest).
+Its bytes are verified against the release manifest. If its pins say
+`UNSEALED`, wait for the maintainer's verified release. Do not use raw-main code
+or invent pins. It stops before checkout or installation while unsealed.
+No release ZIP or hidden-folder upload is required.
 
-| File | Location | Source |
-|------|----------|--------|
-| `sync.py` | Root | [examples/sync.py](../sync.py) |
-| `auto-sync.yml` | `.github/workflows/` | [examples/json-auto-sync/auto-sync.yml](../json-auto-sync/auto-sync.yml) |
-| `README.md` | Root (replace default) | [DATA_REPO_README_TEMPLATE.md](../json-auto-sync/DATA_REPO_README_TEMPLATE.md) |
+1. Click **Add file > Create new file**, or edit the existing workflow.
+2. Name it `.github/workflows/auto-sync.yml` and paste the On-demand template.
+   It already has only `workflow_dispatch`. Keep optional settings and secrets.
+3. If the repository already has Section 11 files, read this warning immediately
+   before committing. Brand-new repositories can skip this warning:
 
-**Important:** Edit `auto-sync.yml` after copying. Remove the `schedule` block so only `workflow_dispatch` remains:
+   > Anything you added or changed inside section11/ will be deleted. Move what you want to keep to custom/ first.
 
-```yaml
-on:
-  workflow_dispatch:  # Allow manual trigger
-```
+   Any existing root `sync.py`, `push.py` and `pull.py` will be removed. Outside
+   `section11/`, this applies to any file in any folder named exactly like a
+   release or historical Section 11 file, except the [keep list](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
+   Protection ignores case; removal requires exact spelling. Keep your own files
+   in `custom/` or outside the data repository. Data, settings,
+   custom files and the private dossier stay in place.
+4. Hosted push users also replace `.github/workflows/push-workout.yml` with the
+   [thin push stub](../agentic/push-workout.yml) in the **same owner commit, before
+   the first Sync**. Use GitHub's web editor (`github.dev`, opened with `.` from
+   the repository), edit both files, then stage and commit both through Source
+   Control. Commit through your repository's normal policy.
 
-This prevents automatic runs. The workflow only runs when you trigger it.
+That edit accepts installation. The first Sync installs the complete verified
+release, receipt and missing custom guidance in one validated direct commit,
+then publishes data separately. The standard README includes your repository's
+Sync Now link.
 
-**To create the workflow folder:**
-1. Click "Add file" → "Create new file"
-2. Name it: `.github/workflows/auto-sync.yml`
-3. Paste the workflow content, remove the `schedule` block
-4. Commit
+The push stub keeps its dispatch URL, inputs and preview/confirm contract.
+External imports of root tools move to `section11/examples/agentic/`. Until the
+first Sync installs Section 11, push stops with:
+"Section 11 is not installed yet; run Sync once first".
 
 ---
 
@@ -108,11 +135,18 @@ This prevents automatic runs. The workflow only runs when you trigger it.
 3. Select **"Read and write permissions"**
 4. Click **Save**
 
+Effective `contents: write` and Actions-run read access are required. No
+PR-creation setting or new personal token is needed. A protected-branch refusal
+stops without retry or alternate credentials; the owner must supply a
+policy-compatible route.
+
 ---
 
-## Step 5: Update README Template
+## Step 5: README link
 
-Replace `YOUR_GITHUB_USER` and `YOUR_REPO_NAME` in `README.md` with your actual GitHub username and repo name.
+Install, update and rollback refresh the standard README while retaining its sync
+timestamp; Sync changes only that timestamp between updates. See the
+[update guide](../maintenance/UPDATING.md).
 
 ---
 
@@ -124,9 +158,15 @@ Replace `YOUR_GITHUB_USER` and `YOUR_REPO_NAME` in `README.md` with your actual 
 4. Click **Run workflow** → **Run workflow**
 5. Wait 30–60 seconds for the run to complete
 
+Confirm **Auto-Sync Intervals.icu Data** appears in Actions. If it is missing,
+check YAML and default-branch registration before requesting a run. A file alone
+is not proof of registration. Keep the default branch selected and Operation
+**Sync**. Inspect the installation commit and receipt, then the data commit and
+its remote readback. No PR or merge is involved.
+
 After the run completes:
 - **Connector users:** Refresh, sync, or re-import so your AI picks up the new files. See the [connector table](../../README.md#platform-setup).
-- **Download users:** Click the completed run → scroll to **Artifacts** → download **training-data** ZIP.
+- **Download users:** Use your own repository's **Code > Download ZIP**, as above.
 
 From now on, just tap **🔄 Sync Now** in your repo's README.
 
@@ -138,7 +178,7 @@ From now on, just tap **🔄 Sync Now** in your repo's README.
 
 ### From your phone
 
-Open your repo in a browser → tap **🔄 Sync Now** → **Run workflow**. When the run completes, download the artifact or refresh, sync, or re-import through your connector as required.
+Open your repo in a browser → tap **🔄 Sync Now** → **Run workflow**. When the run completes, refresh your connector or repository link, or replace the uploaded repository ZIP as above.
 
 ### With an AI connector
 
@@ -146,19 +186,33 @@ AI platforms with GitHub connectors can read the repo directly, but refresh beha
 
 ### Without a connector
 
-Download the **training-data** artifact ZIP from the completed run, then attach the JSON files to your AI chat.
+Use a link to your own repository if the chat can read it. Otherwise use the
+repository ZIP delivery above, which includes both data and installed Section 11 files.
 
 ---
 
 ## Security
 
-Downloading the artifact ZIP and attaching the JSON to a chat takes your data outside GitHub authentication. A connector reads the repository directly, so processing and retention there are governed by that AI platform's terms rather than by Section 11. Where the files go from there depends on what you configure and which AI you point them at. This workflow publishes no GitHub Pages site. Private repos remain private. The workflow and required-secret handling are identical to auto-sync apart from the manual trigger. See [Privacy & Security](../../README.md#privacy--security) for the full policy.
+Downloading the repository ZIP and giving it to a chat takes that copy outside GitHub authentication. A connector reads the repository directly, so processing and retention there are governed by that AI platform's terms rather than by Section 11. Where the files go from there depends on what you configure and which AI you point them at. This workflow publishes no GitHub Pages site. Private repos remain private. The workflow and required-secret handling are identical to auto-sync apart from the manual trigger. See [Privacy & Security](../../README.md#privacy--security) for the full policy.
 
 ---
 
+## Section 11 updates
+
+Use the same workflow's **Update**, **Status** or **Rollback** operation. Half mode
+is the default: an outstanding verified update gives a fixed `update_notice` on the
+next export, and **Update** installs it. `SECTION11_AUTO_UPDATE=true` opts into
+automatic installation. On-demand checks only on runs you start, once per UTC day
+at or after **04:00 UTC**; there is no unattended check or backup schedule.
+See [updates and recovery](../maintenance/UPDATING.md#github-installation-and-updates).
+
 ## Updating an Existing Repository
 
-When the workflow template changes, follow [Updating an Existing Repository](../json-auto-sync/SETUP.md#updating-an-existing-repository) in the auto-sync guide, with these differences. Skip its step 2 (**Choose a schedule**) and step 8 (**Watch the next scheduled run**). The current `auto-sync.yml` includes a `schedule` block, so in its step 4, remove the `schedule:` block again before you commit and keep `workflow_dispatch:`, as in Step 2 of this guide; otherwise the workflow starts running on a schedule. Reapply any other changes you still want as usual.
+Replace the one sync workflow using Step 2 and keep your optional settings and
+secret names. Use the On-demand template as supplied; do not add the scheduled
+template's cron. Hosted push users replace both stubs in the same
+owner commit, before the first Sync. Subsequent compatible releases
+replace managed logic without another workflow edit.
 
 ---
 

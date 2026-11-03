@@ -145,16 +145,6 @@ Version 3.138 - --init installs exactly what --update manages; maintainer folder
   The manifest generator now also excludes the repository-root dev/ folder
   (maintainer tests), so it is no longer installed or updated. Nested folders
   named dev are unaffected. The scope description is updated to match.
-  --update: on an installation that is not a Git checkout, section11/.github and,
-  once the upstream manifest no longer lists it, section11/dev can be moved to
-  section11-legacy-github/ and section11-legacy-dev/ beside section11/. This is
-  asked only when standard input is a terminal and happens only when the word
-  "move" is typed there. Enter, y, yes, EOF, Ctrl+C and any piped or redirected
-  input keep them. Nothing is deleted, an existing backup name is never overwritten, a
-  symlink is left alone, and a failed rename keeps the original. A dev/ folder
-  that stays is excluded from the orphan cleanup, so answering yes there cannot
-  delete it. Setup and update tooling only: no change to exported data, schema,
-  calculations or the cache policy.
 
 Version 3.137 - history.json refresh gate, retention and GitHub Actions run budget.
   should_generate_history() refreshed an existing history.json older than 28 days
@@ -6096,9 +6086,7 @@ class IntervalsSync:
     GITHUB_API_URL = "https://api.github.com"
     FTP_HISTORY_FILE = "ftp_history.json"
     HISTORY_FILE = "history.json"
-    UPSTREAM_REPO = "CrankAddict/section-11"
-    CHANGELOG_FILE = "changelog.json"
-    VERSION = "3.165"
+    VERSION = "3.166"
     ROUTE_TERRAIN_VERSION = "3.142"
     ROUTE_RETRY_BACKOFF_SECONDS = 15 * 60
     INTERVALS_FILE = "intervals.json"
@@ -18993,143 +18981,6 @@ class IntervalsSync:
         
         return summaries
     
-    # === UPDATE NOTIFICATIONS (v3.3.0) ===
-    
-    def check_upstream_updates(self):
-        """
-        Check CrankAddict/section-11 for new releases and create a GitHub Issue.
-        
-        Tries manifest.json first (version-based comparison). Falls back to
-        changelog.json (notification_id-based) if manifest.json is not available.
-        """
-        if not self.github_token or not self.github_repo:
-            if self.debug:
-                print("  Skipping update check — no GitHub credentials")
-            return
-        
-        headers = {
-            "Authorization": f"token {self.github_token}",
-            "Accept": "application/vnd.github+json"
-        }
-        
-        # GitHub Issues use changelog.json for human-readable release notes
-        # (manifest.json is for local --update only)
-        self._check_updates_via_changelog(headers)
-    
-    def _check_updates_via_manifest(self, manifest, headers):
-        """Create a GitHub Issue if manifest file hashes have changed."""
-        files = manifest.get("files", {})
-        
-        # Generate deterministic fingerprint from sorted path:hash pairs
-        hash_pairs = sorted(f"{k}:{v.get('hash', '?')}" for k, v in files.items())
-        fingerprint = "|".join(hash_pairs)
-        
-        # Use a short hash for the issue title
-        fp_hash = hashlib.md5(fingerprint.encode()).hexdigest()[:8]
-        issue_title = f"Section 11 updates — {fp_hash}"
-        
-        # Check if issue already exists
-        if self._issue_exists(issue_title, headers):
-            if self.debug:
-                print(f"  Update notification already exists: {issue_title}")
-            return
-        
-        # Build issue body
-        body = "## Section 11 Update Available\n\n"
-        body += "### Tracked files:\n"
-        for path in sorted(files.keys()):
-            info = files[path]
-            desc = info.get("description", "")
-            desc_str = f" — {desc}" if desc else ""
-            body += f"- **{path}**{desc_str}\n"
-        body += f"\n### Repository:\n"
-        body += f"https://github.com/{self.UPSTREAM_REPO}\n"
-        body += f"\n### Update instructions:\n"
-        body += f"- **Local users:** `python section11/examples/sync.py --update`\n"
-        body += f"- **GitHub users:** download the latest files from the repository\n"
-        body += f"\n*This issue was auto-created by sync.py v{self.VERSION}*"
-        
-        self._create_issue(issue_title, body, headers)
-    
-    def _check_updates_via_changelog(self, headers):
-        """Legacy: Create a GitHub Issue from changelog.json notification_id."""
-        try:
-            url = f"https://raw.githubusercontent.com/{self.UPSTREAM_REPO}/main/{self.CHANGELOG_FILE}"
-            response = requests.get(url, timeout=10)
-            if response.status_code != 200:
-                if self.debug:
-                    print(f"  No changelog.json found upstream (HTTP {response.status_code})")
-                return
-            
-            changelog = response.json()
-        except Exception as e:
-            if self.debug:
-                print(f"  Could not fetch upstream changelog: {e}")
-            return
-        
-        notification_id = changelog.get("notification_id")
-        if not notification_id:
-            if self.debug:
-                print("  No notification_id in changelog")
-            return
-        
-        issue_title = f"Section 11 updates — {notification_id}"
-        
-        if self._issue_exists(issue_title, headers):
-            if self.debug:
-                print(f"  Update notification already exists: {issue_title}")
-            return
-        
-        # Build issue body
-        changes = changelog.get("changes", [])
-        body = f"## Section 11 Update Available\n\n"
-        body += f"**Notification ID:** {notification_id}\n\n"
-        body += "### Changes:\n"
-        for change in changes:
-            body += f"- {change}\n"
-        body += f"\n### Repository:\n"
-        body += f"https://github.com/{self.UPSTREAM_REPO}\n"
-        body += f"\n*This issue was auto-created by sync.py v{self.VERSION}*"
-        
-        self._create_issue(issue_title, body, headers)
-    
-    def _issue_exists(self, title, headers):
-        """Check if a GitHub Issue with this title already exists."""
-        try:
-            search_url = f"{self.GITHUB_API_URL}/search/issues"
-            search_params = {
-                "q": f'repo:{self.github_repo} "{title}" in:title'
-            }
-            response = requests.get(search_url, headers=headers, params=search_params, timeout=10)
-            
-            if response.status_code == 200:
-                results = response.json()
-                return results.get("total_count", 0) > 0
-        except Exception as e:
-            if self.debug:
-                print(f"  Could not search issues: {e}")
-        return False
-    
-    def _create_issue(self, title, body, headers):
-        """Create a GitHub Issue."""
-        try:
-            issues_url = f"{self.GITHUB_API_URL}/repos/{self.github_repo}/issues"
-            payload = {
-                "title": title,
-                "body": body,
-                "labels": ["update-notification"]
-            }
-            response = requests.post(issues_url, headers=headers, json=payload, timeout=10)
-            
-            if response.status_code == 201:
-                print(f"  📢 Update notification created: {title}")
-            else:
-                if self.debug:
-                    print(f"  Could not create issue (HTTP {response.status_code}): {response.text}")
-        except Exception as e:
-            if self.debug:
-                print(f"  Could not create update issue: {e}")
-    
     # Structure shares interval retention, but not interval/DFA interpretation.
     STRUCTURE_VERSION = 6
     STRUCTURE_MAX_STEPS = 20
@@ -22224,7 +22075,6 @@ class IntervalsSync:
 
 # === Local Setup & Update Helpers ===
 
-SECTION11_REPO_RAW = "https://raw.githubusercontent.com/CrankAddict/section-11/main"
 
 # Directories/files to exclude from manifest generation
 _MANIFEST_EXCLUDE_DIRS = {".git", ".github", "__pycache__", "node_modules"}
@@ -22233,13 +22083,7 @@ _MANIFEST_EXCLUDE_FILES = {"manifest.json", ".DS_Store"}
 # installations do not receive. A nested folder with the same name is unaffected.
 _MANIFEST_EXCLUDE_ROOT_DIRS = {"dev"}
 
-# Root folders an older --init left in section11/ that --update does not manage,
-# and the backup folder each may be moved to beside section11/.
-_LEGACY_UNMANAGED_ROOTS = {".github": "section11-legacy-github", "dev": "section11-legacy-dev"}
 
-
-class _InitArchiveError(Exception):
-    """The downloaded archive cannot be installed as a consistent distribution."""
 
 
 def _safe_manifest_path(path):
@@ -22257,140 +22101,11 @@ def _safe_manifest_path(path):
     return all(part not in ("", ".", "..") for part in path.split("/"))
 
 
-def _plan_manifest_install(zf):
-    """Validate a downloaded repository archive against its own manifest.json.
-
-    Returns (manifest_bytes, [(relative_path, file_bytes), ...]) for exactly the
-    files manifest.json lists. Raises _InitArchiveError on any inconsistency, before
-    anything is written. Unlisted archive members are never read or returned.
-    """
-    infos = [info for info in zf.infolist() if not info.filename.startswith("__MACOSX/")]
-    roots = {info.filename.split("/", 1)[0] for info in infos}
-    if len(roots) != 1 or any("/" not in info.filename for info in infos):
-        raise _InitArchiveError(f"unexpected zip structure: expected 1 top-level directory, found {len(roots)}")
-    root = next(iter(roots))
-
-    members = {}
-    for info in infos:
-        if info.filename in members:
-            raise _InitArchiveError(f"duplicate archive member: {info.filename}")
-        members[info.filename] = info
-
-    def read_regular(rel_path):
-        info = members.get(f"{root}/{rel_path}")
-        if info is None:
-            raise _InitArchiveError(f"listed file is missing from the archive: {rel_path}")
-        # Unix file type declared by the archive. 0 means the creator recorded none,
-        # which is an ordinary file; anything else must be S_IFREG. That refuses
-        # directories, symlinks, FIFOs, devices and sockets.
-        declared_type = (info.external_attr >> 16) & 0o170000
-        if info.is_dir() or declared_type not in (0, 0o100000):
-            raise _InitArchiveError(f"listed path is not a regular file: {rel_path}")
-        return zf.read(info)
-
-    manifest_bytes = read_regular("manifest.json")
-    try:
-        manifest = json.loads(manifest_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
-        raise _InitArchiveError("manifest.json is not valid JSON")
-    files = manifest.get("files") if isinstance(manifest, dict) else None
-    if not isinstance(files, dict) or not files:
-        raise _InitArchiveError("manifest.json has no files list")
-
-    planned = []
-    for rel_path, entry in files.items():
-        if not _safe_manifest_path(rel_path) or rel_path == "manifest.json":
-            raise _InitArchiveError(f"unsafe path in manifest.json: {rel_path!r}")
-        expected = entry.get("hash") if isinstance(entry, dict) else None
-        if not isinstance(expected, str) or len(expected) != 64 or any(c not in "0123456789abcdef" for c in expected):
-            raise _InitArchiveError(f"invalid hash in manifest.json for {rel_path}")
-        data = read_regular(rel_path)
-        if hashlib.sha256(data).hexdigest() != expected:
-            raise _InitArchiveError(f"hash mismatch for {rel_path}: the archive does not match its manifest.json")
-        planned.append((rel_path, data))
-    return manifest_bytes, planned
 
 
 def _is_git_checkout(section11_dir):
     """True when section11/ is a Git working tree (a developer clone, not an --init install)."""
     return os.path.lexists(os.path.join(str(section11_dir), ".git"))
-
-
-def _unmanaged_legacy_roots(upstream_files, section11_dir):
-    """Names of legacy root folders present in section11/ that the upstream manifest does not manage."""
-    present = []
-    for name in sorted(_LEGACY_UNMANAGED_ROOTS):
-        if any(path == name or path.startswith(name + "/") for path in upstream_files):
-            continue
-        if os.path.lexists(os.path.join(str(section11_dir), name)):
-            present.append(name)
-    return present
-
-
-def _stdin_is_interactive():
-    """True only when standard input is a terminal. Any doubt counts as not interactive."""
-    import sys
-    try:
-        return bool(sys.stdin is not None and sys.stdin.isatty())
-    except Exception:
-        return False
-
-
-def _offer_legacy_move(upstream_files, data_dir, section11_dir):
-    """Offer to move legacy unmanaged root folders out of section11/. Never deletes.
-
-    Asks only in an interactive session and acts only when the word "move" is typed
-    there. Piped or redirected input is never read for this question, whatever it
-    contains. Anything else, EOF or Ctrl+C keeps the folders. A Git checkout is never
-    offered, a symlink or non-directory is left alone, an existing backup name is
-    never overwritten and a failed rename keeps the original in place.
-    """
-    if _is_git_checkout(section11_dir):
-        return
-
-    movable = []
-    for name in _unmanaged_legacy_roots(upstream_files, section11_dir):
-        path = section11_dir / name
-        if path.is_symlink() or not path.is_dir():
-            print(f"\n   Kept section11/{name}: not an ordinary folder, left untouched.")
-            continue
-        count = sum(len(filenames) for _, _, filenames in os.walk(path))
-        movable.append((name, path, count))
-    if not movable:
-        return
-
-    if not _stdin_is_interactive():
-        names = ", ".join(f"section11/{name}/" for name, _, _ in movable)
-        print(f"\n   Kept {names}: from an older install and not updated by --update.")
-        print("   Run --update in a terminal to move them out of section11/.")
-        return
-
-    print("\n   Folders from an older install that --update does not manage:\n")
-    for name, _, count in movable:
-        print(f"   section11/{name}/  ({count} file{'s' if count != 1 else ''})"
-              f"  ->  {_LEGACY_UNMANAGED_ROOTS[name]}/")
-    print("\n   They are not used for coaching and are never refreshed.")
-    print("   Moving keeps every file; you can delete the moved folders afterwards.\n")
-    try:
-        answer = input('   Type "move" to move them out of section11/, or press Enter to keep them: ').strip().lower()
-    except (EOFError, KeyboardInterrupt):
-        answer = ""
-        print()
-    if answer != "move":
-        print("   Kept. These folders are not updated by --update.")
-        return
-
-    for name, path, _ in movable:
-        backup = data_dir / _LEGACY_UNMANAGED_ROOTS[name]
-        suffix = 2
-        while os.path.lexists(backup):
-            backup = data_dir / f"{_LEGACY_UNMANAGED_ROOTS[name]}-{suffix}"
-            suffix += 1
-        try:
-            os.rename(str(path), str(backup))
-            print(f"   Moved section11/{name}/ to {backup.name}/")
-        except OSError as e:
-            print(f"   Kept section11/{name}/: could not move it ({e})")
 
 
 def _compute_file_hash(filepath):
@@ -22402,113 +22117,6 @@ def _compute_file_hash(filepath):
     return h.hexdigest()
 
 
-def _fetch_upstream_manifest():
-    """Fetch manifest.json from the official Section 11 repo.
-    Returns manifest dict or None on failure. Caller handles errors."""
-    try:
-        response = requests.get(f"{SECTION11_REPO_RAW}/manifest.json", timeout=30)
-        response.raise_for_status()
-        manifest = response.json()
-        if manifest.get("files"):
-            return manifest
-        return None
-    except Exception:
-        return None
-
-
-def _compare_files(upstream_files, section11_dir):
-    """Compare upstream manifest hashes against local files in section11/.
-    Returns (needs_update, current) where each is a list of dicts.
-    Detects changed files (hash mismatch) and new files (missing locally)."""
-    needs_update = []
-    current = []
-    
-    for path, info in upstream_files.items():
-        upstream_hash = info.get("hash", "")
-        description = info.get("description", "")
-        local_path = section11_dir / path
-        
-        if not local_path.exists():
-            needs_update.append({
-                "path": path, "status": "new",
-                "description": description
-            })
-        else:
-            try:
-                local_hash = _compute_file_hash(local_path)
-            except Exception:
-                local_hash = ""
-            
-            if local_hash != upstream_hash:
-                needs_update.append({
-                    "path": path, "status": "changed",
-                    "description": description
-                })
-            else:
-                current.append({
-                    "path": path, "description": description
-                })
-    
-    return needs_update, current
-
-
-def _find_orphaned_files(upstream_files, section11_dir):
-    """Find local files inside section11/ that are no longer in the upstream manifest.
-    Returns a sorted list of relative path strings.
-    Excludes manifest.json (local-only), .tmp files, and hidden files/directories."""
-    manifest_paths = set(upstream_files.keys())
-    orphaned = []
-
-    for root, dirs, files in os.walk(section11_dir):
-        # Skip hidden directories (e.g. .git, .DS_Store folders)
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
-
-        for fname in files:
-            # Skip hidden files, .tmp files, and manifest.json
-            if fname.startswith('.'):
-                continue
-            if fname.endswith('.tmp'):
-                continue
-
-            full_path = Path(root) / fname
-            rel_path = str(full_path.relative_to(section11_dir))
-
-            if rel_path == "manifest.json":
-                continue
-
-            if rel_path not in manifest_paths:
-                orphaned.append(rel_path)
-
-    return sorted(orphaned)
-
-
-def _find_empty_dirs(section11_dir):
-    """Find directories inside section11/ that contain no visible files or subdirectories.
-    Walks bottom-up so nested empty dirs are caught. Returns sorted list of relative path strings.
-    Skips hidden directories at the top level of the walk."""
-    empty_dirs = []
-
-    # Bottom-up walk so we catch nested empties
-    for root, dirs, files in os.walk(section11_dir, topdown=False):
-        rel_dir = Path(root).relative_to(section11_dir)
-
-        # Don't flag section11/ itself
-        if rel_dir == Path('.'):
-            continue
-
-        # Skip hidden directories
-        if any(part.startswith('.') for part in rel_dir.parts):
-            continue
-
-        # Visible files = non-hidden, non-.tmp
-        visible_files = [f for f in files if not f.startswith('.') and not f.endswith('.tmp')]
-        # Visible subdirs = non-hidden
-        visible_dirs = [d for d in dirs if not d.startswith('.')]
-
-        if not visible_files and not visible_dirs:
-            empty_dirs.append(str(rel_dir))
-
-    return sorted(empty_dirs)
 
 
 def do_generate_manifest():
@@ -22581,355 +22189,1800 @@ def do_generate_manifest():
     print(f"✅ manifest.json generated — {len(sorted_files)} files tracked")
 
 
-def do_init():
-    """
-    Download Section 11 and install the manifest-managed files to section11/.
+# The shared distribution core lives here so standalone --init can verify a
+# release without fetching/executing a second bootstrap program.
+class DistributionError(ValueError):
+    pass
 
-    Standalone function — does not require Intervals.icu credentials.
-    Downloads the repo as a zip from GitHub, installs exactly the files listed in
-    the archive's own manifest.json (plus manifest.json) after verifying them,
-    and removes the bootstrap sync.py as the last step.
-    """
-    data_dir = Path.cwd()
-    target_dir = data_dir / "section11"
-    
-    # Guard: already exists
-    if target_dir.exists():
-        print("Section 11: section11/ already exists in this directory")
-        print("   To update: python section11/examples/sync.py --update")
-        print("   To reinstall: delete section11/ and run --init again")
-        return
-    
-    # Download zip
-    zip_url = "https://github.com/CrankAddict/section-11/archive/refs/heads/main.zip"
-    print("📦 Downloading Section 11 repository...")
-    
-    try:
-        response = requests.get(zip_url, timeout=60)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"Section 11: download failed — {e}")
-        print("   Alternative: git clone https://github.com/CrankAddict/section-11.git section11")
-        return
-    
-    print(f"   Downloaded ({len(response.content) // 1024}KB)")
-    
-    # Verify the archive against its own manifest, stage only the listed files in a
-    # temp directory, then move (atomic). Unlisted archive content is never written.
-    try:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            zip_path = Path(tmp_dir) / "repo.zip"
-            with open(zip_path, 'wb') as f:
-                f.write(response.content)
 
-            # GitHub zips have a top-level folder like "section-11-main/"
-            with zipfile.ZipFile(zip_path, 'r') as zf:
-                manifest_bytes, planned = _plan_manifest_install(zf)
+class DistributionBusy(DistributionError):
+    def __init__(self):
+        super().__init__('Another Section 11 run is in progress; try again in a minute')
 
-            staged = Path(tmp_dir) / "section11"
-            for rel_path, data in planned + [("manifest.json", manifest_bytes)]:
-                staged_path = staged.joinpath(*rel_path.split("/"))
-                staged_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(staged_path, 'xb') as f:
-                    f.write(data)
 
-            # Move the verified staged folder to section11/
-            shutil.move(str(staged), str(target_dir))
-    except _InitArchiveError as e:
-        print(f"Section 11: the downloaded archive failed verification — {e}")
-        print("   Nothing was installed. Try again later.")
-        print("   Alternative: git clone https://github.com/CrankAddict/section-11.git section11")
-        return
-    except Exception as e:
-        print(f"Section 11: extraction failed — {e}")
-        # Clean up partial extraction if it exists
-        if target_dir.exists():
-            shutil.rmtree(target_dir, ignore_errors=True)
-        return
-    
-    print(f"   ✅ Installed {len(planned)} verified files to section11/")
-    
-    # Delete bootstrap sync.py — LAST STEP, only after extraction fully succeeded
-    bootstrap_path = data_dir / "sync.py"
-    repo_sync = target_dir / "examples" / "sync.py"
-    bootstrap_removed = False
-    
-    if bootstrap_path.exists() and repo_sync.exists():
-        # Verify bootstrap isn't the repo copy (safety check)
+import contextvars
+_RELEASE_REQUEST_BUDGET = contextvars.ContextVar("section11_release_request_budget", default=None)
+
+
+def _release_request_budget():
+    import contextlib
+    import time
+    @contextlib.contextmanager
+    def bounded():
+        token = _RELEASE_REQUEST_BUDGET.set({"remaining": 40, "deadline": time.monotonic() + 60})
         try:
-            if bootstrap_path.resolve() != repo_sync.resolve():
-                bootstrap_path.unlink()
-                bootstrap_removed = True
-        except Exception as e:
-            print(f"   ⚠️ Could not remove bootstrap sync.py: {e}")
-    
-    # Final message
-    print(f"\n✅ Setup complete.")
-    print(f"   sync.py is now at: section11/examples/sync.py")
-    if bootstrap_removed:
-        print(f"   Bootstrap copy removed.")
-    print(f"\n   From now on, run:")
-    print(f"      python section11/examples/sync.py --output latest.json")
+            yield
+        finally:
+            _RELEASE_REQUEST_BUDGET.reset(token)
+    return bounded()
 
 
-def do_update():
-    """
-    Check for updates and pull changed files from the official Section 11 repo.
-    
-    Standalone function — does not require Intervals.icu credentials.
-    Fetches manifest.json from GitHub, compares file hashes against local copies
-    in section11/, and downloads only changed or new files after confirmation.
-    """
-    data_dir = Path.cwd()
-    target_dir = data_dir / "section11"
-    
-    # Guard: section11/ must exist
-    if not target_dir.exists():
-        print("Section 11: section11/ not found in this directory")
-        print("   Run --init first to set up the local data directory")
-        return
-    
-    # Fetch manifest.json from upstream
-    print("🔍 Checking for Section 11 updates...")
-    manifest = _fetch_upstream_manifest()
-    if not manifest:
-        print("Section 11: could not fetch manifest from GitHub")
-        return
-    
-    upstream_files = manifest.get("files", {})
-    
-    # Compare hashes against local files
-    needs_update, current = _compare_files(upstream_files, target_dir)
-    
-    # Show updates or all-current message
-    if not needs_update:
-        print(f"✅ All {len(current)} files are current")
-    else:
-        # Show diff table
-        print(f"\n   Updates available ({len(needs_update)} file{'s' if len(needs_update) != 1 else ''}):\n")
+class Distribution:
+    MAX_BYTES = 64 * 1024 * 1024
+    MAX_FILES = 512
+    UPSTREAM = "CrankAddict/section-11"
+    API = "https://api.github.com"
+    RECEIPT = ".section11-release.json"
+    # Keep retired official basenames here so later releases still clean copies.
+    HISTORICAL_NAMES = frozenset(('CONTRIBUTING.md', 'DOSSIER_TEMPLATE.md', 'LICENSE',
+        'PROJECT_INSTRUCTIONS_AGENTIC.md', 'PROJECT_INSTRUCTIONS_WEB.md',
+        'SECTION_11.md', 'SECURITY.md', 'SETUP_ASSISTANT.md', 'SKILL.md',
+        'THIRD_PARTY_NOTICES.md', 'changelog.json', 'manifest.json',
+        'INSTRUCTIONS.md', 'gitignore.txt', 'sync.py', 'push.py', 'pull.py',
+        'PRE_WORKOUT_TEMPLATE.md', 'POST_WORKOUT_TEMPLATE.md',
+        'PRE_WORKOUT_REPORT_TEMPLATE.md', 'POST_WORKOUT_REPORT_TEMPLATE.md',
+        'WEATHER_REPORT_TEMPLATE.md', '7_DAY_REPORT_TEMPLATE.md',
+        '28_DAY_REPORT_TEMPLATE.md', 'SEASON_REPORT_TEMPLATE.md',
+        'WEEKLY_REPORT_TEMPLATE.md', 'BLOCK_REPORT_TEMPLATE.md'))
+    KEEP_ROOT = frozenset(('README.md', 'DOSSIER.md', '.gitignore', '.git', '.github',
+        'custom', 'latest.json', 'history.json', 'intervals.json', 'routes.json',
+        'saved_workouts.json', 'ftp_history.json', 'route_eta_history.json',
+        'maps', 'archive', 'state', '.section11-state', '.sync_config.json', 'sync.log'))
+    KEEP_COMPONENTS = frozenset(p.casefold() for p in KEEP_ROOT if p != 'README.md')
 
-        # Calculate column widths for alignment
-        path_width = max(len(u["path"]) for u in needs_update)
+    @staticmethod
+    def protects_python(name, members=(), active_paths=()):
+        """Shared preservation rule; paths are relative to the data root."""
+        name = name.rstrip('/').casefold()
+        prefix = name + '/'
+        active_paths = (p.casefold() for p in active_paths)
+        if any(p == name or p.startswith(prefix) for p in active_paths):
+            return True
+        return any(p.startswith(prefix) and
+                   (p.endswith('/pyvenv.cfg') or '/conda-meta/' in p)
+                   for p in (p.casefold() for p in members))
 
-        for u in needs_update:
-            path_padded = u["path"].ljust(path_width)
-            desc = f"   {u['description']}" if u.get('description') else ""
-            print(f"   {path_padded}  [{u['status']}]{desc}")
+    @classmethod
+    def cleanup_protected(cls, name, python_roots=()):
+        name = name.rstrip('/').casefold()
+        parts = name.split('/')
+        return (parts[0] == 'section11' or
+                any(p.startswith('.') or p in cls.KEEP_COMPONENTS for p in parts) or
+                any(p == '.' or name == p or name.startswith(p + '/')
+                    for p in (p.casefold() for p in python_roots)))
 
-        if current:
-            print(f"\n   Already current ({len(current)}):\n")
-            for c in current[:10]:  # Show first 10 to avoid wall of text
-                print(f"   ✅ {c['path']}")
-            if len(current) > 10:
-                print(f"   ... and {len(current) - 10} more")
+    @classmethod
+    def python_roots(cls, members):
+        roots = set()
+        for name in members:
+            if cls.cleanup_protected(name):
+                continue
+            parts = name.rstrip('/').casefold().split('/')
+            if parts[-1] == 'pyvenv.cfg':
+                roots.add('/'.join(parts[:-1]) or '.')
+            if 'conda-meta' in parts:
+                roots.add('/'.join(parts[:parts.index('conda-meta')]) or '.')
+        # Retain the round A whole-legacy-directory environment exception.
+        roots.update(p.split('/')[0] for p in tuple(roots)
+                     if p.startswith(('section11-legacy-github', 'section11-legacy-dev')))
+        return roots
 
-        # Ask for confirmation
-        print()
-        try:
-            answer = input(f"   Pull {len(needs_update)} update{'s' if len(needs_update) != 1 else ''}? [y/N] ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            print("\n   Cancelled")
-            return
+    @classmethod
+    def cleanup_reason(cls, name, release_paths=(), hosted=False, python_roots=(), directory=False, opaque=False):
+        if cls.cleanup_protected(name, python_roots):
+            return None
+        if name == 'README.md' and not hosted:
+            return 'local root README filename'
+        parts = name.split('/')
+        if name == 'README.md':
+            return None
+        basenames = {p.rsplit('/', 1)[-1] for p in release_paths}
+        if not directory and parts[-1] in basenames | cls.HISTORICAL_NAMES:
+            return 'official release basename or historical filename'
+        if not opaque and (len(parts) > 1 or directory) and parts[0].startswith(('section11-legacy-github', 'section11-legacy-dev')):
+            return 'legacy Section 11 directory'
+        return None
 
-        if answer not in ("y", "yes"):
-            print("   Cancelled")
-            return
+    @staticmethod
+    def digest(data):
+        return hashlib.sha256(data).hexdigest()
 
-        # Download changed files
-        print()
-        updated = []
-        failed = []
+    @staticmethod
+    def json(data):
+        if isinstance(data, bytes):
+            data = data.decode("utf-8")
+        def pairs(items):
+            result = {}
+            for key, value in items:
+                if key in result:
+                    raise DistributionError("duplicate JSON key: " + key)
+                result[key] = value
+            return result
+        return json.loads(data, object_pairs_hook=pairs)
 
-        for u in needs_update:
-            file_url = f"{SECTION11_REPO_RAW}/{u['path']}"
-            target_path = target_dir / u["path"]
+    @staticmethod
+    def path(name):
+        if (not _safe_manifest_path(name) or len(name) > 240
+                or any(p.startswith(".") for p in name.split("/"))
+                or name.split("/")[0] in {"dev", "custom", "section11", "maps", "archive", "node_modules"}
+                or name in {"DOSSIER.md", "latest.json", "history.json", "intervals.json",
+                            "routes.json", "saved_workouts.json", "ftp_history.json", "route_eta_history.json"}):
+            raise DistributionError("unsafe distribution path: " + repr(name))
+        return name
 
-            try:
-                resp = requests.get(file_url, timeout=30)
-                resp.raise_for_status()
+    @classmethod
+    def manifest(cls, raw):
+        if len(raw) > cls.MAX_BYTES:
+            raise DistributionError("manifest too large")
+        obj = cls.json(raw)
+        files = obj.get("files") if isinstance(obj, dict) else None
+        if not isinstance(files, dict) or not 0 < len(files) <= cls.MAX_FILES:
+            raise DistributionError("manifest.json has no valid files list")
+        if obj.get("schema_version", 1) not in (1, 2):
+            raise DistributionError("unsupported manifest schema")
+        names = set()
+        for name, entry in files.items():
+            cls.path(name)
+            if name == "manifest.json" or not isinstance(entry, dict):
+                raise DistributionError("invalid manifest entry: " + name)
+            if not re.fullmatch("[0-9a-f]{64}", str(entry.get("hash", ""))):
+                raise DistributionError("invalid hash: " + name)
+            key = name.casefold()
+            if key in names:
+                raise DistributionError("case collision: " + name)
+            names.add(key)
+        for name in names:
+            if any("/".join(name.split("/")[:i]) in names for i in range(1, len(name.split("/")))):
+                raise DistributionError("file/directory collision: " + name)
+        return obj
 
-                # Ensure target directory exists (for new files in new directories)
-                target_path.parent.mkdir(parents=True, exist_ok=True)
+    @classmethod
+    def verify(cls, raw, files):
+        manifest = cls.manifest(raw)
+        if set(files) != set(manifest["files"]):
+            raise DistributionError("distribution inventory differs from manifest")
+        if sum(map(len, files.values())) + len(raw) > cls.MAX_BYTES:
+            raise DistributionError("distribution exceeds 64 MiB")
+        for name, content in files.items():
+            if cls.digest(content) != manifest["files"][name]["hash"]:
+                raise DistributionError("hash mismatch for " + name)
+        return manifest
 
-                # Write to temp file, then atomic replace
-                tmp_path = target_path.with_suffix(target_path.suffix + ".tmp")
-                with open(tmp_path, 'wb') as f:
-                    f.write(resp.content)
-                os.replace(str(tmp_path), str(target_path))
+    @classmethod
+    def archive(cls, data, source_archive=False):
+        import io
+        if len(data) > cls.MAX_BYTES:
+            raise DistributionError("archive exceeds 64 MiB")
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            infos = [i for i in zf.infolist() if not i.filename.startswith("__MACOSX/")]
+            if len(infos) > cls.MAX_FILES * 8:
+                raise DistributionError("too many archive members")
+            roots = {i.filename.split("/")[0] for i in infos}
+            if len(roots) != 1 or any("/" not in i.filename for i in infos):
+                raise DistributionError("unexpected zip structure")
+            root = next(iter(roots))
+            if not source_archive and root != "section11":
+                raise DistributionError("canonical ZIP must have section11/ root")
+            members = {}
+            for info in infos:
+                if info.filename in members:
+                    raise DistributionError("duplicate archive member: " + info.filename)
+                members[info.filename] = info
+            def read(name):
+                info = members.get(root + "/" + name)
+                if info is None:
+                    raise DistributionError("listed file is missing from the archive: " + name)
+                if info.is_dir() or (info.external_attr >> 16) & 0o170000 not in (0, 0o100000):
+                    raise DistributionError("not a regular file: " + name)
+                if info.file_size > cls.MAX_BYTES:
+                    raise DistributionError("oversized archive member")
+                return zf.read(info)
+            raw = read("manifest.json")
+            manifest = cls.manifest(raw)
+            allowed = {root + "/" + p for p in manifest["files"]} | {root + "/manifest.json"}
+            if not source_archive and {i.filename for i in infos if not i.is_dir()} != allowed:
+                raise DistributionError("canonical ZIP contains extra files")
+            if sum(members[p].file_size for p in allowed if p in members) > cls.MAX_BYTES:
+                raise DistributionError("expanded archive exceeds 64 MiB")
+            files = {p: read(p) for p in manifest["files"]}
+            cls.verify(raw, files)
+            return raw, files
 
-                updated.append(u)
-                print(f"   ✅ {u['path']}  [{u['status']}]")
-            except Exception as e:
-                failed.append(u)
-                print(f"   ❌ {u['path']}  failed: {e}")
-                # Clean up temp file if it exists
-                tmp_path = target_path.with_suffix(target_path.suffix + ".tmp")
-                if tmp_path.exists():
-                    try:
-                        tmp_path.unlink()
-                    except Exception:
-                        pass
+    @classmethod
+    def ordinary(cls, root, name):
+        import stat
+        target = Path(root)
+        if target.is_symlink() or not target.is_dir():
+            raise DistributionError("installation root is not an ordinary directory")
+        for part in name.split("/"):
+            target = target / part
+            if target.is_symlink():
+                raise DistributionError("symlink installation path: " + name)
+        if target.exists() and not stat.S_ISREG(target.stat().st_mode):
+            raise DistributionError("non-ordinary installation file: " + name)
+        return target
 
-        # Save updated manifest.json to section11/
-        try:
-            manifest_target = target_dir / "manifest.json"
-            tmp_manifest = manifest_target.with_suffix(".json.tmp")
-            with open(tmp_manifest, 'w') as f:
-                json.dump(manifest, f, indent=2)
-            os.replace(str(tmp_manifest), str(manifest_target))
-        except Exception as e:
-            print(f"   ⚠️ Could not save manifest.json locally: {e}")
+    @classmethod
+    def tree(cls, root):
+        root = Path(root)
+        raw = cls.ordinary(root, "manifest.json").read_bytes()
+        manifest = cls.manifest(raw)
+        files = {p: cls.ordinary(root, p).read_bytes() for p in manifest["files"]}
+        cls.verify(raw, files)
+        return raw, files
 
-        # Summary
-        if failed:
-            print(f"\n   Updated {len(updated)} file{'s' if len(updated) != 1 else ''}, {len(failed)} failed")
-        elif updated:
-            print(f"\n   ✅ {len(updated)} file{'s' if len(updated) != 1 else ''} updated")
-
-        # --- Cache invalidation: sync.py schema change ---
-        sync_updated = any(u["path"] == "examples/sync.py" for u in updated)
-        if sync_updated:
-            cache_cleared = []
-            for cache_file in ("history.json", "intervals.json", "routes.json"):
-                cache_path = data_dir / cache_file
-                if cache_path.exists():
-                    try:
-                        cache_path.unlink()
-                        cache_cleared.append(cache_file)
-                    except Exception as e:
-                        print(f"   ⚠️  Could not delete {cache_file}: {e}")
-            if cache_cleared:
-                print(f"\n   🔄 sync.py updated → cleared {', '.join(cache_cleared)}")
-                print(f"      Timer users: full data after 2 cycles (~2 min)")
-                print(f"      Manual users: run sync twice to rebuild")
-
-    # --- Legacy unmanaged folders (.github, dev): offer a recoverable move, never delete ---
-    _offer_legacy_move(upstream_files, data_dir, target_dir)
-
-    # --- Orphan cleanup (runs regardless of whether files were updated) ---
-    orphaned_files = _find_orphaned_files(upstream_files, target_dir)
-    empty_dirs = _find_empty_dirs(target_dir)
-
-    # A legacy folder that is still here was kept on purpose (declined, Git checkout,
-    # symlink or failed move). It must not fall through into the orphan prompt.
-    kept_roots = set(_unmanaged_legacy_roots(upstream_files, target_dir))
-    if kept_roots:
-        orphaned_files = [p for p in orphaned_files if Path(p).parts[0] not in kept_roots]
-        empty_dirs = [d for d in empty_dirs if Path(d).parts[0] not in kept_roots]
-
-    if orphaned_files or empty_dirs:
-        total = len(orphaned_files) + len(empty_dirs)
-        print(f"\n   Orphaned items ({total} — not in repo):\n")
-
-        # Build display list with tags
-        all_items = [(p, "[removed from repo]") for p in orphaned_files]
-        all_items += [(d + "/", "[empty directory]") for d in empty_dirs]
-
-        path_width = max(len(item[0]) for item in all_items)
-        for name, tag in all_items:
-            print(f"   {name.ljust(path_width)}  {tag}")
-
-        print()
-        try:
-            answer = input(f"   Remove {total} orphaned item{'s' if total != 1 else ''}? [y/N] ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            print("\n   Skipped")
-            return
-
-        if answer not in ("y", "yes"):
-            print("   Skipped")
-            return
-
-        removed = 0
-
-        # Delete orphaned files first
-        for p in orphaned_files:
-            full_path = target_dir / p
-            try:
-                full_path.unlink()
-                removed += 1
-                print(f"   🗑️  {p}")
-            except Exception as e:
-                print(f"   ❌ {p}  failed: {e}")
-
-        # Remove empty parent directories left behind by file deletions
-        for p in orphaned_files:
-            parent = (target_dir / p).parent
-            while parent != target_dir:
+    @classmethod
+    def plan(cls, root, raw, files):
+        cls.verify(raw, files)
+        root = Path(root)
+        if root.is_symlink():
+            raise DistributionError("symlink installation root")
+        old = {}
+        old_raw = None
+        if root.exists():
+            manifest_path = cls.ordinary(root, "manifest.json")
+            if manifest_path.exists():
+                old_raw = manifest_path.read_bytes()
                 try:
-                    parent.rmdir()  # Only succeeds if empty
-                    print(f"   🗑️  {parent.relative_to(target_dir)}/  [empty directory]")
-                except OSError:
-                    break
-                parent = parent.parent
+                    old = cls.manifest(old_raw)["files"]
+                except ValueError:
+                    pass
+        added, changed, removed = [], [], []
+        for name in sorted(set(old) | set(files)):
+            path = cls.ordinary(root, name) if root.exists() else root / name
+            actual = path.read_bytes() if path.exists() else None
+            target = files.get(name)
+            if target is None:
+                removed.append(name)
+            elif actual is None:
+                added.append(name)
+            elif actual != target:
+                changed.append(name)
+        preimage = {}
+        unknown = []
+        expected_dirs = {'/'.join(p.split('/')[:i]) for p in files
+                         for i in range(1, len(p.split('/')))}
+        if root.exists():
+            _ordinary_tree_digest(root)
+            for base, directories, names in os.walk(root, followlinks=False):
+                for name in directories:
+                    path = Path(base) / name
+                    preimage[path.relative_to(root).as_posix() + "/"] = "symlink" if path.is_symlink() else "directory"
+                    if path.relative_to(root).as_posix() not in expected_dirs:
+                        unknown.append(path.relative_to(root).as_posix() + '/')
+                for name in names:
+                    path = Path(base) / name
+                    relative = path.relative_to(root).as_posix()
+                    if path.is_symlink() or not path.is_file():
+                        preimage[relative] = "special"
+                    else:
+                        preimage[relative] = cls.digest(path.read_bytes())
+                    if relative not in old and relative not in ("manifest.json", cls.RECEIPT):
+                        unknown.append(relative)
+        removed = sorted(set(removed) | set(unknown))
+        return {"added": added, "changed": changed, "removed": removed,
+                "manifest_changed": old_raw != raw, "preimage": preimage,
+                "unknown": sorted(unknown)}
 
-        # Remove standalone empty directories (sorted deepest-first to handle nesting)
-        for d in sorted(empty_dirs, key=lambda x: x.count(os.sep), reverse=True):
-            dir_path = target_dir / d
+    @staticmethod
+    def release_date(tag):
+        if not isinstance(tag, str) or not re.fullmatch(r"[0-9]{4}\.[0-9]{2}\.[0-9]{2}", tag):
+            raise DistributionError("invalid date release tag: " + str(tag))
+        try:
+            return datetime.strptime(tag, "%Y.%m.%d").date()
+        except ValueError as exc:
+            raise DistributionError("invalid calendar release date: " + tag) from exc
+
+    @staticmethod
+    def utc_tag(instant=None):
+        from datetime import timezone
+        instant = instant or datetime.now(timezone.utc)
+        if instant.tzinfo is None or instant.utcoffset() != timedelta(0):
+            raise DistributionError("release clock must be UTC")
+        return instant.strftime("%Y.%m.%d")
+
+
+    @classmethod
+    def content_hashes(cls, raw):
+        return {p: entry["hash"] for p, entry in cls.manifest(raw)["files"].items()}
+
+    @classmethod
+    def receipt(cls, raw, identity):
+        """Canonical installer metadata; never part of or an edit to manifest.json."""
+        cls.release_date(identity["tag"])
+        source = identity.get("repository", cls.UPSTREAM)
+        if (not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", source)
+                or not re.fullmatch(r"[0-9a-f]{40}", identity["commit"])):
+            raise DistributionError("invalid installed release provenance")
+        return (json.dumps({"schema": 1, "repository": source, "tag": identity["tag"],
+                            "commit": identity["commit"], "manifest_sha256": cls.digest(raw)},
+                           sort_keys=True) + "\n").encode()
+
+    @classmethod
+    def read_receipt(cls, root, raw, repository=None):
+        path = cls.ordinary(root, cls.RECEIPT)
+        if not path.exists():
+            return None
+        if path.stat().st_size > 4096:
+            raise DistributionError("oversized installed release receipt")
+        data = path.read_bytes()
+        value = cls.json(data)
+        if (not isinstance(value, dict) or not all(k in value for k in ("tag", "commit"))
+                or value.get("repository") != (repository or cls.UPSTREAM)
+                or data != cls.receipt(raw, value)):
+            raise DistributionError("installed release receipt differs from installation")
+        return value
+
+
+    @staticmethod
+    def status_text(status):
+        return ("Installed release: " + status["installed_date"] + "; target release: " +
+                status["target_date"] + "; latest release: " + status["latest_date"] +
+                "; up to date: " + ("yes" if status["up_to_date"] else "no"))
+
+    @classmethod
+    def identity(cls, files):
+        protocol = re.search(rb"\*\*Protocol Version:\*\*\s*(\d+(?:\.\d+)+)", files["SECTION_11.md"])
+        sync = re.search(rb'(?m)^    VERSION\s*=\s*["\x27](\d+(?:\.\d+)+)', files["examples/sync.py"])
+        if not protocol or not sync:
+            raise DistributionError("missing protocol/sync identity")
+        return protocol.group(1).decode(), sync.group(1).decode()
+
+    @classmethod
+    def request(cls, url, **kwargs):
+        import time
+        from urllib.parse import urlparse, urljoin
+        budget = _RELEASE_REQUEST_BUDGET.get()
+        if budget is None:
+            return requests.get(url, timeout=kwargs.pop("timeout", 60), **kwargs)
+        asset = url.startswith("https://github.com/" + cls.UPSTREAM + "/releases/download/")
+        for _ in range(4):
+            remaining = budget["deadline"] - time.monotonic()
+            if budget["remaining"] <= 0 or remaining <= 0:
+                raise DistributionError("release check request/time bound reached; try a later check")
+            budget["remaining"] -= 1
+            timeout = min(kwargs.pop("timeout", 10), 10, max(0.1, remaining))
+            kwargs["allow_redirects"] = False
+            response = requests.get(url, timeout=timeout, **kwargs)
+            if not 300 <= getattr(response, "status_code", 200) < 400:
+                return response
+            destination = urljoin(url, response.headers.get("Location", ""))
+            parsed = urlparse(destination)
+            if (not asset or parsed.scheme != "https" or parsed.hostname != "release-assets.githubusercontent.com"
+                    or parsed.username or parsed.password or parsed.port not in (None, 443)):
+                response.close()
+                raise DistributionError("release check redirect refused")
+            response.close()
+            url = destination
+        raise DistributionError("release asset redirect bound reached")
+
+    @classmethod
+    def api_read(cls, path):
+        response = cls.request(cls.API + path, timeout=60)
+        response.raise_for_status()
+        return response.json()
+
+
+    @classmethod
+    def release_metadata(cls, tag=None):
+        from urllib.parse import quote
+        # The publisher advances this pointer only in increasing UTC date order.
+        # No release-history enumeration is needed by an installed client.
+        suffix = "/tags/" + quote(tag, safe="") if tag else "/latest"
+        try:
+            release = cls.api_read("/repos/" + cls.UPSTREAM + "/releases" + suffix)
+        except requests.exceptions.HTTPError as exc:
+            if tag is None and exc.response is not None and exc.response.status_code == 404:
+                raise DistributionError("no published date release is available; verify the repository and first release") from exc
+            raise
+        if (release.get("draft") or release.get("prerelease")
+                or (tag is not None and release["tag_name"] != tag)):
+            raise DistributionError("not a stable published release")
+        cls.release_date(release["tag_name"])
+        return release
+
+    @classmethod
+    def resolve_tag(cls, tag):
+        from urllib.parse import quote
+        repo = "/repos/" + cls.UPSTREAM
+        obj = cls.api_read(repo + "/git/ref/tags/" + quote(tag, safe=""))["object"]
+        for _ in range(4):
+            if obj["type"] == "commit" and re.fullmatch("[0-9a-f]{40}", obj["sha"]):
+                return obj["sha"]
+            if obj["type"] != "tag":
+                break
+            obj = cls.api_read(repo + "/git/tags/" + obj["sha"])["object"]
+        raise DistributionError("unresolved release tag")
+
+    @classmethod
+    def fetch(cls, tag=None):
+        release = cls.release_metadata(tag)
+        tag = release["tag_name"]
+        commit = cls.resolve_tag(tag)
+        assets = [a for a in release["assets"] if a["name"] == "section11-" + tag + ".zip"]
+        if len(assets) != 1 or assets[0]["size"] > cls.MAX_BYTES:
+            raise DistributionError("missing/ambiguous/oversized canonical release asset")
+        expected_url = "https://github.com/" + cls.UPSTREAM + "/releases/download/" + tag + "/" + assets[0]["name"]
+        if assets[0]["browser_download_url"] != expected_url:
+            raise DistributionError("unexpected asset URL")
+        response = cls.request(expected_url, timeout=60, stream=True)
+        response.raise_for_status()
+        chunks, size = [], 0
+        for chunk in response.iter_content(65536):
+            budget = _RELEASE_REQUEST_BUDGET.get()
+            if budget is not None:
+                import time
+                if time.monotonic() > budget["deadline"]:
+                    response.close()
+                    raise DistributionError("release download time bound reached")
+            size += len(chunk)
+            if size > cls.MAX_BYTES:
+                raise DistributionError("download exceeds 64 MiB")
+            chunks.append(chunk)
+        raw, files = cls.archive(b"".join(chunks))
+        manifest_response = cls.request("https://raw.githubusercontent.com/" + cls.UPSTREAM + "/" + commit + "/manifest.json", timeout=60)
+        manifest_response.raise_for_status()
+        if manifest_response.content != raw or cls.resolve_tag(tag) != commit:
+            raise DistributionError("release manifest/tag changed")
+        return raw, files, {"tag": tag, "commit": commit, "url": release["html_url"],
+                            "repository": cls.UPSTREAM}
+
+
+
+def _write_install_state(state, name, value):
+    """Atomic ordinary-file state replacement under the installation lock."""
+    path = Distribution.ordinary(state, name)
+    handle, temporary = tempfile.mkstemp(prefix="state-", dir=state)
+    try:
+        with os.fdopen(handle, "w") as stream:
+            json.dump(value, stream, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def _ordinary_tree_digest(root):
+    """One integrity digest, not a persisted history of personal filenames."""
+    import stat
+    root = Path(root)
+    if root.is_symlink() or not root.is_dir():
+        raise DistributionError("installation is not an ordinary directory")
+    digest = hashlib.sha256()
+    size = count = 0
+    for base, directories, names in os.walk(root, followlinks=False):
+        directories.sort()
+        for name in sorted(directories + names):
+            path = Path(base) / name
+            mode = path.lstat().st_mode
+            if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+                raise DistributionError("non-ordinary installation path; preserve the installation")
+            count += 1
+            if count > 10000:
+                raise DistributionError("installation exceeds the 10000-entry safety bound")
+            relative = path.relative_to(root).as_posix().encode()
+            digest.update(len(relative).to_bytes(8, "big") + relative)
+            digest.update(b"d" if stat.S_ISDIR(mode) else b"f")
+            if stat.S_ISREG(mode):
+                size += path.stat().st_size
+                if size > Distribution.MAX_BYTES * 4:
+                    raise DistributionError("installation exceeds the 256 MiB safety bound")
+                digest.update(hashlib.sha256(path.read_bytes()).digest())
+    return digest.hexdigest()
+
+
+def _converted_installation(data_dir):
+    """Layout classification is independent of edited release metadata."""
+    root = Path(data_dir) / "section11"
+    return (root.is_dir() and not root.is_symlink() and
+            (root / "manifest.json").is_file() and
+            (root / "examples/sync.py").is_file() and not _is_git_checkout(root))
+
+
+LEGACY_INSTALLATION_NOTICE = ("This setup uses an older layout. Sync still works. "
+                              "Ask to convert to the verified release setup.")
+CONVERSION_WARNING = ("Anything you added or changed inside section11/ will be deleted. "
+                      "Move what you want to keep to custom/ first.")
+
+
+def _installation_notice(data, data_dir):
+    """No requests or private identifiers; detection can never fail an export."""
+    try:
+        data_dir = _installation_root()
+        root_entry = any((Path(data_dir) / name).exists() for name in ('sync.py', 'push.py', 'pull.py'))
+        managed_entry = Path(__file__).resolve() == (Path(data_dir) / 'section11/examples/sync.py').resolve()
+        hosted_entry = (os.environ.get('GITHUB_ACTIONS', '').lower() == 'true' and
+                        os.environ.get('SECTION11_SYNC_WRAPPER_API') == '2')
+        if not _converted_installation(data_dir) or root_entry or not (managed_entry or hosted_entry):
+            data["installation_notice"] = LEGACY_INSTALLATION_NOTICE
+            prefix = "::warning::" if os.environ.get("GITHUB_ACTIONS", "").lower() == "true" else "Section 11: "
+            print(prefix + LEGACY_INSTALLATION_NOTICE)
+    except Exception:
+        pass
+
+
+def _local_identity(root):
+    try:
+        raw = Distribution.ordinary(root, "manifest.json").read_bytes()
+        return Distribution.read_receipt(root, raw)
+    except (DistributionError, ValueError, FileNotFoundError):
+        # Edited/missing metadata is unknown provenance, not a conversion gate.
+        return None
+
+
+def _local_release_status(root, raw, files, identity):
+    Distribution.verify(raw, files)
+    if "examples/sync.py" not in files:
+        raise DistributionError("release is missing the permanent examples/sync.py entry")
+    installed = _known_local_identity(root)
+    if installed:
+        if Distribution.release_date(installed["tag"]) > Distribution.release_date(identity["tag"]):
+            raise DistributionError("automatic date downgrade refused")
+        if installed["tag"] == identity["tag"] and (installed["commit"] != identity["commit"] or
+                                                       installed["manifest_sha256"] != Distribution.digest(raw)):
+            raise DistributionError("same-date changed release refused")
+    equal = not _local_managed_needed(root, raw, identity, Distribution.plan(root, raw, files))
+    ahead = False
+    try:
+        actual = {name: Distribution.ordinary(root, name).read_bytes()
+                  for name in ("SECTION_11.md", "examples/sync.py")}
+        current_versions = Distribution.identity(actual)
+        release_versions = Distribution.identity(files)
+        ahead = any(tuple(map(int, a.split("."))) > tuple(map(int, b.split(".")))
+                    for a, b in zip(current_versions, release_versions))
+    except (DistributionError, ValueError, FileNotFoundError, KeyError):
+        pass
+    return {"installed_date": installed["tag"] if installed else "unknown",
+            "target_date": identity["tag"], "latest_date": identity["tag"], "up_to_date": equal,
+            "content_ahead": ahead}
+
+
+def _known_local_identity(root):
+    """Readable chronology remains a guard even when the manifest was edited."""
+    try:
+        path = Distribution.ordinary(root, Distribution.RECEIPT)
+        if path.stat().st_size > 4096:
+            raise DistributionError("oversized installed release receipt")
+        value = Distribution.json(path.read_bytes())
+        if (not isinstance(value, dict) or value.get("schema") != 1
+                or value.get("repository") != Distribution.UPSTREAM
+                or not re.fullmatch('[0-9a-f]{40}', str(value.get('commit', '')))
+                or not re.fullmatch('[0-9a-f]{64}', str(value.get('manifest_sha256', '')))):
+            return None
+        Distribution.release_date(value.get('tag'))
+        return value
+    except (ValueError, FileNotFoundError):
+        return None
+
+
+class TimerOutcomeUnknown(DistributionError):
+    """A scheduler write was sent. Preserve its journal, without another write."""
+
+
+def _timer_plan_inputs(timer, config, choice):
+    """Resolve policy and distinguish an absent scheduler from failed inspection."""
+    enabled = config.get('auto_sync', True) if choice is None else choice
+    if type(enabled) is not bool:
+        raise DistributionError('auto_sync must be a JSON boolean')
+    standard = timer.standard(config)
+    try:
+        before = timer.read(standard)
+    except DistributionError as exc:
+        if enabled or standard['kind'] != 'cron' or not isinstance(exc.__cause__, FileNotFoundError):
+            raise
+        record = Distribution.ordinary(timer.root, '.section11-state/previous.json')
+        try:
+            saved = Distribution.json(record.read_bytes())
+        except FileNotFoundError:
+            saved = None
+        if config.get('auto_sync') is True or (saved is not None and saved.get('config_after') is not False):
+            raise DistributionError('existing standard timer cannot be inspected; restore scheduler access') from exc
+        before = {}
+    return enabled, standard, before
+
+
+class LocalTimers:
+    """Manage only the standard timer; tests replace scheduler transport."""
+    WINDOWS_LAUNCHER = "import os,runpy,sys;os.environ['SECTION11_EXPORT_MODE']='local_scheduled';p=sys.argv.pop(1);runpy.run_path(p,run_name='__main__')"
+
+    def __init__(self, data_dir, home=None, platform=None):
+        import sys
+        self.root = Path(data_dir).absolute()
+        self.home = Path.home() if home is None else Path(home)
+        self.platform = sys.platform if platform is None else platform
+
+    @classmethod
+    def command(cls, argv, input=None):
+        import subprocess
+        if argv[0].lower() == 'schtasks':
+            result = subprocess.run(argv, input=input, capture_output=True, text=False, timeout=10, check=False)
+            result.stdout = cls.windows_decode(result.stdout)
+            result.stderr = cls.windows_decode(result.stderr)
+            return result
+        return subprocess.run(argv, input=input, capture_output=True, text=True, timeout=10, check=False)
+
+    @staticmethod
+    def windows_decode(raw):
+        import ctypes
+        if not isinstance(raw, bytes):
+            raise ValueError('scheduled task output is unreadable')
+        if raw.startswith((b'\xff\xfe', b'\xfe\xff')):
+            return raw.decode('utf-16')
+        encodings = ['utf-8']
+        kernel32 = getattr(getattr(ctypes, 'windll', None), 'kernel32', None)
+        for accessor in ('GetOEMCP', 'GetACP'):
             try:
-                if dir_path.exists():
-                    dir_path.rmdir()
-                    removed += 1
-                    print(f"   🗑️  {d}/")
-            except OSError as e:
-                print(f"   ❌ {d}/  failed: {e}")
+                codepage = getattr(kernel32, accessor)()
+                if type(codepage) is int and codepage > 0:
+                    encodings.append('cp' + str(codepage))
+            except (AttributeError, OSError):
+                pass
+        for encoding in encodings + ['mbcs']:
+            try:
+                return raw.decode(encoding)
+            except (UnicodeDecodeError, LookupError):
+                pass
+        raise ValueError('scheduled task output is unreadable')
 
-        if removed:
-            print(f"\n   🗑️  {removed} orphaned item{'s' if removed != 1 else ''} removed")
+    def call(self, argv, input=None, write=False):
+        try:
+            result = self.command(argv, input=input)
+        except Exception as exc:
+            if write:
+                raise TimerOutcomeUnknown("timer write outcome unknown; preserve transaction for owner reconciliation") from exc
+            raise DistributionError("timer inspection unavailable: " + argv[0]) from exc
+        if write and result.returncode:
+            raise TimerOutcomeUnknown("timer write refused or unknown; preserve transaction for owner reconciliation")
+        return result
+
+    def file_bytes(self, path):
+        import stat
+        for ancestor in (path, *path.parents):
+            if ancestor.is_symlink():
+                raise DistributionError("timer path is a symlink")
+        try:
+            info = path.stat()
+        except FileNotFoundError:
+            return None
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 1024 * 1024:
+            raise DistributionError("timer definition is not an ordinary bounded file")
+        return path.read_text(encoding='utf-8')
+
+    @staticmethod
+    def resource_matches(key, actual, wanted):
+        if actual == wanted:
+            return True
+        if not key.startswith('task:') or actual is None or wanted is None:
+            return False
+        import xml.etree.ElementTree as ET
+        tag = lambda node: node.tag.split('}')[-1]
+        def matches(a, b):
+            if (tag(a) != tag(b) or (a.text or '').strip() != (b.text or '').strip() or
+                    any(a.get(k) != v for k, v in b.attrib.items() if not (tag(b) == 'Task' and k == 'version')) or
+                    (tag(b) in ('Actions', 'Triggers') and len(a) != len(b))):
+                return False
+            available = list(a)
+            for child in b:
+                found = next((i for i, node in enumerate(available) if matches(node, child)), None)
+                if found is None:
+                    return False
+                available.pop(found)
+            return True
+        try:
+            return matches(ET.fromstring(actual), ET.fromstring(wanted))
+        except (ET.ParseError, TypeError):
+            return False
+
+    def standard(self, config):
+        import sys, shlex, plistlib, subprocess
+        import xml.etree.ElementTree as ET
+        minutes = config.get('check_interval_minutes', 1)
+        if type(minutes) is not int or minutes not in (1, 2, 5, 10):
+            minutes = 1
+        args = [] if config.get('github_repo') and config.get('github_token') else ['--output', 'latest.json']
+        args.append('--lockfile')
+        environment = {'SECTION11_EXPORT_MODE': 'local_scheduled'}
+        interpreter = [sys.executable]
+        argv = [*interpreter, str(self.root / 'section11/examples/sync.py'), *args]
+        if not all(isinstance(value, str) and not any(c in value for c in '\0\r\n') for value in argv):
+            raise DistributionError('timer arguments require owner review')
+        line = 'cd ' + shlex.quote(str(self.root)) + ' && ' + ' '.join(k + '=' + shlex.quote(v) for k, v in sorted(environment.items())) + ' ' + shlex.join(argv)
+        if self.platform == 'darwin':
+            path = self.home / 'Library/LaunchAgents/com.section11.sync.plist'
+            value = {'Label': 'com.section11.sync', 'ProgramArguments': argv, 'WorkingDirectory': str(self.root),
+                     'EnvironmentVariables': environment,
+                     'StartInterval': minutes * 60, 'RunAtLoad': True,
+                     'StandardOutPath': str(self.root / 'sync.log'), 'StandardErrorPath': str(self.root / 'sync.log')}
+            return {'kind': 'launchd', 'name': path.name, 'resources': {'file:' + str(path): plistlib.dumps(value).decode()}, 'line': line, 'minutes': minutes}
+        if self.platform == 'win32':
+            argv = [*interpreter, '-c', self.WINDOWS_LAUNCHER, str(self.root / 'section11/examples/sync.py'), *args]
+            task = ET.Element('Task', {'version': '1.2', 'xmlns': 'http://schemas.microsoft.com/windows/2004/02/mit/task'})
+            triggers = ET.SubElement(task, 'Triggers')
+            trigger = ET.SubElement(triggers, 'TimeTrigger')
+            repetition = ET.SubElement(trigger, 'Repetition')
+            ET.SubElement(repetition, 'Interval').text = 'PT' + str(minutes) + 'M'
+            ET.SubElement(trigger, 'StartBoundary').text = '2020-01-01T00:00:00'
+            settings = ET.SubElement(task, 'Settings')
+            ET.SubElement(settings, 'MultipleInstancesPolicy').text = 'IgnoreNew'
+            ET.SubElement(settings, 'StartWhenAvailable').text = 'true'
+            action = ET.SubElement(ET.SubElement(task, 'Actions'), 'Exec')
+            ET.SubElement(action, 'Command').text = argv[0]
+            ET.SubElement(action, 'Arguments').text = subprocess.list2cmdline(argv[1:])
+            ET.SubElement(action, 'WorkingDirectory').text = str(self.root)
+            return {'kind': 'windows', 'name': '\\Section11Sync', 'resources': {'task:\\Section11Sync': ET.tostring(task, encoding='unicode')}, 'line': subprocess.list2cmdline(argv), 'minutes': minutes}
+        if self.platform.startswith('linux'):
+            base = self.home / '.config/systemd/user/section11-sync'
+            if shutil.which('systemctl') and self.call(['systemctl', '--user', 'show-environment']).returncode == 0:
+                # Escape systemd specifiers and protect a trailing backslash/space.
+                directory = str(self.root).replace('%', '%%')
+                if directory.endswith(('\\', ' ', '\t')):
+                    directory += '/'
+                quote = lambda value: '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('%', '%%') + '"'
+                service = '[Unit]\nDescription=Section 11 sync\n[Service]\nType=oneshot\nWorkingDirectory=' + directory + '\nEnvironment=' + ' '.join(quote(k + '=' + v) for k, v in sorted(environment.items())) + '\nExecStart=' + ' '.join(quote(arg.replace('$', '$$')) for arg in argv) + '\n'
+                timer = '[Unit]\nDescription=Section 11 sync\n[Timer]\nOnBootSec=60\nOnUnitActiveSec=' + str(minutes * 60) + '\n[Install]\nWantedBy=timers.target\n'
+                return {'kind': 'systemd', 'name': 'section11-sync', 'resources': {'file:' + str(base) + '.service': service, 'file:' + str(base) + '.timer': timer}, 'line': line, 'minutes': minutes}
+            if any(self.file_bytes(base.with_suffix(suffix)) is not None for suffix in ('.timer', '.service')):
+                # Never add cron or claim absence beside an inaccessible standard unit.
+                raise DistributionError('the Section 11 systemd timer needs your normal login session; run the update there')
+        return {'kind': 'cron', 'name': 'section11-sync', 'resources': {}, 'line': line, 'minutes': minutes}
+
+    def read(self, standard):
+        import xml.etree.ElementTree as ET
+        resources = {}
+        if standard['kind'] == 'cron':
+            result = self.call(['crontab', '-l'])
+            if result.returncode and 'no crontab' not in result.stderr.lower():
+                raise DistributionError('crontab is unreadable')
+            return {'cron': result.stdout if result.returncode == 0 else None}
+        for key in standard['resources']:
+            if key.startswith('file:'):
+                resources[key] = self.file_bytes(Path(key[5:]))
+            else:
+                result = self.call(['schtasks', '/Query', '/TN', standard['name'], '/XML', '/HRESULT'])
+                if result.returncode & 0xffffffff == 0x80070002:
+                    resources[key] = None
+                elif result.returncode or len(result.stdout.encode('utf-8')) > 1024 * 1024:
+                    raise DistributionError('standard scheduled task is unreadable')
+                else:
+                    ET.fromstring(result.stdout)
+                    resources[key] = result.stdout
+        return resources
+
+    def plan(self, config, choice=None):
+        import shlex
+        enabled, standard, before = _timer_plan_inputs(self, config, choice)
+        after = dict(standard['resources']) if enabled else dict.fromkeys(before)
+        if standard['kind'] == 'cron' and before:
+            kept = ''.join(line for line in (before['cron'] or '').splitlines(keepends=True)
+                           if not line.rstrip('\r\n').endswith(' # section11-sync'))
+            command = (standard['line'] + ' >> ' + shlex.quote(str(self.root / 'sync.log')) + ' 2>&1').replace('%', r'\%')
+            after['cron'] = ('*/' + str(standard['minutes']) + ' * * * * ' + command + ' # section11-sync\n' if enabled else '') + kept
+            if not after['cron'] and before['cron'] is None:
+                after['cron'] = None
+        after = {k: before[k] if self.resource_matches(k, before[k], v) else v for k, v in after.items()}
+        changed = before != after
+        return {'before': {'resources': before}, 'after': after, 'enabled': enabled,
+                'minutes': standard['minutes'], 'remove': [standard] if (changed or enabled) and any(v is not None for v in before.values()) else [],
+                'create': standard if enabled else None}
+
+    def describe(self, plan):
+        if plan['enabled']:
+            unit = ' minute' if plan['minutes'] == 1 else ' minutes'
+            print('Auto sync will be installed (every ' + str(plan['minutes']) + unit + '). If you set up your own timer before, remove it.')
+        else:
+            print('Auto sync is disabled; only the standard Section 11 timer will be removed.')
+
+    @staticmethod
+    def recovery(plan):
+        before, after = plan['before']['resources'], plan['after']
+        identity = lambda entry: {'kind': entry['kind'], 'name': entry['name']}
+        result = {'before': {'resources': dict(before)}, 'after': dict(after),
+                  'remove': [identity(e) for e in plan['remove']],
+                  'create': identity(plan['create']) if plan['create'] else None}
+        if 'cron' in before and before != after:
+            lines = (before['cron'] or '').splitlines(keepends=True)
+            removed = [[i, line] for i, line in enumerate(lines) if line.rstrip('\r\n').endswith(' # section11-sync')]
+            kept = ''.join(line for i, line in enumerate(lines) if i not in {r[0] for r in removed})
+            result['cron_restore'] = {'removed': removed, 'prepend_size': len(after['cron'] or '') - len(kept)}
+            result['before']['resources']['cron'] = LocalTimers.cron_digest(before['cron'])
+            result['after']['cron'] = LocalTimers.cron_digest(after['cron'])
+        elif 'cron' in before:
+            result['before']['resources'] = result['after'] = {}
+        return result
+
+    cron_digest = staticmethod(lambda value: Distribution.digest(value.encode()) if value is not None else None)
+
+    def activate(self, kind, name, active, resources, scratch):
+        if kind == 'cron':
+            return
+        if kind == 'launchd':
+            path = self.home / 'Library/LaunchAgents' / name
+            self.call(['launchctl', 'bootstrap' if active else 'bootout', 'gui/' + str(os.getuid()), str(path)], write=True)
+        elif kind == 'systemd':
+            self.call(['systemctl', '--user', 'daemon-reload'], write=True)
+            self.call(['systemctl', '--user', 'enable' if active else 'disable', '--now', name + '.timer'], write=True)
+        elif kind == 'windows':
+            if active:
+                import xml.etree.ElementTree as ET
+                path = scratch / 'timer.xml'
+                task = ET.fromstring(resources['task:' + name])
+                path.write_bytes(ET.tostring(task, encoding='utf-16', xml_declaration=True))
+                self.call(['schtasks', '/Create', '/TN', name, '/XML', str(path), '/F'], write=True)
+            else:
+                self.call(['schtasks', '/Delete', '/TN', name, '/F'], write=True)
+
+    def apply(self, plan, scratch, reverse=False):
+        before, after = dict(plan['before']['resources']), dict(plan['after'])
+        standard = self.standard({})
+        allowed = {'cron'} if standard['kind'] == 'cron' else set(standard['resources'])
+        identities = plan['remove'] + ([plan['create']] if plan['create'] else [])
+        if (set(before) | set(after)) - allowed or any(
+                (e['kind'], e['name']) != (standard['kind'], standard['name']) for e in identities):
+            raise DistributionError('rollback is limited to the standard Section 11 timer')
+        if not before and not after:
+            return
+        current = self.read(standard)
+        if 'cron_restore' in plan:
+            record = plan['cron_restore']
+            if (not reverse or self.cron_digest(current.get('cron')) != after['cron'] or
+                    any(not line.rstrip('\r\n').endswith(' # section11-sync') for _, line in record['removed'])):
+                raise DistributionError('timer changed after review; preserve installation')
+            lines = (current.get('cron') or '')[record['prepend_size']:].splitlines(keepends=True)
+            for index, line in record['removed']:
+                lines.insert(index, line)
+            restored = ''.join(lines) if before['cron'] is not None else None
+            if self.cron_digest(restored) != before['cron']:
+                raise DistributionError('timer recovery readback mismatch; preserve installation')
+            before['cron'], after['cron'] = restored, current.get('cron')
+        expected, wanted = (after, before) if reverse else (before, after)
+        changed = {k for k in before.keys() | after.keys() if before.get(k) != after.get(k)} | (set(after) if plan['create'] else set())
+        if any(not self.resource_matches(k, current.get(k), expected.get(k)) for k in changed):
+            raise DistributionError('timer changed after review; preserve installation')
+        removed = [plan['create']] if reverse and plan['create'] else ([] if reverse else plan['remove'])
+        added = plan['remove'] if reverse else ([plan['create']] if plan['create'] else [])
+        for entry in removed:
+            self.activate(entry['kind'], entry['name'], False, expected, scratch)
+        for key in sorted(changed):
+            if key == 'cron':
+                self.call(['crontab', '-'] if wanted[key] is not None else ['crontab', '-r'], input=wanted[key], write=True)
+            elif key.startswith('file:'):
+                path = Path(key[5:])
+                self.file_bytes(path)
+                if wanted[key] is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(wanted[key], encoding='utf-8')
+        for entry in added:
+            self.activate(entry['kind'], entry['name'], True, wanted, scratch)
+        try:
+            readback = self.read(standard)
+        except Exception as exc:
+            raise TimerOutcomeUnknown('timer definition readback mismatch; preserve transaction') from exc
+        if any(not self.resource_matches(k, readback.get(k), wanted.get(k)) for k in changed):
+            raise TimerOutcomeUnknown('timer definition readback mismatch; preserve transaction')
+
+
+def _previous_install(data_dir, check_current=True):
+    """Bind rollback bytes to the last completed install, preserving later custom edits."""
+    state = Path(data_dir) / ".section11-state"
+    record = Distribution.json(Distribution.ordinary(state, "previous.json").read_bytes())
+    if (type(record.get("schema")) is not int or record.get("schema") != 4 or
+            not re.fullmatch(r"transaction-[a-f0-9]{32}", str(record.get("transaction", "")))):
+        raise DistributionError("invalid previous installation record; preserve state")
+    archive = state / (record['transaction'] + '.zip')
+    members = LocalRecovery.read(archive, record['archive_digest'])
+    current = Path(data_dir) / "section11"
+    if (members != record.get('archive_members') or
+            (check_current and (_local_tree_digest(current) != record.get('installed_tree') or
+                _entry_digests(Path(data_dir), cleanup=record['cleanup']) != record.get('installed_entries') or
+                LocalRecovery.inventory({'old': current}) != record.get('installed_inventory')))):
+        raise DistributionError('installation changed since rollback copy was recorded; preserve state')
+    if members.get('timers.json', {}).get('sha256') != record.get('timers_digest'):
+        raise DistributionError('timer rollback record changed; preserve state')
+    return record, None, None, None
+
+
+def _auto_update_state(state):
+    path = Distribution.ordinary(state, "auto-update.json")
+    value = Distribution.json(path.read_bytes()) if path.exists() else {}
+    if not isinstance(value, dict) or set(value) - {"last_attempt", "skip_release", "available_release", "available_tree", "available_entries", "available_timer_only"}:
+        raise DistributionError("invalid auto-update state; preserve state")
+    if 'available_timer_only' in value and type(value['available_timer_only']) is not bool:
+        raise DistributionError("invalid timer-only update plan; preserve state")
+    return value
+
+
+def auto_update_local(data_dir, enabled, _locked=False, advisory_only=False, started_at=None):
+    """Post-data maintenance; its failure never changes the data result."""
+    if (enabled is False and not advisory_only) or os.environ.get("GITHUB_ACTIONS", "").lower() == "true":
+        return
+    message = ""
+    try:
+        import contextlib
+        data_dir = Path(data_dir)
+        if not _converted_installation(data_dir) or _known_local_identity(data_dir / "section11") is None:
+            return
+        with (contextlib.nullcontext() if _locked else _distribution_lock(data_dir)), _release_request_budget():
+            root = data_dir / "section11"
+            if _is_git_checkout(root):
+                raise DistributionError("developer checkout; use a separate release installation")
+            state = data_dir / ".section11-state"
+            saved = _auto_update_state(state)
+            now = (started_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
+            if now.hour < 4:
+                return
+            today = now.date().isoformat()
+            if saved.get("last_attempt", "") >= today:
+                message = "already checked this UTC day (or recorded clock is ahead)"
+            else:
+                # Claim the day before any request, including unsuccessful checks.
+                saved["last_attempt"] = today
+                # A failed discovery does not resolve a previously verified plan.
+                if not _local_notice_matches(data_dir, saved):
+                    for key in ("available_release", "available_tree", "available_entries", "available_timer_only"):
+                        saved.pop(key, None)
+                _write_install_state(state, "auto-update.json", saved)
+                if not isinstance(enabled, bool):
+                    raise DistributionError("auto_update must be a JSON boolean")
+                raw, files, identity = _fetch_verified_release()
+                status = _local_release_status(root, raw, files, identity)
+                _ensure_custom(data_dir, files)
+                expected = _local_plan(data_dir, raw, files)
+                plan = expected['distribution']
+                needs_install = _local_install_needed(data_dir, raw, identity, expected)
+                if saved.get("skip_release") == identity["tag"]:
+                    message = "rolled-back release " + identity["tag"] + " remains skipped"
+                elif status["content_ahead"]:
+                    message = "installed content is newer than the latest official release; wait for its release or review --update"
+                elif not needs_install:
+                    message = "already current with " + identity["tag"]
+                else:
+                    saved.update(available_release=identity["tag"],
+                                 available_tree=_ordinary_tree_digest(root),
+                                 available_entries=expected['entries'],
+                                 available_timer_only=not (_local_managed_needed(root, raw, identity, plan) or
+                                                           any(expected['entries'].values())))
+                    _write_install_state(state, "auto-update.json", saved)
+                    if not enabled:
+                        message = "official release " + identity["tag"] + " available; run python3 section11/examples/sync.py --update"
+                    else:
+                        _install_local(data_dir, raw, files, identity, expected, _locked=True)
+                        message = "installed " + status["installed_date"] + " -> " + identity["tag"]
+                        if plan["changed"] or plan["removed"]:
+                            message += "; replaced/removed: " + ", ".join(plan["changed"] + plan["removed"])
+                        if expected['cleanup_names']:
+                            message += '; removed outside section11/: ' + ', '.join(expected['cleanup_names'])
+                if saved.get("skip_release") == identity["tag"] or status["content_ahead"] or not needs_install:
+                    for key in ("available_release", "available_tree", "available_entries", "available_timer_only"):
+                        saved.pop(key, None)
+                    _write_install_state(state, "auto-update.json", saved)
+    except (Exception, KeyboardInterrupt) as exc:
+        message = "stopped; sync result retained; " + " ".join(str(exc).split())
+    print("Section 11 auto-update: " + message)
+
+
+def do_rollback():
+    try:
+        data_dir = Path.cwd()
+        with _distribution_lock(data_dir):
+            if _is_git_checkout(data_dir / "section11"):
+                raise DistributionError("developer checkout; use a separate release installation")
+            record, raw, files, identity = _previous_install(data_dir)
+            _rollback_local(data_dir, record)
+        print('Section 11: restored previous installation, root tools and timer; later data/custom retained')
+        return True
+    except DistributionBusy as exc:
+        print(str(exc))
+        return False
+    except (Exception, KeyboardInterrupt) as exc:
+        print("Section 11: rollback stopped; preserve .section11-state:", " ".join(str(exc).split()))
+        return False
+
+
+def _distribution_lock(data_dir, create=True, cleanup=True):
+    """Cross-process exclusion for the installer and managed sync entry."""
+    import contextlib
+    @contextlib.contextmanager
+    def locked():
+        state = Path(data_dir) / ".section11-state"
+        if state.is_symlink():
+            raise DistributionError("symlink state directory")
+        if create:
+            state.mkdir(exist_ok=True)
+        lock = state / "operation.lock"
+        if lock.is_symlink():
+            raise DistributionError("symlink operation lock")
+        try:
+            handle = open(lock, 'a+b' if create else 'r+b')
+        except FileNotFoundError:
+            if create:
+                raise
+            # Review/cancellation must not create state for a fresh install.
+            yield False
+            return
+        with handle:
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError as exc:
+                import errno
+                busy = (errno.EAGAIN, errno.EWOULDBLOCK)
+                if exc.errno in busy or (os.name == 'nt' and
+                        (exc.errno in (errno.EACCES, errno.EDEADLK) or getattr(exc, 'winerror', None) == 33)):
+                    raise DistributionBusy() from exc
+                raise
+            try:
+                if cleanup:
+                    _cleanup_staging(state)
+                yield True
+            finally:
+                if os.name == "nt":
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(handle, fcntl.LOCK_UN)
+    return locked()
+
+
+def _fetch_verified_release():
+    if _RELEASE_REQUEST_BUDGET.get() is not None:
+        return Distribution.fetch()
+    with _release_request_budget():
+        return Distribution.fetch()
+
+
+_ROOT_ENTRIES = ('sync.py', 'push.py', 'pull.py')
+
+
+def _active_python_paths(root):
+    import sys
+    # The standard timer uses sys.executable too. Keep its lexical venv path
+    # as well as its resolved target; resolving alone can hide the environment.
+    result = set()
+    for value in (sys.executable, sys.prefix):
+        for path in (Path(value).absolute(), Path(value).resolve()):
+            try:
+                result.add(path.relative_to(Path(root).resolve()).as_posix())
+            except ValueError:
+                pass
+    return result
+
+
+def _cleanup_paths(root, release_paths=(), hosted=False):
+    """Discover the complete ordinary cleanup scope without following links."""
+    import stat
+    def linked(info):
+        # Name-surrogate tags include symlinks and junctions. Cloud placeholders
+        # also carry FILE_ATTRIBUTE_REPARSE_POINT, but are not links.
+        return stat.S_ISLNK(info.st_mode) or bool(getattr(info, 'st_reparse_tag', 0) & 0x20000000)
+    root = Path(root)
+    result = {}
+    active = _active_python_paths(root)
+    protected = set(active)
+    protected.update(p.split('/')[0] for p in active
+                     if p.casefold().startswith(('section11-legacy-github', 'section11-legacy-dev')))
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        base = Path(directory).relative_to(root)
+        if base != Path('.') and Distribution.cleanup_protected(base.as_posix(), protected):
+            continue
+        # Recheck without following a directory replaced by a link since listing.
+        mode = directory.lstat()
+        if linked(mode):
+            if base == Path('.') or Distribution.cleanup_reason(
+                    base.as_posix(), release_paths, hosted=hosted, python_roots=protected, opaque=True):
+                raise DistributionError('non-ordinary cleanup directory; preserve installation')
+            continue
+        if not stat.S_ISDIR(mode.st_mode):
+            raise DistributionError('non-ordinary cleanup directory; preserve installation')
+        with os.scandir(directory) as scan:
+            entries = sorted(scan, key=lambda e: e.name)
+        markers = [((base / e.name).as_posix()) for e in entries
+                   if e.name.casefold() in ('pyvenv.cfg', 'conda-meta')]
+        environments = Distribution.python_roots(markers)
+        if environments:
+            protected.update(environments)
+            continue
+        if not entries and base != Path('.') and Distribution.cleanup_reason(
+                base.as_posix(), release_paths, hosted=hosted, directory=True) == 'legacy Section 11 directory':
+            result[base.as_posix()] = 'legacy Section 11 directory'
+        for entry in entries:
+            name = (base / entry.name).as_posix()
+            if Distribution.cleanup_protected(name, protected):
+                continue
+            mode = entry.stat(follow_symlinks=False)
+            if linked(mode):
+                if Distribution.cleanup_reason(name, release_paths, hosted=hosted,
+                                               python_roots=protected, opaque=True):
+                    raise DistributionError('non-ordinary cleanup path; preserve installation')
+                continue
+            directory_entry = stat.S_ISDIR(mode.st_mode)
+            reason = Distribution.cleanup_reason(name, release_paths, hosted=hosted,
+                                                 python_roots=protected, directory=directory_entry)
+            if directory_entry:
+                pending.append(root / name)
+                continue
+            if reason:
+                if not stat.S_ISREG(mode.st_mode):
+                    raise DistributionError('non-ordinary cleanup file; preserve installation')
+                result[name] = reason
+    # A nested environment protects its whole legacy directory, including files
+    # visited before its marker. No changes are made during discovery.
+    return {name: reason for name, reason in result.items()
+            if not Distribution.cleanup_protected(name, protected)}
+
+
+def _cleanup_directories(root, cleanup):
+    """Only parents made empty by this plan may be pruned, deepest first."""
+    parents = {p.as_posix() for name in cleanup for p in Path(name).parents if p != Path('.')}
+    empty = []
+    removed = set(cleanup)
+    for name in sorted(parents, key=lambda p: (-p.count('/'), p)):
+        path = Path(root) / name
+        if (not Distribution.cleanup_protected(name) and not path.is_symlink() and
+                all(p.relative_to(root).as_posix() in removed for p in path.iterdir())):
+            empty.append(name)
+            removed.add(name)
+    return empty
+
+
+class LocalRecovery:
+    """Private ordinary-file recovery ZIP, independent of release manifests."""
+    # Preserve the existing 256 MiB old-tree allowance, plus a separately
+    # bounded cleanup preimage (including all three 64 MiB root tools).
+    MAX_BYTES = Distribution.MAX_BYTES * 8 + 8 * 1024 * 1024
+    MAX_ENTRIES = 20004
+
+    @staticmethod
+    def name(name):
+        if (not isinstance(name, str) or not name or name.startswith('/') or
+                any(c in name for c in '\\\x00\n\r:') or
+                any(p in ('', '.', '..') for p in name.split('/'))):
+            raise DistributionError('unsafe recovery member')
+        return name
+
+    @classmethod
+    def inventory(cls, roots, max_bytes=None, max_entries=None):
+        import stat
+        max_bytes = cls.MAX_BYTES if max_bytes is None else max_bytes
+        max_entries = cls.MAX_ENTRIES if max_entries is None else max_entries
+        result, keys, total = {}, set(), 0
+        for prefix, root in sorted(roots.items()):
+            root = Path(root)
+            if not root.exists() and not root.is_symlink():
+                continue
+            paths = [root]
+            if root.is_dir() and not root.is_symlink():
+                paths.extend(sorted(root.rglob('*')))
+            for path in paths:
+                suffix = path.relative_to(root).as_posix()
+                name = cls.name(prefix + ('/' + suffix if suffix != '.' else ''))
+                mode = path.lstat().st_mode
+                if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+                    raise DistributionError('non-ordinary recovery path; preserve installation')
+                row = {'kind': 'directory' if stat.S_ISDIR(mode) else 'file',
+                       'mode': stat.S_IMODE(mode)}
+                if row['kind'] == 'file':
+                    size = path.stat().st_size
+                    total += size
+                    if total > max_bytes:
+                        raise DistributionError('recovery exceeds its size safety bound')
+                    row.update(size=size, sha256=Distribution.digest(path.read_bytes()))
+                if name.casefold() in keys:
+                    raise DistributionError('duplicate recovery path')
+                result[name] = row
+                keys.add(name.casefold())
+                if len(result) > max_entries:
+                    raise DistributionError('recovery exceeds its entry safety bound')
+        return result
+
+    @classmethod
+    def write(cls, archive, roots):
+        import stat
+        members = cls.inventory(roots)
+        with os.fdopen(os.open(archive, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), 'wb') as stream:
+            with zipfile.ZipFile(stream, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr('recovery.json', json.dumps({'schema': 1, 'members': members}, sort_keys=True))
+                for name, row in members.items():
+                    directory = row['kind'] == 'directory'
+                    info = zipfile.ZipInfo(name + ('/' if directory else ''))
+                    info.create_system = 3
+                    info.external_attr = ((stat.S_IFDIR if directory else stat.S_IFREG) | row['mode']) << 16
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    if directory:
+                        zf.writestr(info, b'')
+                    else:
+                        prefix = next(p for p in roots if name == p or name.startswith(p + '/'))
+                        path = Path(roots[prefix]) / name[len(prefix):].lstrip('/')
+                        with path.open('rb') as src, zf.open(info, 'w') as dst:
+                            shutil.copyfileobj(src, dst)
+            # Finalize the ZIP before syncing its writable descriptor on Windows.
+            stream.flush()
+            os.fsync(stream.fileno())
+        digest = Distribution.digest(archive.read_bytes())
+        if cls.read(archive, digest) != members or cls.inventory(roots) != members:
+            raise DistributionError('recovery archive/source readback mismatch')
+        return digest
+
+    @classmethod
+    def read(cls, archive, digest, destination=None):
+        import stat
+        archive = Distribution.ordinary(archive.parent, archive.name)
+        if archive.stat().st_size > cls.MAX_BYTES + 16 * 1024 * 1024:
+            raise DistributionError('oversized recovery archive')
+        if Distribution.digest(archive.read_bytes()) != digest:
+            raise DistributionError('recovery archive changed; preserve state')
+        try:
+            with zipfile.ZipFile(archive) as zf:
+                infos = zf.infolist()
+                names = [i.filename.rstrip('/') for i in infos]
+                if (len(infos) > cls.MAX_ENTRIES + 1 or len(set(n.casefold() for n in names)) != len(names)
+                        or sum(i.file_size for i in infos) > cls.MAX_BYTES + 8 * 1024 * 1024):
+                    raise DistributionError('invalid recovery inventory or size')
+                for name in names:
+                    cls.name(name)
+                meta = zf.getinfo('recovery.json')
+                if meta.file_size > 8 * 1024 * 1024:
+                    raise DistributionError('oversized recovery inventory')
+                record = Distribution.json(zf.read(meta))
+                if set(record) != {'schema', 'members'} or record['schema'] != 1 or not isinstance(record['members'], dict):
+                    raise DistributionError('invalid recovery metadata')
+                members = record['members']
+                if set(names) != set(members) | {'recovery.json'}:
+                    raise DistributionError('recovery inventory mismatch')
+                total = 0
+                for name, row in members.items():
+                    cls.name(name)
+                    directory = row.get('kind') == 'directory'
+                    expected = {'kind', 'mode'} if directory else {'kind', 'mode', 'size', 'sha256'}
+                    if (set(row) != expected or row['kind'] not in ('file', 'directory') or
+                            type(row['mode']) is not int or not 0 <= row['mode'] <= 0o7777):
+                        raise DistributionError('invalid recovery member metadata')
+                    parts = name.split('/')
+                    if any(members.get('/'.join(parts[:i]), {}).get('kind') != 'directory'
+                           for i in range(1, len(parts))):
+                        raise DistributionError('missing recovery parent directory')
+                    info = zf.getinfo(name + ('/' if directory else ''))
+                    mode = info.external_attr >> 16
+                    if (stat.S_IFMT(mode) != (stat.S_IFDIR if directory else stat.S_IFREG) or
+                            stat.S_IMODE(mode) != row['mode']):
+                        raise DistributionError('recovery member mode mismatch')
+                    content = zf.read(info)
+                    if directory:
+                        if content:
+                            raise DistributionError('nonempty recovery directory member')
+                    else:
+                        total += len(content)
+                        if (total > cls.MAX_BYTES or len(content) != row['size'] or
+                                Distribution.digest(content) != row['sha256']):
+                            raise DistributionError('recovery member hash/size mismatch')
+                # Validate every member before creating any extracted source.
+                if destination is not None:
+                    destination.mkdir()
+                    for name, row in sorted(members.items(), key=lambda item: (item[0].count('/'), item[0])):
+                        path = destination / name
+                        if row['kind'] == 'directory':
+                            path.mkdir()
+                        else:
+                            with path.open('xb') as out:
+                                out.write(zf.read(name))
+                            path.chmod(row['mode'])
+                    for name, row in sorted(members.items(), key=lambda item: item[0].count('/'), reverse=True):
+                        if row['kind'] == 'directory':
+                            (destination / name).chmod(row['mode'])
+                    roots = {p: destination / p for p in members if '/' not in p}
+                    if cls.inventory(roots) != members:
+                        raise DistributionError('extracted recovery readback mismatch')
+                return members
+        except (zipfile.BadZipFile, KeyError, TypeError) as exc:
+            raise DistributionError('invalid recovery archive; preserve state') from exc
+
+
+def _cleanup_staging(state):
+    """Only journalled pre-activation or committed cleanup is repeatable."""
+    path = Distribution.ordinary(state, 'transaction.json')
+    if not path.exists():
+        return
+    record = Distribution.json(path.read_bytes())
+    name = record.get('transaction', '')
+    if record.get('schema') != 4 or not re.fullmatch(r'transaction-[a-f0-9]{32}', name):
+        raise DistributionError('interrupted update: preserve transaction.json before sync')
+    if record.get('phase') == 'timer-activation':
+        previous = Distribution.ordinary(state, 'previous.json')
+        if previous.exists() and Distribution.json(previous.read_bytes()).get('transaction') == name:
+            # previous.json is published only after confirmed timer readback.
+            record['phase'] = 'committed'
+    if record.get('phase') not in ('staging', 'rollback-staging', 'committed', 'rollback-complete'):
+        raise DistributionError('interrupted update: preserve transaction.json before sync')
+    directory = state / name
+    if record['phase'] == 'committed':
+        if _previous_install(state.parent)[0]['transaction'] != name:
+            raise DistributionError('interrupted update: previous pointer differs from committed journal')
+    if directory.exists() or directory.is_symlink():
+        import stat
+        if directory.is_symlink() or not directory.is_dir():
+            raise DistributionError('non-ordinary transaction directory')
+        # Staging contains both the loose preimage and its ZIP; do not apply
+        # the preimage bound to their combined temporary size.
+        for base, dirs, files in os.walk(directory, followlinks=False):
+            for child in dirs + files:
+                mode = (Path(base) / child).lstat().st_mode
+                if not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+                    raise DistributionError('non-ordinary transaction staging')
+        shutil.rmtree(directory)
+    if record['phase'] in ('committed', 'rollback-complete'):
+        obsolete = record.get('obsolete_archive')
+        if obsolete:
+            if not re.fullmatch(r'transaction-[a-f0-9]{32}\.zip', obsolete):
+                raise DistributionError('invalid obsolete recovery archive')
+            Distribution.ordinary(state, obsolete).unlink(missing_ok=True)
+    path.unlink()
+
+
+def _local_tree_digest(root):
+    if root.is_symlink():
+        raise DistributionError('symlink installation root')
+    if not root.exists():
+        return None
+    git = root / '.git'
+    if git.exists() and (not git.is_dir() or (git / 'commondir').exists()):
+        raise DistributionError('external Git metadata needs owner resolution')
+    return _ordinary_tree_digest(root)
+
+
+def _entry_digests(root, release_paths=(), cleanup=None):
+    result = {}
+    for name in _ROOT_ENTRIES:
+        path = Distribution.ordinary(root, name)
+        if path.exists() and (path.stat().st_nlink != 1 or path.stat().st_size > Distribution.MAX_BYTES):
+            raise DistributionError('root tool is not an ordinary bounded file')
+        result[name] = Distribution.digest(path.read_bytes()) if path.exists() else None
+    # Recovery uses its recorded paths, including older whole-directory entries,
+    # rather than reclassifying an archive with today's release/name policy.
+    for name in _cleanup_paths(root, release_paths) if cleanup is None else cleanup:
+        LocalRecovery.name(name)
+        path = Path(root) / name
+        if not path.exists() and not path.is_symlink():
+            continue
+        result[name] = Distribution.digest(json.dumps(
+            LocalRecovery.inventory({name: path}), sort_keys=True).encode())
+    return result
+
+
+def _local_config(data_dir):
+    path = Distribution.ordinary(data_dir, '.sync_config.json')
+    content = path.read_bytes() if path.exists() else None
+    if content is not None and (len(content) > 1024 * 1024 or path.stat().st_nlink != 1):
+        raise DistributionError('configuration is not an ordinary bounded file')
+    value = Distribution.json(content) if content is not None else {}
+    if not isinstance(value, dict):
+        raise DistributionError('configuration must be a JSON object')
+    return content, value
+
+
+def _custom_preimage(data_dir):
+    custom = data_dir / 'custom'
+    if custom.is_symlink() or (custom.exists() and not custom.is_dir()):
+        raise DistributionError('custom is not an ordinary directory')
+    if not custom.exists():
+        return {'directory': False, 'readme': None}
+    readme = Distribution.ordinary(custom, 'README.md')
+    if readme.exists() and readme.stat().st_nlink != 1:
+        raise DistributionError('custom README is not an ordinary file')
+    return {'directory': True, 'readme': Distribution.digest(readme.read_bytes()) if readme.exists() else None}
+
+
+def _ensure_custom(data_dir, files):
+    before = _custom_preimage(data_dir)
+    custom = data_dir / 'custom'
+    if before['readme'] is None:
+        content = files.get('examples/maintenance/CUSTOM_README.md')
+        if content is None:
+            raise DistributionError('verified release is missing official custom guidance')
+        custom.mkdir(exist_ok=True)
+        with (custom / 'README.md').open('xb') as handle:
+            handle.write(content)
+
+
+def _local_plan(data_dir, raw, files, choice=None, _staging=False):
+    data_dir = Path(data_dir)
+    if Distribution.protects_python('section11', active_paths=_active_python_paths(data_dir)):
+        raise DistributionError('Python interpreter is inside section11/; use an environment outside the managed directory')
+    for ancestor in (data_dir, *data_dir.parents):
+        if ancestor.is_symlink():
+            raise DistributionError('symlink data directory')
+    state = data_dir / '.section11-state'
+    if state.is_symlink() or (state.exists() and not state.is_dir()):
+        raise DistributionError('state is not an ordinary directory')
+    if not _staging and ((state / 'transaction.json').exists() or (state / 'transaction.json').is_symlink()):
+        raise DistributionError('interrupted update: preserve transaction.json before installation')
+    config_raw, config = _local_config(data_dir)
+    if choice is not None and type(choice) is not bool:
+        raise DistributionError('timer choice must be boolean')
+    timer = LocalTimers(data_dir).plan(config, choice)
+    cleanup = _cleanup_paths(data_dir, files)
+    cleanup_inventory = LocalRecovery.inventory({p: data_dir / p for p in cleanup},
+        max_bytes=Distribution.MAX_BYTES * 4, max_entries=10000)
+    cleanup_dirs = _cleanup_directories(data_dir, cleanup)
+    return {'tree': _local_tree_digest(data_dir / 'section11'),
+            'tree_inventory': LocalRecovery.inventory({'old': data_dir / 'section11'}),
+            'distribution': Distribution.plan(data_dir / 'section11', raw, files),
+            'entries': _entry_digests(data_dir, files), 'cleanup': cleanup,
+            'cleanup_names': sorted(set(cleanup_inventory) | {p + '/' for p in cleanup_dirs}),
+            'cleanup_dirs': cleanup_dirs,
+            'custom': _custom_preimage(data_dir),
+            'config_digest': Distribution.digest(config_raw) if config_raw is not None else None,
+            'timer': timer, 'timer_choice': choice}
+
+
+def _local_managed_needed(root, raw, identity, distribution):
+    if not Path(root).exists():
+        return True
+    receipt_path = Distribution.ordinary(root, Distribution.RECEIPT)
+    receipt_equal = (receipt_path.is_file() and not receipt_path.is_symlink() and
+                     receipt_path.read_bytes() == Distribution.receipt(raw, identity))
+    return (any(distribution[key] for key in ('added', 'changed', 'removed', 'manifest_changed')) or
+            not receipt_equal)
+
+
+def _local_install_needed(data_dir, raw, identity, plan):
+    _, config = _local_config(data_dir)
+    return (_local_managed_needed(data_dir / 'section11', raw, identity, plan['distribution']) or
+            any(plan['entries'].values()) or
+            plan['timer']['before']['resources'] != plan['timer']['after'] or
+            (plan['timer_choice'] is not None and config.get('auto_sync') != plan['timer']['enabled']))
+
+
+def _clear_local_update(data_dir, installed_tag):
+    state = data_dir / '.section11-state'
+    saved = _auto_update_state(state)
+    updated = {key: value for key, value in saved.items()
+               if key not in ('available_release', 'available_tree', 'available_entries', 'available_timer_only') and
+               not (key == 'skip_release' and value == installed_tag)}
+    if updated != saved:
+        _write_install_state(state, 'auto-update.json', updated)
+
+
+LOCAL_UPDATE_NOTICE = ('A verified Section 11 update is available. '
+                       'Run the local update command to install it.')
+
+
+def _local_notice_matches(data_dir, saved):
+    target = saved.get('available_release')
+    matches = (bool(target) and target != saved.get('skip_release') and
+            saved.get('available_tree') == _ordinary_tree_digest(Path(data_dir) / 'section11') and
+            saved.get('available_entries') == _entry_digests(Path(data_dir), cleanup=saved.get('available_entries', {})))
+    if matches and saved.get('available_timer_only'):
+        # Reconcile only the local timer/policy need, without release discovery
+        # or persisting private command arguments in an advisory record.
+        _, config = _local_config(Path(data_dir))
+        timer = LocalTimers(Path(data_dir)).plan(config)
+        return timer['before']['resources'] != timer['after']
+    return matches
+
+
+def _local_update_notice(data, data_dir, suppressed=False):
+    """Export only an outstanding verified plan for the same installation."""
+    data.pop('update_notice', None)
+    if suppressed or os.environ.get('GITHUB_ACTIONS', '').lower() == 'true':
+        return
+    try:
+        state = Path(data_dir) / '.section11-state'
+        if not state.is_dir():
+            return
+        saved = _auto_update_state(state)
+        if _local_notice_matches(data_dir, saved):
+            data['update_notice'] = LOCAL_UPDATE_NOTICE
+    except (OSError, ValueError):
+        pass
+
+
+def _install_local(data_dir, raw, files, identity, expected, _locked=False):
+    """One local activation journal binds tree, named tools, config policy and timer."""
+    import contextlib
+    data_dir = Path(data_dir)
+    Distribution.verify(raw, files)
+    if _local_plan(data_dir, raw, files, expected['timer_choice']) != expected:
+        raise DistributionError('installation changed after review (or root bootstrap changed); no files changed')
+    with contextlib.nullcontext() if _locked else _distribution_lock(data_dir):
+        if _local_plan(data_dir, raw, files, expected['timer_choice']) != expected:
+            raise DistributionError('installation changed after review; no files changed')
+        _local_release_status(data_dir / 'section11', raw, files, identity)
+        # Only actual installation changes consume the previous-installation slot.
+        if not _local_install_needed(data_dir, raw, identity, expected):
+            _ensure_custom(data_dir, files)
+            if expected['timer']['enabled']:
+                state = data_dir / '.section11-state'
+                _write_install_state(state, 'transaction.json', {
+                    'phase': 'timer-refresh', 'timer': LocalTimers.recovery(expected['timer'])})
+                LocalTimers(data_dir).apply(expected['timer'], state)
+                (state / 'transaction.json').unlink()
+            _clear_local_update(data_dir, identity['tag'])
+            return expected['distribution']
+        state, target = data_dir / '.section11-state', data_dir / 'section11'
+        previous_path = Distribution.ordinary(state, 'previous.json')
+        previous_bytes = previous_path.read_bytes() if previous_path.exists() else None
+        prior = _previous_install(data_dir, check_current=False)[0] if previous_bytes is not None else None
+        needed = sum(len(b) for b in files.values()) + len(raw) + 1024 * 1024
+        if shutil.disk_usage(data_dir).free < needed:
+            raise DistributionError('insufficient space for staged release')
+        import uuid
+        transaction = state / ('transaction-' + uuid.uuid4().hex)
+        # The journal is durable before any release, preimage or ZIP is staged.
+        _write_install_state(state, 'transaction.json', {
+            'schema': 4, 'transaction': transaction.name, 'phase': 'staging'})
+        transaction.mkdir()
+        staged, backup = transaction / 'new', transaction / 'old'
+        staged.mkdir()
+        entries = transaction / 'entries'
+        entries.mkdir()
+        for name, content in dict(files, **{'manifest.json': raw}).items():
+            path = staged / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+        (staged / Distribution.RECEIPT).write_bytes(Distribution.receipt(raw, identity))
+        Distribution.tree(staged)
+        for name in expected['cleanup']:
+            path = data_dir / name
+            destination = entries / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if path.is_dir():
+                shutil.copytree(path, destination)
+            else:
+                shutil.copy2(path, destination)
+        config_raw, config = _local_config(data_dir)
+        timers = (json.dumps(LocalTimers.recovery(expected['timer']), sort_keys=True) + '\n').encode()
+        (transaction / 'timers.json').write_bytes(timers)
+        if _local_plan(data_dir, raw, files, expected['timer_choice'], _staging=True) != expected:
+            raise DistributionError('installation changed while staging; no activation performed')
+        archive = transaction / 'recovery.zip'
+        sources = {'entries': entries, 'timers.json': transaction / 'timers.json'}
+        if target.exists():
+            sources['old'] = target
+        archive_digest = LocalRecovery.write(archive, sources)
+        if (_local_plan(data_dir, raw, files, expected['timer_choice'], _staging=True) != expected or
+                _entry_digests(entries, cleanup=expected['cleanup']) != expected['entries']):
+            raise DistributionError('installation changed while archiving; no activation performed')
+        record = {'schema': 4, 'transaction': transaction.name, 'previous_tree': expected['tree'],
+                  'previous_entries': expected['entries'], 'installed_tree': _ordinary_tree_digest(staged),
+                  'installed_inventory': LocalRecovery.inventory({'old': staged}),
+                  'installed_entries': dict.fromkeys(_ROOT_ENTRIES), 'timers_digest': Distribution.digest(timers),
+                  'cleanup': expected['cleanup'], 'archive_digest': archive_digest,
+                  'archive_members': LocalRecovery.read(archive, archive_digest),
+                  'obsolete_archive': prior['transaction'] + '.zip' if prior is not None else None,
+                  'config_before': config.get('auto_sync'), 'config_had_auto_sync': 'auto_sync' in config,
+                  'config_after': expected['timer']['enabled'], 'config_changed': expected['timer_choice'] is not None,
+                  'installed_tag': identity['tag']}
+        _write_install_state(state, 'transaction.json', dict(record, phase='prepared'))
+        switched = False
+        timer_started = False
+        try:
+            if target.exists():
+                os.rename(target, backup)
+            os.rename(staged, target)
+            switched = True
+            for name in expected['cleanup']:
+                path = data_dir / name
+                if path.is_dir():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            for name in expected['cleanup_dirs']:
+                (data_dir / name).rmdir()
+            if expected['timer_choice'] is not None:
+                config['auto_sync'] = expected['timer']['enabled']
+                _write_install_state(data_dir, '.sync_config.json', config)
+            _ensure_custom(data_dir, files)
+            Distribution.tree(target)
+            Distribution.read_receipt(target, raw)
+            if _ordinary_tree_digest(target) != record['installed_tree'] or _entry_digests(data_dir, files) != record['installed_entries']:
+                raise DistributionError('active installation readback mismatch')
+            _write_install_state(state, 'transaction.json', dict(record, phase='timer-activation'))
+            timer_started = bool(expected['timer']['remove'] or expected['timer']['create'])
+            LocalTimers(data_dir).apply(expected['timer'], transaction)
+            os.rename(archive, state / (transaction.name + '.zip'))
+            _write_install_state(state, 'previous.json', record)
+        except (Exception, KeyboardInterrupt):
+            # After a scheduler operation may have started, never guess or resend.
+            if timer_started:
+                raise
+            if switched:
+                os.rename(target, transaction / 'failed')
+            if backup.exists():
+                os.rename(backup, target)
+            for name in expected['cleanup']:
+                if (entries / name).exists():
+                    path = data_dir / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    if (entries / name).is_dir():
+                        if path.exists():
+                            shutil.rmtree(path)
+                        shutil.copytree(entries / name, path)
+                    else:
+                        shutil.copy2(entries / name, path)
+            if expected['timer_choice'] is not None:
+                if config_raw is None:
+                    (data_dir / '.sync_config.json').unlink(missing_ok=True)
+                else:
+                    (data_dir / '.sync_config.json').write_bytes(config_raw)
+            if expected['custom']['readme'] is None:
+                (data_dir / 'custom/README.md').unlink(missing_ok=True)
+            if not expected['custom']['directory'] and (data_dir / 'custom').exists():
+                (data_dir / 'custom').rmdir()
+            if previous_bytes is not None:
+                _write_install_state(state, 'previous.json', Distribution.json(previous_bytes))
+            else:
+                previous_path.unlink(missing_ok=True)
+            (state / 'transaction.json').unlink()
+            shutil.rmtree(transaction)
+            (state / (transaction.name + '.zip')).unlink(missing_ok=True)
+            raise
+        _write_install_state(state, 'transaction.json', dict(record, phase='committed',
+            obsolete_archive=prior['transaction'] + '.zip' if prior is not None else None))
+        _cleanup_staging(state)
+        _clear_local_update(data_dir, identity['tag'])
+        return expected['distribution']
+
+
+def _rollback_local(data_dir, record):
+    if Distribution.protects_python('section11', active_paths=_active_python_paths(data_dir)):
+        raise DistributionError('Python interpreter is inside section11/; use an environment outside the managed directory')
+    state = data_dir / '.section11-state'
+    if record['previous_tree'] is None and not any(record['previous_entries'].get(n) for n in _ROOT_ENTRIES):
+        raise DistributionError('fresh installation has no previous usable producer')
+    config_raw, config = _local_config(data_dir)
+    if record['config_changed'] and config.get('auto_sync') != record['config_after']:
+        raise DistributionError('timer policy changed since installation; preserve settings')
+    import uuid
+    transaction = state / ('transaction-' + uuid.uuid4().hex)
+    journal = dict(record, transaction=transaction.name, archive=record['transaction'] + '.zip')
+    _write_install_state(state, 'transaction.json', dict(journal, phase='rollback-staging'))
+    transaction.mkdir()
+    recovered = transaction / 'recovered'
+    LocalRecovery.read(state / journal['archive'], record['archive_digest'], recovered)
+    target, backup = data_dir / 'section11', recovered / 'old'
+    entries = recovered / 'entries'
+    if (_local_tree_digest(backup) != record['previous_tree'] or
+            _entry_digests(entries, cleanup=record['cleanup']) != record['previous_entries']):
+        raise DistributionError('rollback extraction differs from previous installation')
+    _previous_install(data_dir)
+    timer_plan = Distribution.json((recovered / 'timers.json').read_bytes())
+    _write_install_state(state, 'transaction.json', dict(journal, phase='rollback-timer'))
+    LocalTimers(data_dir).apply(timer_plan, transaction, reverse=True)
+    os.rename(target, transaction / 'discarded')
+    if backup.exists():
+        os.rename(backup, target)
+    for name in record['cleanup']:
+        previous = entries / name
+        if previous.exists():
+            (data_dir / name).parent.mkdir(parents=True, exist_ok=True)
+            os.rename(previous, data_dir / name)
+    if record['config_changed']:
+        if record['config_had_auto_sync']:
+            config['auto_sync'] = record['config_before']
+        else:
+            config.pop('auto_sync', None)
+        _write_install_state(data_dir, '.sync_config.json', config)
+    if _local_tree_digest(target) != record['previous_tree'] or _entry_digests(data_dir, cleanup=record['cleanup']) != record['previous_entries']:
+        raise DistributionError('rollback readback mismatch; preserve transaction')
+    saved = _auto_update_state(state)
+    saved['skip_release'] = record['installed_tag']
+    for key in ('available_release', 'available_tree', 'available_entries', 'available_timer_only'):
+        saved.pop(key, None)
+    _write_install_state(state, 'auto-update.json', saved)
+    (state / 'previous.json').unlink()
+    _write_install_state(state, 'transaction.json', dict(journal, phase='rollback-complete',
+        obsolete_archive=journal['archive']))
+    _cleanup_staging(state)
+
+
+def do_init(timer_choice=None):
+    return do_update(timer_choice=timer_choice, _init=True)
+
+
+def do_update(status_only=False, timer_choice=None, _init=False):
+    try:
+        with _distribution_lock(Path.cwd(), create=False, cleanup=not status_only) as held:
+            return _review_update(status_only, timer_choice, _init, _locked=held)
+    except DistributionBusy as exc:
+        print(str(exc))
+    except (Exception, KeyboardInterrupt) as exc:
+        print('Section 11: installation inspection stopped:', ' '.join(str(exc).split()))
+    return False
+
+
+def _review_update(status_only=False, timer_choice=None, _init=False, _locked=False):
+    data_dir = Path.cwd()
+    target = data_dir / "section11"
+    try:
+        if not _locked and not status_only and (data_dir / '.section11-state/transaction.json').exists():
+            with _distribution_lock(data_dir):
+                pass
+        adoption = not _converted_installation(data_dir) or _known_local_identity(target) is None
+        raw, files, identity = _fetch_verified_release()
+        expected = _local_plan(data_dir, raw, files, timer_choice)
+        plan = expected['distribution']
+        status = _local_release_status(target, raw, files, identity)
+        print(Distribution.status_text(status))
+        try:
+            actual = {name: Distribution.ordinary(target, name).read_bytes()
+                      for name in ("SECTION_11.md", "examples/sync.py")}
+            old_protocol, old_sync = Distribution.identity(actual)
+            protocol, sync = Distribution.identity(files)
+            print("Informational protocol:", old_protocol, "->", protocol,
+                  "; sync:", old_sync, "->", sync)
+        except (DistributionError, ValueError, FileNotFoundError, KeyError):
+            pass
+        if status["content_ahead"]:
+            print("Installed content is newer than the latest official release. Accepting replaces it with that release; otherwise wait.")
+        for name, reason in expected['cleanup'].items():
+            path = data_dir / name
+            removed = ([p.relative_to(data_dir).as_posix() for p in sorted(path.rglob('*')) if p.is_file()]
+                       if path.is_dir() else [name])
+            for item in removed or [name + '/']:
+                print('  [removed]', item, '(' + reason + ')')
+        for name in expected['cleanup_dirs']:
+            print('  [removed]', name + '/', '(empty parent directory)')
+        if status_only:
+            return True
+        if adoption:
+            existing = target.is_dir() and any(target.iterdir())
+            tools = [name for name in _ROOT_ENTRIES if name in expected['cleanup']]
+            if existing:
+                print(CONVERSION_WARNING)
+            if tools:
+                print('Root ' + ', '.join(tools) + ' will be removed.')
+            if (target / '.git').exists():
+                print('section11/ is a Git clone: its .git folder is retained in the single rollback ZIP; section11/ is no longer a clone afterwards.')
+            if existing or tools:
+                print('One verified rollback ZIP is kept; the next successful installation replaces it.')
+            else:
+                print('New installation: section11/ and custom/ will be created.')
+        else:
+            for kind in ('added', 'changed', 'removed'):
+                for path in plan[kind]:
+                    print('  [' + kind + ']', path)
+        LocalTimers(data_dir).describe(expected['timer'])
+        if input('Install the verified release? [y/N] ').strip().lower() not in ('y', 'yes'):
+            print('Cancelled; old installation retained')
+            return False
+        _install_local(data_dir, raw, files, identity, expected, _locked=_locked)
+        if _init:
+            print('Setup complete')
+        print('Installed verified release', identity['tag'], identity['commit'], '; data caches retained')
+        print('Run: python3 section11/examples/sync.py --output latest.json')
+    except DistributionBusy:
+        raise
+    except (Exception, KeyboardInterrupt) as exc:
+        print('Section 11: download failed or installation stopped:' if _init else
+              'Section 11: update stopped; inspect existing state before retry:', exc)
+        return False
+    return True
 
 
 def notify_if_updates_available():
-    """
-    Silent, rate-limited check for Section 11 updates during normal sync runs.
-    
-    Runs at most once per 24 hours. Fetches manifest.json from upstream,
-    compares file hashes against local section11/ files, prints a one-line
-    notification if updates are available. Completely silent on any failure —
-    this must never interrupt a sync run.
-    """
-    try:
-        config_path = Path.cwd() / ".sync_config.json"
-        section11_dir = Path.cwd() / "section11"
-        
-        # Only relevant for local setups with section11/
-        if not section11_dir.exists():
-            return
-        
-        # Load config for rate limiting
-        config = {}
-        if config_path.exists():
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-        
-        # Rate limit: once per 24 hours
-        last_check = config.get("last_manifest_check")
-        if last_check:
-            try:
-                last_dt = datetime.fromisoformat(last_check)
-                if datetime.now() - last_dt < timedelta(hours=24):
-                    return  # Checked recently, skip
-            except (ValueError, TypeError):
-                pass  # Malformed timestamp, proceed with check
-        
-        # Fetch manifest
-        manifest = _fetch_upstream_manifest()
-        if not manifest:
-            return  # Silent failure
-        
-        # Compare hashes against local files
-        needs_update, _ = _compare_files(manifest.get("files", {}), section11_dir)
-        
-        # Update timestamp regardless of result
-        config["last_manifest_check"] = datetime.now().isoformat()
-        with open(config_path, 'w') as f:
-            json.dump(config, f, indent=2)
-        
-        # Notify if updates available
-        if needs_update:
-            print(f"\n⚠️  {len(needs_update)} Section 11 update{'s' if len(needs_update) != 1 else ''} available — run: python section11/examples/sync.py --update")
-    
-    except Exception:
-        pass  # Never interrupt a sync run
+    """Official release advisory after data work, once per UTC day."""
+    auto_update_local(Path.cwd(), False, advisory_only=True)
 
 
 # === Lockfile for automated sync ===
@@ -23043,11 +24096,24 @@ def _rotate_log_if_needed():
         pass  # Never block sync over a log issue
 
 
-def main():
+def _main(installation_root=None, distribution_locked=False, started_at=None):
+    started_at = started_at or datetime.now(timezone.utc)
     parser = argparse.ArgumentParser(description="Sync Intervals.icu data to GitHub or local file")
     parser.add_argument("--setup", action="store_true", help="Initial setup wizard")
     parser.add_argument("--init", action="store_true", help="Download Section 11 repo to section11/ (first-time local setup)")
     parser.add_argument("--update", action="store_true", help="Check for and pull Section 11 updates")
+    parser.add_argument("--status", action="store_true", help="Read verified Section 11 release status without installing")
+    parser.add_argument("--rollback", action="store_true", help="Restore the previous local installation without network access")
+    auto = parser.add_mutually_exclusive_group()
+    auto.add_argument("--auto-update", dest="auto_update", action="store_true", default=None,
+                      help="After data work, check for verified updates once per UTC day at or after 04:00 UTC")
+    auto.add_argument("--no-auto-update", dest="auto_update", action="store_false",
+                      help="Disable local auto-update for this run, overriding config")
+    timer = parser.add_mutually_exclusive_group()
+    timer.add_argument('--timer', dest='timer', action='store_true', default=None,
+                       help='Enable auto sync during --init/--update and persist the choice')
+    timer.add_argument('--no-timer', dest='timer', action='store_false',
+                       help='Disable auto sync during --init/--update and persist the choice')
     parser.add_argument("--athlete-id", help="Intervals.icu athlete ID")
     parser.add_argument("--intervals-key", help="Intervals.icu API key")
     parser.add_argument("--github-token", help="GitHub Personal Access Token")
@@ -23063,6 +24129,8 @@ def main():
     parser.add_argument("--refresh-saved-workouts", action="store_true", help="Bypass the saved-workouts refresh throttle for this run")
     
     args = parser.parse_args()
+    if args.timer is not None and not (args.init or args.update):
+        parser.error('--timer/--no-timer requires --init or --update')
     
     if args.setup:
         print("=== Intervals.icu Sync Setup ===\n")
@@ -23071,10 +24139,8 @@ def main():
         github_token = input("GitHub Personal Access Token (or press Enter to skip): ")
         github_repo = input("GitHub Repository (username/repo, or press Enter to skip): ")
         
-        config = {
-            "athlete_id": athlete_id,
-            "intervals_key": intervals_key,
-        }
+        _, config = _local_config(Path.cwd())
+        config.update({"athlete_id": athlete_id, "intervals_key": intervals_key})
         if github_token:
             config["github_token"] = github_token
         if github_repo:
@@ -23092,17 +24158,24 @@ def main():
             json.dump(config, f, indent=2)
         print("\n✅ Config saved to .sync_config.json")
         print("\nUsage:")
-        print("  Export locally:    python sync.py --output latest.json")
-        print("  Push to GitHub:    python sync.py")
-        print("  Generate history:  python sync.py --generate-history --output history.json")
+        print("  Export locally:    python3 section11/examples/sync.py --output latest.json")
+        print("  Push to GitHub:    python3 section11/examples/sync.py")
+        print("  Generate history:  python3 section11/examples/sync.py --generate-history --output history.json")
         return
     
     if args.init:
-        do_init()
+        if do_init(timer_choice=args.timer) is False:
+            raise SystemExit(1)
+        return
+
+    if args.rollback:
+        if do_rollback() is False:
+            raise SystemExit(1)
         return
     
-    if args.update:
-        do_update()
+    if args.update or args.status:
+        if do_update(status_only=args.status, timer_choice=args.timer) is False:
+            raise SystemExit(1)
         return
     
     if args.generate_manifest:
@@ -23118,99 +24191,116 @@ def main():
             return  # Another instance is running
     
     config = {}
-    if os.path.exists(".sync_config.json"):
-        with open(".sync_config.json") as f:
-            config = json.load(f)
-    
-    athlete_id = args.athlete_id or config.get("athlete_id") or os.getenv("ATHLETE_ID")
-    intervals_key = args.intervals_key or config.get("intervals_key") or os.getenv("INTERVALS_KEY")
-    github_token = args.github_token or config.get("github_token") or os.getenv("GITHUB_TOKEN")
-    github_repo = args.github_repo or config.get("github_repo") or os.getenv("GITHUB_REPO")
-    
-    # Week start: CLI → config file → env var → default (Monday/ISO)
-    week_day_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
-    week_start_raw = args.week_start or config.get("week_start") or os.getenv("WEEK_START") or "mon"
-    week_start_day = week_day_map.get(week_start_raw.lower(), 0)
-    week_start_name = {v: k for k, v in week_day_map.items()}.get(week_start_day, "mon")
-    
-    # Zone preference: config file → env var → default (power preferred)
-    # Format: "run:hr,cycling:power" → {"run": "hr", "cycling": "power"}
-    zone_pref_raw = config.get("zone_preference") or os.getenv("ZONE_PREFERENCE") or ""
-    zone_preference = {}
-    if zone_pref_raw:
-        for pair in zone_pref_raw.split(","):
-            pair = pair.strip()
-            if ":" in pair:
-                sport, basis = pair.split(":", 1)
-                sport = sport.strip().lower()
-                basis = basis.strip().lower()
-                if basis in ("power", "hr"):
-                    zone_preference[sport] = basis
-                else:
-                    print(f"   ⚠️  Ignoring invalid zone preference '{pair}' — basis must be 'power' or 'hr'")
-            elif pair:
-                print(f"   ⚠️  Ignoring invalid zone preference '{pair}' — expected format sport:basis")
-    
-    zone_pref_display = ", ".join(f"{s}:{b}" for s, b in zone_preference.items()) if zone_preference else "default (power preferred)"
-    # Optional report-only override; the existing diagnostic sport families stay fixed.
-    report_main_sports = IntervalsSync._parse_report_main_sports(
-        config.get("report_main_sports", os.getenv("REPORT_MAIN_SPORTS")))
-    
-    print(f"📋 Configuration:")
-    print(f"   Athlete ID: {athlete_id[:5] + '...' if athlete_id else 'NOT SET'}")
-    print(f"   Intervals Key: {intervals_key[:5] + '...' if intervals_key else 'NOT SET'}")
-    print(f"   GitHub Repo: {github_repo or 'NOT SET'}")
-    print(f"   GitHub Token: {'SET' if github_token else 'NOT SET'}")
-    print(f"   Days: {args.days}")
-    print(f"   Week start: {week_start_name}")
-    print(f"   Zone preference: {zone_pref_display}")
-    print(f"   Version: {IntervalsSync.VERSION}")
-    
-    if not athlete_id or not intervals_key:
-        print("\n❌ Error: Missing credentials.")
-        print("   Run: python sync.py --setup")
-        return
-    
-    sync = IntervalsSync(athlete_id, intervals_key, github_token, github_repo, 
-                         debug=args.debug, week_start_day=week_start_day,
-                         zone_preference=zone_preference, report_main_sports=report_main_sports)
-    if args.output:
-        # Set before history, cache or forecast work; every companion uses this root.
-        sync.data_dir = Path(args.output).absolute().parent
-        sync.data_dir.mkdir(parents=True, exist_ok=True)
-    sync._force_saved_workouts = args.refresh_saved_workouts
-    sync.check_interval_seconds = sync._check_interval(config) if args.output else 60
-    # Default-on; either off switch disables forecast requests. See privacy/setup docs.
-    sync.route_weather_enabled = RouteWeather.enabled(config)
-    sync.route_weather_default_start = RouteWeather.default_start(config)
-    
+    sync = None
+    publication_uncertain = False
     try:
+        if os.path.exists(".sync_config.json"):
+            with open(".sync_config.json") as f:
+                config = json.load(f)
+        
+        athlete_id = args.athlete_id or config.get("athlete_id") or os.getenv("ATHLETE_ID")
+        intervals_key = args.intervals_key or config.get("intervals_key") or os.getenv("INTERVALS_KEY")
+        github_token = args.github_token or config.get("github_token") or os.getenv("GITHUB_TOKEN")
+        github_repo = args.github_repo or config.get("github_repo") or os.getenv("GITHUB_REPO")
+        
+        # Week start: CLI → config file → env var → default (Monday/ISO)
+        week_day_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+        week_start_raw = args.week_start or config.get("week_start") or os.getenv("WEEK_START") or "mon"
+        week_start_day = week_day_map.get(week_start_raw.lower(), 0)
+        week_start_name = {v: k for k, v in week_day_map.items()}.get(week_start_day, "mon")
+        
+        # Zone preference: config file → env var → default (power preferred)
+        # Format: "run:hr,cycling:power" → {"run": "hr", "cycling": "power"}
+        zone_pref_raw = config.get("zone_preference") or os.getenv("ZONE_PREFERENCE") or ""
+        zone_preference = {}
+        if zone_pref_raw:
+            for pair in zone_pref_raw.split(","):
+                pair = pair.strip()
+                if ":" in pair:
+                    sport, basis = pair.split(":", 1)
+                    sport = sport.strip().lower()
+                    basis = basis.strip().lower()
+                    if basis in ("power", "hr"):
+                        zone_preference[sport] = basis
+                    else:
+                        print(f"   ⚠️  Ignoring invalid zone preference '{pair}' — basis must be 'power' or 'hr'")
+                elif pair:
+                    print(f"   ⚠️  Ignoring invalid zone preference '{pair}' — expected format sport:basis")
+        
+        zone_pref_display = ", ".join(f"{s}:{b}" for s, b in zone_preference.items()) if zone_preference else "default (power preferred)"
+        # Optional report-only override; the existing diagnostic sport families stay fixed.
+        report_main_sports = IntervalsSync._parse_report_main_sports(
+            config.get("report_main_sports", os.getenv("REPORT_MAIN_SPORTS")))
+        
+        print(f"📋 Configuration:")
+        print(f"   Athlete ID: {athlete_id[:5] + '...' if athlete_id else 'NOT SET'}")
+        print(f"   Intervals Key: {intervals_key[:5] + '...' if intervals_key else 'NOT SET'}")
+        print(f"   GitHub Repo: {github_repo or 'NOT SET'}")
+        print(f"   GitHub Token: {'SET' if github_token else 'NOT SET'}")
+        print(f"   Days: {args.days}")
+        print(f"   Week start: {week_start_name}")
+        print(f"   Zone preference: {zone_pref_display}")
+        print(f"   Version: {IntervalsSync.VERSION}")
+        
+        if not athlete_id or not intervals_key:
+            print("\n❌ Error: Missing credentials.")
+            print("   Run: python3 section11/examples/sync.py --setup")
+            return
+        
+        sync = IntervalsSync(athlete_id, intervals_key, github_token, github_repo, 
+                             debug=args.debug, week_start_day=week_start_day,
+                             zone_preference=zone_preference, report_main_sports=report_main_sports)
+        if args.output:
+            # Set before history, cache or forecast work; every companion uses this root.
+            sync.data_dir = Path(args.output).absolute().parent
+            sync.data_dir.mkdir(parents=True, exist_ok=True)
+        sync.installation_root = installation_root or _installation_root()
+        sync._suppress_update_notice = args.auto_update is False
+        sync._force_saved_workouts = args.refresh_saved_workouts
+        sync.check_interval_seconds = sync._check_interval(config) if args.output else 60
+        # Default-on; either off switch disables forecast requests. See privacy/setup docs.
+        sync.route_weather_enabled = RouteWeather.enabled(config)
+        sync.route_weather_default_start = RouteWeather.default_start(config)
+        
         _run_sync(sync, args, github_token, github_repo)
+
+    except PublishOutcomeUnknown:
+        publication_uncertain = True
+        raise
     except RequestBudgetRefused as error:
         print(f"Sync deferred: {error}")
     finally:
-        try:
-            line = sync.request_budget.summary()
-        except RequestBudgetRefused as error:
-            line = (f"Intervals requests: run={sync.request_budget.count}, today=unknown, allowance_left=unknown, "
-                    f"hold={error}, scope={sync.request_budget.SCOPE}")
-        print(line)
-        if not sync.request_budget.degraded and sync.request_budget.root is not None:
+        if (not publication_uncertain and getattr(sync, '_publication_uncertain', False) is not True
+                and not args.generate_history and args.auto_update is not False):
+            enabled = args.auto_update if args.auto_update is not None else (
+                config.get("auto_update", False) if isinstance(config, dict) else False)
+            auto_update_local(installation_root or _installation_root(), enabled,
+                              _locked=distribution_locked, advisory_only=enabled is False, started_at=started_at)
+        if sync is not None:
             try:
-                sync.request_budget.root.mkdir(mode=0o700, parents=True, exist_ok=True)
-                if os.name != "nt":
-                    os.chmod(sync.request_budget.root, 0o700)
-                    os.chmod(sync.request_budget.root.parent, 0o700)
-                fd = os.open(sync.request_budget.root / "budget.log", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-                with os.fdopen(fd, "a", encoding="utf-8") as log:
+                line = sync.request_budget.summary()
+            except RequestBudgetRefused as error:
+                line = (f"Intervals requests: run={sync.request_budget.count}, today=unknown, allowance_left=unknown, "
+                        f"hold={error}, scope={sync.request_budget.SCOPE}")
+            print(line)
+            if not sync.request_budget.degraded and sync.request_budget.root is not None:
+                try:
+                    sync.request_budget.root.mkdir(mode=0o700, parents=True, exist_ok=True)
                     if os.name != "nt":
-                        os.fchmod(log.fileno(), 0o600)
-                    log.write(line + "\n")
-            except OSError:
-                sync.request_budget._degrade()
+                        os.chmod(sync.request_budget.root, 0o700)
+                        os.chmod(sync.request_budget.root.parent, 0o700)
+                    fd = os.open(sync.request_budget.root / "budget.log", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+                    with os.fdopen(fd, "a", encoding="utf-8") as log:
+                        if os.name != "nt":
+                            os.fchmod(log.fileno(), 0o600)
+                        log.write(line + "\n")
+                except OSError:
+                    sync.request_budget._degrade()
 
 
 def _run_sync(sync, args, github_token, github_repo):
+    publication_complete = True
+    sync._publication_uncertain = False
     # Manual history generation
     if args.generate_history:
         print(f"\n📊 Generating history.json (up to 3 years)...")
@@ -23256,11 +24346,17 @@ def _run_sync(sync, args, github_token, github_repo):
                                        commit_message=f"Auto-generate history.json - {datetime.now().strftime('%Y-%m-%d')}")
                 print("   ✅ history.json auto-generated and pushed to GitHub")
         except PublishOutcomeUnknown as e:
+            publication_complete = False
+            sync._publication_uncertain = True
             print(f"   ⚠️ history.json push outcome UNKNOWN (non-critical): {e}")
         except Exception as e:
+            publication_complete = bool(args.output)
             print(f"   ⚠️ History generation failed (non-critical): {e}")
     
     data = sync.collect_training_data(days_back=args.days)
+    _installation_notice(data, getattr(sync, "installation_root", _installation_root()))
+    _local_update_notice(data, getattr(sync, "installation_root", _installation_root()),
+                         getattr(sync, "_suppress_update_notice", False))
     
     # Extract derived metrics for display
     dm = data.get("derived_metrics", {})
@@ -23339,8 +24435,11 @@ def _run_sync(sync, args, github_token, github_repo):
                                        commit_message=f"Update intervals.json - {datetime.now().strftime('%Y-%m-%d')}")
                 print(f"   📊 intervals.json pushed ({len(intervals_data['activities'])} activities)")
             except PublishOutcomeUnknown as e:
+                publication_complete = False
+                sync._publication_uncertain = True
                 print(f"   ⚠️ intervals.json push outcome UNKNOWN (non-critical): {e}")
             except Exception as e:
+                publication_complete = False
                 print(f"   ⚠️ intervals.json push failed (non-critical): {e}")
         
         # === PUBLISH ROUTES.JSON (GitHub mode) ===
@@ -23355,8 +24454,11 @@ def _run_sync(sync, args, github_token, github_repo):
                                        commit_message=f"Update routes.json - {datetime.now().strftime('%Y-%m-%d')}")
                 print(f"   🗺️  routes.json pushed ({len(routes_data.get('events', []))} event(s))")
             except PublishOutcomeUnknown as e:
+                publication_complete = False
+                sync._publication_uncertain = True
                 print(f"   ⚠️ routes.json push outcome UNKNOWN (non-critical): {e}")
             except Exception as e:
+                publication_complete = False
                 print(f"   ⚠️ routes.json push failed (non-critical): {e}")
 
         # === PUBLISH SAVED_WORKOUTS.JSON (GitHub mode) ===
@@ -23369,20 +24471,38 @@ def _run_sync(sync, args, github_token, github_repo):
                                        commit_message=f"Update saved_workouts.json - {datetime.now().strftime('%Y-%m-%d')}")
                 print(f"   📑 saved_workouts.json pushed ({sync._sw_status_line(saved_workouts_data)})")
             except PublishOutcomeUnknown as e:
+                publication_complete = False
+                sync._publication_uncertain = True
                 print(f"   ⚠️ saved_workouts.json push outcome UNKNOWN (non-critical): {e}")
             except Exception as e:
+                publication_complete = False
                 print(f"   ⚠️ saved_workouts.json push failed (non-critical): {e}")
         
-        # === UPDATE NOTIFICATIONS ===
-        try:
-            print("\n🔔 Checking for upstream updates...")
-            sync.check_upstream_updates()
-        except Exception as e:
-            if args.debug:
-                print(f"   ⚠️ Update check failed (non-critical): {e}")
+        # Local API runs use the post-data daily hook. Hosted maintenance is
+        # owned by the verified controller after data work.
     
-    # === MANIFEST UPDATE CHECK (local setups, once per 24h) ===
-    notify_if_updates_available()
+    # Unknown publication is distinct from definitive failure for maintenance.
+    return publication_complete
+
+
+def _installation_root():
+    script_root = Path(__file__).resolve().parent.parent
+    return script_root.parent if script_root.name == "section11" else Path.cwd()
+
+
+def main():
+    import sys
+    started_at = datetime.now(timezone.utc)
+    data_root = _installation_root()
+    if not any(a in sys.argv for a in ("--init", "--update", "--status", "--rollback", "--setup", "--generate-manifest")) and (
+            (data_root / "section11").exists() or (data_root / ".section11-state/transaction.json").exists()):
+        try:
+            with _distribution_lock(data_root):
+                return _main(installation_root=data_root, distribution_locked=True, started_at=started_at)
+        except DistributionBusy as exc:
+            print(str(exc))
+            return
+    return _main(installation_root=data_root, started_at=started_at)
 
 
 if __name__ == "__main__":

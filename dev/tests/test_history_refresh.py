@@ -289,7 +289,6 @@ def run_main(directory, now_utc, api, mode="output", extra_args=(), publish=None
             (contextlib.nullcontext() if write_latest else
              mock.patch.object(IntervalsSync, "save_to_file", return_value="latest.json")), \
             mock.patch.object(IntervalsSync, "publish_to_github", publish), \
-            mock.patch.object(IntervalsSync, "check_upstream_updates"), \
             mock.patch.object(sync_mod, "notify_if_updates_available"), \
             mock.patch.object(sync_mod, "_rotate_log_if_needed"), \
             contextlib.redirect_stdout(out):

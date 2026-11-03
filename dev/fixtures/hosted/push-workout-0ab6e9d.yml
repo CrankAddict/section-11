@@ -1,0 +1,227 @@
+# push.py v0.3 workflow — supports push, list, move, delete, set-threshold, annotate
+name: Push Workout to Intervals.icu
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Subcommand'
+        required: false
+        default: 'push'
+        type: choice
+        options:
+          - push
+          - list
+          - move
+          - delete
+          - set-threshold
+          - annotate
+      workouts:
+        description: 'JSON workout(s) — required for push'
+        required: false
+        type: string
+      event_id:
+        description: 'Event ID — for move/delete/annotate (planned)'
+        required: false
+        type: string
+      date:
+        description: 'Target date YYYY-MM-DD — for move'
+        required: false
+        type: string
+      oldest:
+        description: 'List start date (default: today)'
+        required: false
+        type: string
+      newest:
+        description: 'List end date (default: +6 days)'
+        required: false
+        type: string
+      sport:
+        description: 'Sport family or type — for set-threshold (cycling, Ride, run, etc.)'
+        required: false
+        type: string
+      ftp:
+        description: 'FTP — for set-threshold'
+        required: false
+        type: string
+      indoor_ftp:
+        description: 'Indoor FTP — for set-threshold'
+        required: false
+        type: string
+      lthr:
+        description: 'LTHR — for set-threshold'
+        required: false
+        type: string
+      max_hr:
+        description: 'Max HR — for set-threshold'
+        required: false
+        type: string
+      activity_id:
+        description: 'Activity ID — for annotate (completed)'
+        required: false
+        type: string
+      message:
+        description: 'Note text — for annotate'
+        required: false
+        type: string
+      chat:
+        description: 'Post to activity chat instead of description — for annotate'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      confirm:
+        description: 'Execute write (false = preview only)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Verify push.py exists
+        run: |
+          if [ ! -f push.py ]; then
+            echo "push.py not found in repository root!"
+            echo "Copy from https://github.com/CrankAddict/section-11/tree/main/examples/agentic/"
+            exit 1
+          fi
+          echo "push.py found"
+
+      - name: Verify secrets
+        run: |
+          if [ -z "${{ secrets.ATHLETE_ID }}" ]; then
+            echo "ATHLETE_ID secret not set!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.INTERVALS_KEY }}" ]; then
+            echo "INTERVALS_KEY secret not set!"
+            exit 1
+          fi
+          echo "Secrets configured"
+
+      - name: Run push.py
+        env:
+          ATHLETE_ID: ${{ secrets.ATHLETE_ID }}
+          INTERVALS_KEY: ${{ secrets.INTERVALS_KEY }}
+        run: |
+          CMD="${{ github.event.inputs.command }}"
+          CONFIRM="${{ github.event.inputs.confirm }}"
+
+          case "$CMD" in
+            push)
+              if [ -z "${{ github.event.inputs.workouts }}" ]; then
+                echo '{"success": false, "error": "workouts input is required for push"}'
+                exit 1
+              fi
+              cat << 'PAYLOAD_EOF' > /tmp/workouts.json
+          ${{ github.event.inputs.workouts }}
+          PAYLOAD_EOF
+              echo "Payload:"
+              cat /tmp/workouts.json
+              ARGS="push --json /tmp/workouts.json"
+              ;;
+            list)
+              ARGS="list"
+              if [ -n "${{ github.event.inputs.oldest }}" ]; then
+                ARGS="$ARGS --oldest ${{ github.event.inputs.oldest }}"
+              fi
+              if [ -n "${{ github.event.inputs.newest }}" ]; then
+                ARGS="$ARGS --newest ${{ github.event.inputs.newest }}"
+              fi
+              ;;
+            move)
+              if [ -z "${{ github.event.inputs.event_id }}" ] || [ -z "${{ github.event.inputs.date }}" ]; then
+                echo '{"success": false, "error": "event_id and date are required for move"}'
+                exit 1
+              fi
+              ARGS="move --event-id ${{ github.event.inputs.event_id }} --date ${{ github.event.inputs.date }}"
+              ;;
+            delete)
+              if [ -z "${{ github.event.inputs.event_id }}" ]; then
+                echo '{"success": false, "error": "event_id is required for delete"}'
+                exit 1
+              fi
+              ARGS="delete --event-id ${{ github.event.inputs.event_id }}"
+              ;;
+            set-threshold)
+              if [ -z "${{ github.event.inputs.sport }}" ]; then
+                echo '{"success": false, "error": "sport is required for set-threshold"}'
+                exit 1
+              fi
+              ARGS="set-threshold --sport ${{ github.event.inputs.sport }}"
+              if [ -n "${{ github.event.inputs.ftp }}" ]; then
+                ARGS="$ARGS --ftp ${{ github.event.inputs.ftp }}"
+              fi
+              if [ -n "${{ github.event.inputs.indoor_ftp }}" ]; then
+                ARGS="$ARGS --indoor-ftp ${{ github.event.inputs.indoor_ftp }}"
+              fi
+              if [ -n "${{ github.event.inputs.lthr }}" ]; then
+                ARGS="$ARGS --lthr ${{ github.event.inputs.lthr }}"
+              fi
+              if [ -n "${{ github.event.inputs.max_hr }}" ]; then
+                ARGS="$ARGS --max-hr ${{ github.event.inputs.max_hr }}"
+              fi
+              ;;
+            annotate)
+              if [ -z "${{ github.event.inputs.message }}" ]; then
+                echo '{"success": false, "error": "message is required for annotate"}'
+                exit 1
+              fi
+              ARGS="annotate --message \"${{ github.event.inputs.message }}\""
+              if [ -n "${{ github.event.inputs.activity_id }}" ]; then
+                ARGS="$ARGS --activity-id ${{ github.event.inputs.activity_id }}"
+              elif [ -n "${{ github.event.inputs.event_id }}" ]; then
+                ARGS="$ARGS --event-id ${{ github.event.inputs.event_id }}"
+              else
+                echo '{"success": false, "error": "activity_id or event_id is required for annotate"}'
+                exit 1
+              fi
+              if [ "${{ github.event.inputs.chat }}" = "true" ]; then
+                ARGS="$ARGS --chat"
+              fi
+              ;;
+            *)
+              echo '{"success": false, "error": "unknown command: '"$CMD"'"}'
+              exit 1
+              ;;
+          esac
+
+          # Add --confirm for write operations when approved
+          if [ "$CONFIRM" = "true" ] && [ "$CMD" != "list" ]; then
+            ARGS="$ARGS --confirm"
+          fi
+
+          echo "Running: python push.py $ARGS"
+          eval python push.py $ARGS
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "push.py failed! Check logs above."
+          echo "Common issues:"
+          echo "  - Invalid workout JSON format"
+          echo "  - Invalid date (must be today or future)"
+          echo "  - Event/activity ID not found"
+          echo "  - Intervals.icu API unreachable"

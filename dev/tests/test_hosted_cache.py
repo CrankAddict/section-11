@@ -1,6 +1,7 @@
 """Offline portable slow-cache contract; every producer clock is injected."""
 import contextlib
 import copy
+import hashlib
 import io
 import json
 import os
@@ -538,16 +539,26 @@ class HostedCase(unittest.TestCase):
 
 class Workflow(unittest.TestCase):
     def test_staging_and_promotion_execute_outside_checkout(self):
-        text = (REPO_ROOT / "examples/json-auto-sync/auto-sync.yml").read_text()
-        def block(name):
-            body = text.split("# BEGIN SLOW CACHE " + name + "\n")[1].split("# END SLOW CACHE " + name)[0]
-            return textwrap.dedent(body)
+        self.check_staging_and_promotion("json-auto-sync")
+
+    def test_on_demand_keeps_cache_and_export_context(self):
+        self.check_staging_and_promotion("json-on-demand")
+        self.check_pins_and_publication("json-on-demand")
+
+    def check_staging_and_promotion(self, method):
+        text = (REPO_ROOT / "examples" / method / "auto-sync.yml").read_text()
+        import sys
+        sys.path.insert(0, str(REPO_ROOT / 'examples/maintenance'))
+        import hosted
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             checkout, runner = root / "checkout", root / "temp"
             checkout.mkdir()
             runner.mkdir()
-            (checkout / "sync.py").write_text("synthetic producer")
+            (checkout / "sync.py").write_text("obsolete root bootstrap")
+            producer = checkout / "section11/examples/sync.py"
+            producer.parent.mkdir(parents=True)
+            producer.write_text("synthetic installed producer")
             output = root / "output.txt"
             env = {"RUNNER_TEMP": str(runner), "GITHUB_WORKSPACE": str(checkout), "GITHUB_OUTPUT": str(output),
                    "RUNNER_OS": "Linux", "GITHUB_REPOSITORY_ID": "12345",
@@ -556,43 +567,63 @@ class Workflow(unittest.TestCase):
             try:
                 os.chdir(checkout)
                 with mock.patch.dict(os.environ, env):
-                    exec(block("STAGING"), {})
+                    hosted.context({'source': str(checkout / 'section11'), 'published': True})
+                    hosted.cache_prepare()
                     stage = runner / "section11-slow-cache"
                     (stage / "next.json").write_text("{}")
-                    exec(block("PROMOTION"), {})
+                    hosted.cache_promote()
                     self.assertEqual((stage / "cache.json").read_bytes(), b"{}")
-                    self.assertEqual([p.name for p in checkout.iterdir()], ["sync.py"])
+                    self.assertEqual({p.relative_to(checkout).as_posix() for p in checkout.rglob('*') if p.is_file()},
+                                     {"sync.py", "section11/examples/sync.py"})
                     result = dict(line.split("=", 1) for line in output.read_text().splitlines())
                     self.assertEqual(result["ready"], "true")
                     self.assertTrue(result["key"].startswith(result["prefix"]))
+                    self.assertIn(hashlib.sha256(producer.read_bytes()).hexdigest(), result["prefix"])
+                    self.assertNotIn(hashlib.sha256((checkout / "sync.py").read_bytes()).hexdigest(), result["prefix"])
                     self.assertLess(len(result["key"]), 512)
                     (stage / "next.json").symlink_to(checkout / "sync.py")
                     with self.assertRaises(ValueError):
-                        exec(block("PROMOTION"), {})
+                        hosted.cache_promote()
             finally:
                 os.chdir(prior)
 
     def test_pins_order_conditions_and_publication_separation(self):
-        path = REPO_ROOT / "examples/json-auto-sync/auto-sync.yml"
+        self.check_pins_and_publication("json-auto-sync")
+
+    def check_pins_and_publication(self, method):
+        path = REPO_ROOT / "examples" / method / "auto-sync.yml"
         text = path.read_text()
-        names = ["Restore slow sources", "Run sync", "Verify generated data",
-                 "Publish data and update README", "Prepare changed slow sources for saving", "Save changed slow sources"]
+        names = ["Restore slow sources", "Run sync", "Publish data and update README",
+                 "Prepare changed slow sources for saving", "Save changed slow sources"]
         positions = [text.index("- name: " + name) for name in names]
         self.assertEqual(positions, sorted(positions))
         sha = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
         for action in ("restore", "save"):
             self.assertIn("actions/cache/" + action + "@" + sha + " # v6.1.0", text)
         self.assertEqual(text.count("path: ${{ runner.temp }}/section11-slow-cache/cache.json"), 2)
-        self.assertIn("steps.publish.outcome == 'success'", text)
+        self.assertIn("steps.publish.outputs.published == 'true'", text)
         self.assertIn("steps.sync.outputs.cache_changed == 'true'", text)
-        self.assertNotIn("always()", text)
+        save = text.split('- name: Save changed slow sources')[1].split('- name:')[0]
+        self.assertNotIn('always()', save)
         artifact = text.split("- name: Upload data files for download")[1].split("- name:")[0]
         self.assertNotIn("cache", artifact)
         self.assertNotIn("state", artifact)
-        publication = text.split("# BEGIN DATA PUBLICATION RULES")[1].split("# END DATA PUBLICATION RULES")[0]
+        self.assertIn('hosted.py" publish --wrapper-api 2', text)
+        publication = (REPO_ROOT / 'examples/maintenance/hosted.py').read_text().split('def publish_data():', 1)[1].split('\ndef ', 1)[0]
         self.assertNotIn("slow-cache", publication)
         self.assertNotIn("cache.json", publication)
-        self.assertIn("timeout-minutes: 15", text)
+        self.assertIn("cache-mode: write", text)
+        run = text.split("- name: Run sync")[1].split("- name:")[0]
+        self.assertIn('id: sync', run)
+        controller = (REPO_ROOT / 'examples/maintenance/hosted.py').read_text()
+        self.assertIn("'SECTION11_EXPORT_EVENT': info['event']", controller)
+        self.assertIn("'SECTION11_EXPORT_CRON': info['cron']", controller)
+        self.assertIn('hosted.py" sync --wrapper-api 2', run)
+        self.assertIn('id: publish', text.split('- name: Publish data and update README')[1].split('- name:')[0])
+        if method == 'json-on-demand':
+            self.assertNotIn('  schedule:', text)
+            self.assertIn('  workflow_dispatch:', text)
+        self.assertIn("timeout-minutes: 30", text)
         self.assertIn("cancel-in-progress: false", text)
 
 

@@ -6,29 +6,75 @@ Export Intervals.icu data locally for different time ranges.
 
 ## Prerequisites
 
-- Python 3.8+
-- `requests` library: `pip install requests`
+- Python 3.11 or newer
+- `requests` library in that interpreter: `python3 -m pip install requests` (Windows: `py -3 -m pip install requests`)
 - [Intervals.icu](https://intervals.icu) account with training data
+
+Check `python3 --version` and `python3 -c "import requests"` first (PowerShell: `py -3 --version` and `py -3 -c "import requests"`). macOS `/usr/bin/python3` is too old (3.9); select Python 3.11 or newer.
+
+If pip reports `externally-managed-environment` (Homebrew Python or recent Debian/Ubuntu), create a venv **outside the data folder**, which is often cloud-synced: `python3 -m venv "$HOME/.venvs/section11"`, then `"$HOME/.venvs/section11/bin/python" -m pip install requests`. Run the bootstrap `--init` with `"$HOME/.venvs/section11/bin/python"` and use it for later commands so the standard timer uses it too. Windows equivalent: `py -3 -m venv "$env:LOCALAPPDATA\Section11\venv"`, then `& "$env:LOCALAPPDATA\Section11\venv\Scripts\python.exe" -m pip install requests`; use `& "$env:LOCALAPPDATA\Section11\venv\Scripts\python.exe"` instead of `py -3` below.
 
 ## First-Time Setup
 
-Download sync.py from the [Section 11 repository](https://github.com/CrankAddict/section-11/tree/main/examples):
+Use the same [verified release bootstrap and data-folder setup](../json-local-sync/SETUP.md#initial-setup)
+as every local user. Download the canonical ZIP from the official date release,
+extract it outside the data folder, then run from your data folder:
 
 ```bash
-curl -O https://raw.githubusercontent.com/CrankAddict/section-11/main/examples/sync.py
+mkdir -p "$HOME/training-data" && cd "$HOME/training-data"
+python3 "$HOME/Downloads/section11-bootstrap/section11/examples/sync.py" --init
 ```
 
 Then configure your credentials:
 
 ```bash
-python3 sync.py --setup
+python3 section11/examples/sync.py --setup
 ```
 
 Enter your Intervals.icu credentials when prompted. Config saves to `.sync_config.json`.
 
+Create a new dossier only if you have none already, then run the first export:
+
+```bash
+[ -e DOSSIER.md ] || [ -L DOSSIER.md ] || cp section11/DOSSIER_TEMPLATE.md DOSSIER.md
+SECTION11_EXPORT_MODE=manual python3 section11/examples/sync.py --output latest.json
+```
+
+**Windows PowerShell:** extract the same release ZIP outside the data folder, then:
+
+```powershell
+$DataFolder = Join-Path $HOME "Training data" # e.g. C:\Users\René Martin\Training data
+New-Item -ItemType Directory -Path $DataFolder -Force | Out-Null
+Set-Location -LiteralPath $DataFolder
+py -3 "$HOME\Downloads\section11-bootstrap\section11\examples\sync.py" --init
+py -3 ".\section11\examples\sync.py" --setup
+if (-not (Get-ChildItem -LiteralPath . -Force -ErrorAction Stop | Where-Object Name -eq "DOSSIER.md")) {
+    Copy-Item -LiteralPath ".\section11\DOSSIER_TEMPLATE.md" -Destination ".\DOSSIER.md" -ErrorAction Stop
+}
+$env:SECTION11_EXPORT_MODE = "manual"
+py -3 ".\section11\examples\sync.py" --output ".\latest.json"
+Remove-Item Env:SECTION11_EXPORT_MODE
+```
+
+Root `DOSSIER.md` is the authoritative dossier; uploads are delivery copies. If a dossier already lives elsewhere, use that copy until you move it to the data-folder root yourself; the AI asks once and never moves or copies it. Do not create a competing dossier. Keep a repository containing it private; Git keeps old versions.
+
+Auto sync is installed by default, including through this guide. To choose running
+only by hand, add `--no-timer` to `--init` or a later `--update`; this persists
+`"auto_sync": false` so updates never re-add a timer. `--timer` re-enables it.
+The installer uses one acceptance, removes unprotected copies by the [shared name rule](../maintenance/UPDATING.md#local-updates-and-automatic-toggle), and creates
+missing custom guidance. Existing root/manual or copy-only folders use that same
+bootstrap with `--update`, preserving data, credentials and export choices.
+Outside `section11/`, any file in any folder named exactly like a release or
+historical Section 11 file is removed, except the keep list in the update guide.
+Protection ignores case; removal requires exact spelling. Keep your own files in
+`custom/` or outside the data folder. Every removal is listed before acceptance
+and logged in full mode. The rollback ZIP is short-term recovery until the next
+changing install, not a backup; only unprotected parents emptied by removal are pruned.
+
 Normal exports keep private request accounting and cached responses in `<data folder>/state/`, beside the selected output file, between runs. It contains `request-budget/<identity>/`, `sources/<identity>/` and a `README.md` written by sync.py. `SECTION11_STATE_DIR` replaces this whole state folder, with all three inside it. Deleting state makes the next run larger and resets the local count; never delete it to force requests. Inactive hash-named subfolders from an earlier API key or data-folder location can be deleted; the active one changes on every check. See [Private sync state](../json-local-sync/SETUP.md#private-sync-state).
 
-Upload only the normal exported data to the AI. State is not part of those JSON files or the supplied publication paths. If you cloud-sync the whole data folder, state is uploaded too, and a whole-folder connector can technically read it. `data_overview.state_note` and `READ_THIS_FIRST.state_note` in latest.json explicitly tell AI tools to ignore `state/`; use the exported `source_freshness` summary for status.
+Upload the exported data with the installed files as described in [Use with AI](#use-with-ai).
+State is not part of those JSON files or the supplied publication paths. If you cloud-sync the whole data folder, state is uploaded too, and a whole-folder connector can technically read it. `data_overview.state_note` and `READ_THIS_FIRST.state_note` in latest.json explicitly tell AI tools to ignore `state/`; use the exported `source_freshness` summary for status.
 
 We recommend one setup per user. Before changing the sync path or moving machines, stop any old timer or workflow first to protect Intervals.icu. The count is per data folder, API key and athlete; separate folders do not coordinate.
 
@@ -44,13 +90,13 @@ Declare the invocation as Manual before exporting: `export SECTION11_EXPORT_MODE
 
 ```bash
 # Last 7 days (default)
-python3 sync.py --output latest.json
+python3 section11/examples/sync.py --output latest.json
 
 # Last 14 days
-python3 sync.py --days 14 --output 14days.json
+python3 section11/examples/sync.py --days 14 --output 14days.json
 
 # Last 90 days
-python3 sync.py --days 90 --output 90days.json
+python3 section11/examples/sync.py --days 90 --output 90days.json
 ```
 
 ### Common time ranges
@@ -65,7 +111,7 @@ python3 sync.py --days 90 --output 90days.json
 
 ### Repository delivery
 
-Use [GitHub sync](../json-auto-sync/SETUP.md) or [On-demand sync](../json-on-demand/SETUP.md) for repository delivery through the shared workflow. The legacy direct API publisher is not one of the four supported setup paths.
+Use [GitHub sync](../json-auto-sync/SETUP.md) or [On-demand sync](../json-on-demand/SETUP.md) for repository delivery through the shared workflow. The legacy direct API publisher is not one of the four supported setup paths. Existing local API publishers keep their destination and private configuration and run `python3 section11/examples/sync.py` without `--output`. Release maintenance follows data work, including definitive failure or defer, using the same half/full policy as file exports. An unknown data publication holds maintenance for reconciliation and is never retried.
 
 ### Request allowance
 
@@ -125,13 +171,24 @@ No extra Manual export steps are needed for 11.80. Sync writes companions next t
 
 **Option 1: Upload files**: Upload `latest.json` and `history.json` to your AI platform for a complete analysis with longitudinal context. Upload `intervals.json` when you want detailed post-workout analysis of structured sessions. Upload `routes.json` (if present) when you want terrain-aware coaching for planned events. Upload `saved_workouts.json` on demand, when you want to select, reuse, or discuss one of your saved workouts.
 
+Include `DOSSIER.md` if used and a ZIP of the `section11/` folder only, so the chat has the installed
+protocol and templates. Never zip the whole data folder: credentials and rollback
+state stay private. An uploaded ZIP is a snapshot; re-upload for fresh data and
+after updates, replacing the previous upload.
+
 **Option 2: Repository delivery**: Follow the GitHub or On-demand setup above, then the [main README setup guide](../../README.md#web-chat-setup) for configured AI access.
 
 **Option 3: Use with agentic platforms**: Claude Code, Claude Cowork, OpenAI Codex CLI, Gemini CLI, OpenClaw, and Hermes read files directly from whatever filesystem their runtime can reach; where that runtime is the machine holding your exported files, no GitHub is needed. Point the agent at the folder containing your exported JSON files. Grok Bot is **experimental** and its filesystem is provider-hosted, so the data reaches it by connector or authenticated repository rather than from your disk; capability class is not a support promise. See the [agentic setup guide](../../README.md#agentic-setup).
 
 ### Automate it
 
-Want sync.py to run automatically on a timer? See [json-local-sync](../json-local-sync/SETUP.md).
+Automatic maintenance follows the same daily rule as Local; see
+[Updating Section 11](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
+Manual-only setups check only when you run them. Half mode exports a fixed
+`update_notice` for an outstanding verified update or repair.
+
+Auto sync is already the installation default. For timer status and the persistent
+manual-only opt-out, see [json-local-sync](../json-local-sync/SETUP.md#automate-the-refresh).
 
 ---
 
@@ -140,6 +197,8 @@ Want sync.py to run automatically on a timer? See [json-local-sync](../json-loca
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--setup` | Run setup wizard | - |
+| `--init` / `--update` | Install the latest verified release and auto sync with one acceptance | half release-update policy |
+| `--no-timer` / `--timer` | Persist auto sync off/on during init or update | on |
 | `--days N` | Days of data to export | 7 |
 | `--output FILE` | Save to local file | - |
 | `--week-start DAY` | Training week start day (mon/tue/wed/thu/fri/sat/sun) | mon |
@@ -154,7 +213,7 @@ Want sync.py to run automatically on a timer? See [json-local-sync](../json-loca
 ## Troubleshooting
 
 ### "Config not found" error
-Run `python3 sync.py --setup` first.
+Run `python3 section11/examples/sync.py --setup` first.
 
 ### Empty or missing data
 - Check your API key is valid

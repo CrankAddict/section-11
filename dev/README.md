@@ -16,18 +16,15 @@ run does not reach.
 
 `--init` installs exactly the files listed in the update manifest, plus the
 manifest itself, after checking each file against the hash the manifest records.
+Date-release installations also include `.section11-release.json`, a verified
+provenance receipt. Local updates retain one rollback ZIP outside `section11/`,
+short-term recovery until the next changing install, not a backup;
+neither `.section11-state/` nor private data belongs in release packages.
 `--update` refreshes the same list. The manifest generator excludes `.github`,
 other hidden paths, this repository-root `dev/` folder, dependency directories and
 cache directories, so none of them reaches an athlete installation. New tests are
-still committed here; they are not shipped through athlete updates.
-
-Installations created by an older `--init` may still hold `section11/.github` and
-`section11/dev`, which `--update` does not refresh. Where `section11/` is not a
-Git checkout, `--update` offers to move them to `section11-legacy-github/` and
-`section11-legacy-dev/` beside `section11/`. It asks only in an interactive
-terminal, moves them only when the word `move` is typed there, and never deletes
-them. A `dev/` folder that stays is left out of
-the orphan cleanup.
+still committed here; they are not shipped through athlete updates. The maintainer
+release tools are described in [RELEASING.md](RELEASING.md), which is not shipped either.
 
 For development or reviews that depend on the tests, the website or GitHub
 workflows, use a current Git checkout or a verified, commit-pinned
@@ -37,9 +34,52 @@ setup.
 
 ## Running
 
-`test_weather_demand_workflows.py` covers new point/hour demand through a closed refresh gate, unchanged-demand throttling, failure/Retry-After migration, point batching, bounded timeout splitting and cached repeats. It also checks optional repository-variable wiring and the push workflow's time argument construction, including malformed inputs. The bounded shell check runs only the extracted argument builder with synthetic inputs, never push.py or a dispatched workflow.
+`test_weather_demand_workflows.py` covers new point/hour demand through a closed refresh gate, unchanged-demand throttling, failure/Retry-After migration, point batching, bounded timeout splitting and cached repeats. It also checks optional repository-variable wiring and the managed push dispatcher's time argument construction with synthetic inputs, including malformed values. No workflow is dispatched.
 
-`test_data_overview.py` exercises companion discovery, relative paths, output placement, local-time/DST labels, 16-point wind directions and compact snapshots after display additions. It extracts the exact self-contained Python publication rules from `auto-sync.yml` for offline validation, fallback, deletion and reset/retry restoration tests. No GitHub or Git operation is needed. The workflow embeds the tested rules so users replace only sync.py and the workflow for 11.80, with no third bootstrap file.
+`test_data_overview.py` exercises companion discovery, relative paths, output placement, local-time/DST labels, 16-point wind directions and compact snapshots after display additions. It loads the exact self-contained Python publication rules from `examples/maintenance/validate_data.py` for offline validation, fallback, deletion and reset/retry restoration tests. No GitHub or Git operation is needed. Athlete setups install the complete managed release and matching owner-controlled wrappers; see [updates](../examples/maintenance/UPDATING.md).
+
+`test_fix_round.py` turns the twelve undecided-behaviour probes into regression
+checks for the common 04:00 UTC rule, reruns and failure claims, same-date notices,
+rollback beyond unrelated history, exact prior edited trees, no-op slot retention,
+README setup and bounded
+release discovery. Only the common local transaction schema 3 remains; release
+receipts retain schema 1. Retired installers, launchers and the prototype kit are
+removed. `test_fix_round2.py` turns repeat-audit probes R01-R10 into acceptance
+regressions for complete metadata repair, verified custom guidance, early daily
+claims, early data failure and unknown-publication
+holds, explicit policy independence, guidance-only rollback retention, failed
+re-check reminders and invocation-start timing. Scheduler and service operations
+remain synthetic; these tests do not establish live platform acceptance.
+`test_fix_round3.py` converts Q01-Q05 into regressions for hosted pending plans
+before full installation, timer-only reminder resolution, one current rollback
+suppression date and schedule examples with data-job-only allowance arithmetic.
+`test_timer_simple.py` covers standard-only timers, exact cron-marker preservation,
+configured intervals, opt-out and targeted rollback; retired migration tests are removed. It checks related failure, unknown-write,
+explicit, automatic, first-install and rollback paths, plus the approved Python
+prerequisite text. Billing arithmetic uses the guides' stated assumptions only.
+`test_update_round3.py` covers local config/CLI opt-in, post-data invocation,
+UTC daily attempts, verified installation, receiptless adoption, no prompts,
+downgrade refusal, rollback with later custom edits, and handled switch failures.
+Earlier update suites retain adoption, request-budget and trusted validation
+regressions. The direct hosted tests in `test_b2_hosted.py`, `test_b2_workflow.py`
+and `test_b2_integration.py` replace retired PR lifecycle expectations. They cover
+synthetic sealed pins and unsealed refusal, real historical fixtures, literal
+dispatch arguments, exact parent/tree publication, unknown outcomes, daily
+claims, rollback and data/cache isolation. All transport is mocked; actual Actions,
+branch policy, scheduling, publication and production Python parity need owner tests.
+
+`test_b1_local.py` covers the common accepted local installer, whole-tree replacement,
+timer adapters under mocked OS commands, persistent opt-out, root-tool recovery,
+ordinary clone recovery, consent and unknown scheduler outcomes. Frozen historical
+executables under `dev/fixtures/b1-legacy/` are offline test inputs, never installed
+or imported by the producer. `test_update_round9a.py` retains release safety and
+notice coverage. Conversion is a structural layout property; a damaged manifest
+with a readable receipt is a repair, while unknown chronology still requires
+explicit acceptance. The permanent legacy entry contract keeps `manifest.json` with its
+path-to-hash `files` map and `examples/sync.py` at their published paths. Every
+listed manifest path must remain fetchable. `changelog.json` is still produced;
+its eventual retirement is a separate owner decision, not part of that permanent
+entry contract.
 
 `test_weather_map_design.py` covers name fitting/wrapping/ellipsis, unchanged full names, distance-dominant labels, ordered pagination and publication, page cleanup/symlinks, size bounds and the embedded antialiased glyph atlas. Synthetic extra bands test pagination without changing the six-point weather sampler. The atlas derives from supplied Lato Regular with geometric arrow fallbacks; its OFL licence is inline in sync.py and in the root third-party notices.
 
@@ -278,8 +318,7 @@ GitHub Actions run variables from its environment while it runs and sets them
 explicitly per case, so it gives the same results inside GitHub Actions. It needs
 `time.tzset()` and is skipped where it is unavailable.
 
-`test_init_update_distribution.py` covers what `--init` installs and how `--update`
-treats folders it no longer manages, in `sync.py` v3.138. Every archive is a
+`test_init_update_distribution.py` covers manifest-scoped `--init`. Every archive is a
 synthetic zip built in memory and every install lives in a temporary directory. For
 `--init`: the installed set is exactly the archive manifest's file list plus
 `manifest.json`; `.github`, hidden files, unlisted files and the root `dev/` folder
@@ -290,19 +329,9 @@ device or socket, and a wrong archive root each install nothing and keep the
 bootstrap `sync.py`, while entries declared regular or with no declared type
 install; an existing `section11/` is left alone. For the generator:
 only the repository-root `dev/` is excluded, a nested `dev` folder is still listed,
-and what it lists is what `--init` installs. For `--update` on an older install:
-the move offer for `.github` and an unmanaged `dev/` is made only when standard
-input is a terminal and acts only on the typed word `move`; piped or redirected
-input is never read for it, even when it contains that word, and the
-interactivity check fails closed; Enter, `y`, `yes`, EOF and Ctrl+C keep both; a taken backup name is never
-overwritten; a failed rename keeps the original; modified and added files move
-byte for byte; a Git checkout is not offered and a symlink is left alone; `dev/` is
-not offered while the upstream manifest still lists it; and a `dev/` that stays is
-never listed or deleted by the orphan cleanup, even when that prompt is answered
-yes, while an ordinary orphan still is. The Git-checkout test, the terminal check
-and the symlink test are substituted, and special file types exist only as modes in
-an in-memory zip, so no test creates a `.git` directory, a terminal, a symlink or a
-special file.
+and what it lists is what `--init` installs. Special file types exist only as modes
+in an in-memory zip; no test creates them on disk. Shared update fixtures also
+support the report-transition tests.
 
 ## DFA drift producer
 

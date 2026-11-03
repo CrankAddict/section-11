@@ -1,73 +1,70 @@
-<!-- 
+<!--
   DATA REPO README TEMPLATE
-  
-  Replace these placeholders:
-    YOUR_GITHUB_USER  → your GitHub username
-    YOUR_REPO_NAME    → your repository name
-  
-  Then delete this comment block.
+  YOUR_GITHUB_USER and YOUR_REPO_NAME are filled when this page is generated.
 -->
 
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
+# Your Section 11 training data
 
-# Training Data Pipeline
-
-`interval_data.plan_match` supplies timeline labels; `interval_data.compliance` summarizes gated Section 11 evidence from session_structure; `interval_data.icu_detected` is descriptive only. See [Which interval data to use](https://github.com/CrankAddict/section-11/blob/main/SECTION_11.md#which-interval-data-to-use).
+Your training-data repository, synced from [Intervals.icu](https://intervals.icu)
+for Section 11 coaching.
 
 ![Sync Status](https://github.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/actions/workflows/auto-sync.yml/badge.svg)
 
 **Last successful sync:** _updated automatically_
 
-Automated training data pipeline from [Intervals.icu](https://intervals.icu) for AI coaching analysis.
-Built on the [Section 11 Protocol](https://github.com/CrankAddict/section-11).
-
 ## Sync Now
 
-[🔄 Sync Now](../../actions/workflows/auto-sync.yml): tap **Run workflow** (keep the default branch selected) to request a fresh sync, for example after a workout. If another sync is already running or queued, your run waits its turn. When the run completes, the new data is committed here, and the **training-data** artifact ZIP on the run page can be downloaded for seven days.
+[🔄 Sync Now](../../actions/workflows/auto-sync.yml): choose **Run workflow** on the
+default branch to refresh your data, for example after a workout. The files here
+are updated when the sync succeeds.
 
-## Data URLs
+## What is here
 
-| File | Description | Link |
-|------|-------------|------|
-| `latest.json` | Current 7-day snapshot + derived metrics + 28-day structure summaries + terrain & weather summaries | [View](https://github.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/blob/main/latest.json) |
-| `history.json` | Longitudinal data (daily/weekly/monthly) | [View](https://github.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/blob/main/history.json) |
-| `intervals.json` | Interval/DFA and completed-session structure detail (14 days) | [View](https://github.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/blob/main/intervals.json) |
-| `routes.json` | Route/terrain data, route weather, forecast bands and map metadata for planned events with GPX/TCX attachments (`events` is empty when there are none) | [View](https://github.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/blob/main/routes.json) |
-| `maps/weather/` | Private route weather PNG pages, bound to the matching brief in routes.json | [View](https://github.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/tree/main/maps/weather) |
-| `route_eta_history.json` | Rolling 180-day riding-time calibration | [View](https://github.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/blob/main/route_eta_history.json) |
-| `saved_workouts.json` | Read-only mirror of your Intervals.icu saved workouts | [View](https://github.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/blob/main/saved_workouts.json) |
+- `latest.json`: your current training snapshot.
+- `history.json`: longer-term training trends.
+- `intervals.json`: interval and completed-session details.
+- `routes.json`: planned routes, terrain and route weather.
+- `saved_workouts.json`: your saved Intervals.icu workouts.
+- `ftp_history.json`: FTP change history.
+- `route_eta_history.json`: riding-time calibration history.
+- `maps/weather/`: route-weather PNG pages.
+- `archive/`: daily copies of latest.json.
+- `section11/`: the installed protocol (`SECTION_11.md`), report templates
+  (`examples/reports/`) and Workout Reference Library.
+- `custom/`: your own files and notes.
+- `DOSSIER.md`: your private athlete dossier, if you use one, kept here in the root. It can contain sensitive personal and health details, so keep this repository private; Git keeps old versions, so deleting it later does not erase it.
 
-`latest.json.data_overview` lists these companions and their availability. It includes routed rides of any route status from the 90-day event fetch, but unrouted rides only within 120 h. Later routed rides retain route/climb details with weather status and map reason `beyond_horizon`. `rides_without_route_beyond_horizon` counts later unrouted rides excluded from the list; `rides_total` counts eligible rides before the 64-ride cap, and `rides_omitted` counts only cap overflow.
+See the installed
+[field reference](section11/examples/json-examples/README.md) for file details.
 
-## Auto-Sync
+## Use with your AI
 
-The GitHub Actions workflow in `.github/workflows/auto-sync.yml` keeps this data current. How often it runs on its own depends on the installed workflow: the standard auto-sync workflow checks every 30 minutes by default, and GitHub may delay or skip scheduled runs; the on-demand workflow syncs only when you use Sync Now. For Default, Fast and hybrid schedules, see the [setup guide](https://github.com/CrankAddict/section-11/blob/main/examples/json-auto-sync/SETUP.md#sync-schedule-and-github-actions-usage). A hybrid schedule checks more often during an active window fixed in UTC, so its local-clock hours can shift when daylight saving time starts or ends. The pipeline pulls activities, wellness, and planned workouts from the Intervals.icu API, calculates derived metrics (ACWR, monotony, polarization, phase detection), and generates graduated alerts.
+Connect your AI to this repository with a connector or link first. Otherwise,
+choose **Code > Download ZIP** and give the ZIP to your chat or project. It is a
+snapshot: re-upload for fresh data and after updates.
 
-## AI Analysis
+For example:
 
-With the updated workflow, GitHub sync and On-demand can use 4 Intervals.icu requests on a quiet slow-cache hit instead of about 31; first runs, refreshes and misses cost more. Only profile settings, aggregate curves and current-window messages persist in a plain Actions cache outside this repository. Raw core responses and accounting stay runner-only. Neither `state/` nor the cache is committed or included in the download, and AI tools must ignore both. `latest.json.source_freshness` carries source status, acquisition age, invocation counts and warnings. Hosted runs have no daily allowance controller or step-down. Restoring never resets source age; null age means unknown. See the [field reference](https://github.com/CrankAddict/section-11/blob/main/examples/json-examples/README.md#source-freshness) and [cache disclosure](https://github.com/CrankAddict/section-11/blob/main/examples/json-auto-sync/SETUP.md#private-state-and-request-limits).
+> Analyze my training using latest.json, history.json, intervals.json, routes.json,
+> saved_workouts.json and ftp_history.json, with
+> section11/SECTION_11.md and the report templates in section11/examples/reports/ and DOSSIER.md if present.
 
-**GitHub connector or authenticated repository access (private repository):** connect this repository to your AI, then ask:
+Raw links work only if this repository is public; then everything here is public, so never make a repository with your dossier public.
 
-```
-Analyze my training using these files from the YOUR_GITHUB_USER/YOUR_REPO_NAME repository: latest.json, history.json, intervals.json, routes.json and saved_workouts.json.
-```
+## Updates
 
-**Public repository with URL fetch:** use this only if this repository is public. Everything committed here, including the training data, is then readable by anyone.
+By default, a notice tells you when an update is available. Choose **Update** in
+the sync workflow to install it, **Status** to review the plan, or **Rollback** to
+restore the previous installation. Set repository variable
+`SECTION11_AUTO_UPDATE=true` to opt into automatic updates.
 
-```
-Analyze my training using these data files:
-- Current: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/latest.json
-- History: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/history.json
-- Intervals: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/intervals.json
-- Routes: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/routes.json
-- Saved workouts: https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO_NAME/main/saved_workouts.json
-```
+This page is refreshed at every install, update and rollback; keep personal notes
+in `custom/`. See the installed [update guide](section11/examples/maintenance/UPDATING.md).
 
-**Private repository without a connector:** use [Sync Now](#sync-now), then upload the JSON files from the **training-data** artifact. Plain raw URLs do not work for a private repository.
-
-For best results, pair with the [Section 11 instruction set](https://github.com/CrankAddict/section-11).
+Outside `section11/`, updates remove exact release or historical Section 11 filenames
+in any folder, except the guide's keep list. Protection ignores case. Keep personal
+files in `custom/` or outside this repository; Git retains removed files.
 
 ## License
 
-[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): Free for personal and non-commercial use. Attribution required.
+The Section 11 files in `section11/` are [MIT licensed](section11/LICENSE).

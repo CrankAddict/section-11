@@ -26,12 +26,11 @@ def tearDownModule():
 
 
 def workflow_rules():
-    """Extract the exact shipped Python block; no YAML library or GitHub needed."""
-    path = SYNC_PATH.parent / 'json-auto-sync/auto-sync.yml'
-    text = path.read_text()
-    block = text.split('          # BEGIN DATA PUBLICATION RULES\n', 1)[1].split('          # END DATA PUBLICATION RULES', 1)[0]
+    """Load the shipped standalone rules; no YAML library or GitHub needed."""
+    path = SYNC_PATH.parent / 'maintenance/validate_data.py'
+    block = path.read_text()
     namespace = {'__name__': 'offline_publication_rules'}
-    exec(compile(textwrap.dedent(block), str(path), 'exec'), namespace)
+    exec(compile(block, str(path), 'exec'), namespace)
     return namespace
 
 

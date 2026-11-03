@@ -1,10 +1,5 @@
 """
-Tests for what --init installs and how --update treats folders it does not manage.
-
-Origin: written for sync.py v3.138, which makes --init install exactly the files
-the archive's own manifest.json lists, drops the repository-root dev/ folder from
-the manifest, and offers a recoverable move for .github and dev/ left in
-section11/ by an older --init. Behaviour is validated against the current sync.py.
+Tests for manifest-scoped --init installation and shared distribution fixtures.
 
 Standard library only: unittest and unittest.mock, no third-party test packages,
 no real athlete data, no network. Importing sync.py does require `requests`, its
@@ -20,15 +15,9 @@ Seams:
     (one top-level folder), and handed to do_init through a patched requests.get;
   * every installation lives in a TemporaryDirectory nested one level down, so a
     write that escaped the data directory would show up in the outer snapshot;
-  * do_update gets its manifest from a patched _fetch_upstream_manifest and its
-    answers from a patched input(), which is how Enter, y, EOF and Ctrl+C are
-    told apart;
-  * whether standard input is a terminal is stated through sync.py's
-    _stdin_is_interactive helper: True for a person at a terminal, False for a
-    yes pipe or redirected input. No terminal is created;
-  * the Git-checkout test is replaced through sync.py's _is_git_checkout helper,
-    and a symlinked folder through Path.is_symlink. No test creates a .git
-    directory or a real symlink;
+  * do_update receives a patched verified release and input() answers;
+  * the Git-checkout test is replaced through sync.py's _is_git_checkout helper.
+    No test creates a .git directory;
   * file types other than regular exist only as the mode an in-memory zip entry
     declares. No FIFO, device, socket or symlink is ever created.
 
@@ -51,6 +40,7 @@ from unittest import mock
 
 from _harness import (NetworkBlocked, SYNC_PATH, install_verb_guard,
                       load_module_by_path, restore_verb_guard)
+from _local_timer_fakes import fake_timers
 
 sync_mod = load_module_by_path("s11_sync_distribution", SYNC_PATH)
 requests = sync_mod.requests
@@ -80,6 +70,7 @@ MANAGED = {
     "README.md": b"readme\n",
     "SECTION_11.md": b"protocol\n",
     "examples/sync.py": b"# repository sync.py\n",
+    "examples/maintenance/CUSTOM_README.md": (SYNC_PATH.parent / "maintenance/CUSTOM_README.md").read_bytes(),
     "examples/tools/dev/notes.md": b"nested dev folder, still managed\n",
 }
 # Present in a full repository archive, never installed.
@@ -198,10 +189,17 @@ def run_init(archive=None, error=None, existing=None, bootstrap=True):
             write_tree(data_dir / "section11", existing)
         get = mock.Mock(side_effect=error) if error else mock.Mock(return_value=FakeResponse(archive))
         output = io.StringIO()
-        with working_directory(data_dir), mock.patch.object(requests, "get", get), \
+        def verified_release():
+            response = get("https://example.invalid/pinned-release.zip", timeout=60)
+            response.raise_for_status()
+            raw, files = sync_mod.Distribution.archive(response.content, source_archive=True)
+            return raw, files, {"commit": "a" * 40, "tag": "2026.10.23"}
+        with working_directory(data_dir), mock.patch.object(sync_mod, "_fetch_verified_release", verified_release), \
+                mock.patch.object(sync_mod, 'LocalTimers', fake_timers(sync_mod.LocalTimers)), \
+                mock.patch('builtins.input', return_value='y'), \
                 contextlib.redirect_stdout(output):
             sync_mod.do_init()
-        return InitResult(snapshot(outer), output.getvalue(), get)
+        return InitResult({p: b for p, b in snapshot(outer).items() if "/.section11-state/" not in p}, output.getvalue(), get)
 
 
 # ── --init: the manifest decides ─────────────────────────────────────────────
@@ -213,6 +211,8 @@ class TestInitInstallsManifestFiles(unittest.TestCase):
         result = run_init(repo_archive(manifest))
         expected = dict(MANAGED)
         expected["manifest.json"] = manifest_bytes(manifest)
+        expected[sync_mod.Distribution.RECEIPT] = sync_mod.Distribution.receipt(
+            expected["manifest.json"], {"commit": "a" * 40, "tag": "2026.10.23"})
         self.assertEqual(result.installed, expected,
                          "--init must install the manifest's files and manifest.json, byte for byte, and nothing else")
 
@@ -223,17 +223,20 @@ class TestInitInstallsManifestFiles(unittest.TestCase):
         self.assertIn("examples/tools/dev/notes.md", result.installed,
                       "a nested folder named dev is managed; only the repository-root dev/ is excluded")
 
-    def test_nothing_is_written_outside_section11(self):
+    def test_only_absent_custom_directory_is_initialized_outside_section11(self):
         result = run_init(repo_archive())
         outside = [p for p in result.files if not p.startswith("data/section11/")]
-        self.assertEqual(outside, [], "a successful --init removes the bootstrap and writes nowhere else")
+        self.assertEqual(outside, ["data/custom/README.md"])
 
     def test_unlisted_members_are_never_read_from_the_archive(self):
         read_names = []
         real_read = zipfile.ZipFile.read
 
         def recording_read(zf, name, *args, **kwargs):
-            read_names.append(name.filename if isinstance(name, zipfile.ZipInfo) else name)
+            # The downloaded release uses BytesIO; recovery ZIPs use local paths.
+            # Observe every release read, including any unlisted member.
+            if zf.filename is None:
+                read_names.append(name.filename if isinstance(name, zipfile.ZipInfo) else name)
             return real_read(zf, name, *args, **kwargs)
 
         with mock.patch.object(zipfile.ZipFile, "read", recording_read):
@@ -244,10 +247,10 @@ class TestInitInstallsManifestFiles(unittest.TestCase):
     def test_one_archive_request_and_no_other_network_call(self):
         result = run_init(repo_archive())
         self.assertEqual(result.get.call_count, 1, "--init must not fetch the manifest or files separately")
-        self.assertIn("archive/refs/heads/main.zip", result.get.call_args.args[0])
+        self.assertIn("pinned-release.zip", result.get.call_args.args[0])
         self.assertEqual(result.get.call_args.kwargs.get("timeout"), 60)
 
-    def test_bootstrap_is_removed_only_after_a_verified_install(self):
+    def test_bootstrap_is_removed_after_a_verified_install(self):
         result = run_init(repo_archive())
         self.assertNotIn("data/sync.py", result.files)
         self.assertIn("Setup complete", result.output)
@@ -258,12 +261,14 @@ class TestInitInstallsManifestFiles(unittest.TestCase):
         self.assertEqual(result.files.get("data/sync.py"), BOOTSTRAP,
                          "without an installed examples/sync.py the bootstrap is the only copy and must stay")
 
-    def test_existing_section11_is_left_alone_without_a_download(self):
+    def test_existing_section11_uses_the_same_accepted_installer(self):
         existing = {"README.md": b"my existing install\n", ".github/old.yml": b"old\n"}
         result = run_init(repo_archive(), existing=existing)
-        self.assertEqual(result.installed, existing, "an existing section11/ must never be overwritten")
-        self.assertEqual(result.get.call_count, 0)
-        self.assertEqual(result.files.get("data/sync.py"), BOOTSTRAP)
+        self.assertEqual(result.installed['README.md'], MANAGED['README.md'])
+        self.assertNotIn('.github/old.yml', result.installed)
+        self.assertEqual(result.get.call_count, 1)
+        self.assertNotIn('data/sync.py', result.files)
+        self.assertIn(sync_mod.CONVERSION_WARNING, result.output)
 
     def test_download_failure_installs_nothing(self):
         result = run_init(error=requests.exceptions.ConnectionError("offline"))
@@ -283,7 +288,7 @@ class TestInitRejectsInconsistentArchives(unittest.TestCase):
         self.assertEqual(result.files, {"data/sync.py": BOOTSTRAP},
                          f"{label}: a rejected archive must leave only the bootstrap sync.py")
         self.assertNotIn("Setup complete", result.output, label)
-        self.assertRegex(result.output, r"failed verification|extraction failed", label)
+        self.assertRegex(result.output, r"download failed or installation stopped", label)
         return result
 
     def test_missing_or_malformed_manifest(self):
@@ -379,7 +384,7 @@ class TestInitRejectsInconsistentArchives(unittest.TestCase):
         modes["examples/sync.py"] = stat.S_IFREG | 0o755
         modes["manifest.json"] = stat.S_IFREG | 0o644
         result = run_init(repo_archive(modes=modes))
-        self.assertEqual(sorted(result.installed), sorted(list(MANAGED) + ["manifest.json"]),
+        self.assertEqual(sorted(result.installed), sorted(list(MANAGED) + ["manifest.json", sync_mod.Distribution.RECEIPT]),
                          "entries declared as regular files, with any permission bits, are the normal case")
 
     def test_entries_without_a_declared_type_are_installed(self):
@@ -388,7 +393,7 @@ class TestInitRejectsInconsistentArchives(unittest.TestCase):
             declared = {info.filename: (info.external_attr >> 16) & 0o170000 for info in zf.infolist()}
         self.assertEqual(set(declared.values()), {0}, "this fixture must carry no declared file type at all")
         result = run_init(archive)
-        self.assertEqual(sorted(result.installed), sorted(list(MANAGED) + ["manifest.json"]),
+        self.assertEqual(sorted(result.installed), sorted(list(MANAGED) + ["manifest.json", sync_mod.Distribution.RECEIPT]),
                          "a zip whose creator recorded no Unix type holds ordinary files and must still install")
 
     def test_duplicate_archive_member(self):
@@ -462,41 +467,10 @@ class TestGeneratorScope(unittest.TestCase):
         members = [(f"{ROOT}/", b""), (f"{ROOT}/manifest.json", raw)]
         members += [(f"{ROOT}/{path}", data) for path, data in tree.items()]
         result = run_init(build_zip(members))
-        self.assertEqual(sorted(result.installed), sorted(list(json.loads(raw)["files"]) + ["manifest.json"]),
+        self.assertEqual(sorted(result.installed), sorted(list(json.loads(raw)["files"]) + ["manifest.json", sync_mod.Distribution.RECEIPT]),
                          "a fresh install must hold exactly the generator's file list plus manifest.json")
 
 
-# ── --update on an installation left by an older --init ──────────────────────
-
-GITHUB = {
-    "section11/.github/workflows/pages.yml": b"old workflow\n",
-    "section11/.github/site/build.cjs": b"old site build\n",
-    "section11/.github/notes-i-added.txt": b"a file the user added\n",
-}
-DEV = {
-    "section11/dev/README.md": b"developer notes, edited locally\n",
-    "section11/dev/tests/test_example.py": b"# old maintainer test\n",
-}
-OTHER = {
-    "section11/.gitignore": b"__pycache__/\n",
-    "section11/.cache/state.bin": b"\x00\x01",
-    "latest.json": b'{"synthetic": true}\n',
-    "DOSSIER.md": b"private\n",
-    ".sync_config.json": b"{}\n",
-}
-ORPHAN = {"section11/old-guide.md": b"removed upstream\n"}
-
-
-def legacy_install(extra=None, github=True, dev=True):
-    files = {f"section11/{path}": data for path, data in MANAGED.items()}
-    files["section11/manifest.json"] = manifest_bytes(manifest_for(MANAGED))
-    files.update(OTHER)
-    if github:
-        files.update(GITHUB)
-    if dev:
-        files.update(DEV)
-    files.update(extra or {})
-    return files
 
 
 class UpdateResult:
@@ -504,12 +478,8 @@ class UpdateResult:
         self.files, self.output, self.prompts = files, output, prompts
 
 
-def run_update(files, answers, manifest=None, git_checkout=False, patches=(), interactive=True):
-    """Run do_update on a synthetic installation whose managed files are already current.
-
-    interactive states what sync.py's _stdin_is_interactive reports, so a terminal
-    session and piped or redirected input are both simulated without a terminal.
-    """
+def run_update(files, answers, manifest=None, git_checkout=False, patches=(), release_files=None):
+    """Run do_update on a synthetic installation for distribution/report tests."""
     with tempfile.TemporaryDirectory() as outer:
         data_dir = Path(outer) / "data"
         write_tree(data_dir, files)
@@ -525,292 +495,23 @@ def run_update(files, answers, manifest=None, git_checkout=False, patches=(), in
 
         output = io.StringIO()
         with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(sync_mod, 'LocalTimers', fake_timers(sync_mod.LocalTimers)))
             stack.enter_context(working_directory(data_dir))
-            stack.enter_context(mock.patch.object(sync_mod, "_fetch_upstream_manifest",
-                                                  return_value=manifest or manifest_for(MANAGED)))
+            stack.enter_context(mock.patch.object(sync_mod, '__file__', str(data_dir / 'section11/examples/sync.py')))
+            target_files = dict(MANAGED if release_files is None else release_files)
+            target_manifest = manifest or manifest_for(target_files)
+            for path in target_manifest["files"]:
+                if path not in target_files and "section11/" + path in files:
+                    target_files[path] = files["section11/" + path]
+            stack.enter_context(mock.patch.object(sync_mod, "_fetch_verified_release",
+                return_value=(manifest_bytes(target_manifest), target_files, {"commit": "a" * 40, "tag": "2026.10.23"})))
             stack.enter_context(mock.patch.object(sync_mod, "_is_git_checkout", return_value=git_checkout))
-            stack.enter_context(mock.patch.object(sync_mod, "_stdin_is_interactive", return_value=interactive))
             stack.enter_context(mock.patch("builtins.input", fake_input))
             for patch in patches:
                 stack.enter_context(patch)
             stack.enter_context(contextlib.redirect_stdout(output))
             sync_mod.do_update()
-        return UpdateResult({p[len("data/"):]: d for p, d in snapshot(outer).items()}, output.getvalue(), prompts)
-
-
-def moved(files, source_prefix, backup_name):
-    """The files under source_prefix as they should appear inside backup_name."""
-    return {backup_name + path[len(source_prefix):]: data for path, data in files.items()
-            if path.startswith(source_prefix + "/")}
-
-
-class TestLegacyMoveConsent(unittest.TestCase):
-
-    def test_typed_move_relocates_both_folders_byte_for_byte(self):
-        before = legacy_install()
-        result = run_update(before, ["move"])
-        expected = {p: d for p, d in before.items() if p not in GITHUB and p not in DEV}
-        expected.update(moved(GITHUB, "section11/.github", "section11-legacy-github"))
-        expected.update(moved(DEV, "section11/dev", "section11-legacy-dev"))
-        self.assertEqual(result.files, expected,
-                         "move must relocate complete folders, including added and edited files, and touch nothing else")
-        self.assertEqual(len(result.prompts), 1)
-
-    def test_move_is_case_and_whitespace_tolerant(self):
-        result = run_update(legacy_install(), ["  MoVe \n"])
-        self.assertNotIn("section11/dev/README.md", result.files)
-        self.assertIn("section11-legacy-dev/README.md", result.files)
-
-    def test_anything_but_the_typed_word_keeps_everything(self):
-        before = legacy_install()
-        for answer in ["", "y", "yes", "Y", "n", "remove", "delete", "mv", "move it", "moved"]:
-            with self.subTest(answer=answer):
-                result = run_update(before, [answer])
-                self.assertEqual(result.files, before, f"{answer!r} is not consent to move anything")
-                self.assertIn("Kept.", result.output)
-
-    def test_y_at_every_prompt_in_a_terminal_keeps_legacy_folders(self):
-        before = legacy_install()
-        result = run_update(before, "y")  # a person answering y to everything
-        self.assertEqual(result.files, before, "y is not the typed word, so nothing moves and nothing is deleted")
-        self.assertEqual(len(result.prompts), 1, "with dev protected there is nothing left for the orphan prompt")
-
-    def test_yes_pipe_is_never_asked_and_keeps_legacy_folders(self):
-        before = legacy_install()
-        result = run_update(before, "y", interactive=False)  # `yes | sync.py --update`
-        self.assertEqual(result.files, before, "a yes pipe must neither move nor delete .github or dev")
-        self.assertEqual(result.prompts, [], "piped input must not be read for the move question")
-        self.assertIn("Kept section11/.github/, section11/dev/", result.output)
-
-    def test_piped_input_containing_move_does_not_move_anything(self):
-        # The word is available on standard input, but standard input is not a terminal.
-        before = legacy_install(extra=ORPHAN)
-        result = run_update(before, "move", interactive=False)
-        self.assertEqual(result.files, before,
-                         "the move must be typed in an interactive session; piped input saying move is not consent")
-        self.assertFalse(any('Type "move"' in prompt for prompt in result.prompts),
-                         "the move question must not consume non-interactive input at all")
-        self.assertEqual(len(result.prompts), 1, "the ordinary orphan prompt still runs and gets the piped line")
-        self.assertIn("Remove 1 orphaned item?", result.prompts[0])
-        self.assertIn("Run --update in a terminal", result.output)
-
-    def test_non_interactive_yes_keeps_dev_out_of_the_orphan_step(self):
-        before = legacy_install(extra=ORPHAN)
-        result = run_update(before, ["y"], interactive=False)
-        expected = {p: d for p, d in before.items() if p not in ORPHAN}
-        self.assertEqual(result.files, expected,
-                         "non-interactive: both folders stay byte for byte; only the ordinary orphan is removed")
-        self.assertNotIn("dev", result.output.split("Orphaned items")[1],
-                         "a dev folder kept by a non-interactive run must not fall through into orphan deletion")
-
-    def test_interactivity_check_fails_closed(self):
-        class Stream:
-            def __init__(self, answer):
-                self.answer = answer
-
-            def isatty(self):
-                if isinstance(self.answer, BaseException):
-                    raise self.answer
-                return self.answer
-
-        cases = [(Stream(True), True), (Stream(False), False), (Stream(ValueError("closed file")), False),
-                 (Stream(OSError("bad descriptor")), False), (None, False), (object(), False)]
-        for stream, expected in cases:
-            with self.subTest(stream=type(stream).__name__, expected=expected):
-                with mock.patch.object(sys, "stdin", stream):
-                    self.assertIs(sync_mod._stdin_is_interactive(), expected,
-                                  "only a real terminal counts as interactive; any doubt must keep the folders")
-
-    def test_eof_and_interrupt_keep_everything_without_ending_the_update(self):
-        before = legacy_install(extra=ORPHAN)
-        for signal in (EOFError, KeyboardInterrupt):
-            with self.subTest(signal=signal.__name__):
-                result = run_update(before, [signal, "n"])
-                self.assertEqual(result.files, before)
-                self.assertEqual(len(result.prompts), 2, "the orphan step must still run after a non-interactive legacy prompt")
-
-    def test_closed_input_keeps_everything(self):
-        before = legacy_install(extra=ORPHAN)
-        for interactive in (True, False):
-            with self.subTest(interactive=interactive):
-                result = run_update(before, EOFError, interactive=interactive)
-                self.assertEqual(result.files, before)
-
-    def test_prompt_names_the_folders_and_backup_targets(self):
-        result = run_update(legacy_install(), [""])
-        self.assertIn("section11/.github/  (3 files)  ->  section11-legacy-github/", result.output)
-        self.assertIn("section11/dev/  (2 files)  ->  section11-legacy-dev/", result.output)
-        self.assertIn('Type "move"', result.prompts[0])
-
-    def test_no_legacy_folders_means_no_prompt(self):
-        before = legacy_install(github=False, dev=False)
-        result = run_update(before, [])
-        self.assertEqual(result.files, before)
-        self.assertEqual(result.prompts, [])
-
-    def test_declined_update_stops_before_the_legacy_offer(self):
-        newer = dict(MANAGED)
-        newer["README.md"] = b"newer upstream readme\n"
-        before = legacy_install()
-        result = run_update(before, ["n"], manifest=manifest_for(newer))
-        self.assertEqual(result.files, before)
-        self.assertEqual(len(result.prompts), 1)
-        self.assertIn("Pull 1 update", result.prompts[0])
-
-
-class TestLegacyMoveProtections(unittest.TestCase):
-
-    def test_existing_backup_names_are_never_overwritten(self):
-        taken = {
-            "section11-legacy-github/keep.txt": b"an earlier backup\n",
-            "section11-legacy-dev": b"a file that happens to have this name\n",
-            "section11-legacy-dev-2/keep.txt": b"another earlier backup\n",
-        }
-        before = legacy_install(extra=taken)
-        result = run_update(before, ["move"])
-        for path, data in taken.items():
-            self.assertEqual(result.files.get(path), data, f"{path} existed before and must be untouched")
-        self.assertEqual(result.files.get("section11-legacy-github-2/workflows/pages.yml"),
-                         GITHUB["section11/.github/workflows/pages.yml"])
-        self.assertEqual(result.files.get("section11-legacy-dev-3/README.md"), DEV["section11/dev/README.md"])
-        self.assertNotIn("section11/dev/README.md", result.files)
-
-    def test_failed_rename_keeps_the_original_state(self):
-        before = legacy_install(extra=ORPHAN)
-        refuse = mock.patch.object(sync_mod.os, "rename", side_effect=OSError("cross-device link"))
-        result = run_update(before, ["move", "y"], patches=[refuse])
-        expected = {p: d for p, d in before.items() if p not in ORPHAN}
-        self.assertEqual(result.files, expected,
-                         "a failed rename must leave both folders in place; only the ordinary orphan is removed")
-        self.assertIn("could not move it", result.output)
-
-    def test_partial_rename_failure_keeps_and_protects_the_folder_that_stayed(self):
-        real_rename = os.rename
-
-        def rename(src, dst):
-            if Path(src).name == "dev":
-                raise OSError("permission denied")
-            return real_rename(src, dst)
-
-        before = legacy_install(extra=ORPHAN)
-        result = run_update(before, ["move", "y"], patches=[mock.patch.object(sync_mod.os, "rename", rename)])
-        for path, data in DEV.items():
-            self.assertEqual(result.files.get(path), data, "dev could not be moved, so it must stay complete")
-        self.assertIn("section11-legacy-github/workflows/pages.yml", result.files)
-        self.assertNotIn("section11/old-guide.md", result.files)
-
-    def test_git_checkout_is_never_offered_or_cleaned(self):
-        before = legacy_install(extra=ORPHAN)
-        result = run_update(before, ["y"], git_checkout=True)
-        expected = {p: d for p, d in before.items() if p not in ORPHAN}
-        self.assertEqual(result.files, expected, "a developer checkout keeps .github and dev; only the ordinary orphan goes")
-        self.assertEqual(len(result.prompts), 1)
-        self.assertNotIn('Type "move"', result.prompts[0])
-        self.assertNotIn("dev", result.output.split("Orphaned items")[1])
-
-    def test_git_checkout_helper_looks_for_dot_git_without_following_it(self):
-        with mock.patch.object(sync_mod.os.path, "lexists", return_value=True) as lexists:
-            self.assertTrue(sync_mod._is_git_checkout(Path("/data/section11")))
-        self.assertEqual(Path(lexists.call_args.args[0]), Path("/data/section11/.git"))
-        with mock.patch.object(sync_mod.os.path, "lexists", return_value=False):
-            self.assertFalse(sync_mod._is_git_checkout(Path("/data/section11")))
-
-    def test_symlinked_folder_is_left_alone(self):
-        def is_symlink(path):
-            return path.name == "dev"
-
-        before = legacy_install()
-        result = run_update(before, ["move"], patches=[mock.patch.object(Path, "is_symlink", is_symlink)])
-        for path, data in DEV.items():
-            self.assertEqual(result.files.get(path), data, "a symlinked dev must not be moved or followed")
-        self.assertIn("Kept section11/dev: not an ordinary folder", result.output)
-        self.assertIn("section11-legacy-github/workflows/pages.yml", result.files)
-
-    def test_plain_file_named_like_a_legacy_folder_is_left_alone(self):
-        before = legacy_install(github=False, extra={"section11/.github": b"a file, not a folder\n"})
-        result = run_update(before, ["move"])
-        self.assertEqual(result.files.get("section11/.github"), b"a file, not a folder\n")
-        self.assertIn("Kept section11/.github: not an ordinary folder", result.output)
-        self.assertIn("section11-legacy-dev/README.md", result.files)
-
-    def test_dev_is_not_offered_while_the_upstream_manifest_still_lists_it(self):
-        managed = dict(MANAGED)
-        managed.update({p[len("section11/"):]: d for p, d in DEV.items()})
-        before = legacy_install()
-        result = run_update(before, ["move"], manifest=manifest_for(managed))
-        for path, data in DEV.items():
-            self.assertEqual(result.files.get(path), data, "a folder the manifest still manages must not be moved")
-        self.assertNotIn("section11/dev/", result.output.split('Type "move"')[0].split("does not manage")[1])
-        self.assertIn("section11-legacy-github/workflows/pages.yml", result.files)
-
-    def test_only_the_exact_root_folders_are_considered(self):
-        nested = {"section11/examples/dev/notes.md": b"nested\n", "section11/examples/.github/x.yml": b"nested hidden\n",
-                  "dev/outside.md": b"data-dir dev folder\n", ".github/outside.yml": b"data-dir .github\n"}
-        manifest = manifest_for(dict(MANAGED, **{"examples/dev/notes.md": b"nested\n"}))
-        before = legacy_install(github=False, dev=False, extra=nested)
-        result = run_update(before, ["move"], manifest=manifest)
-        self.assertEqual(result.files, before, "nested or data-directory folders with these names are not legacy roots")
-        self.assertEqual(result.prompts, [])
-
-
-class TestRetainedDevIsNotAnOrphan(unittest.TestCase):
-
-    def test_declined_move_then_yes_to_orphans_keeps_dev(self):
-        before = legacy_install(extra=ORPHAN)
-        result = run_update(before, ["", "y"])
-        expected = {p: d for p, d in before.items() if p not in ORPHAN}
-        self.assertEqual(result.files, expected,
-                         "declining the move must not let the orphan prompt delete dev; the ordinary orphan still goes")
-        listing = result.output.split("Orphaned items")[1]
-        self.assertIn("old-guide.md", listing)
-        self.assertNotIn("dev", listing, "retained dev files must not even be listed as orphans")
-        self.assertIn("Remove 1 orphaned item?", result.prompts[1])
-
-    def test_yes_pipe_with_an_ordinary_orphan_removes_only_that_orphan(self):
-        before = legacy_install(extra=ORPHAN)
-        result = run_update(before, "y")
-        expected = {p: d for p, d in before.items() if p not in ORPHAN}
-        self.assertEqual(result.files, expected)
-
-    def test_empty_directories_inside_retained_dev_are_not_offered(self):
-        with tempfile.TemporaryDirectory() as outer:
-            data_dir = Path(outer) / "data"
-            write_tree(data_dir, legacy_install())
-            (data_dir / "section11" / "dev" / "empty" / "deeper").mkdir(parents=True)
-            (data_dir / "section11" / "stale-empty").mkdir()
-            prompts = []
-
-            def fake_input(prompt=""):
-                prompts.append(prompt)
-                return "" if len(prompts) == 1 else "y"
-
-            with working_directory(data_dir), contextlib.redirect_stdout(io.StringIO()), \
-                    mock.patch.object(sync_mod, "_fetch_upstream_manifest", return_value=manifest_for(MANAGED)), \
-                    mock.patch.object(sync_mod, "_is_git_checkout", return_value=False), \
-                    mock.patch.object(sync_mod, "_stdin_is_interactive", return_value=True), \
-                    mock.patch("builtins.input", fake_input):
-                sync_mod.do_update()
-            self.assertTrue((data_dir / "section11" / "dev" / "empty" / "deeper").is_dir(),
-                            "empty folders under a retained dev must survive the orphan cleanup")
-            self.assertFalse((data_dir / "section11" / "stale-empty").exists(),
-                             "an ordinary empty folder is still removed")
-            self.assertIn("Remove 1 orphaned item?", prompts[1])
-
-    def test_ordinary_orphan_behaviour_is_unchanged(self):
-        before = legacy_install(github=False, dev=False, extra=ORPHAN)
-        kept = run_update(before, ["n"])
-        self.assertEqual(kept.files, before)
-        removed = run_update(before, ["y"])
-        self.assertEqual(removed.files, {p: d for p, d in before.items() if p not in ORPHAN})
-
-    def test_dev_listed_upstream_is_still_handled_by_the_normal_rules(self):
-        managed = dict(MANAGED)
-        managed["dev/README.md"] = DEV["section11/dev/README.md"]
-        before = legacy_install(github=False)
-        result = run_update(before, ["y"], manifest=manifest_for(managed))
-        self.assertNotIn("section11/dev/tests/test_example.py", result.files,
-                         "while upstream manages dev, a dev file it dropped is an ordinary orphan, as before")
-        self.assertIn("section11/dev/README.md", result.files)
+        return UpdateResult({p[len("data/"):]: d for p, d in snapshot(outer).items() if "/.section11-state/" not in p}, output.getvalue(), prompts)
 
 
 if __name__ == "__main__":

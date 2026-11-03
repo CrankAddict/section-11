@@ -1,0 +1,189 @@
+{
+  "scope": "Files installed by sync.py --init and managed by --update; excludes .github, hidden paths, the repository-root dev folder, and generated dependency/cache directories.",
+  "files": {
+    "CONTRIBUTING.md": {
+      "hash": "bd891dbb66dd8cba1cb4f50a13e7a63cec1a45043fe60b97a3ddce8950639c9c"
+    },
+    "DOSSIER_TEMPLATE.md": {
+      "hash": "970b8534fd17e2147e405178d1b11d5657bdb7f0b6e6b96b180fbbd24e6e3205"
+    },
+    "LICENSE": {
+      "hash": "0683b6ae3ded5701305dae4114d317d4346c175824d8db87a22d18e05a61ff77"
+    },
+    "PROJECT_INSTRUCTIONS_AGENTIC.md": {
+      "hash": "113261bd7dad06ed12bf36591c33a9a3a8596a5a80c249b60afad9014d754b80"
+    },
+    "PROJECT_INSTRUCTIONS_WEB.md": {
+      "hash": "13067181729d29b7514b1db47c10f7619fc3fb4cc142430f24ad6a524b697c6a"
+    },
+    "README.md": {
+      "hash": "7d9e3801edc42cf8f612705e87ba69db920e8a98247748dc49007067b9f3d17c"
+    },
+    "SECTION_11.md": {
+      "hash": "5e3eb92ca37744fd2a0fc14b5ec6c5cf387bd1fa4fddf8c936a2123d3cedf5ae",
+      "description": "Coaching protocol"
+    },
+    "SECURITY.md": {
+      "hash": "47a0b437722547662e2215a759678cccaeb91984734337bfe2392185d71976d5"
+    },
+    "SETUP_ASSISTANT.md": {
+      "hash": "a6cccfcfad3bc8267545ef11c2a5170242626dafc4e899ca518b366bdb24a5c4"
+    },
+    "SKILL.md": {
+      "hash": "29c1b0c79ea6c6c41f6661b5380e5fdb9e3eee93a70811e8b2f6bc112a25257b"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "hash": "2d9fa3fc0fe1477ab66d63f9edebe758f329fcda3f439702bbe5a8ff78b9b53e"
+    },
+    "changelog.json": {
+      "hash": "8768f879e311c3f6aff56331e62b17c1bd637ef70673468d8e35a69e9a0dd348"
+    },
+    "examples/README.md": {
+      "hash": "4ca04c4396428c1c4833ea5ad455ebc05e50e6a06cb01bdd16b409a5531c486a"
+    },
+    "examples/agentic/EXTERNAL_APIS.md": {
+      "hash": "6511399734d3a7a95a4147079d8c0e72efed5e9a55f1a557a78791e2be079710"
+    },
+    "examples/agentic/README.md": {
+      "hash": "879a98f1bd6c99027aabaa881b82de8c21356cdfe37f7d91ec3244aa532a3023"
+    },
+    "examples/agentic/fit-file-and-merger/ARCHITECTURE.md": {
+      "hash": "3ddaa2522ccb6cc80f28ef5613278c6257bd2de09cd7221f2f690fc335087e4c"
+    },
+    "examples/agentic/fit-file-and-merger/CLEANUP_POLICY.md": {
+      "hash": "c7d62884b5c208a105a814d4c8618f96df8e1c37f783407823a60839bd62c0fe"
+    },
+    "examples/agentic/fit-file-and-merger/README.md": {
+      "hash": "94a727d53ca323954758ce7efcd101636d411753734c6d59f27253e72d0b7f1a"
+    },
+    "examples/agentic/fit-file-and-merger/RUNBOOK.md": {
+      "hash": "459e7c7a47149b915d306d7480321e6f5df336f41abdac5b046e0e849915a51d"
+    },
+    "examples/agentic/fit-file-and-merger/THIRD_PARTY_NOTICES.md": {
+      "hash": "08dd88684cc55633a80c1e13b5363d218e6b6fb2d3abdcd498a098582779b3d7"
+    },
+    "examples/agentic/openclaw/HEARTBEAT_TEMPLATE.md": {
+      "hash": "a32df1ff6ef0989afd849e7728ffb7c578586e6345680120ae97c43fd0c65624"
+    },
+    "examples/agentic/pull.py": {
+      "hash": "0128c6888083f543ed4f4fe2af8e6341960ecdd1b486fc924d527b554eb250f7"
+    },
+    "examples/agentic/push-workout.yml": {
+      "hash": "8f11e8abe80bf57550248eeace00a5b9967e814e8fcac2a32dfdc88ef896198d"
+    },
+    "examples/agentic/push.py": {
+      "hash": "c8e09cfb34137d106cefb3829349d1f2841ad1e53c95ea8cb157aa9c72f36dad"
+    },
+    "examples/dfa_a1/NON_GARMIN.md": {
+      "hash": "a4d629dc2831e11211e8d295046d4b0d483df0651cf34ad216246d0fd28aa1ea"
+    },
+    "examples/json-auto-sync/DATA_REPO_README_TEMPLATE.md": {
+      "hash": "b3881ed8469f081bada7d9663bf2950ca47c479a5c7c3dd32da93f6cc33c4bd9"
+    },
+    "examples/json-auto-sync/SETUP.md": {
+      "hash": "016bf69b42bc0fb8b69573334479f81f9f7238f945efea7246e02d1ddf5a257f"
+    },
+    "examples/json-auto-sync/auto-sync.yml": {
+      "hash": "724578aa512d61c783a2b2b2e4f3a8f22a9c73d094afbd68a88bb7803c050cfd"
+    },
+    "examples/json-examples/README.md": {
+      "hash": "7d2c958181ea5e5c50e9486ac220a189a4f1dc1fe7c7f1b4fcd315ea403a2685"
+    },
+    "examples/json-examples/ftp_history.example.json": {
+      "hash": "b2f2d569327c7b030c02969efdadd224bcc6d3df4c63857c3f4e614a75cfcb75"
+    },
+    "examples/json-examples/history.example.json": {
+      "hash": "45366e32462ee036c8bef390cf0b0ff0a7038be4f1144530936af1297dbbb647"
+    },
+    "examples/json-examples/intervals.example.json": {
+      "hash": "e11384942f006b3959d61ceb0ecacd0d5d5722622212b0f217543b0308d9bf9c"
+    },
+    "examples/json-examples/latest.example.json": {
+      "hash": "c85dbda1d569111e01056e4ff57cdcae513645e3a334b666690e46e591a1e3a2"
+    },
+    "examples/json-examples/route_eta_history.example.json": {
+      "hash": "14ca456a86921a7d3745b44291a17a9bf1fd06999b2d99107b72de4ff2ac1194"
+    },
+    "examples/json-examples/routes.example.json": {
+      "hash": "6a5e0eb542bdd35633783a30d7f40b06460176c51f63611393f757fd78fc4c08"
+    },
+    "examples/json-examples/saved_workouts.example.json": {
+      "hash": "f7a02e699d269b7ba5b98cdc853bf7bc4fbdf5eb6f2520d46ba63e30825c145a"
+    },
+    "examples/json-local-sync/SETUP.md": {
+      "hash": "f06ea8c8676d49263c97fa1b310259686ea318f494210f56e41e249ce442a8a3"
+    },
+    "examples/json-manual/SETUP.md": {
+      "hash": "acda5e8f152c40782c769d41a2319602ae1c420d9317144ce9fa6e9963f9d3a2"
+    },
+    "examples/json-on-demand/SETUP.md": {
+      "hash": "1cd8f5c7adae168fbe4643e6fdfb8b065be6316f93655ff590a99cf6a412208a"
+    },
+    "examples/reports/28_DAY_REPORT_EXAMPLES.md": {
+      "hash": "69e116ff104f76794066586062ad479544ef2a0a04168c5d9becb020d358f6b9"
+    },
+    "examples/reports/28_DAY_REPORT_TEMPLATE.md": {
+      "hash": "1d2ca06b531852bcff340a24a1796c4124f4c0938f1439a3abbcd427a6630037"
+    },
+    "examples/reports/7_DAY_REPORT_EXAMPLES.md": {
+      "hash": "b7b19f610d185bb421ad7f8e589fbe3f656e0ff41fe59291f291b91cbd85793a"
+    },
+    "examples/reports/7_DAY_REPORT_TEMPLATE.md": {
+      "hash": "bb6ef90fca6c8002569a274e03822f461704fffe3f565cd3a1608e35b9f85ed5"
+    },
+    "examples/reports/BLOCK_REPORT_EXAMPLES.md": {
+      "hash": "7b4b3b70e3841b28b37ee26907cb72c6c3ebc07726acb820bb9e5d3665ece3ee"
+    },
+    "examples/reports/BLOCK_REPORT_TEMPLATE.md": {
+      "hash": "858008b2c1dd184ae534fc568d1e490e64317885caad67c1d8e9a8ba3ed72cf4"
+    },
+    "examples/reports/POST_WORKOUT_REPORT_EXAMPLES.md": {
+      "hash": "c4a28704e395b22128cf25a03ef1719d974b620e98b310472485321cb696d9b3"
+    },
+    "examples/reports/POST_WORKOUT_REPORT_TEMPLATE.md": {
+      "hash": "64dfa5b6bae46fa0cd966e1d33bd1685221d3024d5261988728942dc8b6e710b"
+    },
+    "examples/reports/PRE_WORKOUT_REPORT_EXAMPLES.md": {
+      "hash": "4841a8909e29f7c505607413c71cb63161d604be2e23bbafb67bfcab99048698"
+    },
+    "examples/reports/PRE_WORKOUT_REPORT_TEMPLATE.md": {
+      "hash": "7e6cc5f5d566b5982a0fb7f32a0bf48c8582f4683ca19e078bb3a6ed5a15e377"
+    },
+    "examples/reports/README.md": {
+      "hash": "014e0abd6b81816af6240d2bb7870a8226c206d6e0355f471a8c73b26bd798e5"
+    },
+    "examples/reports/REPORT_HIERARCHY.md": {
+      "hash": "ea31e26a725d88f2bc801d4ced5a7484560323b5ede65c4ce976f6a1b6afea12"
+    },
+    "examples/reports/SEASON_REPORT_EXAMPLES.md": {
+      "hash": "813e634b723262f11906de541da37a0c7e4d02aeaada1ca8e2a22e4c74a0b49d"
+    },
+    "examples/reports/SEASON_REPORT_TEMPLATE.md": {
+      "hash": "b2bd8bfac9c214b118314e3ad78f57324d60463c3dd1eef144ca4aeb69ff83f5"
+    },
+    "examples/reports/WEATHER_REPORT_EXAMPLES.md": {
+      "hash": "4a98c2c1894e34c115dc3d1867f60a72eb97a3d0b2599235686c3b4f085028e8"
+    },
+    "examples/reports/WEATHER_REPORT_TEMPLATE.md": {
+      "hash": "f9cc3a1418269d1cb3136403affa84acb6ec644fccc65b1e77be606af7d82789"
+    },
+    "examples/reports/WEEKLY_REPORT_EXAMPLES.md": {
+      "hash": "4377712448db4584f0c08d58640763d09661b831c572adfdfc793c3b09ff9871"
+    },
+    "examples/reports/WEEKLY_REPORT_TEMPLATE.md": {
+      "hash": "d4d0ff354cbcf1718a89e6dfa036f9809e5b0425f53ec01ebd27c5383310a9e0"
+    },
+    "examples/reports/example-route-weather-map.png": {
+      "hash": "53b5f2cc457baab0f89dde417003572e221aea8852873be91fb88317447347a9"
+    },
+    "examples/sync.py": {
+      "hash": "0c49f8829426e3b5f0f912f49eead764463e2402cd313fcd6490e35af19a73e0"
+    },
+    "examples/workout-library/README.md": {
+      "hash": "4d6f5ee1d7b87c8306d4dcbf9ea80bd305ff827f7d3b3c6629b9dd665a811208"
+    },
+    "examples/workout-library/WORKOUT_REFERENCE.md": {
+      "hash": "5277406accd4ba3eef9e01311bb121c8efa3b0557b489d1defa1e72d49aad4b0"
+    }
+  }
+}

@@ -262,14 +262,15 @@ class StateLocation(unittest.TestCase):
         paths = [line.strip() for line in artifact.split("path: |", 1)[1].splitlines() if line.strip()]
         self.assertEqual(paths, ["latest.json", "history.json", "intervals.json", "routes.json",
                                  "saved_workouts.json", "ftp_history.json"])
-        self.assertIn('cp latest.json "$ARCHIVE_PATH"', workflow)
-        self.assertIn('git add -- "${SAVED[@]}" "$ARCHIVE_PATH"', workflow)
+        self.assertIn('hosted.py" publish --wrapper-api 2', workflow)
+        hosted = (SYNC_PATH.parent / 'maintenance/hosted.py').read_text()
+        self.assertIn('validate_data.prepare(root, previous_path, stage)', hosted)
+        self.assertIn('changes[archive] = latest', hosted)
         # Exercise the direct publisher's selection without any remote transport.
         with mock.patch.object(self.sync, "publish_to_github", return_value="offline") as publish, \
                 mock.patch.object(self.sync, "begin_tick", return_value=True), \
                 mock.patch.object(self.sync, "should_generate_history", return_value=False), \
                 mock.patch.object(self.sync, "collect_training_data", return_value=data), \
-                mock.patch.object(self.sync, "check_upstream_updates"), \
                 mock.patch.object(sync_mod, "notify_if_updates_available"), \
                 contextlib.redirect_stdout(io.StringIO()):
             sync_mod._run_sync(self.sync, SimpleNamespace(generate_history=False, output=None,

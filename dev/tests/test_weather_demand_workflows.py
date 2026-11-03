@@ -198,10 +198,10 @@ class WorkflowTests(unittest.TestCase):
     def test_optional_repository_variables_are_in_sync_step_environment(self):
         workflow = (ROOT/'examples/json-auto-sync/auto-sync.yml').read_text()
         step = workflow.split('      - name: Run sync\n',1)[1].split('      - name:',1)[0]
-        environment = step.split('        run: |',1)[0]
+        environment = step.split('        run:',1)[0]
         for name in ('SECTION11_ROUTE_WEATHER','SECTION11_ROUTE_WEATHER_DEFAULT_START'):
             self.assertIn(f'          {name}: ${{{{ vars.{name} }}}}', environment)
-        self.assertNotIn('${{ vars.', step.split('        run: |',1)[1])
+        self.assertNotIn('${{ vars.', step.split('        run:',1)[1])
 
     def test_empty_settings_use_defaults_and_nonempty_values_stay_strict(self):
         with mock.patch.dict(mod.os.environ, {'SECTION11_ROUTE_WEATHER':'', 'SECTION11_ROUTE_WEATHER_DEFAULT_START':''}, clear=True):
@@ -216,25 +216,24 @@ class WorkflowTests(unittest.TestCase):
                 Weather.departure({'start_date_local':'2026-10-20'}, {'timezone':'UTC'}, Weather.default_start({}))
 
     def workflow_args(self, time='', command='move', confirm='false'):
-        workflow = (ROOT/'examples/agentic/push-workout.yml').read_text()
-        step = workflow.split('      - name: Run push.py\n',1)[1].split('      - name:',1)[0]
-        script = '\n'.join(line[10:] for line in step.split('        run: |\n',1)[1].splitlines())
-        # The last two lines execute push.py. Test only the preceding argument
-        # builder, with fixed synthetic dispatch values and the real validation.
-        script = script.split('echo "Running: python push.py',1)[0]
-        inputs = {'command': command, 'confirm': confirm, 'event_id':'42','date':'2099-01-01'}
-        script = re.sub(r'\$\{\{ github\.event\.inputs\.(\w+) \}\}', lambda m: inputs.get(m[1], ''), script)
-        self.assertNotIn('${{', script)
-        return subprocess.run(['bash','-c',script + '\nprintf "%s\\0" $ARGS\n'],
-                              env={**os.environ,'MOVE_TIME':time}, text=True, capture_output=True, check=False)
+        from _harness import load_module_by_path
+        push = load_module_by_path('weather_managed_push', ROOT/'examples/agentic/push.py')
+        from types import SimpleNamespace
+        inputs = {'command': command, 'confirm': confirm, 'event_id':'42','date':'2099-01-01', 'time': time}
+        try:
+            argv = push.workflow_arguments(inputs, Path('unused'))
+            # Compare the preserved CLI contract independent of --key=value spelling.
+            flat = [part for arg in argv for part in (arg.split('=', 1) if arg.startswith('--') and '=' in arg else [arg])]
+            return SimpleNamespace(returncode=0, stdout=chr(0).join(flat), stderr='')
+        except ValueError as exc:
+            return SimpleNamespace(returncode=1, stdout=json.dumps({'error': str(exc)}), stderr='')
 
-    def test_dispatch_time_input_is_optional_and_passed_through_environment(self):
+    def test_dispatch_time_input_is_optional_and_passed_as_literal_data(self):
         workflow = (ROOT/'examples/agentic/push-workout.yml').read_text()
         self.assertTrue(workflow.startswith('# push.py v0.8 workflow:'))
         self.assertRegex(workflow, r'(?s)      time:\n.*?required: false\n        type: string')
-        self.assertEqual(workflow.count('${{ github.event.inputs.time }}'), 1)
-        self.assertIn('MOVE_TIME: ${{ github.event.inputs.time }}', workflow)
-        self.assertIn('ARGS="push --json /tmp/workouts.json"', workflow)
+        self.assertNotIn('github.event.inputs', workflow)
+        self.assertIn('python section11/examples/agentic/push.py --workflow', workflow)
 
     def test_move_argument_builder_optional_time_and_confirmation(self):
         for time in ('','00:00','00:01','09:30','23:59'):
@@ -255,4 +254,4 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(json.loads(result.stdout)['error'], 'time must be HH:MM local')
         result = self.workflow_args('09:30', command='push')
         self.assertEqual(result.returncode, 1)
-        self.assertIn('per-workout JSON time', json.loads(result.stdout)['error'])
+        self.assertIn('only valid for move', json.loads(result.stdout)['error'])

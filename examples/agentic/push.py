@@ -2145,7 +2145,59 @@ def _cmd_annotate(args, pusher: IntervalsPush):
             _output(pusher.annotate_event(args.event_id, args.message))
 
 
+def workflow_arguments(inputs, payload_path):
+    """Preserve hosted dispatch inputs as literal argv, with preview by default."""
+    if not isinstance(inputs, dict) or any(not isinstance(v, str) for v in inputs.values()):
+        raise ValueError('workflow inputs must be strings')
+    command = inputs.get('command') or 'push'
+    fields = {
+        'push': (), 'list': ('oldest', 'newest'), 'move': ('event_id', 'date', 'time'),
+        'delete': ('event_id',), 'set-threshold': ('sport', 'ftp', 'indoor_ftp', 'lthr', 'max_hr'),
+        'annotate': ('activity_id', 'event_id', 'message'),
+    }
+    if command not in fields or inputs.get('confirm', 'false') not in ('true', 'false'):
+        raise ValueError('invalid workflow command or confirmation')
+    if inputs.get('chat', 'false') not in ('true', 'false'):
+        raise ValueError('invalid workflow chat flag')
+    if inputs.get('time') and command != 'move':
+        raise ValueError('time input is only valid for move; push uses per-workout JSON time')
+    if inputs.get('time') and not re.fullmatch(r'([01][0-9]|2[0-3]):[0-5][0-9]', inputs['time']):
+        raise ValueError('time must be HH:MM local')
+    argv = [command]
+    if command == 'push':
+        value = inputs.get('workouts', '')
+        if not value or len(value.encode()) > 1024 * 1024:
+            raise ValueError('workouts input is required and must be at most 1 MiB')
+        json.loads(value)
+        with Path(payload_path).open('x', encoding='utf-8') as handle:
+            handle.write(value)
+        argv.extend(['--json', str(payload_path)])
+    for name in fields[command]:
+        value = inputs.get(name, '')
+        if value:
+            argv.append('--' + name.replace('_', '-') + '=' + value)
+    if command == 'annotate' and inputs.get('chat') == 'true':
+        argv.append('--chat')
+    if command != 'list' and inputs.get('confirm') == 'true':
+        argv.append('--confirm')
+    return argv
+
+
 def main():
+    if sys.argv[1:] == ['--workflow']:
+        try:
+            event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes())
+            athlete, key = os.environ.get('ATHLETE_ID', ''), os.environ.get('INTERVALS_KEY', '')
+            if not athlete or not key:
+                raise ValueError('ATHLETE_ID and INTERVALS_KEY secrets are required')
+            for value in (athlete, key, athlete[:5], key[:5]):
+                print('::add-mask::' + value, flush=True)
+            payload_path = Path(os.environ['RUNNER_TEMP']) / 'section11-workouts.json'
+            args = workflow_arguments(event.get('inputs', {}), payload_path)
+            sys.argv = [sys.argv[0], '--athlete-id', athlete, '--api-key', key, *args]
+        except (ValueError, KeyError, OSError) as exc:
+            print(json.dumps({'success': False, 'outcome': 'not_applied', 'error': str(exc)}))
+            raise SystemExit(1)
     parser = argparse.ArgumentParser(
         description="Manage planned workouts on Intervals.icu calendar"
     )

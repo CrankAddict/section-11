@@ -17,7 +17,7 @@
       "hash": "3be8fbf824d9b2513a1e62b1278366176b6c3bdebba91c453dc8216c974e9198"
     },
     "README.md": {
-      "hash": "58d3fd8695294b4a4c6b3e2ac295aa43db31973ddd3825210f5327afe19f6eaa"
+      "hash": "3e7f1b8e5758460c6156a74fa6162f56b4e24af2cf253b7641b5556b73bb0fde"
     },
     "SECTION_11.md": {
       "hash": "7756869e5317a280375681b6b97af808f0ca9d896bb88bc44f52764fe1785b32",
@@ -81,7 +81,7 @@
       "hash": "cd2c43fbe0e5accd33de82e3a0d9ca1473cb3c72e45126806d1b72e36e657200"
     },
     "examples/json-auto-sync/SETUP.md": {
-      "hash": "56e2801fb8ab2faf53b771b7db2ee0190068c1b4b68e7fce71ddd587f9f40cb8"
+      "hash": "b0ae90db77665321f5540f399ebf36cb71c25619f19704f509b7a03b30578604"
     },
     "examples/json-auto-sync/auto-sync.yml": {
       "hash": "53b05b5048751fff5a83b7715265e6d6bbfedf87494067c2dd1d7e793117d907"
@@ -111,13 +111,13 @@
       "hash": "f7a02e699d269b7ba5b98cdc853bf7bc4fbdf5eb6f2520d46ba63e30825c145a"
     },
     "examples/json-local-sync/SETUP.md": {
-      "hash": "059664019d08abb11cf75d712d7825730da528a7c5b53c0198b035592d56019c"
+      "hash": "137fd9241cfe1d096d7e7545236d07a93096d1cab9ce6f5e104ea59620aeeb05"
     },
     "examples/json-manual/SETUP.md": {
-      "hash": "9f49af6d5eef2b680816be991d4f781c0e474ed0e02e31d71bc87b1677bfe5ee"
+      "hash": "4e1c68a2b743031d5029480d6f78301c8ae74bf14f929e0a4d6772561cf57049"
     },
     "examples/json-on-demand/SETUP.md": {
-      "hash": "7c27ea680ec51b275e3ca5283980e75f309dd535cd0ae76b3979ef421fa9b926"
+      "hash": "41554d00a1ebd125c584811c2b700d3b4c6028f73422e3272dee2eab395245f6"
     },
     "examples/json-on-demand/auto-sync.yml": {
       "hash": "35650f719388cdd02ceec4c8a9a30b8ccbea7e97f950a145ee8e194e61ca5706"

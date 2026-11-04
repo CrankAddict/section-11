@@ -78,6 +78,7 @@ test('build emits only the explicit public inventory', t => {
     const footer = fs.readFileSync(path.join(output, route), 'utf8').match(/<footer>.*<\/footer>/)[0];
     const license = route.includes('/') ? '../LICENSE.txt' : 'LICENSE.txt';
     assert.ok(footer.includes(`<span>Free and open source <span aria-hidden="true">·</span> <a href="${license}">MIT license</a></span>`), route);
+    assert.ok(footer.includes('<a href="https://forum.intervals.icu/t/section-11-open-protocol-for-ai-endurance-coaching-chatgpt-claude-grok-mistral/120602">Community discussion</a>'), route);
   }
 });
 
@@ -148,11 +149,11 @@ test('OpenCode leaves Quick Start; its full entry and T3 Code stay in Agentic Se
   assert.equal(entry, '\n### OpenCode\n\nAn open-source coding agent for the terminal, IDE and desktop.\n\n**Control interfaces.** T3 Code provides an interface for supported agents such as Claude Code, ChatGPT Codex and OpenCode. Section 11 access depends on the underlying agent\'s configured filesystem and tool permissions; T3 Code is not a separate coaching runtime.\n');
   assert.match(entry, /An open-source coding agent for the terminal, IDE and desktop\.\n\n\*\*Control interfaces\.\*\* T3 Code provides an interface for supported agents[^\n]*T3 Code is not a separate coaching runtime\.\n$/);
   assert.equal(readme.split('T3 Code').length, 3);
-  assert.ok(start.selected.includes('\nChoose your path:\n\n- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, and Hermes Agent, etc.\n- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.\n\n### 4. Make Files Available to Your AI\n'));
+  assert.ok(start.selected.includes('\nChoose your path:\n\n- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.\n- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.\n\n### 4. Make Files Available to Your AI\n'));
   assert.doesNotMatch(start.selected, /OpenCode/);
   assert.equal(linkURL('#agentic-setup', start, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/README.md#agentic-setup');
   const html = renderDocument(start, docs, root);
-  assert.ok(html.includes('OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, and Hermes Agent, etc.</li>'));
+  assert.ok(html.includes('OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.</li>'));
   assert.doesNotMatch(html, /OpenCode/);
   assert.doesNotMatch(start.selected + html, /T3 Code|t3\.codes|optional control interface/);
   assert.doesNotMatch(readme + html, /open-weight/i);
@@ -248,7 +249,7 @@ test('search metadata, home structured data and sitemap change only the head and
     { route: 'getting-started.html', title: 'Getting started', searchTitle: 'Getting started: data sync and AI setup | Section 11', description: 'Set up Section 11 in four steps: write an optional dossier, sync your Intervals.icu training data, choose your AI platform and give it the protocol files.' },
     { route: 'guides/local-sync.html', title: 'Local sync', searchTitle: 'Local sync setup guide for Intervals.icu data | Section 11', description: 'Run sync.py on a machine you control to refresh your Intervals.icu training data on a timer for your AI coach to read. No GitHub needed.' },
     { route: 'guides/github-sync.html', title: 'GitHub sync', searchTitle: 'GitHub sync setup guide for Intervals.icu data | Section 11', description: 'Use GitHub Actions to mirror your Intervals.icu training data to a private repository as JSON, on a schedule or on request, for your AI coach to read.' },
-    { route: 'guides/on-demand.html', title: 'On-demand sync', searchTitle: 'On-demand Intervals.icu sync from your browser | Section 11', description: 'Trigger a fresh Intervals.icu sync from your phone or browser, then download the data files as a ZIP for your AI chat. No schedule, no local Python.' },
+    { route: 'guides/on-demand.html', title: 'On-demand sync', searchTitle: 'On-demand Intervals.icu sync from your browser | Section 11', description: 'Run a fresh Intervals.icu sync from your phone or browser, then connect your AI to your repository or download it as a ZIP. No schedule, no local Python.' },
     { route: 'guides/manual-export.html', title: 'Manual export', searchTitle: 'Manual JSON export of Intervals.icu data | Section 11', description: 'Export Intervals.icu training data as JSON for your AI. Setup includes automatic sync by default; use --no-timer to run exports by hand.' },
     { route: 'reports.html', title: 'Report examples', searchTitle: 'AI coaching report templates and examples | Section 11', description: 'Templates and annotated examples for Section 11 AI coaching reports: pre-workout, post-workout, 7-day, 28-day and season.' },
     { route: 'guides/updating.html', title: 'Updates and rollback', searchTitle: 'Section 11 updates, automatic updates and rollback | Section 11', description: 'Install verified Section 11 releases locally or on GitHub, choose automatic updates, and restore a previous installation when needed.' },

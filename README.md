@@ -56,7 +56,7 @@ sync.py and push.py use [private sync state](examples/json-local-sync/SETUP.md#p
 
 **Before you start:** The documented data setups use [Intervals.icu](https://intervals.icu). You need an account containing your training data, plus your athlete ID and API key.
 
-Intervals.icu is a free training platform. In Settings > Connections, connect your device's service, such as Garmin or Wahoo. Use a direct connection: activities imported only through Strava can appear in Intervals.icu but reach Section 11 with missing details.
+Intervals.icu is a free training platform. In its Settings, connect the service you record with, such as Garmin or Wahoo. Use a direct connection: activities imported only through Strava can appear in Intervals.icu but reach Section 11 with missing details.
 
 Section 11 is free to use. Your chosen AI platform or hosting may have its own costs.
 
@@ -89,17 +89,16 @@ Keep your own files in `custom/` or outside the data folder: updates replace `se
 
 ### 3. Configure Your AI Platform
 
-Pick by how your AI works: an agent can open files on your computer or server; a web chat is an app in your browser or phone.
+Agentic: you use an AI agent such as OpenClaw, usually running on a computer or server that is on a lot or always. Web chat: you use a chat app such as ChatGPT, Claude or Gemini.
 
 Choose your path:
 
-- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, and Hermes Agent, etc.
+- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.
 - **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.
 
 ### 4. Make Files Available to Your AI
 
-Give a filesystem agent access to the installed `section11/` folder and current
-exported data. For web chat:
+If your AI agent can read your data folder directly, give it access to the installed `section11/` folder and current exported data. For web chat:
 
 - **Local sync:** use a supported cloud connector and check it can read your current data
   and the installed `section11/` folder. Without working connector access, use the Manual
@@ -111,8 +110,14 @@ exported data. For web chat:
   folder only. Never zip the whole data folder, which can contain credentials and rollback state.
 
 An uploaded ZIP is a snapshot. Re-upload for fresh data and after updates, replacing
-the previous upload. Keep the optional dossier as root `DOSSIER.md`; uploads are delivery copies. Keep any repository containing it private; Git keeps old versions.
+the previous upload. Keep the optional dossier as `DOSSIER.md` at the top of your data folder or repository; replace uploaded copies when it changes. Keep any repository containing it private; Git keeps old versions.
 Connectors may need refresh or re-import; check [Platform Setup](#platform-setup).
+
+**Check it works.** Ask your AI:
+
+> Read my latest.json. When was it generated, and what is my most recent activity? Can you open the Section 11 protocol and the report templates? If a file is missing, tell me which.
+
+Check that the date is recent and the activity is your latest one in Intervals.icu.
 
 ### Having trouble?
 
@@ -167,7 +172,7 @@ All Bots on your account share one cloud computer: files, browser sessions and c
 
 ### Hermes Agent
 
-Experimental: not validated end to end with Section 11. Hermes reads its runtime host's filesystem, which may differ from your machine. Use a pointer file for your data, set paths explicitly, and verify the resolved working directory before relying on relative paths.
+Hermes reads its runtime host's filesystem, which may differ from your machine. Use a pointer file for your data, set paths explicitly, and verify the resolved working directory before relying on relative paths.
 
 ### OpenCode
 

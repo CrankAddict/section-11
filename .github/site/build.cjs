@@ -156,7 +156,7 @@ ${ICON_LINKS.map(([rel, name, attributes]) => `<link rel="${rel}" href="${relati
 <header class="site-header"><a class="wordmark" href="${relative(route, 'index.html')}" aria-label="Section 11 home">SECTION <span>11</span></a>
 <nav aria-label="Main navigation">${nav.map(([url, label, secondary]) => `<a${secondary ? ' class="nav-secondary"' : ''} href="${relative(route, url)}"${url === route ? ' aria-current="page"' : ''}>${label}</a>`).join('')}<a href="${REPOSITORY}">Repository <span aria-hidden="true">↗</span></a></nav></header>
 <main id="main">${content}</main>
-<footer><span>Section 11 <span aria-hidden="true">/</span> by <a href="${REPOSITORY}">CrankAddict</a></span><span>Free and open source <span aria-hidden="true">·</span> <a href="${relative(route, 'LICENSE.txt')}">MIT license</a></span><span>Open protocol. Athlete-controlled data.</span></footer>
+<footer><span>Section 11 <span aria-hidden="true">/</span> by <a href="${REPOSITORY}">CrankAddict</a></span><span>Free and open source <span aria-hidden="true">·</span> <a href="${relative(route, 'LICENSE.txt')}">MIT license</a></span><span>Open protocol. Athlete-controlled data.</span><span><a href="https://forum.intervals.icu/t/section-11-open-protocol-for-ai-endurance-coaching-chatgpt-claude-grok-mistral/120602">Community discussion</a></span></footer>
 </body></html>\n`;
 }
 

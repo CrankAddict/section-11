@@ -23,7 +23,9 @@ Set up your AI with [Section 11's project instructions](../../README.md#3-config
 
 Follow [existing-repository steps](#updating-an-existing-repository) to keep your schedule and settings, including both workflow files if you use workout push. Move your own files to `custom/` first: `section11/` is replaced. Unprotected same-name files elsewhere can also be removed; see the [removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
 
-Refreshes are scheduled every 30 minutes by default, but runs can be delayed or skipped; use **Sync Now** when needed. Release installation is separate: **Operation: Update** accepts it immediately. See [updates and undo](../maintenance/UPDATING.md#updating-section-11).
+Refreshes are scheduled every 30 minutes by default, but runs can be delayed or skipped; use **Sync Now** in your repository's README when needed. Release installation is separate: **Operation: Update** accepts it immediately. See [updates and undo](../maintenance/UPDATING.md#updating-section-11).
+
+A private repository uses your GitHub Actions minutes. The default schedule needs about 1,500 a month, more if runs take longer than a minute; GitHub Free includes 2,000. See [GitHub Actions minutes](#github-actions-minutes).
 
 [Full technical guide on GitHub](#technical-guide)
 

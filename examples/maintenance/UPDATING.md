@@ -1,5 +1,35 @@
 # Updating Section 11
 
+An update installs the latest official Section 11 release. You can skip releases you missed. Automatic installation is off by default; refreshing your training data does not turn it on.
+
+## Before you update
+
+Your training data, settings, dossier and files in `custom/` are kept. Everything inside `section11/` is replaced, including your edits and extra files: move anything you want to keep to `custom/` first. Unprotected same-name files elsewhere in the data folder can also be removed; read the [removal rules](#local-updates-and-automatic-toggle).
+
+## Update on your computer
+
+Open a terminal in your existing data folder (Terminal on Mac, PowerShell on Windows), using the Python environment that normally runs sync. Run `python3 section11/examples/sync.py --update`, read the listed changes and timer information, then accept if you agree. On Windows, use `py -3` instead of `python3`. If the script is missing or your setup is old, use the [local installation steps](../json-local-sync/SETUP.md#initial-setup).
+
+An AI with command access to that computer can help. Copy this prompt:
+
+> Help me update Section 11. Before acting, read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/maintenance/UPDATING.md. If you can access my installed section11/ folder, read the same file there at section11/examples/maintenance/UPDATING.md. Confirm my data folder and your command access. Explain the changes and ask before accepting. Keep my existing sync and update preferences.
+
+## Update on GitHub
+
+In your data repository, open **Actions > Auto-Sync Intervals.icu Data > Run workflow**. Keep the default branch, choose **Operation: Update**, then click **Run workflow**. **That click is your yes**, with no later approval. Choose **Status** first if you want to see the plan. A chat AI can guide you; you do the clicks unless it has permission and tools to act. If the Operation menu is missing, follow [workflow installation](#github-update-review).
+
+## Automatic updates and undo
+
+Automatic checks happen at most once a day and need a sync run. To allow installation without asking each time, follow [local automatic updates](#local-updates-and-automatic-toggle) or [GitHub automatic updates](#automatic-github-updates). The same replacement rules apply.
+
+Undo goes back one installation, not any version you choose. Locally, run `python3 section11/examples/sync.py --rollback`; on GitHub, choose **Operation: Rollback**. It needs a usable previous installation and can refuse after later code edits: see [local recovery](#rollback-and-interruption-recovery) or [GitHub recovery](#utc-timing-rejection-and-rollback).
+
+After an update or rollback, check any files you keep in `custom/` and replace uploaded Section 11 files or pasted project instructions separately.
+
+[Full technical guide on GitHub](#technical-guide)
+
+# Technical guide
+
 Updates install the latest official date release (`YYYY.MM.DD`) directly,
 without downloading missed releases. They verify its pinned commit, manifest and
 managed file hashes, and refuse moved tags and known downgrades. An unknown local

@@ -56,6 +56,8 @@ sync.py and push.py use [private sync state](examples/json-local-sync/SETUP.md#p
 
 **Before you start:** The documented data setups use [Intervals.icu](https://intervals.icu). You need an account containing your training data, plus your athlete ID and API key.
 
+Intervals.icu is a free training platform. In Settings > Connections, connect your device's service, such as Garmin or Wahoo. Use a direct connection: activities imported only through Strava can appear in Intervals.icu but reach Section 11 with missing details.
+
 Section 11 is free to use. Your chosen AI platform or hosting may have its own costs.
 
 > **Recommended:** Give [SETUP_ASSISTANT.md](SETUP_ASSISTANT.md) to your AI for guided setup, whether you use a chat app such as ChatGPT or Claude, or OpenClaw and similar always-on agentic setups. Or use the [Section 11 skill](SKILL.md), if supported.
@@ -64,38 +66,30 @@ You can also follow the step-by-step guides below.
 
 ### 1. Create Your Dossier: your stable private context
 
-Create `DOSSIER.md` in the data-folder root (repository root on GitHub) from `DOSSIER_TEMPLATE.md` and fill in the context your AI cannot read from your data: background, equipment, stable constraints, health and injury history, tested fueling, and how you prefer to be coached. Current thresholds and load always come from your JSON. You can start coaching before the dossier exists; a missing dossier limits personalisation, not safety.
+Create `DOSSIER.md` in the data-folder root (repository root on GitHub) from the [dossier template](DOSSIER_TEMPLATE.md) and fill in the context your AI cannot read from your data: background, equipment, stable constraints, health and injury history, tested fueling, and how you prefer to be coached. Current thresholds and load always come from your JSON. You can start coaching before the dossier exists; a missing dossier limits personalisation, not safety. No data folder or GitHub repository yet? Create it in step 2, then come back here.
 
 ### 2. Set Up Your Data Sync
 
 Choose how your data reaches the AI:
 
-- **[Local sync](examples/json-local-sync/SETUP.md):** uses a standard timer on a machine you control at your chosen check interval of 1, 2, 5 or 10 minutes; sync.py can reduce them to a slower step or pause when allowance requires it. The AI reads the files directly if its runtime can reach them, or through a cloud connector.
-- **[GitHub sync](examples/json-auto-sync/SETUP.md):** writes to a private repository every 30 minutes by default. Schedules are best-effort; **Sync Now** requests a run and may queue. In a private repository, runs consume Actions minutes; a public repository runs free but publishes your data ([trade-offs](examples/json-auto-sync/SETUP.md#public-repositories)). See [schedule options and costs](examples/json-auto-sync/SETUP.md#sync-schedule-and-github-actions-usage) before changing frequency.
-- **[On-demand sync](examples/json-on-demand/SETUP.md):** trigger from your phone or browser, then download the JSON artifact or refresh your connector. No schedule or local Python.
-- **[Manual export](examples/json-manual/SETUP.md):** run once for your chosen date range, then upload. Choose `--no-timer` explicitly for manual-only setup; otherwise installation includes auto sync. Re-export when data changes.
+- **[Local sync](examples/json-local-sync/SETUP.md#local-sync-setup-guide):** Best for a computer you fully control and keep on often. A timer checks for new data every 1, 2, 5 or 10 minutes (you choose) while it is on, and slows or pauses if your request allowance runs low. Your AI can read the data in two ways: an AI agent on that computer, such as OpenClaw or Claude Code, opens the folder directly, or you keep the data folder in Google Drive or similar and connect a chat AI like ChatGPT or Gemini to it.
+- **[GitHub sync](examples/json-auto-sync/SETUP.md#github-sync-setup-guide):** Best for automatic refreshes while your computer is off. Your files live in a private repository (an online project folder). The default schedule is every 30 minutes, but runs can be delayed or skipped. **Sync Now** lets you request a run, which may queue. Private repositories use your GitHub Actions minutes; a public repository runs free but exposes your training data ([trade-offs](examples/json-auto-sync/SETUP.md#public-repositories)). See [schedule options and costs](examples/json-auto-sync/SETUP.md#sync-schedule-and-github-actions-usage) before changing the frequency.
+- **[On-demand sync](examples/json-on-demand/SETUP.md#on-demand-sync):** Best for refreshing on request through GitHub. Start a run from your phone or browser. Once it finishes, download your repository ZIP for your AI or refresh its connection. No schedule and no local Python needed.
+- **[Manual export](examples/json-manual/SETUP.md#manual-json-export):** Best for occasional exports from your computer. Choose how many recent days to export, then upload the files to your AI. Use `--no-timer` during installation for manual-only use; otherwise an automatic timer is installed. Export and upload again when your data changes.
 
-Plain raw URLs require a public repository. For private data, use authenticated access or uploads.
+Raw file links work without signing in only for public repositories. For private files, connect your AI to the repository or upload the files.
 
-**We recommend one setup per user.** Before changing the sync path or moving to another machine, stop the old timer or workflow first to protect Intervals.icu. The local count is per data folder, API key and athlete; separate folders do not coordinate, even on the same machine.
+**We recommend one setup per user.** Before switching setups or computers, stop the old timer or workflow to protect Intervals.icu. Different data folders do not share a request count, even on the same computer. Multiple setups using the same API key can exhaust its allowance.
 
-A normal local run uses **4 Intervals.icu requests**. The provider allows **8,000 per key per UTC day** and **2,500 per 15 minutes**; sync reserves 1,000 for other tools and uses at most 7,000 daily, or less if the provider reports a lower limit. One-minute checks fit within the limit in the measured offline scenarios; this is not a guarantee for every athlete. sync.py counts only its own and push.py's requests in shared state, so choose a slower interval if other tools use the key. With the updated workflow, GitHub and On-demand can fall from about **31 requests to 4** on a quiet slow-cache hit. Refreshes, new activities and cache misses cost more; these setups have no daily allowance controller or automatic step-down. See [interval choices, measured daily counts and automatic step-down](examples/json-local-sync/SETUP.md#automate-the-refresh), including the larger first run after updating.
+Refreshes use your Intervals.icu request allowance, so choose a slower schedule if other tools also use your key. See [local refresh limits](examples/json-local-sync/SETUP.md#automate-the-refresh) and [GitHub request limits](examples/json-auto-sync/SETUP.md#private-state-and-request-limits) for details.
 
-All installed setups keep the verified date release in `section11/` and personal
-data, dossier and `custom/` files beside it. Each setup checks for a new official
-release once per UTC day. By default you get a notice and confirm with `--update`
-(Local, Manual) or **Update** in the sync workflow (GitHub, On-demand); automatic
-installation is opt-in, and `--rollback` or **Rollback** restores the previous
-installation. See [updates and rollback](examples/maintenance/UPDATING.md),
-including commit readback, owner workflow recovery and first-release requirements.
+Section 11 checks for updates during sync runs and asks for your acceptance by default; automatic installation is optional. See [updates and rollback](examples/maintenance/UPDATING.md#updating-section-11) for how to install or undo an update.
 
-Outside `section11/`, updates remove any file in any folder named exactly like a
-release or historical Section 11 file, except the update guide's keep list.
-Protected names ignore case; removal names must match exactly. Keep your own files
-in `custom/` or outside the data folder. The local rollback ZIP is short-term
-recovery until the next changing install, not a backup; GitHub retains Git history.
+Keep your own files in `custom/` or outside the data folder: updates replace `section11/` and can remove unprotected same-name files elsewhere. Read the [removal rules](examples/maintenance/UPDATING.md#local-updates-and-automatic-toggle) before accepting an update.
 
 ### 3. Configure Your AI Platform
+
+Pick by how your AI works: an agent can open files on your computer or server; a web chat is an app in your browser or phone.
 
 Choose your path:
 
@@ -107,6 +101,9 @@ Choose your path:
 Give a filesystem agent access to the installed `section11/` folder and current
 exported data. For web chat:
 
+- **Local sync:** use a supported cloud connector and check it can read your current data
+  and the installed `section11/` folder. Without working connector access, use the Manual
+  export upload steps below.
 - **GitHub sync or On-demand:** use a connector or a link to your own repository first.
   If the chat can use neither, open your repository's **Code > Download ZIP** and
   give that ZIP to the chat or project. It includes the installed protocol and templates.

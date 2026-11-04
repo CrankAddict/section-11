@@ -17,7 +17,7 @@
       "hash": "3be8fbf824d9b2513a1e62b1278366176b6c3bdebba91c453dc8216c974e9198"
     },
     "README.md": {
-      "hash": "b73695ec10e99ca128c750b7206460b7a7c04f6664d84b3173a78d82099ff7ab"
+      "hash": "58d3fd8695294b4a4c6b3e2ac295aa43db31973ddd3825210f5327afe19f6eaa"
     },
     "SECTION_11.md": {
       "hash": "d55315325186d54af1522a49c634f08c8f5bcd39c0e82750f37603fc46f3de05",
@@ -81,7 +81,7 @@
       "hash": "cd2c43fbe0e5accd33de82e3a0d9ca1473cb3c72e45126806d1b72e36e657200"
     },
     "examples/json-auto-sync/SETUP.md": {
-      "hash": "0c2775251a412286642c90f46912b9972cbe63b2a1358a0478731db3cb7e1924"
+      "hash": "5281d6e75ea65ab7cda158e0c1882900064af32d661bf24712268062ea34528e"
     },
     "examples/json-auto-sync/auto-sync.yml": {
       "hash": "53b05b5048751fff5a83b7715265e6d6bbfedf87494067c2dd1d7e793117d907"
@@ -111,13 +111,13 @@
       "hash": "f7a02e699d269b7ba5b98cdc853bf7bc4fbdf5eb6f2520d46ba63e30825c145a"
     },
     "examples/json-local-sync/SETUP.md": {
-      "hash": "53ac1259fcb3e3a93ac1030a62bb332acdf103e771ba3107c5cb189ae28b4ba2"
+      "hash": "059664019d08abb11cf75d712d7825730da528a7c5b53c0198b035592d56019c"
     },
     "examples/json-manual/SETUP.md": {
-      "hash": "708fa68cc1d3fdc3cacaaceefcf13335d7dcd85ac6be495617b0341ff2b532d9"
+      "hash": "9f49af6d5eef2b680816be991d4f781c0e474ed0e02e31d71bc87b1677bfe5ee"
     },
     "examples/json-on-demand/SETUP.md": {
-      "hash": "a291ddd0357edd54ff0e79e927985fcaf5eb2bc80eab294886cead3b6fac8d57"
+      "hash": "abbf93320e97603403317a411e624a80cf0bfccc22b37c944ee4f3fbd37ff45c"
     },
     "examples/json-on-demand/auto-sync.yml": {
       "hash": "35650f719388cdd02ceec4c8a9a30b8ccbea7e97f950a145ee8e194e61ca5706"
@@ -126,7 +126,7 @@
       "hash": "dfa1beae4bb9d1bc614699420202f4e537b5df220089adbd05eeca8e2d6a939a"
     },
     "examples/maintenance/UPDATING.md": {
-      "hash": "f6e4ae7859ed33cb26189eb8688aeab8b4a5631acadcd19c0bec114663f6d8c7"
+      "hash": "eb7ea01bc45776075ce28fc32fa8f96489e5c56795105459e64024803876a77e"
     },
     "examples/maintenance/direct_commit.py": {
       "hash": "c19a4061c850b086da7f79fbf4a3a46b5bafc92c35b87ebf61d7a36e60d05f7e"
@@ -195,7 +195,7 @@
       "hash": "7e6cc5f5d566b5982a0fb7f32a0bf48c8582f4683ca19e078bb3a6ed5a15e377"
     },
     "examples/reports/README.md": {
-      "hash": "014e0abd6b81816af6240d2bb7870a8226c206d6e0355f471a8c73b26bd798e5"
+      "hash": "4237526c365e6bd0c20bf810183a70487e224e6028bfd4499787d2630f895997"
     },
     "examples/reports/REPORT_HIERARCHY.md": {
       "hash": "ea31e26a725d88f2bc801d4ced5a7484560323b5ede65c4ce976f6a1b6afea12"

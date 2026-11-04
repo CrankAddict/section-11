@@ -28,17 +28,42 @@ function fixture(t) {
 test('published update guide describes direct updates and sealed release templates', t => {
   const output = path.join(scratch(t), 'public');
   build(root, output);
-  const updating = fs.readFileSync(path.join(output, 'guides/updating.html'), 'utf8');
+  const updating = fs.readFileSync(path.join(root, 'examples/maintenance/UPDATING.md'), 'utf8');
   assert.match(updating, /SECTION11_AUTO_UPDATE/);
   assert.match(updating, /blob-pinned source reads/);
   assert.match(updating, /daily allowance limits automatic discovery/);
   assert.doesNotMatch(updating, /review GitHub update PRs/);
   for (const [route, asset] of [['github-sync.html', 'auto-sync.yml'], ['on-demand.html', 'on-demand.yml']]) {
-    const guide = fs.readFileSync(path.join(output, 'guides', route), 'utf8');
+    const guide = fs.readFileSync(route === 'github-sync.html' ? path.join(root, 'examples/json-auto-sync/SETUP.md') : path.join(output, 'guides', route), 'utf8');
     assert.ok(guide.includes('section11-YYYY.MM.DD-' + asset));
     assert.match(guide, /UNSEALED/);
     assert.match(guide, /releases\/latest/);
   }
+  const contents = html => [...html.match(/<nav aria-label="On this page"><ul>(.*?)<\/ul><\/nav>/)[1].matchAll(/<a href="#([^"]+)">(.*?)<\/a>/g)].map(m => [m[1], m[2]]);
+  for (const [route, id, title, sections] of [
+    ['guides/updating.html', 'updating-section-11', 'Updating Section 11', ['Before you update', 'Update on your computer', 'Update on GitHub', 'Automatic updates and undo']],
+    ['guides/local-sync.html', 'local-sync-setup-guide', 'Local Sync Setup Guide', ['Get help from your AI', 'Set it up yourself', 'After setup']],
+    ['guides/github-sync.html', 'github-sync-setup-guide', 'GitHub Sync Setup Guide', ['Get help from your AI', 'Set up a new repository', 'Already set up?']],
+    ['guides/on-demand.html', 'on-demand-sync', 'On-Demand Sync', ['Get help from your AI', 'Set up once', 'Refresh and use your data']],
+    ['guides/manual-export.html', 'manual-json-export', 'Manual JSON Export', ['Get help from your AI', 'Install and export', 'Give the files to your AI']],
+    ['reports.html', 'report-examples', 'Report Examples', ['Choose a report', 'Ask your AI']],
+  ]) {
+    const html = fs.readFileSync(path.join(output, route), 'utf8');
+    assert.deepEqual(html.match(/<h1\b[^>]*>.*?<\/h1>/g), [`<h1 id="${id}">${title}</h1>`], route);
+    assert.doesNotMatch(html, /Start here/, route);
+    const headings = [...html.matchAll(/<h2 id="([^"]+)">(.*?)<\/h2>/g)].map(m => [m[1], m[2]]);
+    assert.deepEqual(headings.map(h => h[1]), sections, route);
+    assert.deepEqual(contents(html), headings, route);
+  }
+  const start = fs.readFileSync(path.join(output, 'getting-started.html'), 'utf8');
+  assert.deepEqual(contents(start), [
+    ['1-create-your-dossier-your-stable-private-context', '1. Create Your Dossier: your stable private context'],
+    ['2-set-up-your-data-sync', '2. Set Up Your Data Sync'],
+    ['3-configure-your-ai-platform', '3. Configure Your AI Platform'],
+    ['4-make-files-available-to-your-ai', '4. Make Files Available to Your AI'],
+    ['having-trouble', 'Having trouble?'],
+  ]);
+  assert.ok([['local-sync', 'local-sync-setup-guide', 'Local sync'], ['github-sync', 'github-sync-setup-guide', 'GitHub sync'], ['on-demand', 'on-demand-sync', 'On-demand sync'], ['manual-export', 'manual-json-export', 'Manual export']].every(([name, id, label]) => start.includes(`<a href="guides/${name}.html#${id}">${label}</a>`)));
 });
 
 test('build emits only the explicit public inventory', t => {
@@ -147,8 +172,8 @@ test('local sync Connect Your Agent ends with open-weight options, control inter
   assert.ok(local.original.includes(`medication or health context.\n\n### Open-weight options\n\n${paragraph}\n\n### Control interfaces\n\n${note}\n\n${instructions}\n---\n\n## Using with Web Chat Platforms\n`));
   assert.equal(local.original.split(/open-weight/i).length, 3);
   assert.equal(local.original.split('T3 Code').length, 2);
-  const html = renderDocument(local, docs, root);
-  assert.ok(html.includes('<h3 id="opencode">OpenCode</h3>\n<p><a href="https://opencode.ai/docs/">OpenCode</a> supports multiple model providers. Start it from <code>~/training-data/</code> and use the agentic contract under <a href="local-sync.html#project-instructions">Project instructions</a> below.</p>\n<h3 id="hermes-agent">'));
+  const html = renderDocument({ ...local, selected: local.original }, docs, root);
+  assert.ok(html.includes('<h3 id="opencode">OpenCode</h3>\n<p><a href="https://opencode.ai/docs/">OpenCode</a> supports multiple model providers. Start it from <code>~/training-data/</code> and use the agentic contract under <a href="https://github.com/CrankAddict/section-11/blob/main/examples/json-local-sync/SETUP.md#project-instructions">Project instructions</a> below.</p>\n<h3 id="hermes-agent">'));
   const rendered = '<p><a href="https://t3.codes/">T3 Code</a> is an optional control interface for supported agents, not a separate coaching runtime.</p>';
   assert.ok(html.includes(`<h3 id="open-weight-options">Open-weight options</h3>\n<p>${paragraph}</p>\n<h3 id="control-interfaces">Control interfaces</h3>\n${rendered}\n<h3 id="project-instructions">Project instructions</h3>\n<p>Your coach's instructions live in one canonical contract`));
   assert.match(html, /Verify that the agent can read the required files at <code>section11\/examples\/workout-library\/WORKOUT_REFERENCE\.md<\/code> and <code>section11\/examples\/reports\/<\/code>; a path on your machine does not establish access from another runtime\.<\/p>\n<hr>\n<h2 id="using-with-web-chat-platforms">/);
@@ -309,8 +334,8 @@ test('unselected Markdown and data never enter output', t => {
 test('local, unselected and partial-document links preserve their destination', () => {
   const docs = prepare(root);
   const manual = docs.find(p => p.title === 'Manual export');
-  assert.equal(linkURL('../json-auto-sync/SETUP.md#ftp-history-tracking', manual, docs, root), 'github-sync.html#ftp-history-tracking');
-  assert.equal(linkURL('../maintenance/UPDATING.md#github-update-review', manual, docs, root), 'updating.html#github-update-review');
+  assert.equal(linkURL('../json-auto-sync/SETUP.md#ftp-history-tracking', manual, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/examples/json-auto-sync/SETUP.md#ftp-history-tracking');
+  assert.equal(linkURL('../maintenance/UPDATING.md#github-update-review', manual, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/examples/maintenance/UPDATING.md#github-update-review');
   assert.equal(linkURL('../../README.md#quick-start', manual, docs, root), '../getting-started.html#quick-start');
   assert.equal(linkURL('../../README.md#platform-setup', manual, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/README.md#platform-setup');
   assert.equal(linkURL('../../SETUP_ASSISTANT.md', manual, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/SETUP_ASSISTANT.md');

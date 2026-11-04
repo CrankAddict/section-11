@@ -1,5 +1,28 @@
 # Report Examples
 
+Your AI coach uses Section 11's templates and your current training files to write reports. Choose the report for the question you have. The linked examples use fictional data to show what a report looks like; they are not your results.
+
+## Choose a report
+
+- **Before a session:** a [pre-workout briefing](PRE_WORKOUT_REPORT_EXAMPLES.md) checks readiness and explains the planned workout and relevant weather.
+- **After a session:** [post-workout analysis](POST_WORKOUT_REPORT_EXAMPLES.md) reviews what you completed and how it compared with the plan.
+- **For a weekly review:** ask for a [7-day report](7_DAY_REPORT_EXAMPLES.md), covering today and the previous six days.
+- **For a longer review:** ask for a [28-day report](28_DAY_REPORT_EXAMPLES.md) to see training and progress over the last four weeks.
+- **For the bigger picture:** ask for a [Season report](SEASON_REPORT_EXAMPLES.md), using completed weeks and available year-to-year comparisons.
+- **For upcoming rides:** ask for a [Weather report](WEATHER_REPORT_EXAMPLES.md) covering planned outdoor rides in the next five days. It depends on available route-weather data and does not replace a readiness check.
+
+## Ask your AI
+
+Choose a report name above and copy this prompt:
+
+> Give me a [report name]. First read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/reports/README.md. If you can access my installed section11/ folder, read the same file at section11/examples/reports/README.md. Use its matching template and my current training files. Tell me if any required file is missing; do not use the example data as mine.
+
+The AI needs access to your current data and installed Section 11 files. Reports stay brief when everything is normal; ask "why?" when you want more explanation.
+
+[Full technical guide on GitHub](#technical-guide)
+
+# Technical guide
+
 Reference templates and examples for Section 11-compliant AI coaching reports.
 
 ---

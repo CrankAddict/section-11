@@ -193,7 +193,7 @@ function build(root, output) {
   files.set('index.html', shell('index.html', headTitle(HOME), HOME.description, landing(), icons, homeGraph()));
   for (const page of documents) {
     const article = renderDocument(page, documents, root);
-    const toc = page.headings.filter(h => h.level === (page.section ? 3 : 2));
+    const toc = page.headings.filter(h => h.level === (page.section ? page.headings[0].level + 1 : 2));
     const sourceLink = sourceURL(page.source, page.section ? `#${slug(page.section)}` : '');
     const sidebar = `<aside class="guide-nav"><p class="eyebrow">Setup &amp; examples</p><nav aria-label="Guide navigation">${documents.map(d => `<a href="${relative(page.route, d.route)}"${d.route === page.route ? ' aria-current="page"' : ''}>${escape(d.title)}</a>`).join('')}</nav><a class="source-link" href="${sourceLink}">View Markdown source <span aria-hidden="true">↗</span></a></aside>`;
     const contents = `<details class="toc"><summary>On this page</summary><nav aria-label="On this page"><ul>${toc.map(h => `<li><a href="#${escape(h.id)}">${escape(h.text)}</a></li>`).join('')}</ul></nav></details>`;

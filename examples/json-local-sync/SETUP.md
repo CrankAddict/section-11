@@ -1,5 +1,32 @@
 # Local Sync Setup Guide
 
+Local sync copies your Intervals.icu training data into a folder on your computer. Your computer refreshes it; your AI reads it. No GitHub account is needed.
+
+## Get help from your AI
+
+You choose the folder and enter your credentials. An AI with access to run commands on this computer can help install and check it; otherwise, you run the commands. Copy this prompt:
+
+> Help me set up Local sync. Before acting, read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/json-local-sync/SETUP.md. If you can access my installed section11/ folder, read the same file there at section11/examples/json-local-sync/SETUP.md. Check my operating system, Python and your command access. Keep my existing data folder, dossier and preferences. Explain changes before asking me to accept. Verify the first sync and my AI's access to the files.
+
+## Set it up yourself
+
+1. Have Python 3.11 or newer and Requests installed: `python3 -m pip install requests`. On Windows, use `py -3` instead of `python3` throughout. If Python is missing or installation fails, follow [Prerequisites](#prerequisites).
+2. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
+3. Choose your final data folder, or keep your existing one. For cloud access, choose a cloud-synced folder now. Open a terminal in it (Terminal on Mac, PowerShell on Windows). From the [latest official release](https://github.com/CrankAddict/section-11/releases/latest), download `section11-YYYY.MM.DD.zip` and extract it into `Downloads/section11-bootstrap`, outside the data folder.
+4. Run `python3 "$HOME/Downloads/section11-bootstrap/section11/examples/sync.py" --init`. Existing users use `--update` instead. Before accepting, move your own files out of `section11/` into `custom/`: the entire `section11/` folder is replaced. Unprotected same-name files elsewhere can also be removed; see the [removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
+5. Run `python3 section11/examples/sync.py --setup` and enter your credentials, then `python3 section11/examples/sync.py --output latest.json`. Check that `latest.json` contains your current data. Keep any existing dossier; it belongs beside `latest.json`.
+6. Give your AI access to `latest.json` and the installed `section11/` folder. Use [Section 11's project instructions](../../README.md#3-configure-your-ai-platform) and ask it to confirm it can read the data, protocol and templates. If it cannot reach your computer, use a cloud connector or the [web-chat upload steps](#using-with-web-chat-platforms). Keep the folder private: it contains credentials and personal data.
+
+## After setup
+
+A standard timer refreshes data while your computer is on. Add `--no-timer` to the installation command for manual-only use; an existing manual-only choice is kept. Remove any old timer you created yourself. See [refresh settings](#automate-the-refresh) if needed.
+
+Release updates still need your confirmation by default. See [updating](../maintenance/UPDATING.md#updating-section-11) or [troubleshooting](#verification-and-troubleshooting) when you need help.
+
+[Full technical guide on GitHub](#technical-guide)
+
+# Technical guide
+
 Run Section 11 from a machine you control: no GitHub needed. A script syncs your training data from Intervals.icu on a timer, and your AI coach reads the output, either directly from a filesystem its runtime can reach (agentic platforms) or via a cloud connector (AI chats with no runtime filesystem; [platform support varies](../../README.md#platform-setup)).
 
 > **Already using Section 11 locally?** Keep your data folder. Obtain the release bootstrap in [Initial Setup](#initial-setup), run it with `--update` from that folder, and accept once. Guide, root/manual, copy-only and clone installations use this same route. See [Staying Up to Date](#staying-up-to-date): installation replaces all of `section11/`, removes copies selected by the [shared name rule](../maintenance/UPDATING.md#local-updates-and-automatic-toggle) and manages auto sync.

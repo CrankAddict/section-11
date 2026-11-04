@@ -1,10 +1,40 @@
 # On-Demand Sync
 
+On-demand sync refreshes your Intervals.icu training files when you ask, from a phone or browser. GitHub does the work. You need Intervals.icu and GitHub accounts, but no Python installation or automatic schedule.
+
+## Get help from your AI
+
+You do the GitHub clicks and enter your credentials; your AI can walk you through them. Copy this prompt:
+
+> Help me set up On-demand sync. Before acting, read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/json-on-demand/SETUP.md. If you can access my installed section11/ folder, read the same file at section11/examples/json-on-demand/SETUP.md. I will do the clicks and enter credentials in GitHub. Preserve my existing data and settings. Help me check the first run and give my AI access to the current data and Section 11 files.
+
+## Set up once
+
+1. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
+2. At [github.com/new](https://github.com/new), create a repository such as `training-data`. Choose **Private**, leave **Add a README file** unchecked and click **Create repository**.
+3. Download `section11-YYYY.MM.DD-on-demand.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). Return to your new repository. Click **creating a new file** to create `.github/workflows/auto-sync.yml`, paste that file's contents and commit it. If it is unavailable or says `UNSEALED`, wait for a verified release; see [workflow setup](#step-2-set-up-github-repository).
+4. Open **Settings > Secrets and variables > Actions > New repository secret**. Add `ATHLETE_ID` and `INTERVALS_KEY` with your values. Under **Settings > Actions > General > Workflow permissions**, select **Read and write permissions** and save.
+5. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow**. Enable workflows if prompted, keep the default branch and **Operation: Sync**, then run it. Wait for completion and check the new files, including `latest.json` and `section11/`, in your repository.
+
+**Already have a setup?** Follow [existing-repository steps](#updating-an-existing-repository), including both workflow files if you use workout push. Move your own files to `custom/` first: `section11/` is replaced. Unprotected same-name files elsewhere can also be removed; see the [removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
+
+## Refresh and use your data
+
+Next time, tap **Sync Now** in your repository's README, then **Run workflow**. Nothing refreshes until you request a run.
+
+After it completes, refresh your AI's connector or authenticated repository access and check it can read the current files. If it cannot, use **Code > Download ZIP** on your repository and upload that ZIP to your AI. It includes the installed Section 11 files; the run's data-only download does not. Replace uploads for fresh data and after updates. See [usage](#usage) and [updates](../maintenance/UPDATING.md#updating-section-11) for details.
+
+Set up your AI with [Section 11's project instructions](../../README.md#3-configure-your-ai-platform).
+
+[Full technical guide on GitHub](#technical-guide)
+
+# Technical guide
+
 Trigger a fresh Intervals.icu sync from your phone or browser, then download the data files. No local Python, no scheduled runs. You sync when you want to.
 
-> **Want automatic sync on a schedule?** See [json-auto-sync](../json-auto-sync/SETUP.md) instead.
+> **Want automatic sync on a schedule?** See [json-auto-sync](../json-auto-sync/SETUP.md#github-sync-setup-guide) instead.
 
-> **Running an agentic platform locally?** See [json-local-sync](../json-local-sync/SETUP.md). No GitHub needed.
+> **Running an agentic platform locally?** See [json-local-sync](../json-local-sync/SETUP.md#local-sync-setup-guide). No GitHub needed.
 
 > **Already using On-demand sync?** Keep your repository, secrets, settings and data. Replace the one `auto-sync.yml` in GitHub's editor with the published [On-demand template](auto-sync.yml), then run its default **Sync**. Hosted push users replace `auto-sync.yml` and `push-workout.yml` together in the same owner commit, before the first Sync. No ZIP upload, PR setting or merge is required.
 
@@ -146,7 +176,7 @@ policy-compatible route.
 
 Install, update and rollback refresh the standard README while retaining its sync
 timestamp; Sync changes only that timestamp between updates. See the
-[update guide](../maintenance/UPDATING.md).
+[update guide](../maintenance/UPDATING.md#updating-section-11).
 
 ---
 

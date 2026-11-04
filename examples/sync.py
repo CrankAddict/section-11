@@ -4617,6 +4617,12 @@ class RequestBudgetRefused(requests.exceptions.RequestException):
     """No request was sent; preserve prior data and attempt state."""
 
 
+def is_hosted_sync(environ):
+    """Explicit Actions sync event; cron shape only governs delivery deadlines."""
+    return (environ.get("GITHUB_ACTIONS") == "true"
+            and environ.get("SECTION11_EXPORT_EVENT") in ("schedule", "workflow_dispatch"))
+
+
 class ExportFreshness:
     """Delivery expectation only; never grants requests or changes cache validity."""
 
@@ -5813,7 +5819,7 @@ class HostedSlowCache:
         self.stage, self.original = None, None
         self.scope = None
         env = os.environ
-        if ExportFreshness.context(env)["mode"] not in ("hosted_scheduled", "on_demand"):
+        if not is_hosted_sync(env):
             return
         try:
             repository = env.get("GITHUB_REPOSITORY_ID", "")
@@ -6086,7 +6092,7 @@ class IntervalsSync:
     GITHUB_API_URL = "https://api.github.com"
     FTP_HISTORY_FILE = "ftp_history.json"
     HISTORY_FILE = "history.json"
-    VERSION = "3.166"
+    VERSION = "3.167"
     ROUTE_TERRAIN_VERSION = "3.142"
     ROUTE_RETRY_BACKOFF_SECONDS = 15 * 60
     INTERVALS_FILE = "intervals.json"
@@ -6438,7 +6444,7 @@ class IntervalsSync:
     def request_budget(self):
         if not hasattr(self, "_request_budget"):
             factory = self._budget_factory
-            if factory is RequestBudget and ExportFreshness.context(os.environ)["mode"] in ("hosted_scheduled", "on_demand"):
+            if factory is RequestBudget and is_hosted_sync(os.environ):
                 factory = HostedRequestBudget
             self._request_budget = factory(
                 getattr(self, "data_dir", Path.cwd()), "sync", RequestBudgetRefused,

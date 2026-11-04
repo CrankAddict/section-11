@@ -1,7 +1,7 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.103  
-**Last Updated:** 2026-10-30
+**Protocol Version:** 11.104  
+**Last Updated:** 2026-11-04
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 Section 11 documents live in `section11/`, custom files in `custom/`, and user data
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.104 - Hosted cache for every schedule (2026-11-04, sync.py v3.167):**
+
+GitHub scheduled runs use the hosted slow-source cache and per-run request controller for every cron shape, including hourly, three-hour and hybrid schedules. Cache use no longer depends on whether a delivery deadline is known. Export freshness, cache scope and validation, Local sync, Manual export and On-demand behavior stay unchanged.
 
 **v11.103 - Verified release updates (2026-11-03, sync.py v3.166):**
 - Every setup installs the complete verified date release. The first installation is accepted once after a single warning. See [updates and rollback](examples/maintenance/UPDATING.md) for installation rules.

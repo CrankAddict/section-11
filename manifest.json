@@ -20,7 +20,7 @@
       "hash": "58d3fd8695294b4a4c6b3e2ac295aa43db31973ddd3825210f5327afe19f6eaa"
     },
     "SECTION_11.md": {
-      "hash": "d55315325186d54af1522a49c634f08c8f5bcd39c0e82750f37603fc46f3de05",
+      "hash": "7756869e5317a280375681b6b97af808f0ca9d896bb88bc44f52764fe1785b32",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
@@ -81,13 +81,13 @@
       "hash": "cd2c43fbe0e5accd33de82e3a0d9ca1473cb3c72e45126806d1b72e36e657200"
     },
     "examples/json-auto-sync/SETUP.md": {
-      "hash": "5281d6e75ea65ab7cda158e0c1882900064af32d661bf24712268062ea34528e"
+      "hash": "56e2801fb8ab2faf53b771b7db2ee0190068c1b4b68e7fce71ddd587f9f40cb8"
     },
     "examples/json-auto-sync/auto-sync.yml": {
       "hash": "53b05b5048751fff5a83b7715265e6d6bbfedf87494067c2dd1d7e793117d907"
     },
     "examples/json-examples/README.md": {
-      "hash": "a99998a75d021892573d28090f620d6096ab2633f241c9f4b21ff8e681448798"
+      "hash": "e5ca53d6f149e011e5bd09810d61764c3d8c6f0a594daf271d8e5afa94658e71"
     },
     "examples/json-examples/ftp_history.example.json": {
       "hash": "b2f2d569327c7b030c02969efdadd224bcc6d3df4c63857c3f4e614a75cfcb75"
@@ -117,7 +117,7 @@
       "hash": "9f49af6d5eef2b680816be991d4f781c0e474ed0e02e31d71bc87b1677bfe5ee"
     },
     "examples/json-on-demand/SETUP.md": {
-      "hash": "abbf93320e97603403317a411e624a80cf0bfccc22b37c944ee4f3fbd37ff45c"
+      "hash": "7c27ea680ec51b275e3ca5283980e75f309dd535cd0ae76b3979ef421fa9b926"
     },
     "examples/json-on-demand/auto-sync.yml": {
       "hash": "35650f719388cdd02ceec4c8a9a30b8ccbea7e97f950a145ee8e194e61ca5706"
@@ -222,7 +222,7 @@
       "hash": "53b5f2cc457baab0f89dde417003572e221aea8852873be91fb88317447347a9"
     },
     "examples/sync.py": {
-      "hash": "a1f1943c4e8c9347769647574f7ff48ecca13c0f7b543227e30aa7f6ae034723"
+      "hash": "7f1299c7c4ec693b8d986f29bee8ccd9a7537012b77c932554156f3ad9d184a3"
     },
     "examples/workout-library/README.md": {
       "hash": "4d6f5ee1d7b87c8306d4dcbf9ea80bd305ff827f7d3b3c6629b9dd665a811208"

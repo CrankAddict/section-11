@@ -149,11 +149,11 @@ test('OpenCode leaves Quick Start; its full entry and T3 Code stay in Agentic Se
   assert.equal(entry, '\n### OpenCode\n\nAn open-source coding agent for the terminal, IDE and desktop.\n\n**Control interfaces.** T3 Code provides an interface for supported agents such as Claude Code, ChatGPT Codex and OpenCode. Section 11 access depends on the underlying agent\'s configured filesystem and tool permissions; T3 Code is not a separate coaching runtime.\n');
   assert.match(entry, /An open-source coding agent for the terminal, IDE and desktop\.\n\n\*\*Control interfaces\.\*\* T3 Code provides an interface for supported agents[^\n]*T3 Code is not a separate coaching runtime\.\n$/);
   assert.equal(readme.split('T3 Code').length, 3);
-  assert.ok(start.selected.includes('\nChoose your path:\n\n- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.\n- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.\n\n### 4. Make Files Available to Your AI\n'));
+  assert.ok(start.selected.includes("\n- **Agentic:** open [PROJECT_INSTRUCTIONS_AGENTIC.md](PROJECT_INSTRUCTIONS_AGENTIC.md), copy the text in its grey box (GitHub shows a copy button at the top right) and add it to your agent's persistent configuration. See [Agentic Platforms](#agentic-setup) for your platform (OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.).\n- **Web chat:** open [PROJECT_INSTRUCTIONS_WEB.md](PROJECT_INSTRUCTIONS_WEB.md), copy the text in its grey box and paste it into your Project, Space, Gem or custom instructions. See [Web Chat Platforms](#web-chat-setup) for your platform (ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.) and [Platform Setup](#platform-setup) for connection details.\n\n### 4. Make Files Available to Your AI\n"));
   assert.doesNotMatch(start.selected, /OpenCode/);
   assert.equal(linkURL('#agentic-setup', start, docs, root), 'https://github.com/CrankAddict/section-11/blob/main/README.md#agentic-setup');
   const html = renderDocument(start, docs, root);
-  assert.ok(html.includes('OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.</li>'));
+  assert.ok(html.includes('(OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.).</li>'));
   assert.doesNotMatch(html, /OpenCode/);
   assert.doesNotMatch(start.selected + html, /T3 Code|t3\.codes|optional control interface/);
   assert.doesNotMatch(readme + html, /open-weight/i);
@@ -304,6 +304,92 @@ test('search metadata, home structured data and sitemap change only the head and
   // robots.txt: allow-all plus the sitemap address, nothing else.
   assert.equal(fs.readFileSync(path.join(output, 'robots.txt'), 'utf8'),
     'User-agent: *\nAllow: /\n\nSitemap: https://section11.net/sitemap.xml\n');
+});
+
+test('Getting started step 3 supplies the instructions through the existing eight-page navigation', t => {
+  const docs = prepare(root);
+  const start = docs.find(p => p.route === 'getting-started.html');
+  const expected = "### 3. Configure Your AI Platform\n\nAgentic: you use an AI agent such as OpenClaw, usually running on a computer or server that is on a lot or always. Web chat: you use a chat app such as ChatGPT, Claude or Gemini.\n\n- **Agentic:** open [PROJECT_INSTRUCTIONS_AGENTIC.md](PROJECT_INSTRUCTIONS_AGENTIC.md), copy the text in its grey box (GitHub shows a copy button at the top right) and add it to your agent's persistent configuration. See [Agentic Platforms](#agentic-setup) for your platform (OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.).\n- **Web chat:** open [PROJECT_INSTRUCTIONS_WEB.md](PROJECT_INSTRUCTIONS_WEB.md), copy the text in its grey box and paste it into your Project, Space, Gem or custom instructions. See [Web Chat Platforms](#web-chat-setup) for your platform (ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.) and [Platform Setup](#platform-setup) for connection details.\n\n";
+  assert.equal(select(start.original, { source: 'README.md', section: '3. Configure Your AI Platform' }), expected);
+  const typeLine = 'Agentic: you use an AI agent such as OpenClaw, usually running on a computer or server that is on a lot or always. Web chat: you use a chat app such as ChatGPT, Claude or Gemini.';
+  assert.equal(start.selected.split(typeLine).length, 2);
+  assert.doesNotMatch(start.original, /## Connect your AI|#connect-your-ai|#3-give-it-the-files/);
+  assert.doesNotMatch(JSON.stringify(pages), /connect-ai|connect-your-ai/);
+  const output = path.join(scratch(t), 'public');
+  const files = build(root, output);
+  assert.equal(files.filter(name => name.endsWith('.html')).length, 8);
+  assert.ok(!files.includes('guides/connect-ai.html'));
+  for (const name of files.filter(name => name.endsWith('.html') || name === 'sitemap.xml')) {
+    assert.doesNotMatch(fs.readFileSync(path.join(output, name), 'utf8'), /connect-ai\.html|#connect-your-ai|#3-give-it-the-files|>Connect your AI</, name);
+  }
+  const html = fs.readFileSync(path.join(output, start.route), 'utf8');
+  const step3 = html.slice(html.indexOf('<h2 id="3-configure-your-ai-platform">'), html.indexOf('<h2 id="4-make-files-available-to-your-ai">'));
+  const github = 'https://github.com/CrankAddict/section-11/blob/main/';
+  assert.deepEqual([...step3.matchAll(/href="([^"]+)"/g)].map(m => m[1]), [
+    github + 'PROJECT_INSTRUCTIONS_AGENTIC.md', github + 'README.md#agentic-setup',
+    github + 'PROJECT_INSTRUCTIONS_WEB.md', github + 'README.md#web-chat-setup',
+    github + 'README.md#platform-setup',
+  ]);
+  assert.ok(step3.includes('<p>' + typeLine + '</p>'));
+  for (const route of ['guides/local-sync.html', 'guides/github-sync.html', 'guides/on-demand.html', 'guides/manual-export.html']) {
+    const article = fs.readFileSync(path.join(output, route), 'utf8').match(/<article class="prose">(.*?)<\/article>/s)[1];
+    assert.ok(article.includes('<a href="../getting-started.html#3-configure-your-ai-platform">Section 11\'s project instructions</a>'), route);
+  }
+});
+
+test('Getting started step 4 preserves the complete access, ZIP, privacy, freshness and check text', () => {
+  const start = prepare(root).find(p => p.route === 'getting-started.html');
+  const expected = "### 4. Make Files Available to Your AI\n\nIf your AI agent can read your data folder directly, give it access to the installed `section11/` folder and current exported data. For web chat:\n\n- **Local sync:** use a supported cloud connector and check it can read your current data\n  and the installed `section11/` folder. Without working connector access, use the Manual\n  export upload steps below.\n- **GitHub sync or On-demand:** use a connector or a link to your own repository first.\n  If the chat can use neither, open your repository's **Code > Download ZIP** and\n  give that ZIP to the chat or project. It includes the installed protocol and templates.\n- **Manual export:** upload the exported data files, `DOSSIER.md` if used, and a ZIP of the `section11/`\n  folder only. Never zip the whole data folder, which can contain credentials and rollback state.\n\nAn uploaded ZIP is a snapshot. Re-upload for fresh data and after updates, replacing\nthe previous upload. Keep the optional dossier as `DOSSIER.md` at the top of your data folder or repository; replace uploaded copies when it changes. Keep any repository containing it private; Git keeps old versions.\nConnectors may need refresh or re-import; check [Platform Setup](#platform-setup).\n\n**Check it works.** Ask your AI:\n\n> Read my latest.json. When was it generated, and what is my most recent activity? Can you open the Section 11 protocol and the report templates? If a file is missing, tell me which.\n\nCheck that the date is recent and the activity is your latest one in Intervals.icu.\n\n";
+  assert.equal(select(start.original, { source: 'README.md', section: '4. Make Files Available to Your AI' }), expected);
+});
+
+test('instruction files and setup anchors are required; Manual retains its companion-list link', t => {
+  for (const name of ['PROJECT_INSTRUCTIONS_AGENTIC.md', 'PROJECT_INSTRUCTIONS_WEB.md']) {
+    const source = fixture(t);
+    fs.unlinkSync(path.join(source, name));
+    const output = path.join(scratch(t), 'public');
+    assert.throws(() => build(source, output), /ENOENT/, name);
+    assert.equal(fs.existsSync(output), false, name);
+  }
+  const docs = prepare(root);
+  const start = docs.find(p => p.route === 'getting-started.html');
+  const github = 'https://github.com/CrankAddict/section-11/blob/main/';
+  assert.throws(() => linkURL('PROJECT_INSTRUCTIONS_WEB.md#missing-instructions', start, docs, root), /Missing source anchor/);
+  assert.equal(linkURL('PROJECT_INSTRUCTIONS_WEB.md', start, docs, root), github + 'PROJECT_INSTRUCTIONS_WEB.md');
+  assert.ok(start.selected.includes('#platform-setup)'));
+  assert.throws(() => renderDocument({ ...start, selected: start.selected.replace('#platform-setup)', '#missing-platform-setup)') }, docs, root), /Missing source anchor/);
+  assert.ok(renderDocument(start, docs, root).includes('href="' + github + 'README.md#platform-setup"'));
+  const manual = docs.find(p => p.route === 'guides/manual-export.html');
+  assert.ok(manual.selected.includes('#use-with-ai)'));
+  assert.throws(() => renderDocument({ ...manual, selected: manual.selected.replace('#use-with-ai)', '#missing-companion-list)') }, docs, root), /Missing source anchor/);
+  assert.ok(renderDocument(manual, docs, root).includes('href="' + github + 'examples/json-manual/SETUP.md#use-with-ai"'));
+});
+
+test('new-repository setup ends with the minutes paragraph and dossier step 1 keeps its heading', t => {
+  const output = path.join(scratch(t), 'public');
+  build(root, output);
+  const github = fs.readFileSync(path.join(output, 'guides/github-sync.html'), 'utf8');
+  const minutes = '<p>A private repository uses your GitHub Actions minutes. The default schedule needs about 1,500 a month, more if runs take longer than a minute; GitHub Free includes 2,000. See <a href="https://github.com/CrankAddict/section-11/blob/main/examples/json-auto-sync/SETUP.md#github-actions-minutes">GitHub Actions minutes</a>.</p>';
+  assert.equal(github.split('A private repository uses your GitHub Actions minutes.').length, 2);
+  assert.ok(github.includes('<p>Set up your AI with <a href="../getting-started.html#3-configure-your-ai-platform">Section 11\'s project instructions</a>.</p>\n' + minutes + '\n<h2 id="already-set-up">Already set up?</h2>'));
+  const start = fs.readFileSync(path.join(output, 'getting-started.html'), 'utf8');
+  assert.ok(start.includes('<h2 id="1-create-your-dossier-your-stable-private-context">1. Create Your Dossier: your stable private context</h2>\n<p>Create <code>DOSSIER.md</code> at the top of your data folder (or of your repository on GitHub) from the <a href="https://github.com/CrankAddict/section-11/blob/main/DOSSIER_TEMPLATE.md">dossier template</a>'));
+  const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+  const step1 = select(readme, { source: 'README.md', section: '1. Create Your Dossier: your stable private context' });
+  assert.ok(step1.startsWith("### 1. Create Your Dossier: your stable private context\n\nCreate `DOSSIER.md` at the top of your data folder (or of your repository on GitHub) from the [dossier template](DOSSIER_TEMPLATE.md)"));
+  assert.ok(readme.includes("Root `DOSSIER.md` in the data-folder root (repository root on GitHub) is authoritative."));
+});
+
+test('Local and Manual step 3 show the same terminal-in-folder sentence', t => {
+  const output = path.join(scratch(t), 'public');
+  build(root, output);
+  const sentence = 'To get there: on Mac, type <code>cd </code> (with a space) in Terminal, drag the folder into the window and press Return; on Windows, open the folder in File Explorer, click the address bar, type <code>powershell</code> and press Enter.';
+  for (const route of ['guides/local-sync.html', 'guides/manual-export.html']) {
+    const html = fs.readFileSync(path.join(output, route), 'utf8');
+    const steps = [...html.match(/<ol>(.*?)<\/ol>/s)[1].matchAll(/<li>(.*?)<\/li>/gs)].map(m => m[1]);
+    assert.ok(steps[2].endsWith(sentence), route);
+    assert.equal(html.split(sentence).length, 2, route);
+  }
 });
 
 test('Quick Start is an exact source section, excluding adjacent sections', () => {

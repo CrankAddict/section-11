@@ -66,7 +66,7 @@ You can also follow the step-by-step guides below.
 
 ### 1. Create Your Dossier: your stable private context
 
-Create `DOSSIER.md` in the data-folder root (repository root on GitHub) from the [dossier template](DOSSIER_TEMPLATE.md) and fill in the context your AI cannot read from your data: background, equipment, stable constraints, health and injury history, tested fueling, and how you prefer to be coached. Current thresholds and load always come from your JSON. You can start coaching before the dossier exists; a missing dossier limits personalisation, not safety. No data folder or GitHub repository yet? Create it in step 2, then come back here.
+Create `DOSSIER.md` at the top of your data folder (or of your repository on GitHub) from the [dossier template](DOSSIER_TEMPLATE.md) and fill in the context your AI cannot read from your data: background, equipment, stable constraints, health and injury history, tested fueling, and how you prefer to be coached. Current thresholds and load always come from your JSON. You can start coaching before the dossier exists; a missing dossier limits personalisation, not safety. No data folder or GitHub repository yet? Create it in step 2, then come back here.
 
 ### 2. Set Up Your Data Sync
 
@@ -91,10 +91,8 @@ Keep your own files in `custom/` or outside the data folder: updates replace `se
 
 Agentic: you use an AI agent such as OpenClaw, usually running on a computer or server that is on a lot or always. Web chat: you use a chat app such as ChatGPT, Claude or Gemini.
 
-Choose your path:
-
-- **[Agentic Platforms](#agentic-setup)**: OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.
-- **[Web Chat Platforms](#web-chat-setup)**: ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.
+- **Agentic:** open [PROJECT_INSTRUCTIONS_AGENTIC.md](PROJECT_INSTRUCTIONS_AGENTIC.md), copy the text in its grey box (GitHub shows a copy button at the top right) and add it to your agent's persistent configuration. See [Agentic Platforms](#agentic-setup) for your platform (OpenClaw, Claude Code, ChatGPT Codex, Grok Bot, Hermes Agent, etc.).
+- **Web chat:** open [PROJECT_INSTRUCTIONS_WEB.md](PROJECT_INSTRUCTIONS_WEB.md), copy the text in its grey box and paste it into your Project, Space, Gem or custom instructions. See [Web Chat Platforms](#web-chat-setup) for your platform (ChatGPT, Claude, Gemini, Grok, Mistral Vibe, etc.) and [Platform Setup](#platform-setup) for connection details.
 
 ### 4. Make Files Available to Your AI
 

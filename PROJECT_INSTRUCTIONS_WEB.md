@@ -51,6 +51,8 @@ Load on demand only, through the same delivery paths:
 - saved_workouts.json when selecting, reusing, or discussing a saved workout, including my saved version of a familiar workout. Read-only mirror of the athlete's Intervals.icu saved workouts, and the preferred read path for them. Check `refresh.status` (`ok` / `stale` / `unavailable`) before use. Before prescribing a saved workout, verify that its structure implements an applicable Workout Reference Library template; a matching name or adaptation label alone is not a match. Inventory only, never a session-design authority, and never evidence of what was prescribed historically
 - WORKOUT_REFERENCE.md (Workout Reference Library) when prescribing a structured session, including a familiar workout I name or a saved workout proposed for reuse: identify the template it implements before prescribing, and if the library cannot be reached, say so rather than improvising (Section 11 B §8)
 
+Ignore archive/carry-forward.state: internal recovery data, not an AI source. Read recovery status only from latest.json.carry_forward, even if a folder or repository connector exposes the backup.
+
 If activities do not match today's date, re-fetch or re-read before concluding no data exists.
 
 Never read athlete data from any `examples/json-examples/` folder or from any file ending in

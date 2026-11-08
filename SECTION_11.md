@@ -1,7 +1,7 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.105  
-**Last Updated:** 2026-11-07
+**Protocol Version:** 11.106  
+**Last Updated:** 2026-11-08
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 Section 11 documents live in `section11/`, custom files in `custom/`, and user data
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.106 - Carry-forward survives a damaged export (2026-11-08, sync.py v3.169):**
+
+Compact 28-day carry-forward records persist in `archive/carry-forward.state`, independently of interval detail and its script hash. Missing, unreadable, invalid or incomplete previous exports use that backup, with a visible sync warning and `latest.json.carry_forward` diagnostics. The backup covers plan-match summaries and pairing, terrain, weather, power curves, DFA rollups, chat notes and decoupling detail. Stable content revisions bind the backup to the export; unchanged content keeps its bytes and timestamp. Local writes replace complete files atomically, with the backup before latest. GitHub and On-demand commit the exact internal path with the export through managed code, without a workflow replacement. The backup stays outside AI companions, Manual JSON uploads and training downloads; intervals.json keeps its existing detail schema. Current pairing checks, assessment rules and request use are unchanged; no lost older detail is fetched. See [Carry-forward status and backup](examples/json-examples/README.md#carry-forward-status-and-backup).
 
 **v11.105 - Sync timer runs (2026-11-07, sync.py v3.168):**
 
@@ -752,6 +756,8 @@ The ±5% screen is deliberate: neighbouring steps in typical stepped endurance p
 **Sport scope.** Walk and Hike have no structure block, no thirds/effort fallback and no structure fetch, including when paired with a plan. Their flag is false and summary is unknown with `sport_out_of_scope`; omit the Executed structure report line. Other sports without a usable plan retain descriptive fallback, including rides, runs and SkiErg. Distance/Ascent and existing interval/DFA processing are unchanged.
 
 After detail expires, `has_structure` becomes false and only the last step assessment is retained. Every run refreshes pairing identity, plan name/duration and duration result across all 28 days from the existing activities request and resolved events batch (whose oldest date covers that window). No extra request or older stream backfill is added. Exact forward or unique reverse pairing is accepted after identity checks; conflicts/ambiguity remain explicit. A newly paired empty-step plan replaces stale no_plan with no_steps. An unchanged pair/definition keeps its captured step verdict with `assessment_retained: true`; changed identity/definition revokes that current verdict and may preserve it under `retained_step_assessment`. Missing event data does not invent a plan name or fresh step assessment. Walk/Hike still have no step assessment, but their separate pairing fields below remain available.
+
+The compact backup at `archive/carry-forward.state` protects these last-captured fields when the previous `latest.json` cannot supply them. AI tools must not read this internal file, even through a folder or repository connector. Read only `latest.json.carry_forward` for recovery and missing-evidence notices; qualify affected older activity context when evidence is unavailable. A recovered summary still passes the same current pairing and definition checks above. It supplies no restored 14-day detail or new adherence evidence. No backup can recreate a result already absent from both files, and a producer predating this protection cannot maintain it. See the [field reference](examples/json-examples/README.md#carry-forward-status-and-backup).
 
 #### Current Pairing and Report Fields (sync 3.150)
 

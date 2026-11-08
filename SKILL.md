@@ -89,6 +89,8 @@ Each source answers its own domain; the order is not a ranking across domains. S
 6. Saved workout inventory (saved_workouts.json): optional and on-demand for selecting, reusing, or discussing saved workouts; never a session-design authority and never a replacement for the Workout Reference Library
 7. Heartbeat config (HEARTBEAT.md)
 
+Ignore `archive/carry-forward.state`: internal recovery data, not an AI source. Read recovery status only from `latest.json.carry_forward`, even if a folder or repository connector exposes the backup.
+
 ## Required Actions
 
 Read `latest.json.data_overview` first to discover companions and route-weather/map availability. Resolve its relative paths against the latest file's source; for folderless Manual uploads match by filename. Presence does not establish AI access. Weather briefs use local zone-labelled times and 16-point compass directions per SECTION_11. Report weather times use HH:MM, adding a zone only when different from the athlete's or a UTC fallback; the Data updated header, maps and data retain zone labels. Read and show the matching PNG pages in their listed order; identify any missing page and retain text. Show only pages actually read; maps are never downloads or additions to the artifact ZIP.

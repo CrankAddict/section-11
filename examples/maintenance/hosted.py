@@ -19,6 +19,7 @@ import hosted_update as update
 import validate_data
 
 WRAPPER_API = 2
+BACKUP = _sync.CarryForwardBackup
 
 class HostedGitHub(GitHub):
     """Separate bounded data/control transport; never used for upstream reads."""
@@ -127,7 +128,9 @@ def check_checkout(pub, snapshot, root):
     """Bind producer/cache inputs and installation paths to the observed default."""
     update.safety(snapshot)
     names = set(update.installation_paths(snapshot)) | set(validate_data.FALLBACK) | {
-        '.github/workflows/auto-sync.yml', 'custom/README.md', 'README.md', update.CONTROL}
+        '.github/workflows/auto-sync.yml', 'custom/README.md', 'README.md', update.CONTROL,
+        BACKUP.PATH}
+    BACKUP.path(root)
     custom = root / 'custom'
     if custom.is_symlink() or (custom.exists() and not custom.is_dir()):
         raise ValueError('unsafe custom checkout')
@@ -144,6 +147,11 @@ def check_checkout(pub, snapshot, root):
             if path.is_symlink():
                 raise ValueError('unsafe checkout preimage')
         entry = snapshot['entries'].get(name)
+        if name == BACKUP.PATH and entry is not None:
+            if entry['mode'] != '100644' or entry['type'] != 'blob':
+                raise ValueError('non-ordinary carry-forward preimage')
+            if path.exists() and path.stat().st_size > BACKUP.MAX_BYTES:
+                raise ValueError('carry-forward preimage exceeds size bound')
         if entry is None:
             if path.exists():
                 raise ValueError('checkout differs from observed default preimage')
@@ -279,6 +287,7 @@ def run_sync():
     # including an external timer when the owner keeps no native data crons.
     export_event = 'Sync timer' if info.get('operation') == 'Sync timer' else info['event']
     env.update({'SECTION11_SYNC_WRAPPER_API': str(WRAPPER_API),
+                'SECTION11_CARRY_FORWARD_VERSION': '1',
                 'SECTION11_EXPORT_EVENT': export_event, 'SECTION11_EXPORT_CRON': info['cron']})
     subprocess.run([sys.executable, str(Path(info['source']) / 'examples/sync.py'),
                     '--athlete-id', athlete, '--intervals-key', key, '--days', str(days),
@@ -311,6 +320,41 @@ def readme(existing, source, timestamp, repository, default):
     return update.render_readme(existing, template, timestamp, repository, default)
 
 
+def read_carry_forward(root, latest):
+    """Only this exact internal path is publishable, bound to the public export.
+
+    Older producers do not declare a revision. Leave any tracked backup alone;
+    never publish a stale runner copy or infer deletion from its absence.
+    """
+    if not isinstance(latest, dict):
+        raise ValueError('invalid export for carry-forward publication')
+    signal = latest.get('carry_forward')
+    if signal is None:
+        return None
+    if not isinstance(signal, dict):
+        raise ValueError('invalid carry-forward signal')
+    if 'backup_revision' not in signal:
+        return None
+    if type(signal.get('version')) is not int or signal['version'] != 1:
+        raise ValueError('invalid carry-forward signal version')
+    revision = signal['backup_revision']
+    if not isinstance(revision, str) or not re.fullmatch('[0-9a-f]{64}', revision):
+        raise ValueError('invalid carry-forward revision')
+    try:
+        raw = BACKUP.read_bytes(root)
+    except OSError as exc:
+        raise ValueError('carry-forward backup unavailable for export') from exc
+    document = BACKUP.decode(raw)
+    if document['revision'] != revision:
+        raise ValueError('export and carry-forward backup revision differ')
+    metadata = latest.get('metadata')
+    if not isinstance(metadata, dict):
+        raise ValueError('invalid carry-forward export metadata')
+    if BACKUP.timestamp(document['generated_at']) > BACKUP.timestamp(metadata.get('last_updated')):
+        raise ValueError('export predates its carry-forward backup')
+    return raw
+
+
 def publish_data():
     info = context()
     if not info['run_sync']:
@@ -329,6 +373,15 @@ def publish_data():
     plan = D.json((stage / 'plan.json').read_bytes())
     changes = {name: validate_data.read_data(stage / 'files', name) for name in plan['saved']}
     changes.update({name: None for name in plan['removed']})
+    if changes['latest.json'] != latest:
+        raise ValueError('export changed while staging publication')
+    backup = read_carry_forward(root, D.json(latest))
+    if backup is not None:
+        internal = stage / 'internal'
+        target = BACKUP.path(internal)
+        target.parent.mkdir(parents=True)
+        target.write_bytes(backup)
+        changes[BACKUP.PATH] = read_carry_forward(internal, D.json(changes['latest.json']))
     now = datetime.now(timezone.utc)
     archive = now.strftime('archive/%Y-%m/%Y-%m-%d.json')
     changes[archive] = latest
@@ -356,7 +409,9 @@ def publish_data():
 def validate_generated():
     # Token-free validation before the publisher step. Publication independently
     # stages and revalidates against the observed prior export before committing.
-    validate_data.plan(Path(os.environ['GITHUB_WORKSPACE']))
+    root = Path(os.environ['GITHUB_WORKSPACE'])
+    validate_data.plan(root)
+    read_carry_forward(root, D.json(validate_data.read_data(root, 'latest.json')))
 
 
 def cache_promote():

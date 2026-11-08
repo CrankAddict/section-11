@@ -222,6 +222,8 @@ The script creates/maintains these files:
 | `maps/weather/` | Up to four ordered PNG pages per ride, six rides (24 pages), for chat | Fresh eligible route-weather briefs |
 | `.sync_config.json` | Your credentials + preferences (local only) | After `--setup` |
 
+Sync automatically keeps `archive/carry-forward.state` in the data folder between exports. It protects previously exported summaries if a later export is damaged, and update/rollback preserve it. Its `.state` extension keeps it outside the JSON upload set; it is also outside the `section11/` ZIP. AI tools must ignore it and use only `latest.json.carry_forward` for recovery notices. Whole-folder cloud sync can still copy it.
+
 ### FTP History
 
 `ftp_history.json` tracks indoor and outdoor FTP changes over time. Updated automatically when FTP changes. Used to calculate **Benchmark Index** (8-week FTP progression). Keep this file if you want continuous tracking. See [auto-sync SETUP](../json-auto-sync/SETUP.md#ftp-history-tracking) for details on the Benchmark Index.

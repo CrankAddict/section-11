@@ -236,6 +236,8 @@ Git metadata along with the tree. That history survives only in the single rollb
 slot, until the next successful installation. Keep an actual development checkout
 separate; external worktree/submodule metadata requires owner resolution.
 
+The rolling recovery file `<data folder>/archive/carry-forward.state` keeps previously exported activity summaries if a later export is damaged. Keep it between runs; update and rollback preserve it. Sync writes compact JSON atomically only when its content changes. AI tools must ignore this file and read recovery notices only from `latest.json.carry_forward`. Whole-folder cloud sync can still copy it. It is separate from the request state described below and is not moved by `SECTION11_STATE_DIR`.
+
 ### Private sync state
 
 sync.py keeps request counts, holds and cached source responses in `<data folder>/state/` between runs. This folder contains `request-budget/<identity>/`, `sources/<identity>/` and a `README.md` written by sync.py. The data folder is the folder containing the file selected by `--output`.

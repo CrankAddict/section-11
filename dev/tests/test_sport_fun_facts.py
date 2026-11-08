@@ -381,6 +381,16 @@ class ProducerFacts(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.directory = Path(self.tmp.name)
 
+    def assert_output_files(self, directory, filename, latest):
+        directory = Path(directory)
+        self.assertEqual({p.name for p in directory.iterdir()},
+                         {filename, "history.json", "intervals.json", "ftp_history.json", "archive"})
+        self.assertEqual({p.name for p in (directory / "archive").iterdir()},
+                         {"carry-forward.state"})
+        backup = mod.CarryForwardBackup.decode(mod.CarryForwardBackup.read_bytes(directory))
+        self.assertEqual(backup["revision"], latest["carry_forward"]["backup_revision"])
+        self.assertNotIn(mod.CarryForwardBackup.PATH, latest["data_overview"]["managed_files"])
+
     def test_actual_producers_bind_all_sports_and_only_add_summary_siblings(self):
         latest, history, _ = producer_run(mod, self.directory, producer_activities(extended=True))
         for period, selection in (("rolling_7d", "report_intensity_7d"),
@@ -398,8 +408,7 @@ class ProducerFacts(unittest.TestCase):
             self.assertTrue(all("sport_fun_facts" not in row for row in history[key]))
         self.assertTrue(all("sport_fun_facts" not in row for row in latest["rolling_7d_chunks"]))
         self.assertEqual(json.loads((self.directory / "latest.json").read_text()), latest)
-        self.assertEqual({p.name for p in self.directory.iterdir()},
-                         {"latest.json", "history.json", "intervals.json", "ftp_history.json"})
+        self.assert_output_files(self.directory, "latest.json", latest)
 
     def test_days_and_output_name_do_not_change_period_facts(self):
         rows = producer_activities()
@@ -436,8 +445,7 @@ class ProducerFacts(unittest.TestCase):
                 if first is None:
                     first = nested
                 self.assertEqual(nested, first)
-                self.assertEqual({p.name for p in Path(directory).iterdir()},
-                                 {filename, "history.json", "intervals.json", "ftp_history.json"})
+                self.assert_output_files(directory, filename, latest)
 
     def test_refresh_retention_failure_replacement_and_deselection(self):
         rows = producer_activities()

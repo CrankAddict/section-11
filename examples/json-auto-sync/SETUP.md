@@ -26,7 +26,7 @@ For full guided setup, including your dossier and AI connection, give your AI th
 8. In **Code**, check for a successful `Sync training data` commit and a current timestamp in `latest.json`.
 9. Connect your AI to the private repository and check it can read `latest.json` and `section11/`. Without a connector, on your repository page, press the green **Code** button and choose **Download ZIP**. Upload that ZIP to your AI ([AI access](#usage-with-ai)).
 
-From now on, GitHub syncs about every 30 minutes. For fresh data right away, tap **Sync Now** in your repository's README.
+From now on, GitHub syncs about every 30 minutes. For fresh data right away, tap **Sync Now** in your repository's README, then **Run workflow**, and then **Run workflow** again.
 
 Set up your AI with [Section 11's project instructions](../../README.md#3-configure-your-ai-platform).
 
@@ -163,6 +163,14 @@ off
 ```
 
 GitHub's existing schedule then runs again. To return to the Sync timer, set the variable to `on` and resume that timer. Keep the existing `schedule:` block in the workflow so this switch can restore it.
+
+## Updates
+
+When a new version is out, your AI mentions it. To install it, tap **Sync Now** in your repository's README, then **Run workflow**, set **Operation** to **Update**, and tap **Run workflow** again.
+
+For automatic updates, open your repository on github.com and go to **Settings > Secrets and variables > Actions > Variables**. Add a variable named `SECTION11_AUTO_UPDATE` with the value `true`.
+
+Already have a repository? See [updating an existing repository](#updating-an-existing-repository).
 
 [Full technical guide on GitHub](#technical-guide)
 

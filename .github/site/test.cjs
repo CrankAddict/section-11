@@ -43,8 +43,8 @@ test('published update guide describes direct updates and sealed release templat
   for (const [route, id, title, sections] of [
     ['guides/updating.html', 'updating-section-11', 'Updating Section 11', ['Before you update', 'Update on your computer', 'Update on GitHub', 'Automatic updates and undo']],
     ['guides/local-sync.html', 'local-sync-setup-guide', 'Local Sync Setup Guide', ['Get help from your AI', 'Set it up yourself', 'After setup']],
-    ['guides/github-sync.html', 'github-sync-setup-guide', 'GitHub Sync Setup Guide', ['Get help from your AI', 'Set up a new repository', 'Sync timer (optional)']],
-    ['guides/on-demand.html', 'on-demand-sync', 'On-Demand Sync', ['Get help from your AI', 'Set up once', 'Refresh and use your data']],
+    ['guides/github-sync.html', 'github-sync-setup-guide', 'GitHub Sync Setup Guide', ['Get help from your AI', 'Set up a new repository', 'Sync timer (optional)', 'Updates']],
+    ['guides/on-demand.html', 'on-demand-sync', 'On-Demand Sync', ['Get help from your AI', 'Set up once', 'Refresh and use your data', 'Updates']],
     ['guides/manual-export.html', 'manual-json-export', 'Manual JSON Export', ['Get help from your AI', 'Install and export', 'Give the files to your AI']],
     ['reports.html', 'report-examples', 'Report Examples', ['Choose a report', 'Ask your AI']],
   ]) {

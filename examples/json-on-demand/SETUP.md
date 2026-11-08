@@ -27,11 +27,19 @@ For full guided setup, including your dossier and AI connection, give your AI th
 
 ## Refresh and use your data
 
-Need fresh data? Tap **Sync Now** in your repository's README, then **Run workflow**.
+Need fresh data? Tap **Sync Now** in your repository's README, then **Run workflow**, and then **Run workflow** again.
 
 When it's done, check that your AI can read the new files. Connected to GitHub? Refresh the connection. Uploading instead? On your repository page, press the green **Code** button and choose **Download ZIP**. Upload that ZIP, and replace it each time.
 
 Set up your AI with [Section 11's project instructions](../../README.md#3-configure-your-ai-platform).
+
+## Updates
+
+When a new version is out, your AI mentions it. To install it, tap **Sync Now** in your repository's README, then **Run workflow**, set **Operation** to **Update**, and tap **Run workflow** again.
+
+For automatic updates, open your repository on github.com and go to **Settings > Secrets and variables > Actions > Variables**. Add a variable named `SECTION11_AUTO_UPDATE` with the value `true`.
+
+Already have a repository? See [updating an existing repository](#updating-an-existing-repository).
 
 [Full technical guide on GitHub](#technical-guide)
 

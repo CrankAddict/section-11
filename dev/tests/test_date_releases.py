@@ -171,7 +171,8 @@ class DailyPublishingTests(Offline):
     def test_workflow_crons_are_utc_only_and_no_push_trigger(self):
         release = (ROOT / '.github/workflows/release.yml').read_text()
         update = (ROOT / 'examples/json-auto-sync/auto-sync.yml').read_text()
-        self.assertIn("cron: '17 2 * * *'", release)
+        self.assertNotIn('schedule:', release)
+        self.assertIn('workflow_dispatch:', release)
         self.assertNotIn("cron: '17 4 * * *'", update)
         self.assertNotIn('  push:', release)
         self.assertNotIn('timezone:', release + update)

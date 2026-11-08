@@ -75,7 +75,8 @@ tree must equal W's tree; preserve W as the immutable release source/tag target.
 
 The workflow runs on the default branch only. A blank source input uses its
 pinned main commit after the first release; the infrastructure-only stage waits
-for an explicit source input. The scheduled 02:17 UTC release remains unchanged.
+for an explicit source input. The workflow has no schedule: a release starts only
+when it is dispatched, by the maintainer's daily trigger or manually.
 Unchanged manifest content is a no-op; a different second release on the same UTC
 date is refused. Never retag or replace published assets to resolve a failure.
 

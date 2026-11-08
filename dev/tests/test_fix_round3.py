@@ -155,7 +155,7 @@ class FixRound3(P.Offline):
             self.assertIn('Extended hybrid (lower headroom)', text)
             self.assertRegex(text, r'24 (minutes|left)')
         self.assertNotIn('schedule:', (P.ROOT / 'examples/json-on-demand/auto-sync.yml').read_text())
-        self.assertIn("cron: '17 2 * * *'", (P.ROOT / '.github/workflows/release.yml').read_text())
+        self.assertNotIn('schedule:', (P.ROOT / '.github/workflows/release.yml').read_text())
 
     def test_4a_supported_prerequisite_matches_hosted_python_without_compatibility_edits(self):
         for name in ('json-local-sync', 'json-manual'):

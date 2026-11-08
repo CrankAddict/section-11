@@ -1,7 +1,5 @@
 name: Section 11 release package
 on:
-  schedule:
-    - cron: '17 2 * * *'
   workflow_dispatch:
     inputs:
       source_commit:

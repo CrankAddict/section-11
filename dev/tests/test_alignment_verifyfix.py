@@ -166,7 +166,7 @@ class VerifyFixTests(Offline):
                 self.assertEqual(list(root.iterdir()), [])
                 ok, output = self.update(root, timer_choice=False, _init=True)
                 self.assertTrue(ok, output)
-                self.assertFalse(json.loads((root / '.sync_config.json').read_bytes())['auto_sync'])
+                self.assertFalse(json.loads((root / '.sync_config').read_bytes())['auto_sync'])
                 self.assertEqual(D.tree(root / 'section11'), (self.raw, self.files))
                 # Persisted auto_sync:false also permits the next update.
                 ok, output = self.update(root)

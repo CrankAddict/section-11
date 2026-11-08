@@ -257,16 +257,16 @@ class LocalAutoTests(Offline):
 class SuccessfulSyncHookTests(Offline):
     def invoke(self, extra=(), config=None, fail=False):
         if config is not None:
-            (self.root / '.sync_config.json').write_text(json.dumps(config))
+            (self.root / '.sync_config').write_text(json.dumps(config))
         instance = mock.Mock()
         instance.should_generate_history.return_value = False
         instance.collect_training_data.return_value = {}
         instance.save_local_outputs.side_effect = RuntimeError('sync failed') if fail else None
         exists, open_file = os.path.exists, open
         def config_open(path, *args, **kwargs):
-            return open_file(self.root / path if path == '.sync_config.json' else path, *args, **kwargs)
+            return open_file(self.root / path if path == '.sync_config' else path, *args, **kwargs)
         with mock.patch.object(SYNC.Path, 'cwd', return_value=self.root), \
-                mock.patch.object(SYNC.os.path, 'exists', side_effect=lambda p: config is not None if p == '.sync_config.json' else exists(p)), \
+                mock.patch.object(SYNC.os.path, 'exists', side_effect=lambda p: config is not None if p == '.sync_config' else exists(p)), \
                 mock.patch('builtins.open', side_effect=config_open), \
                 mock.patch.object(SYNC, 'IntervalsSync', return_value=instance), \
                 mock.patch.object(SYNC, '_rotate_log_if_needed'), \

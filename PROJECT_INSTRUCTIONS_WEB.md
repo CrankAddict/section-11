@@ -53,6 +53,8 @@ Load on demand only, through the same delivery paths:
 
 Ignore archive/carry-forward.state: internal recovery data, not an AI source. Read recovery status only from latest.json.carry_forward, even if a folder or repository connector exposes the backup.
 
+Do not read or upload .sync_config, legacy .sync_config.json or .sync_config.saved-* files: they hold credentials, not coaching data.
+
 If activities do not match today's date, re-fetch or re-read before concluding no data exists.
 
 Never read athlete data from any `examples/json-examples/` folder or from any file ending in

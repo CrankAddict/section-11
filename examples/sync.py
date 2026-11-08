@@ -4,6 +4,9 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.170 - Rename local credentials to .sync_config, with automatic migration,
+  legacy read fallback and rollback compatibility. Protocol v11.107.
+
 Version 3.169 - Retain compact carry-forward records in archive/carry-forward.state;
   stable content revisions bind atomic backups to latest.json. Managed hosted
   publication keeps the backup outside AI files; no extra Intervals.icu requests.
@@ -6226,7 +6229,7 @@ class IntervalsSync:
     GITHUB_API_URL = "https://api.github.com"
     FTP_HISTORY_FILE = "ftp_history.json"
     HISTORY_FILE = "history.json"
-    VERSION = "3.169"
+    VERSION = "3.170"
     ROUTE_TERRAIN_VERSION = "3.142"
     ROUTE_RETRY_BACKOFF_SECONDS = 15 * 60
     INTERVALS_FILE = "intervals.json"
@@ -6488,7 +6491,7 @@ class IntervalsSync:
         return activity_type in cls.INDOOR_CYCLING_TYPES
 
     # Training week start day (Python weekday: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6)
-    # Default Monday (ISO). Override via .sync_config.json, WEEK_START env var, or --week-start CLI arg.
+    # Default Monday (ISO). Override via .sync_config, WEEK_START env var, or --week-start CLI arg.
     WEEK_START_DAY = 0
     
     # --- Sustainability Profile (v3.91) ---
@@ -16645,7 +16648,7 @@ class IntervalsSync:
         Extract Stream 2 (prospective) features from planned workouts and race calendar.
         
         Windows are aligned to the training week (configurable via
-        .sync_config.json, WEEK_START env var, or --week-start CLI;
+        .sync_config, WEEK_START env var, or --week-start CLI;
         default Monday/ISO). This prevents mid-week contamination where
         a deload week's window leaks into the next build week.
         
@@ -22563,7 +22566,7 @@ class Distribution:
     KEEP_ROOT = frozenset(('README.md', 'DOSSIER.md', '.gitignore', '.git', '.github',
         'custom', 'latest.json', 'history.json', 'intervals.json', 'routes.json',
         'saved_workouts.json', 'ftp_history.json', 'route_eta_history.json',
-        'maps', 'archive', 'state', '.section11-state', '.sync_config.json', 'sync.log'))
+        'maps', 'archive', 'state', '.section11-state', '.sync_config', '.sync_config.json', 'sync.log'))
     KEEP_COMPONENTS = frozenset(p.casefold() for p in KEEP_ROOT if p != 'README.md')
 
     @staticmethod
@@ -23895,14 +23898,55 @@ def _entry_digests(root, release_paths=(), cleanup=None):
     return result
 
 
-def _local_config(data_dir):
-    path = Distribution.ordinary(data_dir, '.sync_config.json')
+def _normal_sync_config(data_dir, migrate=False, _locked=False):
+    """Keep plain json.load compatibility; strict checks only gate migration."""
+    path = Path(data_dir) / '.sync_config'
+    if path.exists():
+        if migrate and (Path(data_dir) / '.sync_config.json').exists():
+            print('Section 11: using .sync_config; .sync_config.json was kept. Never upload either file.')
+    else:
+        path = Path(data_dir) / '.sync_config.json'
+    if not path.exists():
+        return {}
+    with open(path) as stream:
+        config = json.load(stream)
+    if migrate and path.name == '.sync_config.json':
+        try:
+            return _local_config(data_dir, migrate=True, _locked=_locked)[1]
+        except (OSError, ValueError):
+            # Linked, oversized or duplicate-key configs remain readable in place.
+            pass
+    return config
+
+
+def _local_config(data_dir, migrate=False, _locked=False):
+    path = Distribution.ordinary(data_dir, '.sync_config')
+    if path.exists():
+        if migrate and (Path(data_dir) / '.sync_config.json').exists():
+            print('Section 11: using .sync_config; .sync_config.json was kept. Never upload either file.')
+    else:
+        path = Distribution.ordinary(data_dir, '.sync_config.json')
     content = path.read_bytes() if path.exists() else None
     if content is not None and (len(content) > 1024 * 1024 or path.stat().st_nlink != 1):
         raise DistributionError('configuration is not an ordinary bounded file')
     value = Distribution.json(content) if content is not None else {}
     if not isinstance(value, dict):
         raise DistributionError('configuration must be a JSON object')
+    if migrate and content is not None and path.name == '.sync_config.json':
+        import contextlib
+        try:
+            # Reuse the install/run lock; a failed migration never blocks data work.
+            with contextlib.nullcontext() if _locked else _distribution_lock(data_dir, cleanup=False):
+                target = Distribution.ordinary(data_dir, '.sync_config')
+                if target.exists():
+                    return _local_config(data_dir, migrate=True, _locked=True)
+                if path.read_bytes() != content:
+                    raise DistributionError('config changed before rename')
+                os.rename(path, target)
+        except (OSError, DistributionError):
+            print('Section 11: could not rename .sync_config.json; using it for this run. Will retry next run; never upload it.')
+        else:
+            print('Section 11: renamed .sync_config.json to .sync_config.')
     return content, value
 
 
@@ -24077,6 +24121,8 @@ def _install_local(data_dir, raw, files, identity, expected, _locked=False):
             else:
                 shutil.copy2(path, destination)
         config_raw, config = _local_config(data_dir)
+        config_path = Distribution.ordinary(data_dir, '.sync_config')
+        config_new_raw = config_path.read_bytes() if config_path.exists() else None
         timers = (json.dumps(LocalTimers.recovery(expected['timer']), sort_keys=True) + '\n').encode()
         (transaction / 'timers.json').write_bytes(timers)
         if _local_plan(data_dir, raw, files, expected['timer_choice'], _staging=True) != expected:
@@ -24117,7 +24163,7 @@ def _install_local(data_dir, raw, files, identity, expected, _locked=False):
                 (data_dir / name).rmdir()
             if expected['timer_choice'] is not None:
                 config['auto_sync'] = expected['timer']['enabled']
-                _write_install_state(data_dir, '.sync_config.json', config)
+                _write_install_state(data_dir, '.sync_config', config)
             _ensure_custom(data_dir, files)
             Distribution.tree(target)
             Distribution.read_receipt(target, raw)
@@ -24147,10 +24193,10 @@ def _install_local(data_dir, raw, files, identity, expected, _locked=False):
                     else:
                         shutil.copy2(entries / name, path)
             if expected['timer_choice'] is not None:
-                if config_raw is None:
-                    (data_dir / '.sync_config.json').unlink(missing_ok=True)
+                if config_new_raw is None:
+                    config_path.unlink(missing_ok=True)
                 else:
-                    (data_dir / '.sync_config.json').write_bytes(config_raw)
+                    config_path.write_bytes(config_new_raw)
             if expected['custom']['readme'] is None:
                 (data_dir / 'custom/README.md').unlink(missing_ok=True)
             if not expected['custom']['directory'] and (data_dir / 'custom').exists():
@@ -24193,6 +24239,31 @@ def _rollback_local(data_dir, record):
         raise DistributionError('rollback extraction differs from previous installation')
     _previous_install(data_dir)
     timer_plan = Distribution.json((recovered / 'timers.json').read_bytes())
+    # Restore the legacy name before any old producer/timer can be activated.
+    # Keep conflicting unused bytes outside the JSON upload selection.
+    current = Distribution.ordinary(data_dir, '.sync_config')
+    legacy = Distribution.ordinary(data_dir, '.sync_config.json')
+    saved_name = '.sync_config.saved-' + transaction.name.removeprefix('transaction-')
+    saved_config = Distribution.ordinary(data_dir, saved_name)
+    if saved_config.exists():
+        raise DistributionError('config recovery destination already exists; preserve transaction')
+    journal['saved_config'] = saved_name
+    _write_install_state(state, 'transaction.json', dict(journal, phase='rollback-config'))
+    if record['config_changed']:
+        if record['config_had_auto_sync']:
+            config['auto_sync'] = record['config_before']
+        else:
+            config.pop('auto_sync', None)
+        _write_install_state(data_dir, '.sync_config', config)
+    if current.exists():
+        if legacy.exists() and legacy.read_bytes() != current.read_bytes():
+            os.rename(legacy, saved_config)
+            print('Section 11: kept the other config as ' + saved_name + '; never upload it.')
+        os.replace(current, legacy)
+        if legacy.read_bytes() != (config_raw if not record['config_changed'] else
+                                   (json.dumps(config, sort_keys=True) + '\n').encode()):
+            raise DistributionError('config rollback readback mismatch; preserve transaction')
+        print('Section 11: restored .sync_config.json for rollback; never upload it.')
     _write_install_state(state, 'transaction.json', dict(journal, phase='rollback-timer'))
     LocalTimers(data_dir).apply(timer_plan, transaction, reverse=True)
     os.rename(target, transaction / 'discarded')
@@ -24203,12 +24274,6 @@ def _rollback_local(data_dir, record):
         if previous.exists():
             (data_dir / name).parent.mkdir(parents=True, exist_ok=True)
             os.rename(previous, data_dir / name)
-    if record['config_changed']:
-        if record['config_had_auto_sync']:
-            config['auto_sync'] = record['config_before']
-        else:
-            config.pop('auto_sync', None)
-        _write_install_state(data_dir, '.sync_config.json', config)
     if _local_tree_digest(target) != record['previous_tree'] or _entry_digests(data_dir, cleanup=record['cleanup']) != record['previous_entries']:
         raise DistributionError('rollback readback mismatch; preserve transaction')
     saved = _auto_update_state(state)
@@ -24465,24 +24530,21 @@ def _main(installation_root=None, distribution_locked=False, started_at=None):
         github_token = input("GitHub Personal Access Token (or press Enter to skip): ")
         github_repo = input("GitHub Repository (username/repo, or press Enter to skip): ")
         
-        _, config = _local_config(Path.cwd())
-        config.update({"athlete_id": athlete_id, "intervals_key": intervals_key})
-        if github_token:
-            config["github_token"] = github_token
-        if github_repo:
-            config["github_repo"] = github_repo
-        
         week_input = input("Training week starts on (mon/tue/wed/thu/fri/sat/sun, default: mon): ").strip().lower()
-        if week_input in ("mon", "tue", "wed", "thu", "fri", "sat", "sun"):
-            config["week_start"] = week_input
-        
         zone_pref_input = input("Zone preference overrides (e.g. run:hr,cycling:power, or press Enter for default): ").strip()
-        if zone_pref_input:
-            config["zone_preference"] = zone_pref_input
-            
-        with open(".sync_config.json", "w") as f:
-            json.dump(config, f, indent=2)
-        print("\n✅ Config saved to .sync_config.json")
+        with _distribution_lock(Path.cwd()):
+            _, config = _local_config(Path.cwd())
+            config.update({"athlete_id": athlete_id, "intervals_key": intervals_key})
+            if github_token:
+                config["github_token"] = github_token
+            if github_repo:
+                config["github_repo"] = github_repo
+            if week_input in ("mon", "tue", "wed", "thu", "fri", "sat", "sun"):
+                config["week_start"] = week_input
+            if zone_pref_input:
+                config["zone_preference"] = zone_pref_input
+            _write_install_state(Path.cwd(), '.sync_config', config)
+        print("\n✅ Config saved to .sync_config")
         print("\nUsage:")
         print("  Export locally:    python3 section11/examples/sync.py --output latest.json")
         print("  Push to GitHub:    python3 section11/examples/sync.py")
@@ -24520,9 +24582,9 @@ def _main(installation_root=None, distribution_locked=False, started_at=None):
     sync = None
     publication_uncertain = False
     try:
-        if os.path.exists(".sync_config.json"):
-            with open(".sync_config.json") as f:
-                config = json.load(f)
+        config = _normal_sync_config(Path.cwd(),
+                                     migrate=os.environ.get('GITHUB_ACTIONS', '').lower() != 'true',
+                                     _locked=distribution_locked and installation_root == Path.cwd())
         
         athlete_id = args.athlete_id or config.get("athlete_id") or os.getenv("ATHLETE_ID")
         intervals_key = args.intervals_key or config.get("intervals_key") or os.getenv("INTERVALS_KEY")

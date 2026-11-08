@@ -21,7 +21,7 @@ Usage:
 
 Credentials (checked in order):
   1. CLI args: --athlete-id, --api-key
-  2. .sync_config.json (same file sync.py and push.py use)
+  2. .sync_config, then legacy .sync_config.json (same files sync.py and push.py use)
   3. Environment: ATHLETE_ID, INTERVALS_KEY
 
 Output:
@@ -154,12 +154,14 @@ class IntervalsPull:
 def _load_credentials(args) -> Tuple[Optional[str], Optional[str]]:
     """Load credentials from CLI args, config file, or environment."""
     config = {}
-    if os.path.exists(".sync_config.json"):
-        try:
-            with open(".sync_config.json") as f:
-                config = json.load(f)
-        except Exception:
-            config = {}
+    for name in (".sync_config", ".sync_config.json"):
+        if os.path.exists(name):
+            try:
+                with open(name) as f:
+                    config = json.load(f)
+            except Exception:
+                config = {}
+            break
 
     athlete_id = (
         getattr(args, "athlete_id", None)
@@ -248,7 +250,7 @@ def main():
         _output({
             "success": False,
             "error": "Missing credentials. Provide via --athlete-id/--api-key, "
-                     ".sync_config.json, or ATHLETE_ID/INTERVALS_KEY env vars."
+                     ".sync_config (or legacy .sync_config.json), or ATHLETE_ID/INTERVALS_KEY env vars."
         })
 
     puller = IntervalsPull(athlete_id=athlete_id, api_key=api_key)

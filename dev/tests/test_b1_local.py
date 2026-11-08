@@ -158,7 +158,7 @@ class LocalInstallerTests(Offline):
     def test_T01_opt_out_persists_reenable_then_rollback_restores_policy(self):
         result, output, _ = self.run_install(timer_choice=False)
         self.assertTrue(result, output)
-        self.assertFalse(json.loads((self.root / '.sync_config.json').read_bytes())['auto_sync'])
+        self.assertFalse(json.loads((self.root / '.sync_config').read_bytes())['auto_sync'])
         self.assertNotIn(str(self.root), self.timers.crontabs)
         self.assertTrue(self.run_install()[0])
         self.assertNotIn(str(self.root), self.timers.crontabs)

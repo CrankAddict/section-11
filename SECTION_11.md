@@ -1,6 +1,6 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.106  
+**Protocol Version:** 11.107  
 **Last Updated:** 2026-11-08
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.107 - Local config filename (2026-11-08, sync.py v3.170):**
+
+Local and Manual credentials now use `.sync_config` in the same data folder. Normal sync renames an old-only `.sync_config.json` automatically; if renaming fails, it uses the old file and retries next run. Both readers and update protection accept either name, with the new name first. Rollback restores the old name for earlier releases. Never read or upload either config as coaching data. Fetching, fields and credential precedence are unchanged.
 
 **v11.106 - Carry-forward survives a damaged export (2026-11-08, sync.py v3.169):**
 
@@ -1199,7 +1203,7 @@ Select an observed eligible sport when it is the period primary, has at least 10
 
 The weekly route requires at least two nonempty full weeks with known eligible moving-time totals. A week's defensible load/time primary qualifies only when its own moving time is at least 50% of the median of those full-week endurance totals. Include known low-volume weeks; exclude empty and unknown weeks. The 28-day block uses exactly four disjoint seven-date chunks, including today's observations so far. Season/month use fully contained completed configured weeks; clipped edge weeks contribute observations but cannot win. Seven-day blocks select independently without weekly rescue. Season bounds match `weekly_180d[:-1]`, preserving the approximately 180-day completed-week scope and excluding the current row. It supplies a distribution only: its tid arrays contain three percentages, without classification/PI; current 28-day TID remains separately labelled.
 
-Optional `report_main_sports` in `.sync_config.json` accepts comma-separated report IDs, for example `"cycling,swimming"`; `REPORT_MAIN_SPORTS` in the sync process environment is the fallback. It is absent by default, rejects unknown IDs, normalizes the skiing input alias to nordic_skiing and only retains eligible sports actually observed in that period. This is an explicit configuration input, never inferred from a dossier, title or conversational preference. Each latest/history file records `report_intensity_schema` once: `schema_version: 2`, `rule_version: endurance_10_50_week_guard_v2`, `selection_config`, configured `week_start_day`, `eligible_sports`, `sport_labels`, mappings, reason codes and column definitions. Old skiing/v1 blocks are incompatible; never relabel them. Historical settings stay as recorded; do not apply current overrides to old summaries. Normal refresh age, script-change trigger, budget and backoff are unchanged. Until ordinary refresh supplies compatible history, that view is unavailable. This report schema is separate from release versions and the intervals schema.
+Optional `report_main_sports` in `.sync_config` accepts comma-separated report IDs, for example `"cycling,swimming"`; `REPORT_MAIN_SPORTS` in the sync process environment is the fallback. It is absent by default, rejects unknown IDs, normalizes the skiing input alias to nordic_skiing and only retains eligible sports actually observed in that period. This is an explicit configuration input, never inferred from a dossier, title or conversational preference. Each latest/history file records `report_intensity_schema` once: `schema_version: 2`, `rule_version: endurance_10_50_week_guard_v2`, `selection_config`, configured `week_start_day`, `eligible_sports`, `sport_labels`, mappings, reason codes and column definitions. Old skiing/v1 blocks are incompatible; never relabel them. Historical settings stay as recorded; do not apply current overrides to old summaries. Normal refresh age, script-change trigger, budget and backoff are unchanged. Until ordinary refresh supplies compatible history, that view is unavailable. This report schema is separate from release versions and the intervals schema.
 
 Each block keeps raw known TSS/moving seconds, missing counts and compact basis buckets for **all observed eligible sports**, including local nonqualifiers. Selection denominators include activities without zones. Longer periods use all in-range observations, never only locally selected weeks or rounded row totals. Identical IDs count once; conflicting relevant payloads make the affected observations unknown and supply no zone seconds. Nonzero duplicate/conflict/missing-ID/invalid-date counts remain in `identity`; absent counts mean zero, not complete upstream retrieval.
 

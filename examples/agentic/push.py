@@ -32,7 +32,7 @@ Usage:
 
 Credentials (checked in order):
   1. CLI args: --athlete-id, --api-key
-  2. .sync_config.json (same file sync.py uses)
+  2. .sync_config, then legacy .sync_config.json (same files sync.py uses)
   3. Environment: ATHLETE_ID, INTERVALS_KEY
 
 Output: JSON to stdout for agent parsing.
@@ -604,8 +604,8 @@ class IntervalsPush:
         if not isinstance(athlete_id, str):
             raise ValueError(
                 f"athlete_id must be a string, got {type(athlete_id).__name__}. "
-                "Quote it in .sync_config.json. "
-                "Check .sync_config.json / ATHLETE_ID / --athlete-id."
+                "Quote it in .sync_config. "
+                "Check .sync_config / ATHLETE_ID / --athlete-id."
             )
         athlete_id = athlete_id.strip()
         api_key = api_key.strip()
@@ -614,7 +614,7 @@ class IntervalsPush:
                 "athlete_id is not a valid Intervals.icu athlete ID. Use it exactly as "
                 "shown in Intervals.icu Settings: `i` followed by digits (e.g. "
                 "`i123456`), or digits only for some early accounts. "
-                "Check .sync_config.json / ATHLETE_ID / --athlete-id."
+                "Check .sync_config / ATHLETE_ID / --athlete-id."
             )
         self.athlete_id = athlete_id
         self._budget_identity = RequestBudget.fingerprint(athlete_id, api_key)
@@ -1981,9 +1981,11 @@ def _reject_local(args, error: str):
 def _load_credentials(args) -> Tuple[Optional[str], Optional[str]]:
     """Load credentials from CLI args, config file, or environment."""
     config = {}
-    if os.path.exists(".sync_config.json"):
-        with open(".sync_config.json") as f:
-            config = json.load(f)
+    for name in (".sync_config", ".sync_config.json"):
+        if os.path.exists(name):
+            with open(name) as f:
+                config = json.load(f)
+            break
 
     athlete_id = (
         getattr(args, "athlete_id", None)
@@ -2291,7 +2293,7 @@ def main():
         _reject_local(
             args,
             "Missing credentials. Provide via --athlete-id/--api-key, "
-            ".sync_config.json, or env vars ATHLETE_ID/INTERVALS_KEY")
+            ".sync_config (or legacy .sync_config.json), or env vars ATHLETE_ID/INTERVALS_KEY")
 
     pusher = None
     try:

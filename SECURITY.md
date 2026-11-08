@@ -10,6 +10,8 @@ Security issues include:
 
 Model output quality or coaching logic disagreements are not security issues.
 
+Keep `.sync_config`, legacy `.sync_config.json` and `.sync_config.saved-*` private. The new name avoids JSON-file selection; copying or syncing the whole data folder still includes credentials.
+
 ## Reporting
 
 Use GitHub **Private Vulnerability Reporting**  

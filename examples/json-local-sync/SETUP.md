@@ -208,7 +208,7 @@ If a run is already in progress, wait a minute before trying your first sync aga
 │   │   │   └── WORKOUT_REFERENCE.md
 │   │   └── ...
 │   └── ...
-├── .sync_config.json           # credentials and preferences (created by --setup)
+├── .sync_config                # credentials and preferences (created by --setup)
 ├── .section11-state/           # update lock, journal, daily attempt and rollback ZIP
 ├── sync.log                    # standard timer output, including macOS launchd
 ├── custom/                    # personal code and overrides
@@ -339,12 +339,12 @@ An agent on a provider-hosted computer is a different case. It has a runtime fil
    ~/Google Drive/My Drive/training-data/
    ```
 3. Complete [Initial Setup](#initial-setup) from that folder, including `--init` and
-   `--setup`. The installed `section11/`, `.sync_config.json` and exported data
+   `--setup`. The installed `section11/`, `.sync_config` and exported data
    then share the same data folder, which the standard timer uses.
 4. Connect the AI platform's Drive connector to the folder
 
 For an existing installation, stop the old timer, move the whole data folder
-including `section11/` and `.sync_config.json`, then run
+including `section11/` and `.sync_config`, then run
 `python3 section11/examples/sync.py --update` once from the new folder to point
 the standard timer there. Keep the folder's credentials private.
 
@@ -377,7 +377,7 @@ The installer manages only its standard timer and never inspects other commands.
 The standard timer declares `SECTION11_EXPORT_MODE=local_scheduled`, so export
 freshness can supply a delivery deadline.
 
-The optional `.sync_config.json` field `check_interval_minutes` accepts the integers **1, 2, 5 or 10**, with **1** as the default. To choose five-minute checks, add `"check_interval_minutes": 5` to your existing config, keeping its credentials and other settings. Strings such as `"5"`, booleans and other invalid values fall back to one minute with this warning:
+The optional `.sync_config` field `check_interval_minutes` accepts the integers **1, 2, 5 or 10**, with **1** as the default. To choose five-minute checks, add `"check_interval_minutes": 5` to your existing config, keeping its credentials and other settings. Strings such as `"5"`, booleans and other invalid values fall back to one minute with this warning:
 
 ```text
 Warning: invalid check_interval_minutes; using one-minute checks (choose 1, 2, 5 or 10).
@@ -513,7 +513,7 @@ for interrupted updates.
 
 ## Write Side (push.py)
 
-push.py uses the same `.sync_config.json` credentials: no extra setup needed.
+push.py uses the same `.sync_config` credentials: no extra setup needed.
 
 To share sync.py's request count, push.py uses an explicit `--data-dir` first. Otherwise it checks the folder containing its `section11/` copy for `latest.json`, then the working directory for `latest.json`. If neither is found, it warns `Warning: data folder not found; use --data-dir or run beside latest.json. Request capacity is unknown.` It does not create a count in an arbitrary folder. When needed, specify the data folder before the subcommand, for example `python3 section11/examples/agentic/push.py --data-dir ~/training-data list`. This selects the shared state location, not credentials or write approval.
 
@@ -539,7 +539,7 @@ cd ~/training-data
 python3 section11/examples/agentic/pull.py trace --activity-id i142557875 --types latlng,altitude
 ```
 
-Same `.sync_config.json` credentials. Read-only: no `--confirm` gate. Don't reach for pull.py if `latest.json` already answers the question; the streams payload is several MB per ride.
+Same `.sync_config` credentials. Read-only: no `--confirm` gate. Don't reach for pull.py if `latest.json` already answers the question; the streams payload is several MB per ride.
 
 ---
 
@@ -569,9 +569,11 @@ and pinned manifest endpoints; a development clone is not an equivalent install.
 
 **macOS launchd doesn't inherit shell PATH**: specify the full Python path in the plist (e.g., `/usr/local/bin/python3`). Find yours with `which python3`.
 
-**`.sync_config.json` must be in the working directory**: the data directory root (`~/training-data/`), not inside `section11/`. If sync.py can't find credentials, check that your timer's `WorkingDirectory` is set correctly.
+**`.sync_config` must be in the working directory**: the data directory root (`~/training-data/`), not inside `section11/`. If sync.py can't find credentials, check that your timer's `WorkingDirectory` is set correctly.
 
-**Optional config fields** (add manually to `.sync_config.json` or re-run `--setup`):
+Older setups migrate automatically on the next normal sync. If renaming fails, sync uses `.sync_config.json` and retries next run. If both exist, `.sync_config` wins and the old file stays untouched. Never upload either file.
+
+**Optional config fields** (add manually to `.sync_config` or re-run `--setup`):
 
 - `auto_update`: boolean, default `false`; opt in to verified daily automatic installation after data work, including definitive failure or defer. Unknown data publication holds maintenance. Edit this field manually; the setup wizard preserves existing optional settings.
 - `route_weather_default_start`: local HH:MM, default `"10:00"`, used only for date-only/exact-midnight workouts. `SECTION11_ROUTE_WEATHER_DEFAULT_START` in the timer environment overrides it. The AI labels ASSUMED and asks for the actual time. See [departure handling](../../README.md#route-weather-departure), including genuine midnight rides and confirmed push.py time updates.

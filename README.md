@@ -361,7 +361,7 @@ If the source is old, check sync below. Otherwise replace uploads, refresh/re-im
 
 Check the API key, athlete ID and run log; no recent activities can legitimately mean no new activity data.
 
-- **Local:** check the timer, `sync.log` and `source_freshness` for a step-down, pause or provider hold before treating the timer as broken. Keep `.sync_config.json` at the data root and retain `state/` there unless you set a state override. See [request allowance and pauses](examples/json-local-sync/SETUP.md#request-allowance-and-pauses) for the exact pause message and recovery steps.
+- **Local:** check the timer, `sync.log` and `source_freshness` for a step-down, pause or provider hold before treating the timer as broken. Keep `.sync_config` at the data root and retain `state/` there unless you set a state override. See [request allowance and pauses](examples/json-local-sync/SETUP.md#request-allowance-and-pauses) for the exact pause message and recovery steps.
 - **GitHub:** inspect **Actions → Auto-Sync Intervals.icu Data**. Check secrets, Actions minutes and workflow permissions; request **Sync Now** when needed. See [workflow troubleshooting](examples/json-auto-sync/SETUP.md#troubleshooting).
 - **On-demand:** trigger the workflow and download its completed `training-data` artifact within seven days, or refresh your connector.
 - **Manual:** export again and replace uploads.

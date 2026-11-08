@@ -83,7 +83,7 @@ class FixRound3(P.Offline):
     def test_Q03_timer_only_notice_clears_without_a_second_release_lookup(self):
         release = B.release()
         self.local_install(release)
-        (self.root / '.sync_config.json').write_text('{"auto_sync":true}')
+        (self.root / '.sync_config').write_text('{"auto_sync":true}')
         with mock.patch.object(P.SYNC, '_fetch_verified_release', return_value=release) as fetch:
             P.SYNC.auto_update_local(self.root, False, advisory_only=True)
             notice = {}
@@ -243,14 +243,14 @@ class FixRound3(P.Offline):
     def test_m01_policy_resolution_and_code_repairs_do_not_need_extra_discovery(self):
         release = B.release()
         self.local_install(release)
-        (self.root / '.sync_config.json').write_text('{"auto_sync":true}')
+        (self.root / '.sync_config').write_text('{"auto_sync":true}')
         fetch = mock.Mock(return_value=release)
         with mock.patch.object(P.SYNC, '_fetch_verified_release', fetch):
             P.SYNC.auto_update_local(self.root, False, advisory_only=True)
             notice = {}
             P.SYNC._local_update_notice(notice, self.root)
             self.assertIn('update_notice', notice)
-            (self.root / '.sync_config.json').write_text('{"auto_sync":false}')
+            (self.root / '.sync_config').write_text('{"auto_sync":false}')
             P.SYNC._local_update_notice(notice, self.root)
             self.assertNotIn('update_notice', notice)
             (self.root / 'section11/LICENSE').write_bytes(b'edited managed file')

@@ -38,6 +38,10 @@ Undo goes back one installation, not any version you choose. On your computer, r
 python3 section11/examples/sync.py --rollback
 ```
 
+Rollback restores `.sync_config.json` so older releases can read your current credentials.
+If an unused old config differs, it is kept as `.sync_config.saved-<id>` and the path is printed.
+Never upload these files. A later normal run of the new release renames the config again.
+
 On GitHub, choose **Operation: Rollback**.
 
 Undo needs a usable previous installation. It can refuse after later code edits; see [local recovery](#rollback-and-interruption-recovery) or [GitHub recovery](#utc-timing-rejection-and-rollback).
@@ -110,7 +114,7 @@ repositories keep a root README, with the installation behavior described below.
 Fixed exceptions always win at any depth and in any spelling: `custom/`, `DOSSIER.md`,
 `latest.json`, `history.json`, `intervals.json`, `routes.json`, `saved_workouts.json`,
 `ftp_history.json`, `route_eta_history.json`, `maps/`, `archive/`, `state/`,
-`.section11-state/`, `.sync_config.json`, `sync.log`, dot-files and dot-folders
+`.section11-state/`, `.sync_config`, `.sync_config.json`, `sync.log`, dot-files and dot-folders
 (including `.git/`, `.github/`, `.gitignore`, `.secrets` and `.venv`), credentials,
 Python environments at any depth and the active interpreter. These protected names
 also remain inside old copied folders. A legacy directory containing a detected Python

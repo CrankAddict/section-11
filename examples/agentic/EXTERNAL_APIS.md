@@ -202,7 +202,7 @@ Intervals.icu exposes per-second sensor data ("streams") and pre-computed weathe
 
 ### Authentication
 
-HTTP Basic auth with username `API_KEY` (literal string) and password = the athlete's Intervals API key. Same credentials as sync.py. See the project README for setup. The shared `.sync_config.json` file is read by sync.py, push.py, and pull.py.
+HTTP Basic auth with username `API_KEY` (literal string) and password = the athlete's Intervals API key. Same credentials as sync.py. See the project README for setup. The shared `.sync_config` file is read by sync.py, push.py, and pull.py.
 
 ### Streams Endpoint
 

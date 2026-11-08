@@ -615,7 +615,7 @@ For web chat users on the local path, sync.py writes to a cloud-synced folder an
 
 1. Install Google Drive for Desktop (or OneDrive/Dropbox, whichever their AI platform has a connector for)
 2. Choose the final data directory inside the synced folder before `--init` (e.g., `~/Google Drive/My Drive/training-data/`) and complete the local setup there, including `--init` and `--setup`.
-3. For an existing installation, stop the old timer, move the whole data folder including `section11/` and `.sync_config.json`, then run `python3 section11/examples/sync.py --update` once from the new folder to point the standard timer there. Keep the folder's credentials private. Its `state/` folder is uploaded by whole-folder cloud sync. The connector can technically expose it, but the AI must ignore it as the two `state_note` fields in latest.json instruct. `SECTION11_STATE_DIR`, if set, selects the whole state folder, including request accounting, source responses and its README.
+3. For an existing installation, stop the old timer, move the whole data folder including `section11/` and `.sync_config`, then run `python3 section11/examples/sync.py --update` once from the new folder to point the standard timer there. Keep the folder's credentials private. Its `state/` folder is uploaded by whole-folder cloud sync. The connector can technically expose it, but the AI must ignore it as the two `state_note` fields in latest.json instruct. `SECTION11_STATE_DIR`, if set, selects the whole state folder, including request accounting, source responses and its README.
 4. Connect the AI platform's cloud connector to the folder. See the Platform Setup tables in the README for current Google Drive support by platform: https://github.com/CrankAddict/section-11#platform-setup
 
 See `examples/json-local-sync/SETUP.md` for more details and alternative setups (VPS + rclone, NAS with cloud sync, etc.).
@@ -624,7 +624,7 @@ See `examples/json-local-sync/SETUP.md` for more details and alternative setups 
 
 If the user wants their AI coach to write planned workouts directly to their Intervals.icu calendar:
 
-- **Local path:** push.py is already at `section11/examples/agentic/push.py` (uses the same `.sync_config.json` credentials). No extra setup.
+- **Local path:** push.py is already at `section11/examples/agentic/push.py` (uses the same `.sync_config` credentials). No extra setup.
 - **GitHub path:** Hosted push users replace `.github/workflows/auto-sync.yml` and `.github/workflows/push-workout.yml` together in the same owner commit, before the first Sync. Use the published `examples/agentic/push-workout.yml` stub; it calls `section11/examples/agentic/push.py` with the same secrets. New push users add this stub before first using push. Preview and explicit workout confirmation remain required.
 
 See `examples/agentic/README.md` for commands, workout syntax, and template mappings.
@@ -670,7 +670,7 @@ A good answer gives the bottle exactly as their official dossier records it. Whe
 - "I don't have access" or file not found → Check the agent can access the data directory (`~/training-data/` or wherever they created it). On platforms like OpenClaw where the agent workspace differs, verify the `Data directory` in DOSSIER.md is set correctly. Verify `latest.json` exists: `ls -la ~/training-data/latest.json`
 - Data appears stale → Check `source_freshness` and `sync.log` for a step-down, pause, provider hold or unavailable private state, then check the timer: `launchctl list | grep section11` (macOS) or `systemctl --user status section11-sync.timer` (Linux). Follow [Request allowance and pauses](examples/json-local-sync/SETUP.md#request-allowance-and-pauses); do not delete state to reset the count.
 - Agent can't find SECTION_11.md → Verify `section11/` directory exists in the data directory and contains the protocol files.
-- "Missing credentials" in sync.log → `.sync_config.json` must be in the data directory root, not inside `section11/`. Re-run `--setup` from the data directory root.
+- "Missing credentials" in sync.log → `.sync_config` must be in the data directory root, not inside `section11/`. Re-run `--setup` from the data directory root.
 
 If the test looks good, they're done. They have an AI endurance coach.
 

@@ -79,7 +79,7 @@ Then upload from your data folder:
 - `DOSSIER.md`, if you have one
 - a ZIP of only the `section11/` folder
 
-Never upload `.sync_config.json`: it holds your credentials.
+Never upload `.sync_config` or an old `.sync_config.json`: they hold your credentials.
 
 After each new export, upload the `.json` files again. After a Section 11 update, upload a new `section11/` ZIP.
 
@@ -118,7 +118,7 @@ Then configure your credentials:
 python3 section11/examples/sync.py --setup
 ```
 
-Enter your Intervals.icu credentials when prompted. Config saves to `.sync_config.json`.
+Enter your Intervals.icu credentials when prompted. Config saves to `.sync_config`.
 
 Create a new dossier only if you have none already, then run the first export:
 
@@ -220,7 +220,7 @@ The script creates/maintains these files:
 | `ftp_history.json` | FTP progression tracking | Automatically on first run |
 | `route_eta_history.json` | Retained 180-day outdoor ETA calibration | Normal sync/history updates |
 | `maps/weather/` | Up to four ordered PNG pages per ride, six rides (24 pages), for chat | Fresh eligible route-weather briefs |
-| `.sync_config.json` | Your credentials + preferences (local only) | After `--setup` |
+| `.sync_config` | Your credentials + preferences (local only) | After `--setup` |
 
 Sync automatically keeps `archive/carry-forward.state` in the data folder between exports. It protects previously exported summaries if a later export is damaged, and update/rollback preserve it. Its `.state` extension keeps it outside the JSON upload set; it is also outside the `section11/` ZIP. AI tools must ignore it and use only `latest.json.carry_forward` for recovery notices. Whole-folder cloud sync can still copy it.
 
@@ -293,7 +293,7 @@ manual-only opt-out, see [json-local-sync](../json-local-sync/SETUP.md#automate-
 | `--week-start DAY` | Training week start day (mon/tue/wed/thu/fri/sat/sun) | mon |
 | `--debug` | Show API field debug info | off |
 
-**Note:** `--week-start` can also be set in `.sync_config.json` (`"week_start": "sun"`) or via `WEEK_START` environment variable. Config file setting persists across runs: no need to pass the flag every time.
+**Note:** `--week-start` can also be set in `.sync_config` (`"week_start": "sun"`) or via `WEEK_START` environment variable. Config file setting persists across runs: no need to pass the flag every time.
 
 **Note:** Only `metadata.athlete_id` is redacted. The output is not anonymized. See [Privacy & Security](../../README.md#privacy--security).
 

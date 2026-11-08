@@ -119,7 +119,7 @@ python3 section11/examples/agentic/push.py push --json week.json --confirm
 
 Credentials loaded from (first match wins):
 1. CLI args: `--athlete-id`, `--api-key`
-2. `.sync_config.json` in working directory (same file sync.py uses)
+2. `.sync_config` in working directory (same file sync.py uses)
 3. Environment: `ATHLETE_ID`, `INTERVALS_KEY`
 
 `ATHLETE_ID` must match the ID shown in Intervals.icu Settings exactly: usually `i` followed by digits (`i<ATHLETE_NUMBER>`), or digits only (`<ATHLETE_NUMBER>`) for some early accounts. Don't add or remove the `i`. `INTERVALS_KEY` is the raw API key string from Intervals.icu → Settings → Developer.
@@ -133,7 +133,7 @@ export ATHLETE_ID=i123456
 export INTERVALS_KEY=abc123...
 python3 section11/examples/agentic/push.py list
 
-# .sync_config.json (in the data folder)
+# .sync_config (in the data folder)
 # {"athlete_id": "i123456", "intervals_key": "abc123..."}
 python3 section11/examples/agentic/push.py list
 ```
@@ -447,7 +447,7 @@ No `--confirm` gate: `pull.py` never modifies anything on the Intervals.icu side
 Same credential model as `push.py`:
 
 1. CLI args: `--athlete-id`, `--api-key`
-2. `.sync_config.json` (the same file `sync.py` and `push.py` use)
+2. `.sync_config` (the same file `sync.py` and `push.py` use)
 3. Environment: `ATHLETE_ID`, `INTERVALS_KEY`
 
 No GitHub Actions workflow: `pull.py` is local-execution only. The streams responses can be ~1-3 MB per activity (1Hz over a multi-hour ride), which is fine to handle locally but unsuitable for committing back to a data repo.

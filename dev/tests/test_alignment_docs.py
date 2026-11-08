@@ -94,7 +94,7 @@ class AlignmentDocsTests(unittest.TestCase):
         for name in ('examples/json-local-sync/SETUP.md', 'SETUP_ASSISTANT.md'):
             text = ' '.join((ROOT / name).read_text().split())
             self.assertIn('final data directory before `--init`', text)
-            self.assertIn('move the whole data folder including `section11/` and `.sync_config.json`', text)
+            self.assertIn('move the whole data folder including `section11/` and `.sync_config`', text)
             self.assertIn('`python3 section11/examples/sync.py --update` once from the new folder', text)
             self.assertNotIn("timer's `--output`", text)
 

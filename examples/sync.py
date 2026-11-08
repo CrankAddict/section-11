@@ -4,6 +4,9 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.168 - Sync timer runs use hosted 30-minute delivery expectations and
+  the scheduled history run budget. Manual Sync Now stays on demand.
+
 Version 3.165 - Export delivery deadlines from explicit setup and schedule inputs.
   One UTC generation time is shared with metadata.last_updated; status-only changes
   preserve it. Local cadence and authoritative holds/pauses set a fixed deadline;
@@ -4620,7 +4623,7 @@ class RequestBudgetRefused(requests.exceptions.RequestException):
 def is_hosted_sync(environ):
     """Explicit Actions sync event; cron shape only governs delivery deadlines."""
     return (environ.get("GITHUB_ACTIONS") == "true"
-            and environ.get("SECTION11_EXPORT_EVENT") in ("schedule", "workflow_dispatch"))
+            and environ.get("SECTION11_EXPORT_EVENT") in ("schedule", "workflow_dispatch", "Sync timer"))
 
 
 class ExportFreshness:
@@ -4630,6 +4633,9 @@ class ExportFreshness:
     def context(environ):
         if environ.get("GITHUB_ACTIONS") == "true":
             event = environ.get("SECTION11_EXPORT_EVENT")
+            if event == "Sync timer":
+                # The documented timer cadence is fixed; no native cron applies.
+                return {"mode": "hosted_scheduled", "interval": 1800}
             if event == "workflow_dispatch":
                 return {"mode": "on_demand", "interval": None}
             if event == "schedule":
@@ -6092,7 +6098,7 @@ class IntervalsSync:
     GITHUB_API_URL = "https://api.github.com"
     FTP_HISTORY_FILE = "ftp_history.json"
     HISTORY_FILE = "history.json"
-    VERSION = "3.167"
+    VERSION = "3.168"
     ROUTE_TERRAIN_VERSION = "3.142"
     ROUTE_RETRY_BACKOFF_SECONDS = 15 * 60
     INTERVALS_FILE = "intervals.json"
@@ -17850,9 +17856,10 @@ class IntervalsSync:
         Why the GitHub Actions run budget holds an automatic refresh of an
         existing history.json on this run, or None when it does not.
 
-        Applies only when GITHUB_ACTIONS is "true" and GITHUB_EVENT_NAME is not
-        workflow_dispatch, so local runs and manual Sync Now runs are never
-        held. Any other event, custom push or repository_dispatch included, is
+        Applies only when GITHUB_ACTIONS is "true". Manual workflow_dispatch
+        is exempt unless the trusted adapter identifies it as "Sync timer",
+        so local runs and manual Sync Now runs are never held. Any other event,
+        custom push or repository_dispatch included, is
         held unless GITHUB_RUN_NUMBER is a plain positive integer that is a
         multiple of HISTORY_ACTIONS_RUN_BUDGET. A missing or malformed number is
         held, and its raw value is never echoed. A re-run keeps its number, so
@@ -17861,7 +17868,8 @@ class IntervalsSync:
         env = os.environ if env is None else env
         if env.get("GITHUB_ACTIONS") != "true":
             return None
-        if env.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+        if (env.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+                and env.get("SECTION11_EXPORT_EVENT") != "Sync timer"):
             return None
         raw = env.get("GITHUB_RUN_NUMBER")
         if not (isinstance(raw, str) and raw.isascii() and raw.isdigit() and raw[0] != "0"):

@@ -27,6 +27,138 @@ Follow [existing-repository steps](#updating-an-existing-repository) to keep you
 
 Refreshes are scheduled every 30 minutes by default, but runs can be delayed or skipped; use **Sync Now** in your repository's README when needed. Release installation is separate: **Operation: Update** accepts it immediately. See [updates and undo](../maintenance/UPDATING.md#updating-section-11).
 
+## Sync timer (optional)
+
+GitHub's built-in schedule is unreliable for many users: scheduled syncs can start hours late or not at all. A free sync timer from cron-job.org or Cloudflare requests a sync every 30 minutes. We recommend it if your data is often out of date.
+
+Requires workflow v11.105 or later (the first line of your `.github/workflows/auto-sync.yml`). A file without this line is older; see [version compatibility](#sync-timer-version-compatibility). Also check that **Sync timer** appears under **Run workflow > Operation**. If you skip this section, your setup continues as before. Check the [Actions minutes and token risk](#sync-timer-costs-and-token-access) before starting.
+
+### Let the Sync timer run your syncs
+
+In your data repository, open **Settings > Secrets and variables > Actions > Variables > New repository variable**. For **Name**, use:
+
+```text
+SECTION11_SYNC_TIMER
+```
+
+For **Value**, use:
+
+```text
+on
+```
+
+Save the variable, then set up one timer below. With this switch on, GitHub's own scheduled sync job is skipped before a runner starts. The timer replaces that schedule; there is no GitHub backup. Manual **Sync Now** still works. If the timer stops, the timestamp and delivery deadline in `latest.json` show that the data is late; they do not start a replacement run.
+
+Scheduled runs still appear as **Skipped** in Actions while the switch is on; this is expected.
+
+### Create a token once, then choose one timer
+
+Open [GitHub's fine-grained token page](https://github.com/settings/personal-access-tokens/new). For **Token name**, use:
+
+```text
+Sync timer
+```
+
+Set **Resource owner** to the account that owns your data repository. Under **Repository access**, choose **Only select repositories** and select just that repository. Under **Repository permissions**, set **Actions** to **Read and write**, nothing else; Metadata read is added automatically. Choose an **Expiration** date and set your own reminder to replace the token before then.
+
+Create the token and copy it for your chosen timer below. It can start any workflow in that repository, so use it only for the timer.
+
+### Choice 1: cron-job.org
+
+One web form, no code to paste; the simpler choice for a phone, but your token is stored at cron-job.org.
+
+1. In your [cron-job.org](https://cron-job.org/) account, choose **Create cronjob**. For **Title**, use:
+
+   ```text
+   Sync timer
+   ```
+
+   For **URL**, paste this, replacing `OWNER` and `REPO` with your own data repository's owner and name, the same repository you limited the token to:
+
+   ```text
+   https://api.github.com/repos/OWNER/REPO/actions/workflows/auto-sync.yml/dispatches
+   ```
+
+2. Set the execution schedule to **Every 30 minutes**. In the **Advanced** tab, select **Request method: POST** and add these three headers:
+
+   | Key | Value |
+   | --- | --- |
+   | Authorization | `Bearer ` followed by your token |
+   | Accept | `application/vnd.github+json` |
+   | Content-Type | `application/json` |
+
+   The Authorization value starts with `Bearer` and a space, then your token.
+
+3. Further down on the **Advanced** tab, below **Request method: POST**, find **Request body** and paste:
+
+   ```json
+   {"ref":"main","inputs":{"operation":"Sync timer"}}
+   ```
+
+   If your default branch has another name, replace `main` with that name. Keep only the shown input; extra inputs are rejected with HTTP 422.
+
+4. **Save**, then use **Test run**. HTTP **204** means GitHub accepted the start, not that the sync published. Follow [Check it works](#check-the-sync-timer-works) below. Failure notifications are optional.
+
+To pause, disable or delete this cron-job.org job. Enable it again, or recreate it, to resume. To have GitHub's own schedule sync instead, also turn the repository variable off or delete it, as described below.
+
+### Choice 2: Cloudflare
+
+More steps, but the token stays in your own Cloudflare account as a Worker secret.
+
+1. In Cloudflare **Workers & Pages**, create a Worker you own. Paste all of [sync-timer.js](sync-timer/sync-timer.js) from the [sync-timer folder](sync-timer/) into its dashboard editor and deploy it.
+2. Open **Workers & Pages > Overview > your Worker > Settings > Variables and Secrets**. Use **Add**, type **Secret**, with this name and your GitHub token as its value:
+
+   ```text
+   GITHUB_TOKEN
+   ```
+
+   Add a text variable with this name:
+
+   ```text
+   GITHUB_REPOSITORY
+   ```
+
+   For its value, replace this with your data repository's owner and name, without a URL:
+
+   ```text
+   owner/name
+   ```
+
+   Only if your default branch is not `main`, add another text variable with this name and your default branch name as its value:
+
+   ```text
+   GITHUB_REF
+   ```
+
+3. Make sure **Observability (Workers Logs)** is on, so you can see runs and failures.
+4. Under **Settings > Triggers > Cron Triggers**, add:
+
+   ```text
+   22,52 * * * *
+   ```
+
+   This requests a sync at 22 and 52 minutes past each hour, UTC. Cron changes can take up to 15 minutes to take effect.
+
+To pause, delete the Cron Trigger; there is no disable switch. Add it again to resume. Keep the Worker and its settings. To have GitHub's own schedule sync instead, also turn the repository variable off or delete it, as described below.
+
+### Check the sync timer works
+
+Open your data repository's **Actions** tab. Find **Sync timer run**, with event **workflow_dispatch**, and check it finishes successfully. In **Code**, check that `latest.json` has a new timestamp. A started run is not a finished sync.
+
+For Cloudflare, check **Observability (Workers Logs)** for runs and errors. Do not rely on the **Cron Events** list: it stayed empty during testing even when the Worker ran.
+
+Never use **Disable workflow** in GitHub to pause the timer: it also stops the timer's requests and **Sync Now** from starting runs. Pause your chosen timer instead. See [timer troubleshooting](#timer-runs-but-nothing-publishes) if data does not update.
+
+### Use GitHub's own schedule instead
+
+Do both: pause the timer at cron-job.org or delete its Cloudflare Cron Trigger, and change the repository variable `SECTION11_SYNC_TIMER` to this value (or delete the variable):
+
+```text
+off
+```
+
+GitHub's existing schedule then runs again. To return to the Sync timer, set the variable to `on` and resume that timer. Keep the existing `schedule:` block in the workflow so this switch can restore it.
+
 [Full technical guide on GitHub](#technical-guide)
 
 # Technical guide
@@ -302,6 +434,30 @@ Estimates below count scheduled jobs in a 31-day month with every scheduled run 
 - GitHub sometimes delays or skips scheduled runs, so real usage can be lower. Do not rely on that: budget for the full count
 - If you do not know your plan, assume GitHub Free
 
+### Sync timer costs and token access
+
+The [optional Sync timer](#sync-timer-optional) calls the compatible `auto-sync.yml` workflow through `workflow_dispatch`, with `operation=Sync timer`. With `SECTION11_SYNC_TIMER=on`, a job-level condition skips native scheduled syncs before runner allocation, so those skipped jobs use no billed runner minutes. Manual runs and timer runs are unaffected by this switch. GitHub compares the value without case sensitivity; unset or values other than `on` keep native scheduled syncs enabled.
+
+At one billed minute per run, a 30-minute timer uses about **1,488 Actions minutes per 31-day month** in a private repository, about the same as today's default 30-minute native schedule. There are no duplicate native syncs while the switch is on. Longer jobs, retries, manual starts and other workflows add more. Watch your account's Actions usage and budget. Standard GitHub-hosted runners are free in public repositories, including timer runs, but the [privacy costs](#public-repositories) remain.
+
+The timer uses the existing hosted cache and per-run request controller. An outdated existing `history.json` is eligible for automatic refresh only on run numbers divisible by 16, with the same retry backoff as native scheduled syncs. Missing/unreadable history still takes the existing first-run path. Manual Sync Now remains exempt from the run-number limit, but still respects backoff. No timer state file is added.
+
+The timer's export freshness uses a fixed 30-minute interval and the existing hosted grace of twice that interval plus one hour: normally `expected_update_by` is two hours after `generated_at`. A provider hold can extend it. If you change the external timer's cadence, this freshness expectation still assumes 30 minutes. With the switch on there is no native backup: a stopped timer leaves the last timestamp and deadline unchanged, making lateness visible to the AI. Its `export_freshness.mode` should be `hosted_scheduled`, with a populated `expected_update_by` deadline; manual **Sync Now** stays `on_demand`.
+
+**The token is not start-only.** Actions read and write lets it start any workflow in the selected repository. That includes **Update** and **Rollback**, and, if installed, workout push with `confirm=true`, which can create, move or delete workouts and change thresholds using the repository's stored Intervals.icu credentials. The timer sends only Sync timer, but its token has that broader authority. Use a dedicated token for only the data repository; give neither timer your Intervals.icu API key.
+
+Sync timer runs skip the **training-data** download artifact. Manual Sync Now still uploads it for **7 days** after successful data validation, even if publication later fails, preserving the On-demand download path. The token's Actions read access includes existing and manual-run artifacts. They stay behind repository access controls; in a public repository, any signed-in GitHub user can download them. The artifact is a separate copy from the committed training data.
+
+cron-job.org stores the token at its service. Cloudflare stores it as a secret in your own Worker account. Choose an expiry and set your own reminder to replace the token in the chosen timer before it expires. GitHub's 2021-07-26 changelog says it emails before token expiry, but that announcement was written for classic tokens, not separately confirmed for fine-grained tokens. Treat any email as a possible extra reminder, not a guarantee.
+
+### Sync timer version compatibility
+
+Requires workflow v11.105 or later, with Section 11 v11.105 / sync.py v3.168 or later. **Update** replaces the managed source, not `.github/workflows/auto-sync.yml`.
+
+For an existing repository, choose **Operation: Update** and verify it completes, then replace the owner-controlled wrapper using [Updating an Existing Repository](#updating-an-existing-repository), keeping every literal cron, optional setting and secret name. If the old workflow has no Operation menu, follow those installation steps first. Confirm **Sync timer** appears in the new menu before enabling the variable and timer. New repositories use the matching published workflow from initial setup. Only use it after the compatible release is available.
+
+An old wrapper with new source keeps normal native and manual sync behavior, but cannot provide the timer switch, run name or artifact exclusion. A Sync timer request against an old choice list is expected to return HTTP 422. A new wrapper with old trusted source rejects the unknown operation before producing data; having the new menu alone is insufficient. New wrapper and new source provide all timer behavior. Local sync, GitHub sync without a timer, On-demand manual Sync Now and Manual export remain unchanged.
+
 ### Public repositories
 
 We recommend a private repository, but a public one has real advantages:
@@ -522,8 +678,35 @@ A confirmed commit followed by later changes is reported separately.
 
 ### Scheduled runs are late or missing
 - GitHub runs schedules best-effort and can delay or drop them; use [Sync Now](#sync-now) when you need fresh data
+- If this happens often, we recommend the [optional sync timer](#sync-timer-optional)
 - Check your Actions minutes (see [GitHub Actions minutes](#github-actions-minutes)); runs stop or incur charges once the allowance is used, depending on your settings
 - In a public repository, GitHub disables scheduled workflows after 60 days without repository activity
+
+### Timer runs but nothing publishes
+- HTTP 204 confirms only that GitHub accepted the start. Open **Sync timer run** in GitHub Actions and check its logs and publication outcome, then check the timestamp in `latest.json`
+- If no run appears, check the timer's failure details and that the workflow is enabled. For Cloudflare, use **Observability (Workers Logs)**, not Cron Events
+- Pause the timer on repeated failures and resolve the cause before resuming
+
+### Timer reports HTTP 422
+- In cron-job.org, open the **Test run** result and read GitHub's response text for the reason
+- An empty or wrong request body causes 422. Paste the body shown above into **Request body** on the **Advanced** tab, below **Request method: POST**, and use your default branch name
+- The operation must be exactly `Sync timer`: it is case-sensitive, with a capital S, lowercase t and no trailing space
+- A workflow older than v11.105 has no **Sync timer** choice and rejects it with 422; follow [version compatibility](#sync-timer-version-compatibility)
+- Undeclared inputs or an invalid ref can also cause rejection
+
+### Nothing syncs after pausing the timer
+- To have GitHub's own schedule sync instead, do both: pause the external timer and set `SECTION11_SYNC_TIMER` to `off` or delete the variable. Leaving it on still skips native scheduled jobs
+- Keep the workflow enabled and its existing `schedule:` block. Use **Sync Now** for an immediate manual request; native schedules can still be delayed
+
+### Sync timer run fails with "unknown workflow operation"
+- The new wrapper is using older trusted source. Check the [version requirement and release installation](#sync-timer-version-compatibility); the Operation menu alone does not prove the managed source is compatible
+
+### Cloudflare shows "Sync timer: HTTP 404"
+- Check `GITHUB_REPOSITORY` is the data repository's exact `owner/name`
+- Check the token was created for this exact repository under **Only select repositories**; an expired, revoked or deleted token shows [HTTP 401](#timer-reports-http-401) instead
+
+### Timer reports HTTP 401
+- The token may be expired or revoked. Replace it in the chosen timer using the same repository access and permissions
 
 ### No data in latest.json
 - Verify your Intervals.icu API key is valid
@@ -541,7 +724,7 @@ Read the sync log and `latest.json.source_freshness` if an export was written. C
 
 ### history.json not generated
 - History generates automatically on first run, then regenerates when outdated
-- Scheduled runs refresh an outdated `history.json` only when the run's number is a multiple of 16. Other scheduled runs skip the refresh, sync everything else normally and say so in the log. The refresh can therefore arrive several hours after the file becomes outdated, and later if those runs are delayed, cancelled or fail
+- Native scheduled runs and Sync timer runs refresh an outdated `history.json` only when the run's number is a multiple of 16. Other scheduled runs skip the refresh, sync everything else normally and say so in the log. The refresh can therefore arrive several hours after the file becomes outdated, and later if those runs are delayed, cancelled or fail
 - **Sync Now** skips only that limit. It refreshes an outdated file unless an earlier failed refresh is still waiting out its retry delay, and it does nothing to a file that is not outdated
 - Delete `history.json` from your repo and re-run to force regeneration. Do this while no sync is running; a run already in progress fails without publishing and the next run regenerates it
 - Check workflow logs. History generation is non-critical and won't fail the sync

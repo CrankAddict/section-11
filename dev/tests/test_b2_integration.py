@@ -62,6 +62,24 @@ class ControllerIntegration(Offline):
     def prepare(self):
         hosted.prepare(self.source, self.target, self.verifier)
 
+    def test_timer_operation_prepares_sync_and_keeps_daily_maintenance(self):
+        self.info['operation'] = 'Sync timer'
+        self.prepare()
+        info = hosted.context()
+        self.assertTrue(info['run_sync'])
+        self.assertTrue(info['scheduled'])
+        self.assertEqual(info['operation'], 'Sync timer')
+        self.assertEqual(info['event'], 'workflow_dispatch')
+        self.generated()
+        hosted.publish_data()
+        hosted.maintain()
+        actual = self.remote.inventory()
+        self.assertEqual(actual['.github/workflows/auto-sync.yml'], self.workflow)
+        self.assertEqual(H.control(actual[H.CONTROL])['attempted_day'], '2026.10.30')
+        tip = self.remote.tip
+        hosted.maintain()
+        self.assertEqual(self.remote.tip, tip, 'the timer repeated daily maintenance')
+
     def generated(self):
         files = ['latest.json', 'routes.json', 'route_eta_history.json', 'maps/weather/new.png']
         document = {'data_overview': {'version': 1, 'managed_files': files},

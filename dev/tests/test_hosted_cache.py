@@ -616,7 +616,8 @@ class Workflow(unittest.TestCase):
         run = text.split("- name: Run sync")[1].split("- name:")[0]
         self.assertIn('id: sync', run)
         controller = (REPO_ROOT / 'examples/maintenance/hosted.py').read_text()
-        self.assertIn("'SECTION11_EXPORT_EVENT': info['event']", controller)
+        self.assertIn("export_event = 'Sync timer' if info.get('operation') == 'Sync timer' else info['event']", controller)
+        self.assertIn("'SECTION11_EXPORT_EVENT': export_event", controller)
         self.assertIn("'SECTION11_EXPORT_CRON': info['cron']", controller)
         self.assertIn('hosted.py" sync --wrapper-api 2', run)
         self.assertIn('id: publish', text.split('- name: Publish data and update README')[1].split('- name:')[0])

@@ -79,6 +79,58 @@ class WorkflowTests(Offline):
         self.assertEqual(hosted.data_crons(self.demand), [])
         self.assertEqual(hosted.data_crons(self.auto), ['7,37 * * * *'])
 
+    def test_timer_job_gate_run_name_and_artifact_boundary(self):
+        text = self.auto.decode()
+        self.assertIn("jobs:\n  sync:\n    if: ${{ github.event_name != 'schedule' || vars.SECTION11_SYNC_TIMER != 'on' }}\n    runs-on:", text)
+        self.assertIn("run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'Sync timer' && 'Sync timer run' || 'Auto-Sync Intervals.icu Data' }}", text)
+        artifact = text.split('      - name: Upload data files for download\n', 1)[1]
+        self.assertTrue(artifact.startswith("        if: always() && github.event_name == 'workflow_dispatch' && inputs.operation != 'Sync timer' && steps.validate.outcome == 'success'\n"))
+        self.assertEqual([line for line in self.auto.splitlines() if line.startswith(b'run-name:')],
+                         [line for line in self.demand.splitlines() if line.startswith(b'run-name:')])
+        self.assertIn(b"options: [Sync, Update, Status, Rollback, 'Sync timer']", self.demand)
+
+    def test_timer_trigger_identity_operation_and_maintenance_timing(self):
+        env = {'SECTION11_DEFAULT_BRANCH': 'main', 'GITHUB_REF': 'refs/heads/main',
+               'GITHUB_EVENT_NAME': 'workflow_dispatch', 'GITHUB_RUN_ID': '42',
+               'GITHUB_RUN_ATTEMPT': '1', 'GITHUB_REPOSITORY': 'synthetic/data'}
+        run = {'id': 42, 'event': 'workflow_dispatch', 'head_branch': 'main', 'run_attempt': 1,
+               'head_repository': {'full_name': 'synthetic/data'}, 'created_at': '2026-11-07T04:00:00Z'}
+        api = mock.Mock()
+        api.get.return_value = run
+        info = hosted.trigger(api, {'inputs': {'operation': 'Sync timer'}}, env)
+        self.assertEqual(info['event'], 'workflow_dispatch')
+        self.assertEqual(info['operation'], 'Sync timer')
+        self.assertEqual(info['cron'], '')
+        for operation in ('Sync', 'Update', 'Status', 'Rollback'):
+            self.assertEqual(hosted.trigger(api, {'inputs': {'operation': operation}}, env)['operation'], operation)
+        for operation in ('sync timer', 'Timer', 'not-an-operation'):
+            with self.assertRaisesRegex(ValueError, 'unknown workflow operation'):
+                hosted.trigger(api, {'inputs': {'operation': operation}}, env)
+        for stamp, expected in (('2026-11-07T03:59:59Z', None),
+                                ('2026-11-07T04:00:00Z', '2026.11.07'),
+                                ('2026-11-07T23:59:59Z', '2026.11.07')):
+            for success in (False, True):
+                for attempt in (1, 2):
+                    self.assertEqual(H.eligible_day(stamp, info['event'], success, attempt, True), expected)
+                    self.assertEqual(H.eligible_day(stamp, 'schedule', success, attempt, True), expected)
+        # An external timer remains eligible even without native crons.
+        self.assertEqual(H.eligible_day(info['created_at'], info['event'], True, scheduled=False), '2026.11.07')
+
+    def test_timer_export_identity_crosses_token_free_producer_boundary(self):
+        (self.root / 'latest.json').write_text('{}')
+        for operation, event in (('Sync timer', 'Sync timer'), ('Sync', 'workflow_dispatch')):
+            state = {'run_sync': True, 'source': str(ROOT), 'event': 'workflow_dispatch',
+                     'operation': operation, 'cron': '', 'available_date': None}
+            env = {'ATHLETE_ID': 'synthetic', 'INTERVALS_KEY': 'synthetic-key',
+                   'GITHUB_TOKEN': 'never-child', 'GITHUB_WORKSPACE': str(self.root)}
+            with mock.patch.dict(os.environ, env), mock.patch.object(hosted, 'context', return_value=state), \
+                    mock.patch.object(hosted.subprocess, 'run') as run, contextlib.redirect_stdout(io.StringIO()):
+                hosted.run_sync()
+            child = run.call_args.kwargs['env']
+            self.assertEqual(child['SECTION11_EXPORT_EVENT'], event)
+            self.assertNotIn('GITHUB_TOKEN', child)
+            self.assertEqual(state['event'], 'workflow_dispatch')
+
     def test_T09_real_legacy_cron_and_secret_names_survive_editor_replacement(self):
         for name in ('fdde807', '0ab6e9d', '2d3980e', '2c8a813'):
             with self.subTest(commit=name):

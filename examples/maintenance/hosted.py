@@ -108,7 +108,7 @@ def trigger(api, event, env):
         raise ValueError('run identity differs from the default-branch invocation')
     update.eligible_day(run['created_at'], name, True, scheduled=True)
     operation = event.get('inputs', {}).get('operation', 'Sync') or 'Sync'
-    if operation not in ('Sync', 'Update', 'Status', 'Rollback'):
+    if operation not in ('Sync', 'Update', 'Status', 'Rollback', 'Sync timer'):
         raise ValueError('unknown workflow operation')
     return {'event': name, 'created_at': run['created_at'], 'attempt': run['run_attempt'],
             'operation': operation, 'cron': event.get('schedule', '')}
@@ -274,8 +274,12 @@ def run_sync():
         raise ValueError('invalid SECTION11_DAYS')
     env = {k: v for k, v in os.environ.items() if k not in ('GITHUB_TOKEN', 'GH_TOKEN')
            and not k.startswith('GIT_CONFIG')}
+    # Keep the authenticated GitHub event in context for maintenance. Its
+    # workflow_dispatch eligibility is the same as schedule for timed runs,
+    # including an external timer when the owner keeps no native data crons.
+    export_event = 'Sync timer' if info.get('operation') == 'Sync timer' else info['event']
     env.update({'SECTION11_SYNC_WRAPPER_API': str(WRAPPER_API),
-                'SECTION11_EXPORT_EVENT': info['event'], 'SECTION11_EXPORT_CRON': info['cron']})
+                'SECTION11_EXPORT_EVENT': export_event, 'SECTION11_EXPORT_CRON': info['cron']})
     subprocess.run([sys.executable, str(Path(info['source']) / 'examples/sync.py'),
                     '--athlete-id', athlete, '--intervals-key', key, '--days', str(days),
                     '--output', 'latest.json'], cwd=os.environ['GITHUB_WORKSPACE'], env=env, check=True)

@@ -99,6 +99,28 @@ class DeadlineContract(unittest.TestCase):
         self.assertEqual(row["reason"], "provider_hold")
         self.assertEqual(row["expected_update_by"], Contract.stamp(hold + timedelta(hours=2)))
 
+    def test_sync_timer_deadline_and_nearby_manual_and_local_cases(self):
+        env = {"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "workflow_dispatch",
+               "SECTION11_EXPORT_EVENT": "Sync timer"}
+        for cron in ("", "7 */3 * * *", "*/15 * * * *", "malformed"):
+            context = Contract.context(dict(env, SECTION11_EXPORT_CRON=cron))
+            self.assertEqual(context, {"mode": "hosted_scheduled", "interval": 1800})
+            row = Contract.build(Contract.stamp(self.g), context, {}, self.g)
+            self.assertEqual(row["expected_update_by"], Contract.stamp(self.g + timedelta(hours=2)))
+            self.assertEqual(row["reason"], "cadence")
+            self.assertEqual(row["generated_at"], Contract.stamp(self.g))
+        self.assertEqual(Contract.context(dict(env, SECTION11_EXPORT_EVENT="workflow_dispatch")),
+                         {"mode": "on_demand", "interval": None})
+        self.assertEqual(Contract.context(dict(env, SECTION11_EXPORT_EVENT="sync timer"))["mode"], "unknown")
+        for mode in ("manual", "local_scheduled"):
+            self.assertEqual(Contract.context(dict(env, GITHUB_ACTIONS="false", SECTION11_EXPORT_MODE=mode)),
+                             {"mode": mode, "interval": None})
+        hold = self.g + timedelta(hours=3)
+        row = Contract.build(Contract.stamp(self.g), Contract.context(env),
+                             {"budget": {"hold_until": Contract.stamp(hold)}}, self.g)
+        self.assertEqual(row["reason"], "provider_hold")
+        self.assertEqual(row["expected_update_by"], Contract.stamp(hold + timedelta(hours=2)))
+
     def test_utc_dst_naive_and_clock_rollback(self):
         for stamp in ("2026-10-25T02:30:00+02:00", "2026-10-25T02:30:00+01:00"):
             parsed = Contract.parse(stamp)
@@ -311,7 +333,8 @@ class DeadlineConsumerContract(unittest.TestCase):
         workflow = (root / "examples/json-auto-sync/auto-sync.yml").read_text()
         self.assertIn('hosted.py" sync --wrapper-api 2', workflow)
         controller = (root / 'examples/maintenance/hosted.py').read_text()
-        self.assertIn("'SECTION11_EXPORT_EVENT': info['event']", controller)
+        self.assertIn("export_event = 'Sync timer' if info.get('operation') == 'Sync timer' else info['event']", controller)
+        self.assertIn("'SECTION11_EXPORT_EVENT': export_event", controller)
         self.assertIn("'SECTION11_EXPORT_CRON': info['cron']", controller)
 
 

@@ -43,7 +43,7 @@ test('published update guide describes direct updates and sealed release templat
   for (const [route, id, title, sections] of [
     ['guides/updating.html', 'updating-section-11', 'Updating Section 11', ['Before you update', 'Update on your computer', 'Update on GitHub', 'Automatic updates and undo']],
     ['guides/local-sync.html', 'local-sync-setup-guide', 'Local Sync Setup Guide', ['Get help from your AI', 'Set it up yourself', 'After setup']],
-    ['guides/github-sync.html', 'github-sync-setup-guide', 'GitHub Sync Setup Guide', ['Get help from your AI', 'Set up a new repository', 'Already set up?']],
+    ['guides/github-sync.html', 'github-sync-setup-guide', 'GitHub Sync Setup Guide', ['Get help from your AI', 'Set up a new repository', 'Already set up?', 'Sync timer (optional)']],
     ['guides/on-demand.html', 'on-demand-sync', 'On-Demand Sync', ['Get help from your AI', 'Set up once', 'Refresh and use your data']],
     ['guides/manual-export.html', 'manual-json-export', 'Manual JSON Export', ['Get help from your AI', 'Install and export', 'Give the files to your AI']],
     ['reports.html', 'report-examples', 'Report Examples', ['Choose a report', 'Ask your AI']],
@@ -132,11 +132,33 @@ test('mobile header keeps Getting started and the repository; the article preced
   // Phone header: tighter gaps and a header-only inset; body and footer keep the shared margin, wrapping stays the fallback.
   assert.match(mobile, /\.site-header, main, footer \{ width: calc\(100% - 2\.5rem\); \}\n  \.site-header \{ flex-wrap: wrap; gap: \.25rem; min-height: 4\.5rem; padding-block: \.9rem; width: calc\(100% - 1rem\); \}\n  \.site-header nav \{ gap: \.45rem \.5rem; margin-left: auto; \}/);
   assert.equal(mobile.split(' width: ').length, 3);
-  assert.doesNotMatch(mobile, /nowrap|overflow|font-size|font-weight|footer \{ (?!width: calc\(100% - 2\.5rem\))/);
+  const mobileLayout = mobile.replace(/\.prose pre \{[^}]*\}/, '');
+  assert.doesNotMatch(mobileLayout, /nowrap|overflow|font-size|font-weight|footer \{ (?!width: calc\(100% - 2\.5rem\))/);
   assert.match(css, /\.site-header, main, footer \{ width: min\(1160px, calc\(100% - 5rem\)\); margin-inline: auto; \}/);
   assert.match(css, /\.site-header \{ display: flex; justify-content: space-between; align-items: center; gap: 2rem; min-height: 6\.5rem; border-bottom: 1px solid var\(--line\); \}/);
   assert.match(css, /\.site-header nav \{ display: flex; gap: 1\.75rem; flex-wrap: wrap; font-size: \.9375rem; \}/);
   assert.match(css, /\nfooter \{ display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem 2rem; border-top: 1px solid var\(--line\); padding-block: 2rem; font-size: \.875rem; color: var\(--muted\); \}/);
+});
+
+test('mobile code boxes wrap without changing the literal code text', () => {
+  const css = fs.readFileSync(path.join(root, '.github/site/site.css'), 'utf8');
+  const start = css.indexOf('@media (max-width: 800px) {');
+  const end = css.indexOf('@media print');
+  const mobile = css.slice(start, end);
+  assert.match(mobile, /\.prose pre \{ white-space: pre-wrap; overflow-wrap: anywhere; \}/);
+  assert.doesNotMatch(css.slice(0, start) + css.slice(end), /\.prose pre(?: code)? \{[^}]*(?:white-space: pre-wrap|overflow-wrap: anywhere)/);
+  const docs = prepare(root);
+  const escape = require('markdown-it')().utils.escapeHtml;
+  for (const page of docs) {
+    const code = parse(page.selected).tokens.filter(t => ['fence', 'code_block'].includes(t.type));
+    const html = renderDocument(page, docs, root);
+    const rendered = [...html.matchAll(/<pre><code(?: class="[^"]*")?>([\s\S]*?)<\/code><\/pre>/g)].map(m => m[1]);
+    assert.deepEqual(rendered, code.map(t => escape(t.content)), page.route);
+  }
+  const github = docs.find(p => p.route === 'guides/github-sync.html');
+  const fences = parse(github.selected).tokens.filter(t => t.type === 'fence').map(t => t.content);
+  assert.ok(fences.includes('https://api.github.com/repos/OWNER/REPO/actions/workflows/auto-sync.yml/dispatches\n'));
+  assert.ok(fences.includes('{"ref":"main","inputs":{"operation":"Sync timer"}}\n'));
 });
 
 test('OpenCode leaves Quick Start; its full entry and T3 Code stay in Agentic Setup', () => {

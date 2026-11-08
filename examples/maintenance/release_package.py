@@ -100,7 +100,7 @@ def build(raw, files, commit, tag):
         if path == IMAGE:
             image = content
             kind = 'image'
-        elif Path(path).suffix == '.py':
+        elif Path(path).suffix in {'.py', '.js'}:
             kind = 'tools'
             groups[kind].append((path, content))
         elif Path(path).suffix in TEXT_SUFFIXES or path == 'LICENSE':

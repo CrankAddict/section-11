@@ -61,12 +61,15 @@ class HostedSchedules(unittest.TestCase):
             "7 6 * * 1-5")]
         cases += [("schedule", "7,37 * * * *", "hosted_scheduled", 1800),
                   ("schedule", "*/15 * * * *", "hosted_scheduled", 900),
-                  ("workflow_dispatch", "", "on_demand", None)]
+                  ("workflow_dispatch", "", "on_demand", None),
+                  ("Sync timer", "", "hosted_scheduled", 1800),
+                  ("Sync timer", "7 */3 * * *", "hosted_scheduled", 1800)]
         with mock.patch.object(hosted.runs.FrozenDate, "fixed", self.Date.now(timezone.utc), create=True):
             self.rows = hosted.runs.activities()[:1]
         for event, cron, mode, interval in cases:
             with self.subTest(event=event, cron=cron), mock.patch.dict(os.environ, {
-                    "GITHUB_EVENT_NAME": event, "SECTION11_EXPORT_EVENT": event,
+                    "GITHUB_EVENT_NAME": "workflow_dispatch" if event == "Sync timer" else event,
+                    "SECTION11_EXPORT_EVENT": event,
                     "SECTION11_EXPORT_CRON": cron}):
                 self.remote, self.published = None, {}
                 self.new_runner()

@@ -78,7 +78,8 @@ _ORIGINAL_TZ = None
 
 # GitHub Actions context read by the history run budget. Removed for this module
 # so host values can never leak into a case; nothing else in os.environ changes.
-PLATFORM_KEYS = ("GITHUB_ACTIONS", "GITHUB_EVENT_NAME", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT")
+PLATFORM_KEYS = ("GITHUB_ACTIONS", "GITHUB_EVENT_NAME", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT",
+                 "SECTION11_EXPORT_EVENT")
 _HOST_PLATFORM = {}
 
 
@@ -107,14 +108,15 @@ def tearDownModule():
 
 
 @contextlib.contextmanager
-def actions(number, event="schedule", attempt=1, github_actions="true"):
+def actions(number, event="schedule", attempt=1, github_actions="true", export_event=None):
     """
     Exactly this GitHub Actions context for the block; a None value leaves that
     variable unset. Everything else in os.environ, TMPDIR included, is kept.
     """
     values = {"GITHUB_ACTIONS": github_actions, "GITHUB_EVENT_NAME": event,
               "GITHUB_RUN_NUMBER": None if number is None else str(number),
-              "GITHUB_RUN_ATTEMPT": None if attempt is None else str(attempt)}
+              "GITHUB_RUN_ATTEMPT": None if attempt is None else str(attempt),
+              "SECTION11_EXPORT_EVENT": export_event}
     with mock.patch.dict(os.environ):
         for key in PLATFORM_KEYS:
             os.environ.pop(key, None)
@@ -763,7 +765,7 @@ def scheduled(numbers, event="schedule"):
     return [(n, event, 1) for n in numbers]
 
 
-def actions_chain(runs, api, publish_when=lambda number: False, history=None):
+def actions_chain(runs, api, publish_when=lambda number: False, history=None, export_event=None):
     """
     Each run is (run number, event, run attempt), executed in the given order on
     a fresh runner 30 minutes apart, seeded with the committed history.json. A
@@ -777,7 +779,7 @@ def actions_chain(runs, api, publish_when=lambda number: False, history=None):
         with tempfile.TemporaryDirectory() as runner:
             (Path(runner) / "history.json").write_bytes(committed)
             before = api.started()
-            with actions(number, event, attempt):
+            with actions(number, event, attempt, export_event=export_event):
                 run_main(runner, WED_0007 + timedelta(minutes=30 * i), api)
             if api.started() > before:
                 attempted.append((number, event, attempt))
@@ -788,6 +790,49 @@ def actions_chain(runs, api, publish_when=lambda number: False, history=None):
 
 class ActionsBudgetTests(TempDirCase):
     """B1-B20: the GitHub Actions run budget on top of the gate and backoff."""
+
+    def test_timer_unpublished_history_pulls_remain_one_in_sixteen(self):
+        for api in (Api(), Api(athlete=requests.exceptions.ConnectionError("down"))):
+            attempted, committed = actions_chain(scheduled(range(1000, 1096), "workflow_dispatch"),
+                                                 api, export_event="Sync timer")
+            self.assertEqual([n for n, _, _ in attempted], [1008, 1024, 1040, 1056, 1072, 1088])
+            self.assertEqual(api.started(), 6)
+            self.assertEqual(json.loads(committed), OVERDUE_AT_WED_0007)
+
+    def test_timer_published_failure_preserves_backoff_and_run_budget(self):
+        api = Api(athlete=requests.exceptions.ConnectionError("down"))
+        attempted, committed = actions_chain(scheduled(range(1000, 1096), "workflow_dispatch"), api,
+                                             publish_when=lambda n: True, export_event="Sync timer")
+        self.assertEqual([n for n, _, _ in attempted], [1008, 1024, 1040, 1088])
+        self.assertEqual(self.assert_state(json.loads(committed))["consecutive_failures"], 4)
+
+    def test_timer_malformed_number_local_and_manual_boundaries(self):
+        self.overdue()
+        for number in (None, "", "0", "032", "32.0", "32\n", "٣٢", 33, 1001):
+            with self.subTest(number=number), actions(number, "workflow_dispatch", export_event="Sync timer"):
+                self.assertFalse(gate(self.dir, WED_1200))
+        for number, event, action, expected in ((32, "Sync timer", "true", True),
+                                               (33, "workflow_dispatch", "true", True),
+                                               (33, "Sync timer", "false", True)):
+            with actions(number, "workflow_dispatch", github_actions=action, export_event=event):
+                self.assertEqual(gate(self.dir, WED_1200), expected)
+
+    def test_timer_held_run_preserves_main_sync_and_first_run_exception(self):
+        self.overdue()
+        original = (self.dir / "history.json").read_bytes()
+        api = Api()
+        with actions(1001, "workflow_dispatch", export_event="Sync timer"):
+            collect, _, _ = run_main(self.dir, WED_1200, api, write_latest=True)
+        self.assertTrue(collect.called)
+        self.assertEqual(api.calls, [])
+        self.assertEqual((self.dir / "history.json").read_bytes(), original)
+        for body in (None, "{bad", "[]"):
+            path = self.dir / "history.json"
+            path.unlink(missing_ok=True)
+            if body is not None:
+                path.write_text(body)
+            with actions(1001, "workflow_dispatch", export_event="Sync timer"):
+                self.assertTrue(gate(self.dir, WED_1200))
 
     def overdue(self, now=WED_1200, days=30, **extra):
         write_history(self.dir, prior_history(local_naive(now - timedelta(days=days)), **extra))

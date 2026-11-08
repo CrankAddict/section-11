@@ -1,4 +1,6 @@
+# Section 11 workflow v11.105
 name: Auto-Sync Intervals.icu Data
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'Sync timer' && 'Sync timer run' || 'Auto-Sync Intervals.icu Data' }}
 
 on:
   schedule:
@@ -11,7 +13,7 @@ on:
         type: choice
         required: false
         default: Sync
-        options: [Sync, Update, Status, Rollback]
+        options: [Sync, Update, Status, Rollback, 'Sync timer']
 
 permissions:
   contents: write
@@ -24,6 +26,7 @@ concurrency:
 
 jobs:
   sync:
+    if: ${{ github.event_name != 'schedule' || vars.SECTION11_SYNC_TIMER != 'on' }}
     runs-on: ubuntu-latest
     cache-mode: write
     timeout-minutes: 30
@@ -146,7 +149,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python "$RUNNER_TEMP/section11-trusted-source/examples/maintenance/hosted.py" maintain --wrapper-api 2
       - name: Upload data files for download
-        if: always() && github.event_name == 'workflow_dispatch' && steps.validate.outcome == 'success'
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.operation != 'Sync timer' && steps.validate.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: training-data

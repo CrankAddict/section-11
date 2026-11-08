@@ -1,7 +1,7 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.104  
-**Last Updated:** 2026-11-04
+**Protocol Version:** 11.105  
+**Last Updated:** 2026-11-07
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
 Section 11 documents live in `section11/`, custom files in `custom/`, and user data
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.105 - Sync timer runs (2026-11-07, sync.py v3.168):**
+
+The optional GitHub Sync timer uses its own operation and run name. Its 30-minute delivery expectation and history refresh run budget match scheduled syncs; it skips the download artifact. The owner-installed workflow can skip GitHub's native scheduled job with `SECTION11_SYNC_TIMER=on`. Local sync, GitHub sync without a timer, manual Sync Now, On-demand sync and Manual export retain their behavior. Timer setup requires both compatible managed source and the published workflow; see the [Sync timer guide](examples/json-auto-sync/SETUP.md#sync-timer-optional).
 
 **v11.104 - Hosted cache for every schedule (2026-11-04, sync.py v3.167):**
 

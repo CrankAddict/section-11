@@ -103,6 +103,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
   .guide-nav .source-link { margin-top: .6rem; }
   .reading-links a { flex-direction: column; gap: .2rem; }
   .reading-links a > span:last-child { text-align: left; }
+  .prose pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 @media print {
   .site-header, .guide-nav, .toc, footer { display: none; }

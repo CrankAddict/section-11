@@ -8,11 +8,21 @@ Your training data, settings, dossier and files in `custom/` are kept. Everythin
 
 ## Update on your computer
 
-Open a terminal in your existing data folder (Terminal on Mac, PowerShell on Windows), using the Python environment that normally runs sync. Run `python3 section11/examples/sync.py --update`, read the listed changes and timer information, then accept if you agree. On Windows, use `py -3` instead of `python3`. If the script is missing or your setup is old, use the [local installation steps](../json-local-sync/SETUP.md#initial-setup).
+Open Terminal (Mac) or PowerShell (Windows) in your existing data folder, using your usual sync Python environment. Run:
 
-An AI with command access to that computer can help. Copy this prompt:
+```sh
+python3 section11/examples/sync.py --update
+```
 
-> Help me update Section 11. Before acting, read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/maintenance/UPDATING.md. If you can access my installed section11/ folder, read the same file there at section11/examples/maintenance/UPDATING.md. Confirm my data folder and your command access. Explain the changes and ask before accepting. Keep my existing sync and update preferences.
+On Windows, use `py -3` instead of `python3`. Read the listed changes and timer information, then accept if you agree. Missing script or old setup? Use the [local installation steps](../json-local-sync/SETUP.md#initial-setup).
+
+An AI can help after confirming your data folder and command access to that computer. Copy this prompt:
+
+```text
+Help me update Section 11, one step at a time.
+Read this guide first: https://github.com/CrankAddict/section-11/blob/main/examples/maintenance/UPDATING.md (if you can open my installed section11/ folder, use its copy instead).
+Keep my existing data, settings, sync and update preferences; explain changes and ask before changing anything.
+```
 
 ## Update on GitHub
 
@@ -20,11 +30,19 @@ In your data repository, open **Actions > Auto-Sync Intervals.icu Data > Run wor
 
 ## Automatic updates and undo
 
-Automatic checks happen at most once a day and need a sync run. To allow installation without asking each time, follow [local automatic updates](#local-updates-and-automatic-toggle) or [GitHub automatic updates](#automatic-github-updates). The same replacement rules apply.
+Automatic checks run at most once a day, with a sync run. To install updates without asking each time, follow [local automatic updates](#local-updates-and-automatic-toggle) or [GitHub automatic updates](#automatic-github-updates). The same replacement rules apply.
 
-Undo goes back one installation, not any version you choose. Locally, run `python3 section11/examples/sync.py --rollback`; on GitHub, choose **Operation: Rollback**. It needs a usable previous installation and can refuse after later code edits: see [local recovery](#rollback-and-interruption-recovery) or [GitHub recovery](#utc-timing-rejection-and-rollback).
+Undo goes back one installation, not any version you choose. On your computer, run:
 
-After an update or rollback, check any files you keep in `custom/` and replace uploaded Section 11 files or pasted project instructions separately.
+```sh
+python3 section11/examples/sync.py --rollback
+```
+
+On GitHub, choose **Operation: Rollback**.
+
+Undo needs a usable previous installation. It can refuse after later code edits; see [local recovery](#rollback-and-interruption-recovery) or [GitHub recovery](#utc-timing-rejection-and-rollback).
+
+After an update or rollback, check your files in `custom/`. Replace uploaded Section 11 files or pasted project instructions separately.
 
 [Full technical guide on GitHub](#technical-guide)
 

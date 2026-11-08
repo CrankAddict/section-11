@@ -4,25 +4,32 @@ On-demand sync refreshes your Intervals.icu training files when you ask, from a 
 
 ## Get help from your AI
 
-You do the GitHub clicks and enter your credentials; your AI can walk you through them. Copy this prompt:
+You do the GitHub clicks and enter credentials; your AI explains the steps. Copy this prompt:
 
-> Help me set up On-demand sync. Before acting, read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/json-on-demand/SETUP.md. If you can access my installed section11/ folder, read the same file at section11/examples/json-on-demand/SETUP.md. I will do the clicks and enter credentials in GitHub. Preserve my existing data and settings. Help me check the first run and give my AI access to the current data and Section 11 files.
+```text
+Help me set up Section 11 On-demand sync, one step at a time; I do the clicks and enter credentials.
+Read this guide first: https://github.com/CrankAddict/section-11/blob/main/examples/json-on-demand/SETUP.md (if you can open my installed section11/ folder, use its copy instead).
+Keep my existing data and settings, and ask before changing anything.
+```
+
+For full guided setup, including your dossier and AI connection, give your AI this link: <https://github.com/CrankAddict/section-11/blob/main/SETUP_ASSISTANT.md>.
 
 ## Set up once
 
 1. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
-2. At [github.com/new](https://github.com/new), create a repository such as `training-data`. Choose **Private**, leave **Add a README file** unchecked and click **Create repository**.
-3. Download `section11-YYYY.MM.DD-on-demand.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). Return to your new repository. Click **creating a new file** to create `.github/workflows/auto-sync.yml`, paste that file's contents and commit it. If it is unavailable or says `UNSEALED`, wait for a verified release; see [workflow setup](#step-2-set-up-github-repository).
-4. Open **Settings > Secrets and variables > Actions > New repository secret**. Add `ATHLETE_ID` and `INTERVALS_KEY` with your values. If required, select **Read and write permissions** under **Settings > Actions > General > Workflow permissions** and save; see [permissions](#step-4-enable-workflow-permissions).
-5. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow**. Enable workflows if prompted, keep the default branch and **Operation: Sync**, then run it. Wait for completion and check the new files, including `latest.json` and `section11/`, in your repository.
-
-**Already have a setup?** Follow [existing-repository steps](#updating-an-existing-repository), including both workflow files if you use workout push. Move your own files to `custom/` first: `section11/` is replaced. Unprotected same-name files elsewhere can also be removed; see the [removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
+2. At [github.com/new](https://github.com/new), create a **Private** repository such as `training-data`, leaving **Add a README file** unchecked. Click **Create repository**.
+3. Download `section11-YYYY.MM.DD-on-demand.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). If unavailable or marked `UNSEALED`, wait for a verified release ([workflow setup](#step-2-set-up-github-repository)).
+4. Back in your repository, click **creating a new file** and name it `.github/workflows/auto-sync.yml`. Paste the downloaded contents and commit.
+5. Under **Settings > Secrets and variables > Actions > New repository secret**, add `ATHLETE_ID` and `INTERVALS_KEY` with your values.
+6. If required, select **Read and write permissions** under **Settings > Actions > General > Workflow permissions** and save ([permissions](#step-4-enable-workflow-permissions)).
+7. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow**, enabling workflows if prompted. Keep the default branch and **Operation: Sync**, then run it.
+8. When it finishes, check the repository contains the new files, including `latest.json` and `section11/`.
 
 ## Refresh and use your data
 
-Next time, tap **Sync Now** in your repository's README, then **Run workflow**. Nothing refreshes until you request a run.
+Need fresh data? Tap **Sync Now** in your repository's README, then **Run workflow**.
 
-After it completes, refresh your AI's connector or authenticated repository access and check it can read the current files. If it cannot, use **Code > Download ZIP** on your repository and upload that ZIP to your AI. It includes the installed Section 11 files; the run's data-only download does not. Replace uploads for fresh data and after updates. See [usage](#usage) and [updates](../maintenance/UPDATING.md#updating-section-11) for details.
+When it's done, check that your AI can read the new files. Connected to GitHub? Refresh the connection. Uploading instead? On your repository page, press the green **Code** button and choose **Download ZIP**. Upload that ZIP, and replace it each time.
 
 Set up your AI with [Section 11's project instructions](../../README.md#3-configure-your-ai-platform).
 

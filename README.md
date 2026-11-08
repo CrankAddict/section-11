@@ -60,7 +60,7 @@ Intervals.icu is a free training platform. In its Settings, connect the service 
 
 Section 11 is free to use. Your chosen AI platform or hosting may have its own costs.
 
-> **Recommended:** Give [SETUP_ASSISTANT.md](SETUP_ASSISTANT.md) to your AI for guided setup, whether you use a chat app such as ChatGPT or Claude, or OpenClaw and similar always-on agentic setups. Or use the [Section 11 skill](SKILL.md), if supported.
+> **Recommended:** Give [SETUP_ASSISTANT.md](SETUP_ASSISTANT.md) to your AI (share the link or upload the file) for guided setup, whether you use a chat app such as ChatGPT or Claude, or OpenClaw and similar always-on agentic setups. Or use the [Section 11 skill](SKILL.md), if supported.
 
 You can also follow the step-by-step guides below.
 

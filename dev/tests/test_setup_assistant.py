@@ -65,7 +65,8 @@ class SetupAssistantTests(unittest.TestCase):
         for name in ('json-local-sync', 'json-manual'):
             with self.subTest(name=name):
                 text = (ROOT / 'examples' / name / 'SETUP.md').read_text()
-                route = text.split('```powershell\n', 1)[1].split('```', 1)[0]
+                technical = text.split('# Technical guide\n', 1)[1]
+                route = technical.split('```powershell\n', 1)[1].split('```', 1)[0]
                 commands = ('New-Item', 'Set-Location -LiteralPath', ' --init', ' --setup',
                             'Get-ChildItem -LiteralPath . -Force -ErrorAction Stop',
                             'Copy-Item -LiteralPath', ' --output ')

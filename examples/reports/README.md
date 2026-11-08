@@ -15,7 +15,11 @@ Your AI coach uses Section 11's templates and your current training files to wri
 
 Choose a report name above and copy this prompt:
 
-> Give me a [report name]. First read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/reports/README.md. If you can access my installed section11/ folder, read the same file at section11/examples/reports/README.md. Use its matching template and my current training files. Tell me if any required file is missing; do not use the example data as mine.
+```text
+Give me a [report name]. Use its matching template and my current training files.
+Read this guide first: https://github.com/CrankAddict/section-11/blob/main/examples/reports/README.md (if you can open my installed section11/ folder, use its copy instead).
+Tell me if a required file is missing; do not use the example data as mine.
+```
 
 The AI needs access to your current data and installed Section 11 files. Reports stay brief when everything is normal; ask "why?" when you want more explanation.
 

@@ -43,7 +43,7 @@ test('published update guide describes direct updates and sealed release templat
   for (const [route, id, title, sections] of [
     ['guides/updating.html', 'updating-section-11', 'Updating Section 11', ['Before you update', 'Update on your computer', 'Update on GitHub', 'Automatic updates and undo']],
     ['guides/local-sync.html', 'local-sync-setup-guide', 'Local Sync Setup Guide', ['Get help from your AI', 'Set it up yourself', 'After setup']],
-    ['guides/github-sync.html', 'github-sync-setup-guide', 'GitHub Sync Setup Guide', ['Get help from your AI', 'Set up a new repository', 'Already set up?', 'Sync timer (optional)']],
+    ['guides/github-sync.html', 'github-sync-setup-guide', 'GitHub Sync Setup Guide', ['Get help from your AI', 'Set up a new repository', 'Sync timer (optional)']],
     ['guides/on-demand.html', 'on-demand-sync', 'On-Demand Sync', ['Get help from your AI', 'Set up once', 'Refresh and use your data']],
     ['guides/manual-export.html', 'manual-json-export', 'Manual JSON Export', ['Get help from your AI', 'Install and export', 'Give the files to your AI']],
     ['reports.html', 'report-examples', 'Report Examples', ['Choose a report', 'Ask your AI']],
@@ -140,12 +140,13 @@ test('mobile header keeps Getting started and the repository; the article preced
   assert.match(css, /\nfooter \{ display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem 2rem; border-top: 1px solid var\(--line\); padding-block: 2rem; font-size: \.875rem; color: var\(--muted\); \}/);
 });
 
-test('mobile code boxes wrap without changing the literal code text', () => {
+test('text fences wrap at every width; other code boxes wrap only on mobile without changing literal text', () => {
   const css = fs.readFileSync(path.join(root, '.github/site/site.css'), 'utf8');
   const start = css.indexOf('@media (max-width: 800px) {');
   const end = css.indexOf('@media print');
   const mobile = css.slice(start, end);
   assert.match(mobile, /\.prose pre \{ white-space: pre-wrap; overflow-wrap: anywhere; \}/);
+  assert.match(css.slice(0, start), /\.prose pre code\.language-text \{ white-space: pre-wrap; overflow-wrap: anywhere; \}/);
   assert.doesNotMatch(css.slice(0, start) + css.slice(end), /\.prose pre(?: code)? \{[^}]*(?:white-space: pre-wrap|overflow-wrap: anywhere)/);
   const docs = prepare(root);
   const escape = require('markdown-it')().utils.escapeHtml;
@@ -365,7 +366,7 @@ test('Getting started step 4 preserves the complete access, ZIP, privacy, freshn
   assert.equal(select(start.original, { source: 'README.md', section: '4. Make Files Available to Your AI' }), expected);
 });
 
-test('instruction files and setup anchors are required; Manual retains its companion-list link', t => {
+test('instruction files and setup anchors are required; Manual retains its AI-setup link', t => {
   for (const name of ['PROJECT_INSTRUCTIONS_AGENTIC.md', 'PROJECT_INSTRUCTIONS_WEB.md']) {
     const source = fixture(t);
     fs.unlinkSync(path.join(source, name));
@@ -382,9 +383,9 @@ test('instruction files and setup anchors are required; Manual retains its compa
   assert.throws(() => renderDocument({ ...start, selected: start.selected.replace('#platform-setup)', '#missing-platform-setup)') }, docs, root), /Missing source anchor/);
   assert.ok(renderDocument(start, docs, root).includes('href="' + github + 'README.md#platform-setup"'));
   const manual = docs.find(p => p.route === 'guides/manual-export.html');
-  assert.ok(manual.selected.includes('#use-with-ai)'));
-  assert.throws(() => renderDocument({ ...manual, selected: manual.selected.replace('#use-with-ai)', '#missing-companion-list)') }, docs, root), /Missing source anchor/);
-  assert.ok(renderDocument(manual, docs, root).includes('href="' + github + 'examples/json-manual/SETUP.md#use-with-ai"'));
+  assert.ok(manual.selected.includes('#3-configure-your-ai-platform)'));
+  assert.throws(() => renderDocument({ ...manual, selected: manual.selected.replace('#3-configure-your-ai-platform)', '#missing-ai-setup)') }, docs, root), /Missing source anchor/);
+  assert.ok(renderDocument(manual, docs, root).includes('href="../getting-started.html#3-configure-your-ai-platform"'));
 });
 
 test('new-repository setup ends with the minutes paragraph and dossier step 1 keeps its heading', t => {
@@ -393,7 +394,8 @@ test('new-repository setup ends with the minutes paragraph and dossier step 1 ke
   const github = fs.readFileSync(path.join(output, 'guides/github-sync.html'), 'utf8');
   const minutes = '<p>A private repository uses your GitHub Actions minutes. The default schedule needs about 1,500 a month, more if runs take longer than a minute; GitHub Free includes 2,000. See <a href="https://github.com/CrankAddict/section-11/blob/main/examples/json-auto-sync/SETUP.md#github-actions-minutes">GitHub Actions minutes</a>.</p>';
   assert.equal(github.split('A private repository uses your GitHub Actions minutes.').length, 2);
-  assert.ok(github.includes('<p>Set up your AI with <a href="../getting-started.html#3-configure-your-ai-platform">Section 11\'s project instructions</a>.</p>\n' + minutes + '\n<h2 id="already-set-up">Already set up?</h2>'));
+  assert.ok(github.includes('<p>Set up your AI with <a href="../getting-started.html#3-configure-your-ai-platform">Section 11\'s project instructions</a>.</p>\n' + minutes + '\n<h2 id="sync-timer-optional">Sync timer (optional)</h2>'));
+  assert.ok(!github.includes('id="already-set-up"'));
   const start = fs.readFileSync(path.join(output, 'getting-started.html'), 'utf8');
   assert.ok(start.includes('<h2 id="1-create-your-dossier-your-stable-private-context">1. Create Your Dossier: your stable private context</h2>\n<p>Create <code>DOSSIER.md</code> at the top of your data folder (or of your repository on GitHub) from the <a href="https://github.com/CrankAddict/section-11/blob/main/DOSSIER_TEMPLATE.md">dossier template</a>'));
   const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
@@ -402,15 +404,21 @@ test('new-repository setup ends with the minutes paragraph and dossier step 1 ke
   assert.ok(readme.includes("Root `DOSSIER.md` in the data-folder root (repository root on GitHub) is authoritative."));
 });
 
-test('Local and Manual step 3 show the same terminal-in-folder sentence', t => {
+test('Local and Manual keep terminal-in-folder instructions and inline single-word inputs', t => {
   const output = path.join(scratch(t), 'public');
   build(root, output);
-  const sentence = 'To get there: on Mac, type <code>cd </code> (with a space) in Terminal, drag the folder into the window and press Return; on Windows, open the folder in File Explorer, click the address bar, type <code>powershell</code> and press Enter.';
+  const mac = '<code>cd </code>';
+  const windows = '<code>powershell</code>';
   for (const route of ['guides/local-sync.html', 'guides/manual-export.html']) {
     const html = fs.readFileSync(path.join(output, route), 'utf8');
     const steps = [...html.match(/<ol>(.*?)<\/ol>/s)[1].matchAll(/<li>(.*?)<\/li>/gs)].map(m => m[1]);
-    assert.ok(steps[2].endsWith(sentence), route);
-    assert.equal(html.split(sentence).length, 2, route);
+    const terminal = steps.filter(step => step.includes(mac));
+    assert.equal(terminal.length, 1, route);
+    assert.ok(terminal[0].includes('(with a space), drag the folder into Terminal and press Return'), route);
+    assert.ok(terminal[0].includes('open it in File Explorer'), route);
+    assert.ok(terminal[0].includes('in the address bar'), route);
+    assert.ok(terminal[0].includes('press Enter'), route);
+    assert.ok(terminal[0].includes(windows), route);
   }
 });
 

@@ -4,25 +4,69 @@ Local sync copies your Intervals.icu training data into a folder on your compute
 
 ## Get help from your AI
 
-You choose the folder and enter your credentials. An AI with access to run commands on this computer can help install and check it; otherwise, you run the commands. Copy this prompt:
+You choose the folder and enter credentials. Check whether your AI can run commands on this computer; otherwise, you run them. Copy this prompt:
 
-> Help me set up Local sync. Before acting, read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/json-local-sync/SETUP.md. If you can access my installed section11/ folder, read the same file there at section11/examples/json-local-sync/SETUP.md. Check my operating system, Python and your command access. Keep my existing data folder, dossier and preferences. Explain changes before asking me to accept. Verify the first sync and my AI's access to the files.
+```text
+Help me set up Section 11 Local sync, one step at a time.
+Read this guide first: https://github.com/CrankAddict/section-11/blob/main/examples/json-local-sync/SETUP.md (if you can open my installed section11/ folder, use its copy instead).
+Keep my existing data folder, dossier and settings; explain changes and ask before changing anything.
+```
+
+For full guided setup, including your dossier and AI connection, give your AI this link: <https://github.com/CrankAddict/section-11/blob/main/SETUP_ASSISTANT.md>.
 
 ## Set it up yourself
 
-1. Open Terminal on Mac or PowerShell on Windows, then check Python with `python3 --version` (on Windows, `py -3 --version`); you need 3.11 or newer. If it is missing or older, install it from [python.org](https://www.python.org/downloads/), reopen the terminal and check again. Then install Requests: `python3 -m pip install requests`. On Windows, use `py -3` instead of `python3` throughout. If installation fails, follow [Prerequisites](#prerequisites).
-2. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
-3. Choose your final data folder, or keep your existing one. For cloud access, choose a cloud-synced folder now. Open a terminal in it (Terminal on Mac, PowerShell on Windows). To get there: on Mac, type `cd ` (with a space) in Terminal, drag the folder into the window and press Return; on Windows, open the folder in File Explorer, click the address bar, type `powershell` and press Enter.
-4. From the [latest official release](https://github.com/CrankAddict/section-11/releases/latest), download `section11-YYYY.MM.DD.zip` and extract it into `Downloads/section11-bootstrap`, outside the data folder. Start with an empty `section11-bootstrap` folder. On Mac, create it in Downloads, double-click the ZIP (Safari may already have unzipped it for you) and move the new `section11` folder into it. On Windows, right-click the ZIP, choose **Extract All** and set the destination to `Downloads\section11-bootstrap`. Either way, you should end up with `Downloads/section11-bootstrap/section11/examples/sync.py`.
-5. Run `python3 "$HOME/Downloads/section11-bootstrap/section11/examples/sync.py" --init`. Existing users use `--update` instead. Before accepting, move your own files out of `section11/` into `custom/`: the entire `section11/` folder is replaced. Unprotected same-name files elsewhere can also be removed; see the [removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
-6. Run `python3 section11/examples/sync.py --setup` and enter your credentials, then `python3 section11/examples/sync.py --output latest.json`. Check that `latest.json` contains your current data. Keep any existing dossier; it belongs beside `latest.json`.
-7. Give your AI access to `latest.json` and the installed `section11/` folder. Use [Section 11's project instructions](../../README.md#3-configure-your-ai-platform) and ask it to confirm it can read the data, protocol and templates. If it cannot reach your computer, use a cloud connector or the [web-chat upload steps](#using-with-web-chat-platforms). Keep the folder private: it contains credentials and personal data.
+On Windows, use `py -3` instead of `python3` throughout.
+
+1. In Terminal (Mac) or PowerShell (Windows), check for Python 3.11 or newer:
+
+   ```sh
+   python3 --version
+   ```
+
+   If missing or older, install from [python.org](https://www.python.org/downloads/), reopen the terminal and check again.
+2. Install Requests; for help, see [Prerequisites](#prerequisites):
+
+   ```sh
+   python3 -m pip install requests
+   ```
+
+3. In Intervals.icu **Settings**, find your Athlete ID near the bottom and API key under **Developer Settings**.
+4. Choose your final data folder: keep your existing one, or use a cloud-synced folder for cloud AI access.
+5. Open a terminal in that folder.  
+   Mac: type `cd ` (with a space), drag the folder into Terminal and press Return.  
+   Windows: open it in File Explorer, enter `powershell` in the address bar and press Enter.
+6. Download `section11-YYYY.MM.DD.zip` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest) and extract it into an empty `Downloads/section11-bootstrap` folder, outside your data folder.  
+   Mac: create that folder, double-click the ZIP (Safari may already have unzipped it) and move `section11` inside.  
+   Windows: right-click the ZIP, choose **Extract All**, destination `Downloads\section11-bootstrap`.
+7. Move your own files from `section11/` to `custom/` first ([removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle)). Install from your data folder:
+
+   ```sh
+   python3 "$HOME/Downloads/section11-bootstrap/section11/examples/sync.py" --init
+   ```
+
+   Existing users: use `--update` instead of `--init`.
+8. Set up your credentials when prompted, then run your first sync:
+
+   ```sh
+   python3 section11/examples/sync.py --setup
+   python3 section11/examples/sync.py --output latest.json
+   ```
+
+   Check that `latest.json` contains your current data.
+9. Give your AI access to `latest.json` and `section11/` using [Section 11's project instructions](../../README.md#3-configure-your-ai-platform). Ask it to confirm it can read the data, protocol and templates.
 
 ## After setup
 
-A standard timer refreshes data while your computer is on. Add `--no-timer` to the installation command for manual-only use; an existing manual-only choice is kept. Remove any old timer you created yourself. See [refresh settings](#automate-the-refresh) if needed.
+Keep the data folder private: it contains your credentials and personal data. Your dossier goes next to `latest.json`.
 
-Release updates still need your confirmation by default. See [updating](../maintenance/UPDATING.md#updating-section-11) or [troubleshooting](#verification-and-troubleshooting) when you need help.
+Your data refreshes automatically while your computer is on. You can [change or turn off the refresh](#automate-the-refresh).
+
+Updates still need your confirmation by default, but you can [turn on automatic updates](../maintenance/UPDATING.md#automatic-updates-and-undo). Keep your own files in `custom/`: updates replace everything in `section11/`.
+
+Is your AI not on this computer? Use a cloud connector or the [web-chat upload steps](#using-with-web-chat-platforms).
+
+Need help? See [updating](../maintenance/UPDATING.md#updating-section-11) or [troubleshooting](#verification-and-troubleshooting).
 
 [Full technical guide on GitHub](#technical-guide)
 

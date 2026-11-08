@@ -4,27 +4,84 @@ Manual export saves your Intervals.icu training data as files on your computer. 
 
 ## Get help from your AI
 
-You choose the folder and enter credentials. An AI with command access can help; otherwise, you run the commands. Copy this prompt:
+You choose the folder and enter credentials. Check whether your AI can run commands on this computer; otherwise, you run them. Copy this prompt:
 
-> Help me set up Manual export. Before acting, read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/json-manual/SETUP.md. If you can access my installed section11/ folder, read the same file at section11/examples/json-manual/SETUP.md. Check Python and your command access. Keep my existing data folder and dossier. Explain replacements and ask before changing my automatic-refresh preference. Help me export and share the correct files with my AI.
+```text
+Help me set up Section 11 Manual export, one step at a time.
+Read this guide first: https://github.com/CrankAddict/section-11/blob/main/examples/json-manual/SETUP.md (if you can open my installed section11/ folder, use its copy instead).
+Keep my existing data folder, dossier, settings and automatic-refresh preference; explain replacements and ask before changing anything.
+```
+
+For full guided setup, including your dossier and AI connection, give your AI this link: <https://github.com/CrankAddict/section-11/blob/main/SETUP_ASSISTANT.md>.
 
 ## Install and export
 
-1. Open Terminal on Mac or PowerShell on Windows, then check Python with `python3 --version` (on Windows, `py -3 --version`); you need 3.11 or newer. If it is missing or older, install it from [python.org](https://www.python.org/downloads/), reopen the terminal and check again. Then install Requests: `python3 -m pip install requests`. On Windows, use `py -3` instead of `python3`. If installation fails, follow [Prerequisites](#prerequisites).
-2. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
-3. Choose your data folder and open a terminal there (Terminal on Mac, PowerShell on Windows). To get there: on Mac, type `cd ` (with a space) in Terminal, drag the folder into the window and press Return; on Windows, open the folder in File Explorer, click the address bar, type `powershell` and press Enter.
-4. Download `section11-YYYY.MM.DD.zip` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest), then extract it into `Downloads/section11-bootstrap`, outside the data folder. Start with an empty `section11-bootstrap` folder. On Mac, create it in Downloads, double-click the ZIP (Safari may already have unzipped it for you) and move the new `section11` folder into it. On Windows, right-click the ZIP, choose **Extract All** and set the destination to `Downloads\section11-bootstrap`. Either way, you should end up with `Downloads/section11-bootstrap/section11/examples/sync.py`.
-5. For manual-only use, run `python3 "$HOME/Downloads/section11-bootstrap/section11/examples/sync.py" --init --no-timer`. Existing setups use `--update` instead of `--init`. Omit `--no-timer` if you want to keep automatic refresh. Before accepting, move your own files from `section11/` to `custom/`: the whole `section11/` folder is replaced. Unprotected same-name files elsewhere can also be removed; see the [removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
-6. Run `python3 section11/examples/sync.py --setup` and enter your credentials.
-7. On Mac or Linux, run `SECTION11_EXPORT_MODE=manual python3 section11/examples/sync.py --output latest.json`. In Windows PowerShell, first run `$env:SECTION11_EXPORT_MODE = 'manual'`, then `py -3 section11/examples/sync.py --output latest.json`, then `Remove-Item Env:SECTION11_EXPORT_MODE`. Check that `latest.json` contains your current data. The default export covers seven days; add `--days 14` for fourteen days. See [export options](#usage).
+On Windows, use `py -3` instead of `python3` throughout.
+
+1. In Terminal (Mac) or PowerShell (Windows), check for Python 3.11 or newer:
+
+   ```sh
+   python3 --version
+   ```
+
+   If missing or older, install from [python.org](https://www.python.org/downloads/), reopen the terminal and check again.
+2. Install Requests; for help, see [Prerequisites](#prerequisites):
+
+   ```sh
+   python3 -m pip install requests
+   ```
+
+3. In Intervals.icu **Settings**, find your Athlete ID near the bottom and API key under **Developer Settings**.
+4. Choose your data folder.
+5. Open a terminal in that folder.  
+   Mac: type `cd ` (with a space), drag the folder into Terminal and press Return.  
+   Windows: open it in File Explorer, enter `powershell` in the address bar and press Enter.
+6. Download `section11-YYYY.MM.DD.zip` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest) and extract it into an empty `Downloads/section11-bootstrap` folder, outside your data folder.  
+   Mac: create that folder, double-click the ZIP (Safari may already have unzipped it) and move `section11` inside.  
+   Windows: right-click the ZIP, choose **Extract All**, destination `Downloads\section11-bootstrap`.
+7. Move your own files from `section11/` to `custom/` first ([removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle)). From your data folder, install for manual-only use:
+
+   ```text
+   python3 "$HOME/Downloads/section11-bootstrap/section11/examples/sync.py" --init --no-timer
+   ```
+
+   Leave out `--no-timer` if you want automatic refresh. Existing setups: use `--update` instead of `--init`.
+8. Set up your credentials:
+
+   ```sh
+   python3 section11/examples/sync.py --setup
+   ```
+
+9. Export seven days by default; add `--days 14` for fourteen days ([export options](#usage)).  
+   Mac or Linux:
+
+   ```sh
+   SECTION11_EXPORT_MODE=manual python3 section11/examples/sync.py --output latest.json
+   ```
+
+   Windows PowerShell (run all three lines in order):
+
+   ```powershell
+   $env:SECTION11_EXPORT_MODE = 'manual'
+   py -3 section11/examples/sync.py --output latest.json
+   Remove-Item Env:SECTION11_EXPORT_MODE
+   ```
+
+10. Check that `latest.json` contains your current data.
 
 ## Give the files to your AI
 
-Upload `latest.json` and `history.json`, plus `intervals.json` for detailed session analysis. Include your dossier if used and a ZIP of **only `section11/`** for the protocol and templates. Never zip the whole data folder: it contains credentials. An AI on the same computer can read the files directly; verify its access. See [Use with AI](#use-with-ai) for other companion files.
-
 Set up your AI with [Section 11's project instructions](../../README.md#3-configure-your-ai-platform).
 
-Keep the data folder between exports. Run another export and replace uploaded copies when data changes; refresh the Section 11 upload after updates too.
+Then upload from your data folder:
+
+- all `.json` files
+- `DOSSIER.md`, if you have one
+- a ZIP of only the `section11/` folder
+
+Never upload `.sync_config.json`: it holds your credentials.
+
+After each new export, upload the `.json` files again. After a Section 11 update, upload a new `section11/` ZIP.
 
 [Full technical guide on GitHub](#technical-guide)
 

@@ -4,28 +4,33 @@ GitHub sync keeps your Intervals.icu training files in your own private GitHub r
 
 ## Get help from your AI
 
-You create the repository, enter secrets and do the GitHub clicks. Your AI can explain each step. Copy this prompt:
+You create the repository and enter secrets; your AI explains the steps. Copy this prompt:
 
-> Walk me through GitHub sync. Before acting, read the full guide at https://github.com/CrankAddict/section-11/blob/main/examples/json-auto-sync/SETUP.md. If you can access my installed section11/ folder, read the same file there at section11/examples/json-auto-sync/SETUP.md. I will do the clicks and enter credentials in GitHub. If I already have a repository, preserve my data, schedule and settings. Help me check the first sync and my AI's access to the private files.
+```text
+Help me set up Section 11 GitHub sync, one step at a time; I do the clicks and enter credentials.
+Read this guide first: https://github.com/CrankAddict/section-11/blob/main/examples/json-auto-sync/SETUP.md (if you can open my installed section11/ folder, use its copy instead).
+Keep my existing repository, data, schedule and settings; ask before changing anything.
+```
+
+For full guided setup, including your dossier and AI connection, give your AI this link: <https://github.com/CrankAddict/section-11/blob/main/SETUP_ASSISTANT.md>.
 
 ## Set up a new repository
 
 1. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
-2. At [github.com/new](https://github.com/new), create a repository such as `training-data`. Choose **Private**, leave **Add a README file** unchecked, and click **Create repository**. Do not fork Section 11.
-3. From the [latest official release](https://github.com/CrankAddict/section-11/releases/latest), download `section11-YYYY.MM.DD-auto-sync.yml`. Return to your new repository. Click **creating a new file** to create `.github/workflows/auto-sync.yml`, paste that file's contents and commit it. Keep its default settings. If the published file is unavailable or says `UNSEALED`, wait for a verified release; see [workflow setup](#step-2-set-up-github-repository).
-4. Open **Settings > Secrets and variables > Actions > New repository secret**. Add `ATHLETE_ID` and `INTERVALS_KEY` with your values. If required, select **Read and write permissions** under **Settings > Actions > General > Workflow permissions** and save; see [permissions](#step-4-enable-workflow-permissions).
-5. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow**. Enable workflows if prompted, keep the default branch and **Operation: Sync**, then run it. In **Code**, check for a successful `Sync training data` commit and a current timestamp in `latest.json`.
-6. Connect your AI to the private repository and check it can read `latest.json` and `section11/`. Without a connector, use **Code > Download ZIP** and upload that repository ZIP to your AI. Uploads need replacing when data changes; see [AI access](#usage-with-ai).
+2. At [github.com/new](https://github.com/new), create a **Private** repository such as `training-data`, leaving **Add a README file** unchecked. Click **Create repository**, not Fork.
+3. Download `section11-YYYY.MM.DD-auto-sync.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). If unavailable or marked `UNSEALED`, wait for a verified release ([workflow setup](#step-2-set-up-github-repository)).
+4. Back in your repository, click **creating a new file** and name it `.github/workflows/auto-sync.yml`. Paste the downloaded contents, keep the defaults and commit.
+5. Under **Settings > Secrets and variables > Actions > New repository secret**, add `ATHLETE_ID` and `INTERVALS_KEY` with your values.
+6. If required, select **Read and write permissions** under **Settings > Actions > General > Workflow permissions** and save ([permissions](#step-4-enable-workflow-permissions)).
+7. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow**, enabling workflows if prompted. Keep the default branch and **Operation: Sync**, then run it.
+8. In **Code**, check for a successful `Sync training data` commit and a current timestamp in `latest.json`.
+9. Connect your AI to the private repository and check it can read `latest.json` and `section11/`. Without a connector, on your repository page, press the green **Code** button and choose **Download ZIP**. Upload that ZIP to your AI ([AI access](#usage-with-ai)).
+
+From now on, GitHub syncs about every 30 minutes. For fresh data right away, tap **Sync Now** in your repository's README.
 
 Set up your AI with [Section 11's project instructions](../../README.md#3-configure-your-ai-platform).
 
 A private repository uses your GitHub Actions minutes. The default schedule needs about 1,500 a month, more if runs take longer than a minute; GitHub Free includes 2,000. See [GitHub Actions minutes](#github-actions-minutes).
-
-## Already set up?
-
-Follow [existing-repository steps](#updating-an-existing-repository) to keep your schedule and settings, including both workflow files if you use workout push. Move your own files to `custom/` first: `section11/` is replaced. Unprotected same-name files elsewhere can also be removed; see the [removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
-
-Refreshes are scheduled every 30 minutes by default, but runs can be delayed or skipped; use **Sync Now** in your repository's README when needed. Release installation is separate: **Operation: Update** accepts it immediately. See [updates and undo](../maintenance/UPDATING.md#updating-section-11).
 
 ## Sync timer (optional)
 

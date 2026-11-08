@@ -81,6 +81,7 @@ footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1r
 .prose pre { overflow: auto; padding: 1.2rem; background: #ededed; line-height: 1.6; font-size: .875rem; border: 1px solid #dedede; }
 .prose code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9em; }
 .prose pre code { font-size: inherit; }
+.prose pre code.language-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .prose :not(pre) > code { background: #ededed; padding: .12em .25em; }
 .table-scroll { max-width: 100%; overflow-x: auto; margin: 1.5rem 0; }
 table { border-collapse: collapse; width: 100%; font-size: .9375rem; }

@@ -488,3 +488,17 @@ test('stale output is rejected and its bytes are preserved', t => {
   assert.throws(() => build(root, output), /Output must be a new directory/);
   assert.equal(fs.readFileSync(file, 'utf8'), 'preserve');
 });
+
+test('On this page stays closed, shows its section count and has a visible marker', t => {
+  const output = path.join(scratch(t), 'public');
+  build(root, output);
+  for (const route of ['getting-started.html', 'guides/local-sync.html', 'guides/github-sync.html', 'guides/on-demand.html', 'guides/manual-export.html', 'guides/updating.html', 'reports.html']) {
+    const html = fs.readFileSync(path.join(output, route), 'utf8');
+    const links = [...html.match(/<nav aria-label="On this page"><ul>(.*?)<\/ul><\/nav>/)[1].matchAll(/<li>/g)].length;
+    assert.ok(links >= 1, route);
+    const label = `<details class="toc"><summary><span class="marker" aria-hidden="true"></span>On this page <span class="count"><span aria-hidden="true">· </span>${links} section${links === 1 ? '' : 's'}</span></summary>`;
+    assert.equal(html.split(label).length, 2, route);
+  }
+  const css = fs.readFileSync(path.join(root, '.github/site/site.css'), 'utf8');
+  for (const rule of ['.toc summary::-webkit-details-marker { display: none; }', '.toc[open] .marker { transform: rotate(45deg);', 'list-style: none; display: block; background: #ededed;']) assert.ok(css.includes(rule), rule);
+});

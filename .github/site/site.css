@@ -64,9 +64,14 @@ footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1r
 .doc-content { grid-area: content; min-width: 0; max-width: 790px; }
 .doc-content > .eyebrow { margin-bottom: .5rem; }
 .source-note { font-size: .9375rem; color: var(--muted); }
-.toc { margin: 1.6rem 0 2rem; border-block: 1px solid var(--line); padding: .8rem 0; }
-.toc summary { cursor: pointer; font-size: .9375rem; font-weight: 600; }
-.toc ul { padding-left: 1.25rem; font-size: .9375rem; }
+.toc { margin: 1.6rem 0 2rem; }
+.toc summary { cursor: pointer; list-style: none; display: block; background: #ededed; border: 1px solid #dedede; padding: .85rem 1rem; font-size: 1rem; font-weight: 650; }
+.toc summary::-webkit-details-marker { display: none; }
+.toc .marker { display: inline-block; width: .45rem; height: .45rem; margin: 0 .8rem .15rem .1rem; vertical-align: middle; border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg); }
+.toc[open] .marker { transform: rotate(45deg); margin-bottom: .35rem; }
+.toc .count { color: var(--muted); font-weight: 400; }
+.toc nav { border: 1px solid #dedede; border-top: 0; padding: .2rem 1rem .5rem; }
+.toc ul { margin: .5rem 0; padding-left: 1.25rem; font-size: .9375rem; }
 .toc li { margin-block: .4rem; }
 .prose { overflow-wrap: anywhere; }
 .prose h1 { font-size: clamp(2.2rem, 4vw, 3.25rem); margin-bottom: 1.7rem; }

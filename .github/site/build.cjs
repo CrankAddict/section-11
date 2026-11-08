@@ -196,7 +196,8 @@ function build(root, output) {
     const toc = page.headings.filter(h => h.level === (page.section ? page.headings[0].level + 1 : 2));
     const sourceLink = sourceURL(page.source, page.section ? `#${slug(page.section)}` : '');
     const sidebar = `<aside class="guide-nav"><p class="eyebrow">Setup &amp; examples</p><nav aria-label="Guide navigation">${documents.map(d => `<a href="${relative(page.route, d.route)}"${d.route === page.route ? ' aria-current="page"' : ''}>${escape(d.title)}</a>`).join('')}</nav><a class="source-link" href="${sourceLink}">View Markdown source <span aria-hidden="true">↗</span></a></aside>`;
-    const contents = `<details class="toc"><summary>On this page</summary><nav aria-label="On this page"><ul>${toc.map(h => `<li><a href="#${escape(h.id)}">${escape(h.text)}</a></li>`).join('')}</ul></nav></details>`;
+    const count = toc.length ? ` <span class="count"><span aria-hidden="true">· </span>${toc.length} section${toc.length === 1 ? '' : 's'}</span>` : '';
+    const contents = `<details class="toc"><summary><span class="marker" aria-hidden="true"></span>On this page${count}</summary><nav aria-label="On this page"><ul>${toc.map(h => `<li><a href="#${escape(h.id)}">${escape(h.text)}</a></li>`).join('')}</ul></nav></details>`;
     // Article first in reading and focus order; site.css keeps the guide column on the left on desktop.
     files.set(page.route, shell(page.route, headTitle(page), page.description, `<div class="doc-layout"><div class="doc-content"><p class="eyebrow">${escape(page.title)}</p>${contents}<article class="prose">${article}</article></div>${sidebar}</div>`, icons));
   }

@@ -30,13 +30,14 @@ class GitHub:
         if self.token:
             headers['Authorization'] = 'Bearer ' + self.token
         response = requests.request(method, Distribution.API + path, headers=headers,
-                                    timeout=60, allow_redirects=False, **kwargs)
+                                    timeout=kwargs.pop('timeout', 60), allow_redirects=False, **kwargs)
         if not 200 <= response.status_code < 300:
             raise APIError(response.status_code, response.text[:2000])
         return response.json() if response.content else None
 
-    def get(self, suffix):
-        return self.request('GET', self.prefix + suffix)
+    def get(self, suffix, *, timeout=None):
+        options = {} if timeout is None else {'timeout': timeout}
+        return self.request('GET', self.prefix + suffix, **options)
 
     def write(self, method, suffix, body):
         return self.request(method, self.prefix + suffix, json=body)

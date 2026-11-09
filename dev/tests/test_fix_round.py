@@ -208,30 +208,30 @@ class FixRound(P.Offline):
             text = (P.ROOT / 'examples' / guide / 'SETUP.md').read_text()
             self.assertIn('Leave **Add a README file** unchecked', text)
 
-    def test_12_publisher_discovery_is_constant_with_any_history_size(self):
+    def test_12_publisher_discovery_reads_only_one_page_and_two_date_prefixes(self):
+        from _release_fakes import ReleaseAPI
         raw, files, identity = B.release()
-        for count in (0, 999, 1000, 10000):
-            api = mock.Mock()
-            api.pages.side_effect = AssertionError('release history must not be enumerated')
-            def get(path):
-                if path == '/releases/latest':
-                    if count:
-                        return {'tag_name': '2026.10.30', 'draft': False, 'prerelease': False}
-                    raise APIError(404, 'no published release')
-                if path == '/releases/tags/2026.10.31':
-                    raise APIError(404, 'no release today')
-                raise AssertionError(path)
-            api.get.side_effect = get
-            api.release.return_value = raw, files, identity
+        for count in (0, 1):
+            api = ReleaseAPI()
             if count:
+                api.seed('2026.10.30', 'a' * 40, raw, files)
                 self.assertEqual(publish_release.publish(api, 'c' * 40, raw, files, '2026.10.31'), 'unchanged')
             else:
                 with mock.patch.object(publish_release, 'build', side_effect=ValueError('reached build')), \
                         self.assertRaisesRegex(ValueError, 'reached build'):
                     publish_release.publish(api, 'c' * 40, raw, files, '2026.10.31')
-            self.assertEqual(api.get.call_count, 2)
-            api.pages.assert_not_called()
-            api.write.assert_not_called()
+            self.assertEqual([c[1] for c in api.calls if c[0] == 'PAGES'],
+                             [])
+            self.assertEqual([c[1] for c in api.calls if c[0] == 'GET' and '?' in c[1]],
+                             ['/releases?per_page=100&page=1',
+                              '/git/matching-refs/tags/2026.10.31?per_page=100&page=1',
+                              '/git/matching-refs/tags/2026.10.30?per_page=100&page=1'])
+            self.assertEqual(api.writes, [])
+        api = ReleaseAPI()
+        api.tags = {'2026.10.31-' + str(i): 'a' * 40 for i in range(2, 102)}
+        with self.assertRaisesRegex(ValueError, 'date tag discovery limit'):
+            publish_release.publish(api, 'c' * 40, raw, files, '2026.10.31')
+        self.assertEqual(api.writes, [])
 
     def test_utc_threshold_is_common_to_all_automatic_modes(self):
         for event, scheduled in (('schedule', True), ('workflow_dispatch', True), ('workflow_dispatch', False)):

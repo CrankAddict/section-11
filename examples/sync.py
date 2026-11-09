@@ -4,6 +4,9 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.171 - Same-day release names (YYYY.MM.DD-N) ordered numerically; hosted
+  suffix support stays off until the verified entry enables it. Protocol v11.108.
+
 Version 3.170 - Rename local credentials to .sync_config, with automatic migration,
   legacy read fallback and rollback compatibility. Protocol v11.107.
 
@@ -6229,7 +6232,7 @@ class IntervalsSync:
     GITHUB_API_URL = "https://api.github.com"
     FTP_HISTORY_FILE = "ftp_history.json"
     HISTORY_FILE = "history.json"
-    VERSION = "3.170"
+    VERSION = "3.171"
     ROUTE_TERRAIN_VERSION = "3.142"
     ROUTE_RETRY_BACKOFF_SECONDS = 15 * 60
     INTERVALS_FILE = "intervals.json"
@@ -22804,13 +22807,29 @@ class Distribution:
                 "unknown": sorted(unknown)}
 
     @staticmethod
-    def release_date(tag):
+    def calendar_day(tag):
         if not isinstance(tag, str) or not re.fullmatch(r"[0-9]{4}\.[0-9]{2}\.[0-9]{2}", tag):
             raise DistributionError("invalid date release tag: " + str(tag))
         try:
             return datetime.strptime(tag, "%Y.%m.%d").date()
         except ValueError as exc:
             raise DistributionError("invalid calendar release date: " + tag) from exc
+
+    @classmethod
+    def release_key(cls, tag):
+        """Stable release order: UTC calendar date, then a bounded sequence."""
+        if not isinstance(tag, str) or not re.fullmatch(
+                r"[0-9]{4}\.[0-9]{2}\.[0-9]{2}(?:-[1-9][0-9]{0,5})?", tag):
+            raise DistributionError("invalid date release tag: " + str(tag))
+        day, separator, suffix = tag.partition("-")
+        sequence = int(suffix) if separator else 1
+        if separator and sequence < 2:
+            raise DistributionError("invalid release sequence: " + tag)
+        return cls.calendar_day(day), sequence
+
+    @classmethod
+    def release_date(cls, tag):
+        return cls.release_key(tag)[0]
 
     @staticmethod
     def utc_tag(instant=None):
@@ -22905,7 +22924,7 @@ class Distribution:
     @classmethod
     def release_metadata(cls, tag=None):
         from urllib.parse import quote
-        # The publisher advances this pointer only in increasing UTC date order.
+        # The publisher advances this pointer in numeric (date, sequence) order.
         # No release-history enumeration is needed by an installed client.
         suffix = "/tags/" + quote(tag, safe="") if tag else "/latest"
         try:
@@ -23058,7 +23077,7 @@ def _local_release_status(root, raw, files, identity):
         raise DistributionError("release is missing the permanent examples/sync.py entry")
     installed = _known_local_identity(root)
     if installed:
-        if Distribution.release_date(installed["tag"]) > Distribution.release_date(identity["tag"]):
+        if Distribution.release_key(installed["tag"]) > Distribution.release_key(identity["tag"]):
             raise DistributionError("automatic date downgrade refused")
         if installed["tag"] == identity["tag"] and (installed["commit"] != identity["commit"] or
                                                        installed["manifest_sha256"] != Distribution.digest(raw)):
@@ -23432,6 +23451,11 @@ def _auto_update_state(state):
         raise DistributionError("invalid auto-update state; preserve state")
     if 'available_timer_only' in value and type(value['available_timer_only']) is not bool:
         raise DistributionError("invalid timer-only update plan; preserve state")
+    if "last_attempt" in value:
+        day = value["last_attempt"]
+        if not isinstance(day, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", day):
+            raise DistributionError("invalid automatic check day; preserve state")
+        Distribution.calendar_day(day.replace("-", "."))
     return value
 
 

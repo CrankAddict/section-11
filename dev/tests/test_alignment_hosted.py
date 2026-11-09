@@ -75,7 +75,8 @@ class HostedAlignmentTests(Offline):
         with contextlib.redirect_stdout(io.StringIO()):
             updater.install(publisher.snapshot(), accepted=True)
             files = dict(initial[1], **{'ADDITIONAL_OFFICIAL.md': b'new official file'})
-            updater._release = (manifest(files), files, initial[2])
+            updater._release = (manifest(files), files,
+                                dict(initial[2], tag='2026.10.31', commit='d' * 40))
             updater.install(publisher.snapshot(), accepted=True)
             self.assertNotIn('ADDITIONAL_OFFICIAL.md', remote.inventory())
             updater.rollback(publisher.snapshot())

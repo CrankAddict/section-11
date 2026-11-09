@@ -245,69 +245,33 @@ class PackagingTests(Offline):
 
 class ReleasePublishingTests(Offline):
     def test_complete_draft_upload_readback_publish_and_refused_second_release(self):
+        from _release_fakes import ReleaseAPI
         raw, files = fixture()
-        class Fake:
-            repo = 'example-owner/private-test'
-            token = 'fake'
-            def __init__(self):
-                self.release = None
-                self.assets = []
-                self.bodies = {}
-                self.mutations = []
-            def pages(self, path):
-                return ([self.release] if self.release else []) if path == '/releases' else self.assets[:]
-            def get(self, path):
-                if self.release is None:
-                    raise github_api.APIError(404, 'synthetic missing release')
-                return self.release
-            def resolve_tag(self, tag):
-                return 'a' * 40
-            def asset(self, asset_id):
-                return self.bodies[asset_id]
-            def write(self, method, path, body):
-                self.mutations.append((method, path))
-                if method == 'POST':
-                    self.release = dict(body, id=1, html_url='private-release', upload_url='unused')
-                elif method == 'PATCH':
-                    self.release.update(body)
-                return self.release
-        api = Fake()
-        def upload(client, release, name, content):
-            asset_id = len(client.assets) + 1
-            client.assets.append({'name': name, 'id': asset_id, 'size': len(content), 'state': 'uploaded'})
-            client.bodies[asset_id] = content
+        api = ReleaseAPI()
+        api.manifests['a' * 40] = raw
         with mock.patch.object(publish_release, 'workflow_gate'), \
-                mock.patch.object(publish_release, 'ensure_tag'), \
-                mock.patch.object(publish_release, 'upload', upload), contextlib.redirect_stdout(io.StringIO()):
+                mock.patch.object(publish_release, 'upload', api.upload), contextlib.redirect_stdout(io.StringIO()):
             publish_release.publish(api, 'a' * 40, raw, files, '2026.10.23')
-            self.assertFalse(api.release['draft'])
+            self.assertFalse(api.releases['2026.10.23']['draft'])
             self.assertEqual(len(api.assets), 4)
-            self.assertEqual(api.mutations, [('POST', '/releases'), ('PATCH', '/releases/1')])
+            self.assertEqual([w[:2] for w in api.writes if w[0] != 'UPLOAD'],
+                             [('POST', '/git/refs'), ('POST', '/releases'), ('PATCH', '/releases/1')])
             # Same date, unchanged content: quiet no-op, never a second release.
-            again = mock.Mock()
-            again.get.return_value = api.release
-            again.release.return_value = raw, files, {'tag': '2026.10.23'}
-            self.assertEqual(publish_release.publish(again, 'a' * 40, raw, files, '2026.10.23'), 'unchanged')
-            again.write.assert_not_called()
-            self.assertEqual(len(api.mutations), 2)
+            before = list(api.writes)
+            self.assertEqual(publish_release.publish(api, 'a' * 40, raw, files, '2026.10.23'), 'unchanged')
+            self.assertEqual(api.writes, before)
 
     def test_missing_upload_keeps_draft_and_never_publishes(self):
+        from _release_fakes import ReleaseAPI
         raw, files = fixture()
-        body = ('<!-- section11-release-v1 commit=' + 'a' * 40 +
-                ' -->\nRelease date: 2026.10.23 (UTC)\n\n' + release_package.notes(files))
-        api = mock.Mock()
-        def get(path):
-            if path == '/releases/latest':
-                raise github_api.APIError(404, 'synthetic missing release')
-            return {'id': 1, 'tag_name': '2026.10.23', 'body': body, 'draft': True, 'prerelease': False}
-        api.get.side_effect = get
-        api.pages.return_value = []
+        api = ReleaseAPI()
+        api.seed('2026.10.23', 'a' * 40, raw, files, draft=True)
         with mock.patch.object(publish_release, 'workflow_gate'), \
                 mock.patch.object(publish_release, 'ensure_tag'), \
                 mock.patch.object(publish_release, 'upload', side_effect=RuntimeError('synthetic 502')), \
                 self.assertRaisesRegex(RuntimeError, 'draft retained'):
             publish_release.publish(api, 'a' * 40, raw, files, '2026.10.23', resume=True)
-        api.write.assert_not_called()
+        self.assertEqual(api.writes, [])
 
     def test_workflow_gate_matching_and_changed_default(self):
         api = mock.Mock()

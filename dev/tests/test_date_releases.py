@@ -13,17 +13,19 @@ from test_update_prototype import (
 
 
 def catalog(*tags):
-    return [{'tag_name': tag, 'draft': False, 'prerelease': False} for tag in tags]
+    return [{'id': i + 1, 'tag_name': tag, 'draft': False, 'prerelease': False,
+             'published_at': '2026-10-23T12:00:00Z'} for i, tag in enumerate(tags)]
 
 
 class DateIdentityTests(Offline):
-    def test_calendar_tag_format_has_no_suffix(self):
+    def test_calendar_day_format_has_no_suffix_and_release_accepts_sequence(self):
         for tag in ('2026.10.23', '2028.02.29', '2026.12.31'):
             self.assertEqual(D.release_date(tag).strftime('%Y.%m.%d'), tag)
         for tag in ('v2026.10.23', '2026.10.23.1', '2026.10.23-2', '2026.1.01',
                     '2026.02.29', '2026.13.01', '0000.01.01', '11.92'):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
-                D.release_date(tag)
+                D.calendar_day(tag)
+        self.assertEqual(D.release_key('2026.10.23-2'), (D.calendar_day('2026.10.23'), 2))
 
     def test_utc_midnight_rolls_date_not_versions(self):
         before = datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
@@ -67,9 +69,16 @@ class DateIdentityTests(Offline):
 
 class DailyPublishingTests(Offline):
     def lookup(self, api, latest, today=None):
-        def get(path):
+        releases = [latest] + ([today] if today and today['tag_name'] != latest['tag_name'] else [])
+        api.resolve_tag.return_value = 'b' * 40
+        def get(path, **kwargs):
             if path == '/releases/latest':
                 return latest
+            if path == '/releases?per_page=100&page=1':
+                return releases
+            if path.startswith('/git/matching-refs/tags/'):
+                prefix = path.split('/tags/', 1)[1].split('?', 1)[0]
+                return [{'ref': 'refs/tags/' + r['tag_name']} for r in releases if r['tag_name'].startswith(prefix)]
             if path.startswith('/releases/tags/'):
                 if today is None:
                     raise github_api.APIError(404, 'synthetic missing date')
@@ -81,46 +90,51 @@ class DailyPublishingTests(Offline):
         raw, files = fixture()
         api = mock.Mock()
         self.lookup(api, catalog('2026.10.23')[0])
-        api.release.return_value = raw, files, {'tag': '2026.10.23'}
+        api.manifest_at.return_value = raw
         equivalent = json.dumps(json.loads(raw), indent=4).encode()
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             publish_release.publish(api, 'a' * 40, equivalent, files, '2026.10.24')
         self.assertIn('unchanged; no release', output.getvalue())
         api.write.assert_not_called()
-        api.resolve_tag.assert_not_called()
+        api.release.assert_not_called()
 
-    def test_same_date_published_and_new_dispatch_draft_refuse_changed_content(self):
+    def test_same_date_published_allocates_suffix_but_foreign_draft_stops(self):
+        from _release_fakes import ReleaseAPI
         raw, files = fixture()
         new = dict(files, LICENSE=b'new license')
         for draft, resume in ((False, False), (False, True), (True, False)):
             with self.subTest(draft=draft, resume=resume):
-                api = mock.Mock()
-                latest = catalog('2026.10.22' if draft else '2026.10.23')[0]
-                self.lookup(api, latest, dict(catalog('2026.10.23')[0], draft=draft))
-                api.release.return_value = raw, files, {'tag': latest['tag_name']}
-                with self.assertRaisesRegex(ValueError, 'same-date'):
-                    publish_release.publish(api, 'a' * 40, manifest(new), new, '2026.10.23', resume=resume)
-                api.write.assert_not_called()
+                api = ReleaseAPI()
+                api.seed('2026.10.23', 'b' * 40, raw, files, draft=draft)
+                if draft:
+                    with self.assertRaisesRegex(ValueError, 'collision'):
+                        publish_release.publish(api, 'a' * 40, manifest(new), new, '2026.10.23', resume=resume)
+                else:
+                    with mock.patch.object(publish_release, 'build', side_effect=RuntimeError('build boundary')) as build, \
+                            self.assertRaisesRegex(RuntimeError, 'build boundary'):
+                        publish_release.publish(api, 'a' * 40, manifest(new), new, '2026.10.23', resume=resume)
+                    build.assert_called_once_with(manifest(new), new, 'a' * 40, '2026.10.23-2')
+                self.assertEqual(api.writes, [])
 
     def test_unchanged_content_with_existing_same_date_release_is_quiet_noop(self):
         raw, files = fixture()
         api = mock.Mock()
         self.lookup(api, catalog('2026.10.23')[0], catalog('2026.10.23')[0])
-        api.release.return_value = raw, files, {'tag': '2026.10.23'}
+        api.manifest_at.return_value = raw
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             self.assertEqual(publish_release.publish(api, 'a' * 40, raw, files, '2026.10.23'), 'unchanged')
         self.assertIn('unchanged; no release', output.getvalue())
         api.write.assert_not_called()
-        api.resolve_tag.assert_not_called()
+        api.release.assert_not_called()
 
     def test_changed_payload_with_same_protocol_reaches_package_build(self):
         raw, files = fixture()
         new = dict(files, LICENSE=b'new license')
         api = mock.Mock()
         self.lookup(api, catalog('2026.10.23')[0])
-        api.release.return_value = raw, files, {'tag': '2026.10.23'}
+        api.manifest_at.return_value = raw
         with mock.patch.object(publish_release, 'build', side_effect=RuntimeError('build boundary')) as build, \
                 self.assertRaisesRegex(RuntimeError, 'build boundary'):
             publish_release.publish(api, 'a' * 40, manifest(new), new, '2026.10.24')

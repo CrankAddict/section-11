@@ -77,8 +77,7 @@ The workflow runs on the default branch only. A blank source input uses its
 pinned main commit after the first release; the infrastructure-only stage waits
 for an explicit source input. The workflow has no schedule: a release starts only
 when it is dispatched, by the maintainer's daily trigger or manually.
-Unchanged manifest content is a no-op; a different second release on the same UTC
-date is refused. Never retag or replace published assets to resolve a failure.
+Unchanged manifest content is a no-op; Daniel's deliberate changed-content dispatches use the UTC date, then `-2`, `-3`, etc. Never retag or replace published assets to resolve a failure.
 
 The canonical ZIP, two lossless reading files and example PNG retain full
 reconstruction checks. Three additional assets are exact manifest-covered copies:

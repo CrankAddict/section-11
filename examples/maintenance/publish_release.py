@@ -5,6 +5,8 @@ import json
 import os
 import re
 import subprocess
+import time
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
@@ -13,7 +15,6 @@ from distribution import Distribution
 from github_api import GitHub, APIError
 from release_package import build, notes
 from seal_pins import BOOTSTRAP, PublishedSource, verify_files
-
 
 def workflow_gate(api, commit):
     metadata = api.metadata()
@@ -48,10 +49,9 @@ def ensure_tag(api, tag, commit):
             raise
         try:
             api.write('POST', '/git/refs', {'ref': 'refs/tags/' + tag, 'sha': commit})
-        except Exception:
-            # Readback may prove an ambiguous write. Never retry the mutation.
-            if api.resolve_tag(tag) != commit:
-                raise
+        except Exception as exc:
+            # The caller reads the state and stops, even if the write landed.
+            raise RuntimeError('tag creation failed/unknown; no retry') from exc
         existing = api.resolve_tag(tag)
     if existing != commit:
         raise ValueError('existing tag points elsewhere; never move it')
@@ -123,38 +123,229 @@ def manifest_failure(api, commit, error):
     print('Manifest failure issue:', fresh['html_url'])
 
 
-def publish(api, commit, raw, files, tag=None, resume=False):
-    # Validate even when today's release exists or the last payload is unchanged.
-    Distribution.verify(raw, files)
-    tag = tag or Distribution.utc_tag()
-    Distribution.release_date(tag)
-    release = by_tag(api, tag)
-    latest = None
-    previous_raw = None
+def release_inventory(api, commit, day):
+    """Latest, one release page and two date prefixes; never walk history."""
+    clock = Distribution.calendar_day(day)
+    releases, commits = {}, {}
     try:
-        latest_release = api.get('/releases/latest')
+        pointer = api.get('/releases/latest')
     except APIError as exc:
         if exc.status != 404:
             raise
+        pointer = None
+    if pointer is not None:
+        key = Distribution.release_key(pointer['tag_name'])
+        if (pointer.get('draft') is not False or pointer.get('prerelease') is not False or
+                type(pointer.get('id')) is not int or not pointer.get('published_at')):
+            raise ValueError('latest is not a stable published release; owner recovery required')
+        if key[0] > clock:
+            raise ValueError('latest date is ahead of the UTC release clock; owner recovery required')
+    page = api.get('/releases?per_page=100&page=1')
+    if not isinstance(page, list) or len(page) > 100:
+        raise ValueError('invalid first release page; owner recovery required')
+    for release in page:
+        tag = release['tag_name']
+        if not re.match(r'^[0-9]{4}\.', tag):
+            continue  # Historical protocol-version tags are not date releases.
+        Distribution.release_key(tag)
+        if (tag in releases or release.get('prerelease') is not False or
+                type(release.get('draft')) is not bool or type(release.get('id')) is not int):
+            raise ValueError('ambiguous or non-stable release collision: ' + tag)
+        releases[tag] = release
+    latest = pointer['tag_name'] if pointer is not None else None
+    if latest is None:
+        if any(not r['draft'] for r in releases.values()):
+            raise ValueError('published releases exist but latest is unavailable; next dispatch rechecks discovery')
     else:
-        latest = latest_release['tag_name']
-        Distribution.release_date(latest)
-        if latest_release.get('draft') or latest_release.get('prerelease'):
-            raise ValueError('latest release is not stable and published')
-        previous_raw, _, _ = api.release(latest)
-    # Unchanged content is a successful no-op even when today's release already
-    # exists (for example after a same-day recovery dispatch). Only changed
-    # content can trip the one-release-per-date rule.
-    if previous_raw is not None and Distribution.content_hashes(previous_raw) == Distribution.content_hashes(raw):
-        print('Manifest files unchanged; no release')
+        listed = releases.get(latest)
+        if listed is not None and (listed['id'] != pointer['id'] or listed['draft']):
+            raise ValueError('latest pointer and release inventory differ; owner recovery required')
+        releases[latest] = pointer
+        commits[latest] = api.resolve_tag(latest)
+
+    def check_draft(release):
+        tag = release['tag_name']
+        match = re.match(r'<!-- section11-release-v1 commit=([0-9a-f]{40}) -->\n', release.get('body') or '')
+        if match is None:
+            raise ValueError('draft source is unknown: ' + tag + '; owner recovery required')
+        source = match[1]
+        if source != commit:
+            raise ValueError('draft collision: ' + tag + ' belongs to source ' + source +
+                             '; dispatch that exact source to resume it before a different release')
+        if tag not in commits:
+            commits[tag] = api.resolve_tag(tag)
+        if commits[tag] != source:
+            raise ValueError('draft/tag collision: ' + tag + ' body source ' + source +
+                             ', tag source ' + commits[tag] + '; owner recovery required')
+
+    for release in page:
+        if release.get('draft') and release['tag_name'] in releases:
+            check_draft(release)
+    for date in (clock, clock - timedelta(days=1)):
+        prefix = date.strftime('%Y.%m.%d')
+        refs = api.get('/git/matching-refs/tags/' + prefix + '?per_page=100&page=1')
+        # A full page cannot establish the next number. Stop, never paginate.
+        if not isinstance(refs, list) or len(refs) >= 100:
+            raise ValueError('date tag discovery limit reached for ' + prefix + '; owner recovery required')
+        seen = set()
+        for ref in refs:
+            name = ref['ref']
+            if not name.startswith('refs/tags/' + prefix):
+                raise ValueError('unexpected date tag inventory ref')
+            tag = name[len('refs/tags/'):]
+            if Distribution.release_key(tag)[0] != date or tag in seen:
+                raise ValueError('duplicate or unexpected date tag collision: ' + tag)
+            seen.add(tag)
+            if tag not in commits:
+                commits[tag] = api.resolve_tag(tag)
+            release = releases.get(tag)
+            if release is None:
+                release = by_tag(api, tag)
+                if release is not None:
+                    releases[tag] = release
+            if release is not None and release['draft']:
+                check_draft(release)
+            elif release is None and commits[tag] != commit:
+                raise ValueError('unpublished tag collision: ' + tag + ' belongs to source ' + commits[tag] +
+                                 '; dispatch that exact source to resume it before a different release')
+    return latest, releases, commits
+
+
+def source_manifest(api, tag, commit):
+    if api.resolve_tag(tag) != commit:
+        raise ValueError('release tag moved before source read: ' + tag)
+    raw = api.manifest_at(commit)
+    Distribution.content_hashes(raw)
+    if api.resolve_tag(tag) != commit:
+        raise ValueError('release tag moved during source read: ' + tag)
+    return raw
+
+
+def confirm_latest(api, release):
+    """Read-only visibility wait: at most ten GETs within a 30-second budget."""
+    start = time.monotonic()
+    observed = 'not read'
+    for attempt in range(10):
+        remaining = 30 - (time.monotonic() - start)
+        if remaining <= 0:
+            break
+        try:
+            latest = api.get('/releases/latest', timeout=min(3, remaining))
+        except APIError as exc:
+            if exc.status != 404:
+                raise
+            observed = '404'
+        else:
+            observed = str(latest.get('id')) + '/' + str(latest.get('tag_name'))
+            if (latest.get('id') == release['id'] and latest.get('tag_name') == release['tag_name']
+                    and latest.get('draft') is False and latest.get('prerelease') is False
+                    and latest.get('published_at')):
+                print('Latest confirmed:', observed, 'after', round(time.monotonic() - start, 3), 's')
+                return
+        print('Latest readback', attempt + 1, ':', observed,
+              'after', round(time.monotonic() - start, 3), 's')
+        remaining = 30 - (time.monotonic() - start)
+        if attempt < 9 and remaining > 0:
+            time.sleep(min(3, remaining))
+    raise RuntimeError('published release is not confirmed latest (observed ' + observed +
+                       '); next dispatch only rechecks it when content is unchanged; '
+                       'no re-publication, asset change or latest write; owner recovery if it persists')
+
+
+def stopped_state(api, tag, commit):
+    """Report observed remote state without converting readback into more writes."""
+    if tag is None:
+        return ('Release discovery/preflight stopped before release writes. Next dispatch repeats '
+                'discovery; resolve the reported source/collision first.')
+    observations = []
+    try:
+        observations.append('tag=' + api.resolve_tag(tag))
+    except Exception as exc:
+        observations.append('tag unconfirmed (' + str(exc)[:200] + ')')
+    try:
+        release = by_tag(api, tag)
+        observations.append('release absent' if release is None else
+                            'release ' + str(release['id']) + (' draft' if release['draft'] else ' published'))
+    except Exception as exc:
+        observations.append('release unconfirmed (' + str(exc)[:200] + ')')
+    return ('GitHub readback for ' + tag + ': ' + '; '.join(observations) +
+            '. Stop here. Next dispatch with source ' + commit +
+            ' checks the first releases page and today/previous UTC day tags to resume a visible identity; '
+            'a published identity only gets read-only confirmation, never replacement assets. '
+            'An older or still-invisible unfinished tag/draft needs owner review before another dispatch.')
+
+
+def publish(api, commit, raw, files, tag=None, resume=False):
+    # The optional tag argument is the frozen UTC day, not an identity override.
+    # Recovery is discovered from immutable source identity, not run_attempt.
+    transaction = {'tag': None}
+    try:
+        return publish_transaction(api, commit, raw, files, tag or Distribution.utc_tag(), transaction)
+    except Exception:
+        print(stopped_state(api, transaction['tag'], commit))
+        raise
+
+
+def publish_transaction(api, commit, raw, files, day, transaction):
+    Distribution.verify(raw, files)
+    if not re.fullmatch('[0-9a-f]{40}', commit):
+        raise ValueError('exact source commit required')
+    clock = Distribution.calendar_day(day)
+    latest, releases, commits = release_inventory(api, commit, day)
+    if any(Distribution.release_date(t) > clock for t in commits):
+        raise ValueError('release date is ahead of the UTC release clock; owner recovery required')
+    published = [t for t, r in releases.items() if not r['draft']]
+    pending = set(commits) - set(published)
+    matching = [t for t, sha in commits.items() if sha == commit]
+    if len(matching) > 1 or pending - set(matching):
+        raise ValueError('unexplained draft/tag collision; resume its exact source before a new release')
+    tag = matching[0] if matching else None
+    if tag:
+        transaction['tag'] = tag
+        existing_raw = source_manifest(api, tag, commit)
+        if existing_raw != raw:
+            raise ValueError('same complete tag has a different manifest; never replace it')
+    if latest and any(Distribution.release_key(t) > Distribution.release_key(latest)
+                      for t in published if t != tag):
+        raise ValueError('published release is newer than latest; next dispatch rechecks the pointer; '
+                         'owner recovery if it persists')
+    if tag in published and (latest is None or Distribution.release_key(tag) >= Distribution.release_key(latest)):
+        confirm_latest(api, releases[tag])
+        if api.resolve_tag(tag) != commit:
+            raise ValueError('release tag moved during latest confirmation')
+        print('Source already published; no release or asset changes.')
         return 'unchanged'
-    if release is not None and (not resume or not release['draft']):
-        raise ValueError('release ' + tag + ' already exists; second same-date release refused, no changes')
-    if latest is not None and Distribution.release_date(latest) >= Distribution.release_date(tag):
-        raise ValueError('release date does not follow latest published date: ' + latest)
+    previous_raw = source_manifest(api, latest, commits[latest]) if latest else None
+    if (previous_raw is not None and
+            Distribution.content_hashes(previous_raw) == Distribution.content_hashes(raw)):
+        # Source identity, not the previous ZIP, decides no-op. Existing asset
+        # damage still needs owner recovery and cannot authorize replacement.
+        confirm_latest(api, releases[latest])
+        if api.resolve_tag(latest) != commits[latest]:
+            raise ValueError('release tag moved during latest confirmation')
+        print('Manifest files unchanged; no release. Previous assets were not checked or changed.')
+        if pending:
+            print('Existing tag/draft retained; resolve it before dispatching a different source.')
+        return 'unchanged'
+    if tag is None:
+        today = [Distribution.release_key(t)[1] for t in commits if Distribution.release_date(t) == clock]
+        sequence = max(today, default=0) + 1
+        tag = day if sequence == 1 else day + '-' + str(sequence)
+        Distribution.release_key(tag)
+        transaction['tag'] = tag
+    release = by_tag(api, tag)
+    if (release is not None and tag not in releases) or (tag in releases and
+            (release is None or release['id'] != releases[tag]['id'])):
+        raise ValueError('release inventory changed; collision requires owner review')
+    if latest and Distribution.release_key(latest) >= Distribution.release_key(tag):
+        raise ValueError('release identity does not follow latest published identity: ' + latest)
     expected = build(raw, files, commit, tag)
     body = ('<!-- section11-release-v1 commit=' + commit + ' -->\nRelease date: ' + tag +
             ' (UTC)\n\n' + notes(files))
+    if release is not None:
+        if release['body'] != body or not release['draft']:
+            raise ValueError('existing release identity/notes or draft state differ; no changes')
+        assets_readback(api, release['id'], expected, allow_missing=True)
     workflow_gate(api, commit)
     ensure_tag(api, tag, commit)
     if release is None:
@@ -162,14 +353,12 @@ def publish(api, commit, raw, files, tag=None, resume=False):
             release = api.write('POST', '/releases',
                                 {'tag_name': tag, 'target_commitish': commit, 'name': tag,
                                  'body': body, 'draft': True, 'prerelease': False})
-        except Exception:
-            release = by_tag(api, tag)
-            if release is None:
-                raise RuntimeError('draft creation denied/unknown; no retry')
+        except Exception as exc:
+            raise RuntimeError('draft creation failed/unknown; no retry') from exc
     if release['body'] != body or release.get('prerelease'):
         raise ValueError('existing release identity/notes differ')
     if not release['draft']:
-        raise ValueError('release already published; second same-date release refused')
+        raise ValueError('release already published; no re-publication or asset changes')
     for name, content in expected.items():
         actual, verified = assets_readback(api, release['id'], expected, allow_missing=True)
         if name in verified:
@@ -186,24 +375,27 @@ def publish(api, commit, raw, files, tag=None, resume=False):
                 raise RuntimeError('starter removal not confirmed')
         try:
             upload(api, release, name, content)
-        except Exception:
-            _, verified = assets_readback(api, release['id'], expected, allow_missing=True)
-            if name not in verified:
-                raise RuntimeError('asset upload failed/unknown; draft retained; no blind retry: ' + name)
+        except Exception as exc:
+            # Readback can diagnose accepted bytes, but never authorizes this
+            # run to continue to another write after an uncertain upload.
+            assets_readback(api, release['id'], expected, allow_missing=True)
+            raise RuntimeError('asset upload failed/unknown; draft retained; no blind retry: ' + name) from exc
     assets_readback(api, release['id'], expected)
     workflow_gate(api, commit)
     if api.resolve_tag(tag) != commit:
         raise ValueError('tag moved before publish')
     try:
         api.write('PATCH', '/releases/' + str(release['id']), {'draft': False, 'make_latest': 'true'})
-    except Exception:
-        fresh = api.get('/releases/' + str(release['id']))
-        if fresh['draft']:
-            raise RuntimeError('publication denied/unknown; no retry')
+    except Exception as exc:
+        raise RuntimeError('publication failed/unknown; no retry') from exc
     fresh = api.get('/releases/' + str(release['id']))
-    if fresh['draft'] or fresh['body'] != body or api.resolve_tag(tag) != commit:
+    if (fresh['draft'] or fresh.get('prerelease') or fresh['body'] != body or
+            fresh['tag_name'] != tag or fresh['id'] != release['id'] or api.resolve_tag(tag) != commit):
         raise ValueError('publication readback differs')
     assets_readback(api, release['id'], expected)
+    confirm_latest(api, fresh)
+    if api.resolve_tag(tag) != commit:
+        raise ValueError('release tag moved during latest confirmation')
     print('Published and read back all ' + str(len(expected)) + ' assets:', fresh['html_url'])
     return 'published'
 
@@ -321,8 +513,7 @@ def main():
             verify_promotion(api, args.commit)
         return
     resolve_manifest_failure(api, args.commit)
-    publish(api, args.commit, raw, files,
-            resume=int(os.environ.get('GITHUB_RUN_ATTEMPT', '1')) > 1)
+    publish(api, args.commit, raw, files)
 
 
 if __name__ == '__main__':

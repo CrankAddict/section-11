@@ -44,7 +44,9 @@ def control(raw):
     if (not isinstance(value, dict) or set(value) - {'history_path'} != required
             or type(value['schema']) is not int or value['schema'] != 1):
         raise ValueError('invalid update control schema; preserve it for owner review')
-    for key in ('attempted_day', 'installed_date', 'available_date', 'skip_release'):
+    if value['attempted_day'] is not None:
+        D.calendar_day(value['attempted_day'])
+    for key in ('installed_date', 'available_date', 'skip_release'):
         if value[key] is not None:
             D.release_date(value[key])
     if value['available_tree'] is not None and not re.fullmatch('[0-9a-f]{64}', str(value['available_tree'])):
@@ -164,11 +166,12 @@ def installed_identity(publisher, snapshot):
     return receipt(publisher.read(snapshot, 'section11/' + D.RECEIPT, 4096))
 
 
-def chronology(installed, target):
+def chronology(installed, target, raw):
     if installed:
-        if D.release_date(installed['tag']) > D.release_date(target['tag']):
+        if D.release_key(installed['tag']) > D.release_key(target['tag']):
             raise ValueError('known date downgrade refused')
-        if installed['tag'] == target['tag'] and installed['commit'] != target['commit']:
+        if installed['tag'] == target['tag'] and (installed['commit'] != target['commit'] or
+                installed['manifest_sha256'] != D.digest(raw)):
             raise ValueError('same-date changed release refused')
 
 
@@ -226,11 +229,20 @@ def render_readme(existing, template, timestamp, repository, default):
 
 
 class HostedUpdater:
-    def __init__(self, publisher, fetch_release, env=None):
+    def __init__(self, publisher, fetch_release, env=None, *, suffix_capable=False):
         self.publisher = publisher
         self.fetch_release = fetch_release
         self.env = os.environ if env is None else env
+        # Only the verified new entry may opt in. No persisted schema field or
+        # user environment setting can silently upgrade an old frozen entry.
+        self.suffix_capable = suffix_capable is True
         self._release = None
+
+    def require_capability(self, tag):
+        if tag is not None and D.release_key(tag)[1] > 1 and not self.suffix_capable:
+            raise ValueError('Suffixed release ' + tag + ' withheld: the verified hosted entry '
+                             'must support release sequences. Install the compatible workflow '
+                             'before updating; no suffixed installation or notice was written.')
 
     def latest(self):
         if self._release is None:
@@ -240,10 +252,17 @@ class HostedUpdater:
             if identity.get('repository', D.UPSTREAM) != D.UPSTREAM:
                 raise ValueError('foreign release target')
             D.receipt(raw, identity)
+        self.require_capability(self._release[2]['tag'])
         return self._release
 
     def state(self, snapshot):
-        return control(self.publisher.read(snapshot, CONTROL, 8192))
+        state = control(self.publisher.read(snapshot, CONTROL, 8192))
+        for key in ('installed_date', 'available_date', 'skip_release'):
+            self.require_capability(state[key])
+        identity = installed_identity(self.publisher, snapshot)
+        if identity:
+            self.require_capability(identity['tag'])
+        return state
 
     def readme_changes(self, before, template):
         if template is None:
@@ -268,7 +287,7 @@ class HostedUpdater:
         return self.publisher.publish(before, expected, message, exact_validator(expected))
 
     def claim(self, before, day):
-        D.release_date(day)
+        D.calendar_day(day)
         state = self.state(before)
         if state['attempted_day'] is not None and state['attempted_day'] >= day:
             return None
@@ -282,10 +301,10 @@ class HostedUpdater:
         workflow_notice(before)
         state = self.state(before)
         release = self.latest()
-        if state['installed_date'] and state['installed_date'] > release[2]['tag']:
+        if state['installed_date'] and D.release_key(state['installed_date']) > D.release_key(release[2]['tag']):
             raise ValueError('known date downgrade refused')
         identity = installed_identity(self.publisher, before)
-        chronology(identity, release[2])
+        chronology(identity, release[2], release[0])
         changes = self.installation_changes(before, release, state)
         plan = changed_paths(before, changes)
         return {'installed': identity['tag'] if identity else 'unknown',
@@ -302,9 +321,9 @@ class HostedUpdater:
         identity = installed_identity(self.publisher, before)
         if automatic and identity is None and state['installed_date'] is None:
             raise ValueError('first installation requires explicit workflow acceptance')
-        if state['installed_date'] and state['installed_date'] > release[2]['tag']:
+        if state['installed_date'] and D.release_key(state['installed_date']) > D.release_key(release[2]['tag']):
             raise ValueError('known date downgrade refused')
-        chronology(identity, release[2])
+        chronology(identity, release[2], release[0])
         if automatic and release[2]['tag'] in suppression(state, self.env):
             raise ValueError('rolled-back release remains skipped in automatic mode')
         if accepted and state['skip_release'] == release[2]['tag']:
@@ -411,6 +430,7 @@ class HostedUpdater:
         prior_identity = installed_identity(self.publisher, prior)
         if prior_identity is None:
             raise ValueError(RECOVERY)
+        self.require_capability(prior_identity['tag'])
         # Git object readback authenticates the exact previous snapshot, including
         # personal edits. Its release receipt identifies chronology, not those edits.
         record = D.json(selected['message'][len(MARKER):])

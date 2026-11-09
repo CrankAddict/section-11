@@ -1,6 +1,6 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.107  
+**Protocol Version:** 11.108  
 **Last Updated:** 2026-11-08
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.108 - Same-day release names (2026-11-09, sync.py v3.171):**
+
+A second release on the same UTC day, started deliberately by the maintainer, is named `YYYY.MM.DD-2`, `-3` and so on, ordered numerically. Local and Manual accept these names; hosted updates keep them off until the final workflow update enables them. The release tool compares against the previous release's source manifest instead of its ZIP, confirms that GitHub reports the new release as latest, and resumes an interrupted publication for the same source.
 
 **v11.107 - Local config filename (2026-11-08, sync.py v3.170):**
 

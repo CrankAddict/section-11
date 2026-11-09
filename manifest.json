@@ -144,10 +144,13 @@
       "hash": "97bd3972b16dd5bad13e334c7102d47baf91c9e66a6484632b0c0d1431253965"
     },
     "examples/maintenance/hosted.py": {
-      "hash": "65f93614fef716f168301cc1efd9c9f56d39996bd7c6f0a6eebd86cdfb1c2aa7"
+      "hash": "1e103686908cc7dcfb01efbcc24f76de29d91b62e57f2c347898ad270dcbb720"
     },
     "examples/maintenance/hosted_bootstrap.py": {
       "hash": "b3f038fb4955d4751c4594bbbc191b91f58806e6a49ad65f373eb91e23782087"
+    },
+    "examples/maintenance/hosted_runtime.py": {
+      "hash": "35b04c6dd127320331a531fc0c5f116041dc05ac05d3a2ec1f7cde50260e01cb"
     },
     "examples/maintenance/hosted_update.py": {
       "hash": "ef4e59890b408ac120c26c17900eada5966e105b551e8752a0c3c4c6fa3d1b58"

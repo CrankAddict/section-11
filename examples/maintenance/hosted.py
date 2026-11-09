@@ -191,11 +191,11 @@ def materialize_install(root, source, state_bytes, readme_bytes):
     (root / update.CONTROL).write_bytes(state_bytes)
 
 
-def prepare(source, source_release, verifier):
+def prepare(source, source_release, verifier, *, runtime=None, argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--wrapper-api', type=int, required=True)
     parser.add_argument('--accept-install', action='store_true')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.wrapper_api != WRAPPER_API or not args.accept_install:
         raise ValueError('owner wrapper update required; explicit installation acceptance missing')
     pub = publisher()
@@ -206,7 +206,9 @@ def prepare(source, source_release, verifier):
     check_checkout(pub, before, root)
     source_raw, source_files, source_identity = source_release
     identity = update.installed_identity(pub, before)
-    controller = update.HostedUpdater(pub, lambda: verifier.Distribution.fetch(), os.environ)
+    controller = (update.HostedUpdater(pub, lambda: verifier.Distribution.fetch(), os.environ)
+                  if runtime is None else
+                  update.HostedUpdater(pub, runtime.latest, os.environ, suffix_capable=True))
     initial_state = controller.state(before)
     operation = info['operation']
     if operation == 'Status':
@@ -268,7 +270,7 @@ def cache_prepare():
     output(enabled='true', prefix=prefix, key=key)
 
 
-def run_sync():
+def run_sync(*, isolated=False):
     info = context()
     if not info['run_sync']:
         raise ValueError('this is a maintenance-only invocation')
@@ -289,7 +291,8 @@ def run_sync():
     env.update({'SECTION11_SYNC_WRAPPER_API': str(WRAPPER_API),
                 'SECTION11_CARRY_FORWARD_VERSION': '1',
                 'SECTION11_EXPORT_EVENT': export_event, 'SECTION11_EXPORT_CRON': info['cron']})
-    subprocess.run([sys.executable, str(Path(info['source']) / 'examples/sync.py'),
+    python = [sys.executable, '-I', '-B'] if isolated else [sys.executable]
+    subprocess.run([*python, str(Path(info['source']) / 'examples/sync.py'),
                     '--athlete-id', athlete, '--intervals-key', key, '--days', str(days),
                     '--output', 'latest.json'], cwd=os.environ['GITHUB_WORKSPACE'], env=env, check=True)
     finalize_export()
@@ -428,7 +431,7 @@ def cache_promote():
     output(ready='true')
 
 
-def maintain():
+def maintain(*, runtime=None):
     info = context()
     success = info.get('published', False)
     if info.get('publication_uncertain'):
@@ -439,7 +442,9 @@ def maintain():
                               info['attempt'], info['scheduled'])
     if day is None:
         return
-    controller = update.HostedUpdater(pub, _sync._fetch_verified_release, os.environ)
+    controller = (update.HostedUpdater(pub, _sync._fetch_verified_release, os.environ)
+                  if runtime is None else
+                  update.HostedUpdater(pub, runtime.latest, os.environ, suffix_capable=True))
     if info['source_is_latest']:
         raw, files = D.tree(Path(info['source']))
         controller._release = (raw, files, info['source_identity'])

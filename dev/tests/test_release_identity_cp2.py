@@ -59,14 +59,15 @@ class IdentityTests(Offline):
         install(root, raw, files)
         write(root, {D.RECEIPT: D.receipt(raw, {'tag': '2026.11.09', 'commit': 'a' * 40})})
         state = self.root / '.section11-state'
-        for tag, available in (('2026.11.09-2', None), ('2026.11.09-3', '2026.11.09-3')):
+        for index, (tag, available) in enumerate((('2026.11.09-2', None), ('2026.11.09-3', '2026.11.09-3'))):
             write(state, {'auto-update.json': b'{"skip_release":"2026.11.09-2"}'})
             target = raw, files, {'tag': tag, 'commit': 'b' * 40}
-            with mock.patch.object(SYNC, '_fetch_verified_release', return_value=target), \
+            with mock.patch.object(SYNC, '_fetch_verified_release', return_value=target) as fetch, \
                     mock.patch.dict(SYNC.os.environ, {'GITHUB_ACTIONS': 'false'}), \
                     contextlib.redirect_stdout(io.StringIO()):
                 SYNC.auto_update_local(self.root, False, advisory_only=True,
-                                       started_at=datetime(2026, 11, 10, 12, tzinfo=timezone.utc))
+                                       started_at=datetime(2026, 11, 10, 12, tzinfo=timezone.utc) + timedelta(minutes=10 * index))
+            fetch.assert_called_once()
             saved = SYNC._auto_update_state(state)
             self.assertEqual(saved.get('available_release'), available)
             self.assertEqual(SYNC._known_local_identity(root)['tag'], '2026.11.09')

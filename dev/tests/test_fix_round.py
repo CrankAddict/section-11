@@ -233,12 +233,12 @@ class FixRound(P.Offline):
             publish_release.publish(api, 'c' * 40, raw, files, '2026.10.31')
         self.assertEqual(api.writes, [])
 
-    def test_utc_threshold_is_common_to_all_automatic_modes(self):
+    def test_utc_threshold_is_legacy_hosted_only(self):
         for event, scheduled in (('schedule', True), ('workflow_dispatch', True), ('workflow_dispatch', False)):
             self.assertIsNone(B.H.eligible_day('2026-10-31T03:59:59Z', event, False, 2, scheduled))
             self.assertEqual(B.H.eligible_day('2026-10-31T04:00:00Z', event, False, 2, scheduled), '2026.10.31')
         self.local_install(B.release())
-        for hour, expected in ((3, 0), (4, 1)):
+        for hour, expected in ((3, 1), (4, 1)):
             class Clock(Noon):
                 @classmethod
                 def now(cls, tz=None):

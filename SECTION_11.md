@@ -1,6 +1,6 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.109  
+**Protocol Version:** 11.110  
 **Last Updated:** 2026-11-08
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.110 - Local update check every 10 minutes (2026-11-10, sync.py v3.173):**
+
+Local and Manual now check for a verified Section 11 update at most once every 10 minutes after the data work, instead of once a day after 04:00 UTC. When the latest release and the local installation are unchanged since the last verified check, the check reuses that result and downloads nothing. Automatic installation stays opt-in with `auto_update`; otherwise the check only reports that an update is available.
 
 **v11.109 - Local timer fix (2026-11-10, sync.py v3.172):**
 

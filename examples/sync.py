@@ -4,6 +4,10 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.173 - Local and Manual check for verified updates at most every 10 minutes after
+  data work, instead of once a day; an unchanged release reuses the last verified check
+  without downloading. Protocol v11.110.
+
 Version 3.172 - Local updates no longer reload an unchanged timer, so a Mac update
   cannot stop its own timer; --update completes an install stopped that way. Protocol v11.109.
 
@@ -6235,7 +6239,7 @@ class IntervalsSync:
     GITHUB_API_URL = "https://api.github.com"
     FTP_HISTORY_FILE = "ftp_history.json"
     HISTORY_FILE = "history.json"
-    VERSION = "3.172"
+    VERSION = "3.173"
     ROUTE_TERRAIN_VERSION = "3.142"
     ROUTE_RETRY_BACKOFF_SECONDS = 15 * 60
     INTERVALS_FILE = "intervals.json"
@@ -22956,10 +22960,13 @@ class Distribution:
         raise DistributionError("unresolved release tag")
 
     @classmethod
-    def fetch(cls, tag=None):
+    def fetch(cls, tag=None, *, _reuse=None):
         release = cls.release_metadata(tag)
         tag = release["tag_name"]
         commit = cls.resolve_tag(tag)
+        # Local maintenance may reuse an outcome, never installation bytes.
+        if _reuse is not None and _reuse(release, commit):
+            return None
         assets = [a for a in release["assets"] if a["name"] == "section11-" + tag + ".zip"]
         if len(assets) != 1 or assets[0]["size"] > cls.MAX_BYTES:
             raise DistributionError("missing/ambiguous/oversized canonical release asset")
@@ -23597,6 +23604,7 @@ def _previous_install(data_dir, check_current=True):
 
 
 def _auto_update_state(state):
+    """Keep this schema readable by older releases after rollback."""
     path = Distribution.ordinary(state, "auto-update.json")
     value = Distribution.json(path.read_bytes()) if path.exists() else {}
     if not isinstance(value, dict) or set(value) - {"last_attempt", "skip_release", "available_release", "available_tree", "available_entries", "available_timer_only"}:
@@ -23611,8 +23619,75 @@ def _auto_update_state(state):
     return value
 
 
+def _claim_local_update_check(state, now):
+    """Claim under the installation lock; older releases ignore this file."""
+    path = Distribution.ordinary(state, "local-check.json")
+    verified = {}
+    if path.exists():
+        value = Distribution.json(path.read_bytes())
+        if (not isinstance(value, dict) or 'last_attempt_at' not in value or
+                set(value) - {"last_attempt_at", "verified"}):
+            raise DistributionError("invalid local check state; preserve state")
+        stamp = value["last_attempt_at"]
+        try:
+            last = datetime.fromisoformat(stamp) if isinstance(stamp, str) else None
+            if last is None or last.utcoffset() != timedelta(0) or last.isoformat() != stamp:
+                raise ValueError("expected canonical UTC timestamp")
+        except ValueError as exc:
+            raise DistributionError("invalid local check time; preserve state") from exc
+        if 'verified' in value:
+            verified = value['verified']
+            if (not isinstance(verified, dict) or set(verified) !=
+                    {'tag', 'commit', 'tree', 'context', 'basenames', 'outcome'} or
+                    verified['outcome'] not in ('current', 'skipped', 'ahead', 'available') or
+                    not isinstance(verified['commit'], str) or not re.fullmatch('[0-9a-f]{40}', verified['commit']) or
+                    any(not isinstance(verified[key], str) or not re.fullmatch('[0-9a-f]{64}', verified[key])
+                        for key in ('tree', 'context'))):
+                raise DistributionError("invalid verified local check; preserve state")
+            Distribution.release_key(verified['tag'])
+            names = verified['basenames']
+            if (not isinstance(names, list) or not 0 < len(names) <= Distribution.MAX_FILES or
+                    any(not isinstance(name, str) or len(name) > 240 or '/' in name or
+                        not _safe_manifest_path(name) for name in names) or names != sorted(set(names))):
+                raise DistributionError("invalid verified release names; preserve state")
+        if last > now:
+            # Rebase once after a backward clock move, then wait ten minutes.
+            _write_install_state(state, "local-check.json", {"last_attempt_at": now.isoformat()})
+            return None
+        if now - last < timedelta(minutes=10):
+            return None
+    # Clear prior evidence before requests; a failure cannot bless a new outcome.
+    _write_install_state(state, "local-check.json", {"last_attempt_at": now.isoformat()})
+    return verified
+
+
+def _local_check_identity(data_dir, saved, basenames, plan=None):
+    """Hash the local inputs to an outcome, without storing private settings."""
+    if plan is None:
+        config_raw, config = _local_config(data_dir)
+        plan = {'tree': _ordinary_tree_digest(data_dir / 'section11'),
+                'entries': _entry_digests(data_dir, basenames),
+                'custom': _custom_preimage(data_dir),
+                'config_digest': Distribution.digest(config_raw) if config_raw is not None else None,
+                'timer': LocalTimers(data_dir).plan(config)}
+    context = {key: plan[key] for key in ('entries', 'custom', 'config_digest', 'timer')}
+    context['state'] = {key: value for key, value in saved.items() if key != 'last_attempt'}
+    return {'tree': plan['tree'],
+            'context': Distribution.digest(json.dumps(context, sort_keys=True).encode())}
+
+
+def _local_check_message(outcome, tag):
+    return {'current': 'already current with ' + tag,
+            'skipped': 'rolled-back release ' + tag + ' remains skipped',
+            'ahead': 'installed content is newer than the latest official release; wait for its release or review --update',
+            'available': 'official release ' + tag + ' available; run python3 section11/examples/sync.py --update'}[outcome]
+
+
 def auto_update_local(data_dir, enabled, _locked=False, advisory_only=False, started_at=None):
-    """Post-data maintenance; its failure never changes the data result."""
+    """Post-data maintenance; its failure never changes the data result.
+
+    started_at, when supplied, is the check start, not the sync invocation start.
+    """
     if (enabled is False and not advisory_only) or os.environ.get("GITHUB_ACTIONS", "").lower() == "true":
         return
     message = ""
@@ -23628,14 +23703,12 @@ def auto_update_local(data_dir, enabled, _locked=False, advisory_only=False, sta
             state = data_dir / ".section11-state"
             saved = _auto_update_state(state)
             now = (started_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
-            if now.hour < 4:
-                return
-            today = now.date().isoformat()
-            if saved.get("last_attempt", "") >= today:
-                message = "already checked this UTC day (or recorded clock is ahead)"
+            verified = _claim_local_update_check(state, now)
+            if verified is None:
+                message = "automatic check not due yet (ten-minute interval)"
             else:
-                # Claim the day before any request, including unsuccessful checks.
-                saved["last_attempt"] = today
+                # Keep the daily claim for older readers, never a timestamp here.
+                saved["last_attempt"] = now.date().isoformat()
                 # A failed discovery does not resolve a previously verified plan.
                 if not _local_notice_matches(data_dir, saved):
                     for key in ("available_release", "available_tree", "available_entries", "available_timer_only"):
@@ -23643,18 +23716,39 @@ def auto_update_local(data_dir, enabled, _locked=False, advisory_only=False, sta
                 _write_install_state(state, "auto-update.json", saved)
                 if not isinstance(enabled, bool):
                     raise DistributionError("auto_update must be a JSON boolean")
-                raw, files, identity = _fetch_verified_release()
+                def reuse(release, commit):
+                    nonlocal message
+                    if (not verified or verified['tag'] != release['tag_name'] or verified['commit'] != commit or
+                            (enabled and verified['outcome'] == 'available')):
+                        return False
+                    if _local_check_identity(data_dir, saved, verified['basenames']) != {
+                            key: verified[key] for key in ('tree', 'context')}:
+                        return False
+                    if verified['outcome'] == 'available' and not _local_notice_matches(data_dir, saved):
+                        return False
+                    message = _local_check_message(verified['outcome'], verified['tag'])
+                    return True
+                fetched = _fetch_verified_release(_reuse=reuse)
+                if fetched is None:
+                    _write_install_state(state, 'local-check.json',
+                                         {'last_attempt_at': now.isoformat(), 'verified': verified})
+                    print('Section 11 auto-update: ' + message)
+                    return
+                raw, files, identity = fetched
                 status = _local_release_status(root, raw, files, identity)
                 _ensure_custom(data_dir, files)
                 expected = _local_plan(data_dir, raw, files)
                 plan = expected['distribution']
                 needs_install = _local_install_needed(data_dir, raw, identity, expected)
                 if saved.get("skip_release") == identity["tag"]:
-                    message = "rolled-back release " + identity["tag"] + " remains skipped"
+                    outcome = 'skipped'
+                    message = _local_check_message(outcome, identity['tag'])
                 elif status["content_ahead"]:
-                    message = "installed content is newer than the latest official release; wait for its release or review --update"
+                    outcome = 'ahead'
+                    message = _local_check_message(outcome, identity['tag'])
                 elif not needs_install:
-                    message = "already current with " + identity["tag"]
+                    outcome = 'current'
+                    message = _local_check_message(outcome, identity['tag'])
                 else:
                     saved.update(available_release=identity["tag"],
                                  available_tree=_ordinary_tree_digest(root),
@@ -23663,7 +23757,8 @@ def auto_update_local(data_dir, enabled, _locked=False, advisory_only=False, sta
                                                            any(expected['entries'].values())))
                     _write_install_state(state, "auto-update.json", saved)
                     if not enabled:
-                        message = "official release " + identity["tag"] + " available; run python3 section11/examples/sync.py --update"
+                        outcome = 'available'
+                        message = _local_check_message(outcome, identity['tag'])
                     else:
                         _install_local(data_dir, raw, files, identity, expected, _locked=True)
                         message = "installed " + status["installed_date"] + " -> " + identity["tag"]
@@ -23671,10 +23766,20 @@ def auto_update_local(data_dir, enabled, _locked=False, advisory_only=False, sta
                             message += "; replaced/removed: " + ", ".join(plan["changed"] + plan["removed"])
                         if expected['cleanup_names']:
                             message += '; removed outside section11/: ' + ', '.join(expected['cleanup_names'])
+                        # Reconcile the installed result against these freshly verified bytes.
+                        expected = _local_plan(data_dir, raw, files)
+                        outcome = None if _local_install_needed(data_dir, raw, identity, expected) else 'current'
                 if saved.get("skip_release") == identity["tag"] or status["content_ahead"] or not needs_install:
                     for key in ("available_release", "available_tree", "available_entries", "available_timer_only"):
                         saved.pop(key, None)
                     _write_install_state(state, "auto-update.json", saved)
+                if outcome is not None:
+                    names = sorted({name.rsplit('/', 1)[-1] for name in files})
+                    verified = dict(tag=identity['tag'], commit=identity['commit'], basenames=names,
+                                    outcome=outcome, **_local_check_identity(
+                                        data_dir, _auto_update_state(state), names, plan=expected))
+                    _write_install_state(state, 'local-check.json',
+                                         {'last_attempt_at': now.isoformat(), 'verified': verified})
     except (Exception, KeyboardInterrupt) as exc:
         message = "stopped; sync result retained; " + " ".join(str(exc).split())
     print("Section 11 auto-update: " + message)
@@ -23748,11 +23853,11 @@ def _distribution_lock(data_dir, create=True, cleanup=True):
     return locked()
 
 
-def _fetch_verified_release():
+def _fetch_verified_release(*, _reuse=None):
     if _RELEASE_REQUEST_BUDGET.get() is not None:
-        return Distribution.fetch()
+        return Distribution.fetch(_reuse=_reuse) if _reuse is not None else Distribution.fetch()
     with _release_request_budget():
-        return Distribution.fetch()
+        return Distribution.fetch(_reuse=_reuse) if _reuse is not None else Distribution.fetch()
 
 
 _ROOT_ENTRIES = ('sync.py', 'push.py', 'pull.py')
@@ -24640,7 +24745,7 @@ def _review_update(status_only=False, timer_choice=None, _init=False, _locked=Fa
 
 
 def notify_if_updates_available():
-    """Official release advisory after data work, once per UTC day."""
+    """Official release advisory after data work, at most every ten minutes."""
     auto_update_local(Path.cwd(), False, advisory_only=True)
 
 
@@ -24765,7 +24870,7 @@ def _main(installation_root=None, distribution_locked=False, started_at=None):
     parser.add_argument("--rollback", action="store_true", help="Restore the previous local installation without network access")
     auto = parser.add_mutually_exclusive_group()
     auto.add_argument("--auto-update", dest="auto_update", action="store_true", default=None,
-                      help="After data work, check for verified updates once per UTC day at or after 04:00 UTC")
+                      help="After data work, check for verified updates at most once every 10 minutes")
     auto.add_argument("--no-auto-update", dest="auto_update", action="store_false",
                       help="Disable local auto-update for this run, overriding config")
     timer = parser.add_mutually_exclusive_group()
@@ -24932,7 +25037,8 @@ def _main(installation_root=None, distribution_locked=False, started_at=None):
             enabled = args.auto_update if args.auto_update is not None else (
                 config.get("auto_update", False) if isinstance(config, dict) else False)
             auto_update_local(installation_root or _installation_root(), enabled,
-                              _locked=distribution_locked, advisory_only=enabled is False, started_at=started_at)
+                              _locked=distribution_locked, advisory_only=enabled is False,
+                              started_at=datetime.now(timezone.utc))
         if sync is not None:
             try:
                 line = sync.request_budget.summary()
@@ -25134,7 +25240,7 @@ def _run_sync(sync, args, github_token, github_repo):
                 publication_complete = False
                 print(f"   ⚠️ saved_workouts.json push failed (non-critical): {e}")
         
-        # Local API runs use the post-data daily hook. Hosted maintenance is
+        # Local API runs use the post-data ten-minute hook. Hosted maintenance is
         # owned by the verified controller after data work.
     
     # Unknown publication is distinct from definitive failure for maintenance.

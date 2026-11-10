@@ -193,7 +193,7 @@ class FixRound2(P.Offline):
         self.assertEqual(state['available_date'], new[2]['tag'])
         self.assertEqual(state['available_tree'], B.H.installation_digest(publisher.snapshot()))
 
-    def test_R10_threshold_uses_invocation_start_on_both_adapters(self):
+    def test_R10_local_claim_uses_post_data_time_legacy_hosted_keeps_threshold(self):
         release = B.release()
         self.install(release)
         class CrossingClock(Noon):
@@ -218,8 +218,9 @@ class FixRound2(P.Offline):
                 mock.patch.object(P.SYNC, '_fetch_verified_release', return_value=release) as fetch, \
                 contextlib.redirect_stdout(io.StringIO()):
             P.SYNC._main(installation_root=self.root, distribution_locked=True)
-        fetch.assert_not_called()
-        self.assertNotIn('last_attempt', P.SYNC._auto_update_state(self.root / '.section11-state'))
+        fetch.assert_called_once()
+        self.assertEqual(json.loads((self.root / '.section11-state/local-check.json').read_bytes())['last_attempt_at'],
+                         '2026-10-31T04:01:00+00:00')
         self.assertIsNone(B.H.eligible_day('2026-10-31T03:59:00Z', 'workflow_dispatch', True))
         self.assertEqual(B.H.eligible_day('2026-10-31T04:00:00Z', 'workflow_dispatch', True), '2026.10.31')
 
@@ -397,13 +398,17 @@ class FixRound2(P.Offline):
                 self.assertNotIn('update_notice', notice)
                 self.assertNotIn('available_release', P.SYNC._auto_update_state(self.root / '.section11-state'))
 
-    def test_N10_delayed_run_claims_its_original_UTC_day(self):
+    def test_N10_legacy_hosted_keeps_original_day_local_uses_check_start(self):
         release = B.release()
         self.install(release)
-        with mock.patch.object(P.SYNC, '_fetch_verified_release', return_value=release):
-            P.SYNC.auto_update_local(self.root, False, advisory_only=True,
-                                    started_at=Noon(2026, 10, 30, 23, 59, tzinfo=timezone.utc))
-        self.assertEqual(P.SYNC._auto_update_state(self.root / '.section11-state')['last_attempt'], '2026-10-30')
+        with mock.patch.object(P.SYNC, '_fetch_verified_release', return_value=release), \
+                mock.patch.object(sys, 'argv', ['sync.py', '--output', str(self.root / 'latest.json')]), \
+                mock.patch.object(P.SYNC, '_rotate_log_if_needed'):
+            P.SYNC._main(installation_root=self.root,
+                         started_at=Noon(2026, 10, 30, 23, 59, tzinfo=timezone.utc))
+        self.assertEqual(P.SYNC._auto_update_state(self.root / '.section11-state')['last_attempt'], '2026-10-31')
+        self.assertEqual(json.loads((self.root / '.section11-state/local-check.json').read_bytes())['last_attempt_at'],
+                         '2026-10-31T12:00:00+00:00')
         self.assertEqual(B.H.eligible_day('2026-10-30T23:59:00Z', 'workflow_dispatch', False), '2026.10.30')
 
 

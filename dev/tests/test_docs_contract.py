@@ -676,7 +676,7 @@ class TestDocsContract(unittest.TestCase):
             'examples/json-local-sync/SETUP.md': (
                 'Where a planned event carries a route file, sync.py fetches that attachment from whatever host Intervals.icu records for it.',
                 'it also calls `api.github.com` to read and write your repository using the token you supply.',
-                'Confirmed local API publication uses the same daily release policy as file exports.',
+                'Confirmed local API publication uses the same ten-minute release policy as file exports.',
                 'It does not run the old separate changelog-Issue check; an uncertain publication holds maintenance.',
                 'including failed attempts. They never advise from unpublished main content.',
             ),
@@ -726,7 +726,7 @@ class TestDocsContract(unittest.TestCase):
     def test_on_demand_migration_points_to_its_manual_only_editor_route(self):
         source = (ROOT / 'examples/json-on-demand/SETUP.md').read_text()
         section = heading_section(source, 'updating-an-existing-repository')
-        self.assertIn('Replace the one sync workflow using Step 2', section)
+        self.assertIn('../maintenance/UPDATING.md#move-to-the-final-hosted-workflow', section)
         self.assertIn('do not add the scheduled', section)
         self.assertIn("template's cron", section)
         self.assertIn('replace both stubs in the same owner commit, before the first Sync', ' '.join(section.split()))

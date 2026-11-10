@@ -4,6 +4,12 @@ The owner creates and operates this one public repository after the updater is
 published and verified. It contains fictional data only. This kit does not create
 the repository or install a release for you. The first Sync does the installation.
 
+**Old workflow only:** the demo builder accepts sealed legacy templates and
+refuses the final hosted workflow. These steps retain the old hosted allowance;
+they do not demonstrate the final workflow's per-run runtime verification or
+ten-minute application-maintenance allowance. Do not substitute the final template
+without a separate demo-builder update.
+
 1. Wait for the first official date release containing verified release updates
    (Protocol 11.103 / sync.py 3.166 or later). If no official date release exists,
    stop here. Use the matching published, sealed source to build this kit.
@@ -44,7 +50,7 @@ the repository or install a release for you. The first Sync does the installatio
    replacement when available; there is no adoption PR or merge.
 8. Read the installed [update contract](section11/examples/maintenance/UPDATING.md).
    Set **SECTION11_AUTO_UPDATE=true** only after verifying the first installation
-   and data readback. Automatic checks run once per UTC day at or after 04:00 UTC,
+   and data readback. With this old workflow, automatic checks run once per UTC day at or after 04:00 UTC,
    after data work even if it failed. Failed or unknown maintenance consumes the
    day; a rerun can claim an unclaimed day. The daily 05:07 UTC data run
    uses the ordinary once-per-day update allowance.

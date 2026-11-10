@@ -39,16 +39,16 @@ setup.
 `test_data_overview.py` exercises companion discovery, relative paths, output placement, local-time/DST labels, 16-point wind directions and compact snapshots after display additions. It loads the exact self-contained Python publication rules from `examples/maintenance/validate_data.py` for offline validation, fallback, deletion and reset/retry restoration tests. No GitHub or Git operation is needed. Athlete setups install the complete managed release and matching owner-controlled wrappers; see [updates](../examples/maintenance/UPDATING.md).
 
 `test_fix_round.py` turns the twelve undecided-behaviour probes into regression
-checks for the common 04:00 UTC rule, reruns and failure claims, same-date notices,
+checks for Local's ten-minute allowance and the legacy hosted daily rule, reruns and failure claims, same-date notices,
 rollback beyond unrelated history, exact prior edited trees, no-op slot retention,
 README setup and bounded
 release discovery. Only the common local transaction schema 3 remains; release
 receipts retain schema 1. Retired installers, launchers and the prototype kit are
 removed. `test_fix_round2.py` turns repeat-audit probes R01-R10 into acceptance
-regressions for complete metadata repair, verified custom guidance, early daily
+regressions for complete metadata repair, verified custom guidance, early attempt
 claims, early data failure and unknown-publication
 holds, explicit policy independence, guidance-only rollback retention, failed
-re-check reminders and invocation-start timing. Scheduler and service operations
+re-check reminders and Local's post-data check-start timing. Scheduler and service operations
 remain synthetic; these tests do not establish live platform acceptance.
 `test_fix_round3.py` converts Q01-Q05 into regressions for hosted pending plans
 before full installation, timer-only reminder resolution, one current rollback
@@ -58,15 +58,31 @@ configured intervals, opt-out and targeted rollback; retired migration tests are
 explicit, automatic, first-install and rollback paths, plus the approved Python
 prerequisite text. Billing arithmetic uses the guides' stated assumptions only.
 `test_update_round3.py` covers local config/CLI opt-in, post-data invocation,
-UTC daily attempts, verified installation, receiptless adoption, no prompts,
+ten-minute attempts including failures, verified installation, receiptless adoption, no prompts,
 downgrade refusal, rollback with later custom edits, and handled switch failures.
 Earlier update suites retain adoption, request-budget and trusted validation
 regressions. The direct hosted tests in `test_b2_hosted.py`, `test_b2_workflow.py`
 and `test_b2_integration.py` replace retired PR lifecycle expectations. They cover
 synthetic sealed pins and unsealed refusal, real historical fixtures, literal
 dispatch arguments, exact parent/tree publication, unknown outcomes, daily
-claims, rollback and data/cache isolation. All transport is mocked; actual Actions,
+claims for legacy callers, rollback and data/cache isolation. All transport is mocked; actual Actions,
 branch policy, scheduling, publication and production Python parity need owner tests.
+
+`test_local_check_cp5a.py` covers the shared ten-minute Local/Manual allowance,
+post-data timing, failed attempts, one deferral after a backward clock move and
+old-reader compatibility. Warm checks reuse a verified result when release and
+installation inputs match, without ZIP/raw-manifest downloads; installation fetches
+fresh verified bytes. `test_hosted_runtime_cp3.py` and `test_final_workflow_cp4.py`
+cover per-run runtime verification, installed-application fingerprint reuse,
+older half-mode applications, Other, first-adoption downloads and conservative
+ten-minute maintenance deferral without a check-only commit.
+
+**Old hosted workflow only:** v11.105 retains daily maintenance from 04:00 UTC
+and its sealed bootstrap. Those historical fixtures and assertions are intentional.
+The demo builder (`dev/demo/build_demo.py`) still accepts only sealed legacy
+templates and refuses final workflows. Its setup text describes that limitation;
+the demo's daily data schedule is separate from Local/Manual's update allowance.
+Adapting the demo builder is separate work.
 
 `test_b1_local.py` covers the common accepted local installer, whole-tree replacement,
 timer adapters under mocked OS commands, persistent opt-out, root-tool recovery,

@@ -18,11 +18,11 @@ For full guided setup, including your dossier and AI connection, give your AI th
 
 1. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
 2. At [github.com/new](https://github.com/new), create a **Private** repository such as `training-data`, leaving **Add a README file** unchecked. Click **Create repository**.
-3. Download `section11-YYYY.MM.DD-on-demand.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). If unavailable or marked `UNSEALED`, wait for a verified release ([workflow setup](#step-2-set-up-github-repository)).
-4. Back in your repository, click **creating a new file** and name it `.github/workflows/auto-sync.yml`. Paste the downloaded contents and commit.
+3. Download `section11-YYYY.MM.DD-on-demand.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). Wait if unavailable or `UNSEALED` ([workflow setup](#step-2-set-up-github-repository)).
+4. In your repository, click **creating a new file** and name it `.github/workflows/auto-sync.yml`. Paste the downloaded contents and commit.
 5. Under **Settings > Secrets and variables > Actions > New repository secret**, add `ATHLETE_ID` and `INTERVALS_KEY` with your values.
 6. If required, select **Read and write permissions** under **Settings > Actions > General > Workflow permissions** and save ([permissions](#step-4-enable-workflow-permissions)).
-7. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow**, enabling workflows if prompted. Keep the default branch and **Operation: Sync**, then run it.
+7. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow**, enabling workflows if prompted. Keep the default branch and **Operation: Sync**, leave the checkbox unticked, then run it.
 8. When it finishes, check the repository contains the new files, including `latest.json` and `section11/`.
 
 ## Refresh and use your data
@@ -51,7 +51,7 @@ Trigger a fresh Intervals.icu sync from your phone or browser, then download the
 
 > **Running an agentic platform locally?** See [json-local-sync](../json-local-sync/SETUP.md#local-sync-setup-guide). No GitHub needed.
 
-> **Already using On-demand sync?** Keep your repository, secrets, settings and data. Replace the one `auto-sync.yml` in GitHub's editor with the published [On-demand template](auto-sync.yml), then run its default **Sync**. Hosted push users replace `auto-sync.yml` and `push-workout.yml` together in the same owner commit, before the first Sync. No ZIP upload, PR setting or merge is required.
+> **Already using On-demand sync?** Follow [Move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow). Keep your repository, secrets, settings and data. An existing compatible installation stays in place in half mode until you choose Update.
 
 ---
 
@@ -123,9 +123,10 @@ An uploaded ZIP is a snapshot; re-upload for fresh data and after updates.
 Use the published [On-demand workflow](auto-sync.yml), or the exact
 `section11-YYYY.MM.DD-on-demand.yml` asset on the matching
 [official release](https://github.com/CrankAddict/section-11/releases/latest).
-Its bytes are verified against the release manifest. If its pins say
-`UNSEALED`, wait for the maintainer's verified release. Do not use raw-main code
-or invent pins. It stops before checkout or installation while unsealed.
+Its bytes are verified against the release manifest. Use a release supporting the
+final workflow, with **Other** and the first-adoption checkbox; do not use raw-main
+code. **Old templates only:** `UNSEALED` means the template is not ready to use;
+never invent its pins.
 No release ZIP or hidden-folder upload is required.
 
 1. Click **Add file > Create new file**, or edit the existing workflow.
@@ -249,17 +250,32 @@ Downloading the repository ZIP and giving it to a chat takes that copy outside G
 Use the same workflow's **Update**, **Status** or **Rollback** operation. Half mode
 is the default: an outstanding verified update gives a fixed `update_notice` on the
 next export, and **Update** installs it. `SECTION11_AUTO_UPDATE=true` opts into
-automatic installation. On-demand checks only on runs you start, once per UTC day
-at or after **04:00 UTC**; there is no unattended check or backup schedule.
+automatic installation. Each run selects and verifies the latest official runtime;
+half mode still uses the older compatible installed application. After data work,
+both modes defer automatic application maintenance if another run is active or
+finished within ten minutes, including failures. Completed skipped runs do not
+count. The allowance does not skip data sync; a verification failure can still
+stop the run. There is no check-only commit. On-demand checks only on runs you
+start; there is no unattended check or backup schedule.
+
+The Operation menu has **Sync**, **Update**, **Status**, **Rollback** and **Sync timer**,
+plus **Other**. Its text field is only for operations added by later official
+releases; unknown operations stop safely. Update, Status and Rollback do no data
+sync. The first-adoption checkbox is for the first Sync after moving over, not
+normal runs. A later good release fixes a broken runtime; Rollback remains for
+a bad application release and may itself be blocked by a broken runtime.
+
+**Old workflow (v11.105 only):** daily maintenance from 04:00 UTC still applies
+on user-started runs until you move over.
 See [updates and recovery](../maintenance/UPDATING.md#github-installation-and-updates).
 
 ## Updating an Existing Repository
 
-Replace the one sync workflow using Step 2 and keep your optional settings and
+Follow [Move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow)
+once a supporting official release is available. Keep your optional settings and
 secret names. Use the On-demand template as supplied; do not add the scheduled
-template's cron. Hosted push users replace both stubs in the same
-owner commit, before the first Sync. Subsequent compatible releases
-replace managed logic without another workflow edit.
+template's cron. For older root-tool setups, Step 2 also covers the push stub;
+hosted push users replace both stubs in the same owner commit, before the first Sync.
 
 ---
 

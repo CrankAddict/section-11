@@ -551,7 +551,7 @@ It is inventory, not the Workout Reference Library or proof of historical prescr
 
 ### Update Notifications
 
-**GitHub/On-demand:** select **Update** in the sync workflow to accept a verified replacement after its notice; **Status** shows the plan without installing. **Local:** run `python3 section11/examples/sync.py --update` after the daily advisory. Automatic installation is opt-in for both. See [Updating Section 11](examples/maintenance/UPDATING.md).
+**GitHub/On-demand:** select **Update** in the sync workflow to accept a verified replacement after its notice; **Status** shows the plan without installing. **Local/Manual:** run `python3 section11/examples/sync.py --update` after an advisory. Checks run after a sync, at most every 10 minutes. Automatic installation is opt-in for both. See [Updating Section 11](examples/maintenance/UPDATING.md).
 
 ### Data Hierarchy
 

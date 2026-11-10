@@ -209,7 +209,7 @@ If a run is already in progress, wait a minute before trying your first sync aga
 │   │   └── ...
 │   └── ...
 ├── .sync_config                # credentials and preferences (created by --setup)
-├── .section11-state/           # update lock, journal, daily attempt and rollback ZIP
+├── .section11-state/           # update lock, journal, check allowance and rollback ZIP
 ├── sync.log                    # standard timer output, including macOS launchd
 ├── custom/                    # personal code and overrides
 ├── DOSSIER.md                  # authoritative athlete dossier in the data-folder root
@@ -500,14 +500,17 @@ acceptance and logged in full mode. The rollback ZIP is short-term recovery unti
 the next changing install, not a backup; only unprotected parents emptied by
 removal are pruned. By default an outstanding verified update shows a fixed
 `update_notice` in the next export; set `"auto_update": true` in the existing
-config or pass `--auto-update` to install automatically. The check runs once per
-UTC day, on the first run starting at or after **04:00 UTC**. `--rollback` restores
+config or pass `--auto-update` to install automatically. Both modes check after
+data work, at most once every 10 minutes, including failed checks. With a previous
+verified result and unchanged release and installation inputs, the check downloads
+no release files, only metadata and tag information. A clock moved back behind
+the saved attempt time defers the check once for ten minutes. `--rollback` restores
 the one previous installation without network.
 
 See [Updating Section 11](../maintenance/UPDATING.md#local-updates-and-automatic-toggle)
 for the full rules and the
 [recovery guide](../maintenance/UPDATING.md#rollback-and-interruption-recovery)
-for interrupted updates.
+for interrupted updates, including a Mac timer stopped by an automatic update.
 
 ---
 
@@ -563,6 +566,10 @@ tail -f ~/training-data/sync.log
 
 ### Common gotchas
 
+**`latest.json` stopped updating after an automatic update (Mac):** the timer is
+missing from `launchctl list` and `.section11-state/transaction.json` exists.
+Follow the [recovery guide](../maintenance/UPDATING.md#rollback-and-interruption-recovery).
+
 **`--init` download fails:** read the exact error. No published date release means
 wait for the first official release. Otherwise check access to the release asset
 and pinned manifest endpoints; a development clone is not an equivalent install.
@@ -575,7 +582,7 @@ Older setups migrate automatically on the next normal sync. If renaming fails, s
 
 **Optional config fields** (add manually to `.sync_config` or re-run `--setup`):
 
-- `auto_update`: boolean, default `false`; opt in to verified daily automatic installation after data work, including definitive failure or defer. Unknown data publication holds maintenance. Edit this field manually; the setup wizard preserves existing optional settings.
+- `auto_update`: boolean, default `false`; opt in to verified automatic installation after data work, including definitive failure or defer. Checks share the advisory mode's ten-minute allowance; failed checks count. Unknown data publication holds maintenance. Edit this field manually; the setup wizard preserves existing optional settings.
 - `route_weather_default_start`: local HH:MM, default `"10:00"`, used only for date-only/exact-midnight workouts. `SECTION11_ROUTE_WEATHER_DEFAULT_START` in the timer environment overrides it. The AI labels ASSUMED and asks for the actual time. See [departure handling](../../README.md#route-weather-departure), including genuine midnight rides and confirmed push.py time updates.
 - `week_start`: training week start day (`mon`–`sun`, default: `mon`)
 - `zone_preference`: per-sport zone override for aggregations, e.g. `"run:hr,cycling:power"`. Only override what you need; unspecified sports default to power-preferred with HR fallback.
@@ -614,15 +621,19 @@ Your data stays on this machine unless you send it somewhere: cloud storage for 
 sync.py reaches the network in more places than the data path alone, and which calls happen depends on what you ran.
 
 Normal sync reads the training API and route attachments recorded there. After
-data work on an eligible run, including definitive failure or defer, both half-mode advisories and full-mode updates use the official
-release API, release asset and pinned raw manifest at most once per UTC day,
-including failed attempts. They never advise from unpublished main content.
+data work on an eligible run, including definitive failure or defer, both half-mode
+advisories and full-mode updates check the official release at most once every
+10 minutes, including failed attempts. They never advise from unpublished main content.
+An unchanged release and installation can reuse the last verified result after
+metadata and tag reads, without downloading a release ZIP or raw manifest.
+Cold checks and changed inputs need full verification; installation always fetches
+fresh verified bytes.
 `--no-auto-update` suppresses this maintenance for the run. Local release requests
 are anonymous. `--init`, `--status` and `--update` use those release endpoints
 without reading training data; `--rollback` is offline.
 `--setup` and `--generate-manifest` also return before that data path, so they make no Intervals.icu call.
 
-Where a planned event carries a route file, sync.py fetches that attachment from whatever host Intervals.icu records for it. Where you configure GitHub publishing, it also calls `api.github.com` to read and write your repository using the token you supply. Confirmed local API publication uses the same daily release policy as file exports. It does not run the old separate changelog-Issue check; an uncertain publication holds maintenance.
+Where a planned event carries a route file, sync.py fetches that attachment from whatever host Intervals.icu records for it. Where you configure GitHub publishing, it also calls `api.github.com` to read and write your repository using the token you supply. Confirmed local API publication uses the same ten-minute release policy as file exports. It does not run the old separate changelog-Issue check; an uncertain publication holds maintenance.
 
 Supported GitHub setups use the shared workflow
 and its verified direct Update operation instead.

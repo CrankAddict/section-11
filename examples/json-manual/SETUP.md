@@ -271,13 +271,19 @@ after updates, replacing the previous upload.
 
 ### Automate it
 
-Automatic maintenance follows the same daily rule as Local; see
+Automatic maintenance follows the same ten-minute allowance as Local; see
 [Updating Section 11](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).
-Manual-only setups check only when you run them. Half mode exports a fixed
-`update_notice` for an outstanding verified update or repair.
+Manual-only setups check only when you run them, after data work; failed checks
+count. Automatic installation is opt-in, and half mode uses the same allowance
+to report an outstanding verified update or repair in `update_notice`.
+After a successful verification, unchanged release and installation inputs need
+no release-file download. A clock moved back behind the saved attempt time
+defers once for ten minutes.
 
 Auto sync is already the installation default. For timer status and the persistent
 manual-only opt-out, see [json-local-sync](../json-local-sync/SETUP.md#automate-the-refresh).
+If `latest.json` stopped updating after an automatic update, see the
+[recovery guide](../maintenance/UPDATING.md#rollback-and-interruption-recovery).
 
 ---
 

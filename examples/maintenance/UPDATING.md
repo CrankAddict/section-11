@@ -28,9 +28,11 @@ Keep my existing data, settings, sync and update preferences; explain changes an
 
 In your data repository, open **Actions > Auto-Sync Intervals.icu Data > Run workflow**. Keep the default branch, choose **Operation: Update**, then click **Run workflow**. **That click is your yes**, with no later approval. Choose **Status** first if you want to see the plan. A chat AI can guide you; you do the clicks unless it has permission and tools to act. If the Operation menu is missing, follow [workflow installation](#github-update-review).
 
+Replacing your GitHub workflow? Follow [these steps](#move-to-the-final-hosted-workflow).
+
 ## Automatic updates and undo
 
-Automatic checks run at most once a day, with a sync run. To install updates without asking each time, follow [local automatic updates](#local-updates-and-automatic-toggle) or [GitHub automatic updates](#automatic-github-updates). The same replacement rules apply.
+Updates are checked after syncing. To install updates without asking each time, follow [local automatic updates](#local-updates-and-automatic-toggle) or [GitHub automatic updates](#automatic-github-updates). The same replacement rules apply.
 
 Undo goes back one installation, not any version you choose. On your computer, run:
 
@@ -129,8 +131,11 @@ before deletion. Cloud placeholders are ordinary files and folders for this
 scan. An unreadable folder, incomplete discovery or selected non-regular entry
 also stops the update before deletion.
 
-Both init and update install or refresh the standard Section 11 timer at
-`check_interval_minutes`. If you set up your own timer before, remove it.
+Both init and update install the standard Section 11 timer at
+`check_interval_minutes`. They rewrite it only when its definition changes, never
+reload an unchanged timer and load it again if it is missing. If its state cannot
+be confirmed, they leave it unchanged and print a note. If you set up your own
+timer before, remove it.
 Other timers are never inspected or changed. Cron reads its table only to preserve
 unrelated lines while managing the exact standard marker. `--no-timer` removes
 only the standard timer and persists `"auto_sync": false`; `--timer` re-enables it.
@@ -151,16 +156,21 @@ maintenance for that invocation. There is no historical recognition or metadata
 enrollment. Unadopted new code exports with its fixed short notice until accepted.
 The advisory uses official releases, never unpublished main content.
 
-Both modes check once per UTC day on the first run starting at or after **04:00 UTC**,
-after its data work even if sync failed or was deferred, including missing credentials.
-Local uses the invocation's UTC start; GitHub uses original run creation. Crossing
-04:00 or midnight during data work does not change that eligibility time.
+Both modes check with sync runs, after data work even if sync failed or was
+deferred, including missing credentials. The allowance is at most once every
+10 minutes, measured from the check's start after data work. Failed checks count;
+switching between advisory and automatic installation does not reset the allowance.
+If the clock moves back behind the saved attempt time, the next run resets that
+time and defers once for ten minutes. Another backward clock move can defer again.
 Unknown data publication holds maintenance for reconciliation and is never retried.
-The day is claimed before release discovery or missing-guidance repair. Recreated
-guidance uses verified release bytes, never an editable installed copy; existing
-personal guidance stays unchanged. A rerun may claim an
-unclaimed day. A failed or unknown maintenance attempt consumes the day and is
-never replayed automatically. Standalone history runs do not trigger maintenance. Full mode logs
+The attempt is recorded in `.section11-state/local-check.json` before discovery
+or missing-guidance repair; older releases can still read `auto-update.json`.
+After a successful verification, an unchanged release and unchanged installation
+inputs need only release metadata and tag checks: no ZIP or raw manifest is downloaded.
+A cold check, changed release or changed installation inputs need full verification;
+an installation always fetches fresh verified bytes. Recreated guidance uses those
+verified bytes, never an editable installed copy; existing personal guidance stays
+unchanged. Standalone history runs do not trigger maintenance. Full mode logs
 replacements/removals and replaces the entire verified tree without prompting.
 Known downgrades and moved tags stop. Higher installed version labels hold full
 mode and are disclosed for explicit review. Unknown provenance stays unknown.
@@ -217,6 +227,16 @@ recovery ZIP; the completed slot is named by `previous.json`. The journal record
 the prior `auto_sync` setting without copying your credentials.
 Verify the recorded digests and actual scheduler state before restoring or
 completing activation.
+
+On a Mac, automatic updates from releases 2026.11.03 to 2026.11.10 could stop
+their own timer during activation: `latest.json` stops updating and
+`transaction.json` stays at `timer-activation`. To finish it, set
+`"auto_update": false` in `.sync_config`, download the latest release into an
+empty bootstrap folder as in the [installation steps](../json-local-sync/SETUP.md#initial-setup)
+and run its `sync.py --update` from your data folder. It verifies the interrupted
+installation, loads the unchanged timer again, completes the transaction and
+offers the update. Accept it, then turn `auto_update` back on. If verification
+refuses, keep both folders and ask for help.
 Cron recovery stores table digests and removed sync lines; it reconstructs the
 previous table only from a matching current table, without saving unrelated jobs.
 Restore only the installation and timer, never replace newer data with an old backup.
@@ -224,12 +244,32 @@ An uncertain scheduler write is not retried automatically.
 
 ## GitHub installation and updates
 
+### Move to the final hosted workflow
+
+Wait until an [official release](https://github.com/CrankAddict/section-11/releases/latest) supports the final workflow. The replacement's **Run workflow** form has **Other** and the checkbox **Use for the first Sync after adopting this workflow**. Do not copy an unreleased workflow from main. New repositories use that release's workflow directly and need no move-over.
+
+1. Save a copy of your current `.github/workflows/auto-sync.yml` before editing it, and let any active run finish.
+2. Download `section11-YYYY.MM.DD-auto-sync.yml` for GitHub sync or `section11-YYYY.MM.DD-on-demand.yml` for On-demand from that release. In your repository's GitHub editor, replace `.github/workflows/auto-sync.yml` with its contents. Put back your own cron line(s) exactly and keep optional workflow settings. On-demand keeps no schedule. Keep all repository variables and secrets, then commit. For old root-tool workout push, also follow [workflow installation](#github-update-review) for the matching push stub.
+3. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow** on the default branch. Choose **Sync**, tick **Use for the first Sync after adopting this workflow**, then run it. Leave that checkbox unticked on later runs. It requests a full verified download of the application already installed; choose **Update** separately to accept a newer application in half mode.
+4. In the log, look for `Section 11 runtime verified`, `Section 11 acquisition full ZIP` and `Confirmed publication:` for the data commit. Check that `latest.json` is current. An automatic-maintenance deferral does not mean the data sync failed.
+
+If you need to go back, restore your saved workflow through GitHub's editor. If the run also changed the installed application, use **Rollback** for a compatible previous installation, or follow [owner recovery](#utc-timing-rejection-and-rollback) to restore matching installation paths. Keep newer training data, settings, dossier and `custom/`; do not revert the whole repository. A broken latest runtime needs a later good official release and may prevent Rollback too.
+
+Your timer setup is unchanged: keep `SECTION11_SYNC_TIMER` and the external timer as they are. The workflow replacement does not reconfigure either.
+
 ### GitHub update review
 
 Use **Auto-Sync Intervals.icu Data** on the default branch. Its **Operation**
 defaults to **Sync**, so existing Sync Now links still work. **Update** accepts
 the latest verified replacement, **Status** shows the plan without installing,
 and **Rollback** restores a compatible previous managed installation.
+**Sync timer** is the external timer's sync operation. **Other** uses the adjacent
+**Used only when Operation is Other** text field for operations introduced by
+later official releases. Leave that field empty for the five named operations;
+an unknown operation stops safely before application writes. Update, Status and
+Rollback do not run a data sync.
+
+Already using the v11.105 workflow? Follow [Move to the final hosted workflow](#move-to-the-final-hosted-workflow).
 
 The owner installs the published sync workflow through GitHub's editor, keeping
 every existing literal cron, optional setting and secret name. Hosted push
@@ -248,9 +288,10 @@ That owner action accepts first installation. The first Sync run verifies the
 latest official release, commits its complete `section11/` tree and receipt,
 creates missing `custom/README.md`, and removes the same exact-name Section 11
 copies listed above in that installation commit. Git history retains their
-preimages. It reads back that commit before running the producer. Unknown,
-edited or receiptless old copies need no historical-content recognition or PR
-history. Existing data, settings, secrets, dossier and custom files stay intact.
+preimages. It reads back that commit before running the producer. Old root-only
+copies need no historical-content recognition or PR history. An existing
+`section11/` without a usable release identity stops for owner recovery.
+Existing data, settings, secrets, dossier and custom files stay intact.
 
 Every hosted install, update and rollback refreshes root `README.md` from the
 template in the release being installed or restored, with repository values and
@@ -272,33 +313,33 @@ token cannot perform that workflow cleanup.
 
 ### Workflow compatibility
 
-The stable workflow passes wrapper API 2 to verified managed logic. A mismatch
-stops with an owner-workflow message. The published workflow pins a reviewed
-bootstrap commit and digest; the bootstrap separately pins its trusted verifier.
-An unsealed pin stops before installation or commits, with no raw-main fallback.
-Only use the published, sealed template after its compatible release is available.
+The final workflow selects the latest stable official runtime on every run and
+verifies it before execution. Its fixed verification gate checks the selected
+manifest and runtime entry; runtime dependencies are then verified against that
+manifest. Matching installed bytes can be reused after verification. This selects
+the code that runs the workflow, not a newer installed application.
 
 The `--wrapper-api` value on its `run:` line is checked against the managed
 entrypoint. [`examples/maintenance/wrapper-api.json`](wrapper-api.json) records
 `auto-sync.yml` 2 and `push-workout.yml` 1. A mismatch stops the updater with
 `owner wrapper update required`.
 
-Controller code is authenticated from the official installed release before it
-runs with publication authority. Each invocation makes two authenticated,
-blob-pinned source reads through GitHub's official Git blobs API using the job
-token, with no redirects or retries, Git blob identity and SHA256 verification
-before execution. The SHA256 check independently authenticates bytes even though
-the Git object address uses SHA1. Pins can be computed before a commit; maintainers
-verify their availability and exact bytes after publishing the source.
-Each allows ten seconds and at most 1 MiB for the bootstrap or 8 MiB for the verifier.
-The token is removed before importing the verifier. Release authentication then
-uses the ordinary token-free bounded release transport. These trust reads are
-separate from the daily latest-release check; they never select a newer installed
-controller merely because it is newer. First accepted installation is the exception
-that needs a compatible latest release.
+In half mode, the latest runtime runs the older compatible, authenticated
+application without advancing it. Each Sync verifies the installed application's
+release identity and file hashes. Matching files avoid a full application ZIP;
+the first-adoption checkbox forces that download without selecting Update.
 Producer execution receives no GitHub publication token, and checkout credentials
-are not persisted. Later releases update managed logic without editing the stub;
-future incompatible action/runtime changes still require owner workflow recovery.
+are not persisted. Failed selection or verification stops the run before data
+sync. There is no fallback to an older runtime or retry within that run; the next
+run selects again. A later good official release repairs a broken runtime, which
+can otherwise block even Rollback. Rollback remains for a bad application release.
+Future incompatible permissions, secrets, entry/API or platform requirements can
+still require an owner workflow change.
+
+**Old workflow (v11.105 only):** compatible plain-date releases keep its historical
+entry working. Its bootstrap separately pins its trusted verifier and uses
+blob-pinned source reads; an unsealed pin stops before installation, with
+no raw-main fallback. Keep its published sealed template until you move over.
 
 ### Automatic GitHub updates
 
@@ -316,8 +357,8 @@ Set repository variable `SECTION11_AUTO_UPDATE=true` for full mode, under
 **Settings > Secrets and variables > Actions > Variables**. Full mode replaces the
 complete managed tree and removes unprotected exact-name copies in any folder,
 including unrelated same-name files, without another approval. An absent or
-false value retains half mode. A malformed value stops automatic maintenance after
-the daily claim; explicit Update and first acceptance do not depend on that preference. Its failed or
+false value retains half mode. A malformed value stops automatic maintenance;
+explicit Update and first acceptance do not depend on that preference. Its failed or
 unknown outcome is reported separately; an already successful data export remains
 successful. Set false to stop future automatic
 installations; cancel an in-flight run separately and inspect its commit readback.
@@ -334,34 +375,30 @@ both the confirmed commit and current state.
 
 ### UTC timing, rejection and rollback
 
-Automatic maintenance follows the first run **created at or after 04:00 UTC**,
-after its data work even if sync failed, with no closing hour. Unknown data
-publication holds maintenance for reconciliation. The daily claim precedes
-missing-guidance repair and target discovery. Creation time controls eligibility
-even when the runner starts later. The literal crons are preserved.
-On-demand runs only when requested, checks only on those runs at or after
-04:00 UTC, and has no unattended maintenance.
+With the final workflow, automatic application maintenance follows data work,
+even if sync failed. Both half and full mode wait if another run of this workflow
+on the default branch is active or finished less than ten minutes ago, including
+failures and no-ops. Completed skipped runs do not count. Reruns, runs created
+more than 30 minutes ago and incomplete run history also defer maintenance.
+Unknown data publication holds it for reconciliation. This allowance never skips
+the data sync or runtime verification; their own failures can still stop a run.
+On-demand checks only on user-started runs, with no unattended maintenance.
 
-A guarded control commit claims the UTC day before latest-target discovery.
-Failed or unknown maintenance attempts consume that day; reruns do not repeat
-them. A rerun may claim the day if no earlier attempt claimed it. This costs a small
-control commit even on a no-update day. Explicit Update, Status and Rollback work
-at any time. `.section11-update.json` contains only strict date/policy bookkeeping,
-plus a digest of the installation for an outstanding verified plan, not private
-data, credentials, PR history or a release-fingerprint catalogue. It stays outside
-the training-data artifact.
-The separate upstream trust reads and data/control requests are counted apart
-from the daily target check and Intervals.icu accounting.
+There is no extra stored timestamp or check-only commit. Data publication,
+installation, guidance repair and changed update notices still use their normal
+validated commits. `.section11-update.json` retains installation/policy and
+verified-notice bookkeeping outside the training-data artifact. Explicit Update,
+Status and Rollback are available independently of the ten-minute allowance.
+Upstream release reads and data/control requests are separate from Intervals.icu
+accounting. The allowance does not eliminate per-run runtime and application
+verification reads.
 
-The daily allowance limits automatic discovery and installation of updates,
-including a failed attempt. It does not limit authentication of code about to run.
-Claiming the day with unverified checkout code would give that code publication
-authority before verification. Therefore an already-claimed day can still read
-and authenticate the installed release, but cannot make another automatic latest
-check. A trust failure stops the invocation before any claim, export or commit;
-there is no automatic retry. Manual Status/Update and first accepted adoption
-remain explicit operations. This distinction is a request-cost limitation, not
-a claim that all GitHub reads occur once a day.
+**Old workflow (v11.105 only):** automatic maintenance runs once per UTC day after
+data work, on a run created at or after **04:00 UTC**. A control commit claims the
+UTC day before latest-target discovery, even when nothing changes; failed or
+unknown attempts consume that day. A rerun may claim an unclaimed day. Its daily allowance limits automatic discovery
+and installation, not the separate trust reads. On-demand still needs a user-started
+run. Compatible releases preserve this behavior until you replace the workflow.
 
 Choose **Rollback** to restore the previous compatible managed tree in one new
 commit and suppress the rejected date. It checks the recorded installation's

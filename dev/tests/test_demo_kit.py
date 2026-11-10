@@ -123,7 +123,8 @@ class DemoTests(Offline):
                         'Auto sync is installed by default using launchd, systemd, cron or Windows Task Scheduler',
                         'explicit --no-timer choice keeps manual operation',
                         'manual by default and ask for your confirmation',
-                        'opt into a daily update on the first run at or after 04:00 UTC',
+                        'opt into automatic installation',
+                        'Both modes check after data work at most once every 10 minutes',
                         'one-step rollback to the previous installation'):
             self.assertIn(wording, prose)
         links = {target for _line, target, _syntax in markdown_links(local)}

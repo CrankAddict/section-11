@@ -17,17 +17,17 @@
       "hash": "303457a5f8a56d4a3363d2880931964a3390509b66363da397a2b30bfadafd45"
     },
     "README.md": {
-      "hash": "99c750283c525206423cf5ce17b95d22f40b62a5f3a9db430ec82724a8d483c5"
+      "hash": "9f282bf6fd4a253191661c5ec813ad5c4414c8b39bb833684dc5a215df470e94"
     },
     "SECTION_11.md": {
-      "hash": "6c4693f735cc25d9e19941f155a356f4ad0bef549805b9e24ba73c02ddfc4a78",
+      "hash": "0b52887163c500fdf57b0b003eb6b2f0aa28a3b5bac8d4baedb18d068870cd98",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
       "hash": "f7c85e8e0023ed6c1928945fb9e885d287bc18f1a0cc88dbd413f74363590336"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "8b799c333ef902955b22cb42cab7389a8a3309661e1329201addfd73f603d248"
+      "hash": "be1ab7bf301d88b4f9f8263064b9d60d7451298fb28b2e297357f3722dceadc4"
     },
     "SKILL.md": {
       "hash": "f4d43b991deb19792849dd0d4e80a8d9c7f325bf91d303383db4c17708295f54"
@@ -81,7 +81,7 @@
       "hash": "cd2c43fbe0e5accd33de82e3a0d9ca1473cb3c72e45126806d1b72e36e657200"
     },
     "examples/json-auto-sync/SETUP.md": {
-      "hash": "5856dd7ac0b7023df880c4bd98f83aa39ebec58269ac7b93a1bf2881be221304"
+      "hash": "64ffd1cefbc3738c9710dc7bbee2ace973bd61c1af07fb935b7b153b436c926a"
     },
     "examples/json-auto-sync/auto-sync.yml": {
       "hash": "9a938bc3b8a34306f83f3d56fbc2eff1f73ac57fe94fb66f1bb4c17dcb68f6fe"
@@ -117,13 +117,13 @@
       "hash": "f7a02e699d269b7ba5b98cdc853bf7bc4fbdf5eb6f2520d46ba63e30825c145a"
     },
     "examples/json-local-sync/SETUP.md": {
-      "hash": "2f35b25428f6085996e40ae9e091386bbb5a75496341ed369a21bb74c6a17ef6"
+      "hash": "19751ec87b666fcb7acedaaa9a8d2fc871c4d22515e74104ef3605d2554607f2"
     },
     "examples/json-manual/SETUP.md": {
-      "hash": "6c1ebe9d26f4f969ae8df955f2bd4484d502af72f3af669d8617c19974c8b06c"
+      "hash": "e400850a2b26c36d9c1573706600a90f530a88cb8f84f4d087df4b6c31713c1a"
     },
     "examples/json-on-demand/SETUP.md": {
-      "hash": "1631f4613a1a3beb43398652b8c56321422cf0a1318a8beebc9137d99ee6c299"
+      "hash": "4e1bda1e6ccb1453efbcb9c85a22a3aec10b6db5271a03fbe466622e6e4161d5"
     },
     "examples/json-on-demand/auto-sync.yml": {
       "hash": "73dda241d01db1071de7b9682ac1cc87d891f80d3a3e084bb60b97b685be5480"
@@ -132,7 +132,7 @@
       "hash": "dfa1beae4bb9d1bc614699420202f4e537b5df220089adbd05eeca8e2d6a939a"
     },
     "examples/maintenance/UPDATING.md": {
-      "hash": "133b7b069245b020fc0d1865d8f947345a0f19e9d496a014f77a2e1a9d84ac30"
+      "hash": "f82db6e8d236a520a11b6e54b0519d668c219075ac4eb4a3e1f95ca4ad5226c9"
     },
     "examples/maintenance/direct_commit.py": {
       "hash": "c19a4061c850b086da7f79fbf4a3a46b5bafc92c35b87ebf61d7a36e60d05f7e"

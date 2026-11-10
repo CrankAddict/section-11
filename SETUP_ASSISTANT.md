@@ -114,8 +114,13 @@ A "repository" (repo) is just a folder on GitHub that holds their files. A "work
 
 **Default: create a fresh repo:**
 
+New hosted setups use the final workflow directly, with no move-over step. For
+an existing repository, follow [Move to the final hosted workflow](examples/maintenance/UPDATING.md#move-to-the-final-hosted-workflow)
+only once a supporting official release exists. Keep its cron, variables, secrets
+and external Sync timer unchanged; do not treat it as a new installation.
+
 1. Go to https://github.com/CrankAddict/section-11
-2. Open the latest official date release: https://github.com/CrankAddict/section-11/releases/latest. If none exists, stop installation and wait for the first release.
+2. Open the latest official date release: https://github.com/CrankAddict/section-11/releases/latest. If it does not support the final workflow, stop installation and wait for a supporting release.
 3. Create a **new repository** on GitHub:
    - Go to https://github.com/new
    - Name it something like `my-training-data` or `t1-data` (their choice)
@@ -124,9 +129,10 @@ A "repository" (repo) is just a folder on GitHub that holds their files. A "work
    - Leave **Add a README file** unchecked so the first Sync installs the standard README with Sync Now; successful syncs update its timestamp.
    - Click **Create repository**
 4. Create or edit `.github/workflows/auto-sync.yml` in GitHub's editor using the
-   published [scheduled template](examples/json-auto-sync/auto-sync.yml), or the
+   published release's [scheduled template](examples/json-auto-sync/auto-sync.yml), or the
    [On-demand template](examples/json-on-demand/auto-sync.yml) for manual-only use.
-   If its pins say `UNSEALED`, stop and wait for the verified published template.
+   Confirm it has **Other** and **Use for the first Sync after adopting this workflow**.
+   Do not use unreleased main content or an old template marked `UNSEALED`.
    Existing users keep every literal cron, optional setting and secret name.
    On-demand retains no schedule.
 5. For repositories that already have Section 11 files, show this warning
@@ -281,13 +287,16 @@ Walk them through:
 1. Go to the **Actions** tab in their repo
 2. They should see **"Auto-Sync Intervals.icu Data"** in the left sidebar (or similar workflow name)
 3. Click on it, then click **"Run workflow"** (button on the right side)
-4. Keep their default branch (normally `main`) selected and click the green **"Run workflow"** button in the dropdown. A run started from any other branch stops at its first step without syncing.
+4. Keep their default branch (normally `main`) and **Operation: Sync** selected. Leave the first-adoption checkbox unticked for a new repository; existing users moving over tick it for that first Sync. Click the green **"Run workflow"** button. A run started from any other branch stops at its first step without syncing.
 5. Wait about 30-60 seconds, then refresh
 
 **What to check:**
 - The single sync workflow appears in Actions. Check its YAML and default-branch
   registration if it is missing; file presence alone is not registration proof.
 - The workflow run should show a green ✓
+- The log shows `Section 11 runtime verified` and `Confirmed publication:` for
+  the data commit; an existing user's first-adoption run also shows
+  `Section 11 acquisition full ZIP`. A green badge alone is not a readback.
 - The latest commit in the repository's **Code** view should be a new `Sync training data` commit
 - A `latest.json` file should now exist in the repo root with their training data
 - A `history.json` file should also appear
@@ -309,12 +318,29 @@ preserves newer data, but pre-adoption recovery also needs owner restoration of
 the earlier workflows and matching tools. See the
 [recovery guide](examples/maintenance/UPDATING.md#github-installation-and-updates).
 
-Explain that data, installation and maintenance control use separately validated
-direct commits, preserving the dossier and active workflows. Read the installed
-protocol at `section11/SECTION_11.md`, without a duplicate root copy. Automatic
-checks run once per UTC day, on the first run created at or after 04:00 UTC
-(On-demand: user-started runs only). Explicit Update/Status/Rollback work at any time. Inspect
-Actions if schedules are late or skipped.
+Explain that the latest official runtime is selected and verified on every run,
+while half mode keeps the older compatible installed application until Update is
+accepted. After data work, automatic application maintenance in either mode waits
+if another run is active or finished within ten minutes, including failures and
+no-ops. Completed skipped runs do not count; reruns, long-queued runs and incomplete
+history also defer it. The allowance does not skip data sync, although verification
+failures can stop the run. Data, installation and changed update notices still use
+validated commits; there is no check-only commit. Preserve the dossier and active
+workflows. Read the installed protocol at `section11/SECTION_11.md`, without a
+duplicate root copy. On-demand checks only on user-started runs.
+
+The menu offers Sync, Update, Status, Rollback and Sync timer, plus Other and its
+text field. Other is only for operations added by later official releases;
+unknown operations stop safely. Update/Status/Rollback work independently of the
+ten-minute allowance and do not sync data. The first-adoption checkbox forces a
+full download of the installed application; it does not mean Update. A later good
+official release fixes a broken runtime; Rollback is for a bad application release
+and may itself be blocked by a broken runtime. For a failed move-over, use the
+saved workflow and matching installation recovery in the linked guide, preserving
+newer data. Inspect Actions if schedules are late or skipped.
+
+**Old workflow (v11.105 only):** keep the daily hosted 04:00 UTC explanation for
+users who have not moved over. Compatible plain-date releases still support it.
 
 If the run fails (red ✗), ask them to click into the failed run and share the error message so you can help troubleshoot.
 
@@ -544,8 +570,9 @@ Before the first setup command, establish the user's shell and verify Python 3.1
    The first run after updating is larger while private state is populated. An earlier live check made 69 requests in about 47 s on that run, then 4 per run in about 2 s; these observations predate the state-location and interval-choice changes and are not fixed runtimes.
 
 7. Auto sync is installed in the same acceptance, with no separate timer setup.
-   Init/update install or refresh only the standard Section 11 timer at
-   `check_interval_minutes` (1, 2, 5 or 10, default 1). Tell the user to remove
+   Init/update install only the standard Section 11 timer at
+   `check_interval_minutes` (1, 2, 5 or 10, default 1) and rewrite it only when
+   it changed; an unchanged timer stays loaded. Tell the user to remove
    any timer they previously made themselves. Other commands are never inspected.
    To run only by hand, use `--no-timer` on init/update; it removes only the
    standard timer and persists `auto_sync: false`. `--timer` re-enables it.
@@ -555,8 +582,12 @@ Before the first setup command, establish the user's shell and verify Python 3.1
 8. Explain the separate update choice. Default is manual `--update`, which verifies
    a complete date release and asks before installing or removing managed files.
    Only if they opt in, add `"auto_update": true` to their existing local config,
-   preserving other fields, or use `--auto-update` on the sync command. It checks
-   once per UTC day on the first run at or after 04:00 UTC and installs without prompts,
+   preserving other fields, or use `--auto-update` on the sync command. Both modes
+   check after data work at most once every 10 minutes; failed checks count.
+   Advisory mode uses the same allowance. Once verified, an unchanged release and
+   installation inputs need no release-file download, only metadata and tag reads.
+   A clock moved back behind the saved attempt time defers once for ten minutes.
+   Full mode installs without prompts,
    never automatically downgrades and logs the result. `false`/omission disables
    content installation. There is no background enrollment. `--no-auto-update`
    suppresses all maintenance for one run. Edited and unknown managed-tree files
@@ -572,7 +603,9 @@ Before the first setup command, establish the user's shell and verify Python 3.1
    not a backup. Show the
    [recovery instructions](examples/maintenance/UPDATING.md#rollback-and-interruption-recovery)
    before enabling it. Data/custom/dossier stay separate; interrupted journals
-   require owner reconciliation. This does not enable GitHub automatic updates.
+   require owner reconciliation, except a Mac timer stopped during activation,
+   which those instructions complete with the latest release's `--update`.
+   This does not enable GitHub automatic updates.
 
 ---
 
@@ -668,7 +701,7 @@ A good answer gives the bottle exactly as their official dossier records it. Whe
 
 **If it doesn't work (local path):**
 - "I don't have access" or file not found → Check the agent can access the data directory (`~/training-data/` or wherever they created it). On platforms like OpenClaw where the agent workspace differs, verify the `Data directory` in DOSSIER.md is set correctly. Verify `latest.json` exists: `ls -la ~/training-data/latest.json`
-- Data appears stale → Check `source_freshness` and `sync.log` for a step-down, pause, provider hold or unavailable private state, then check the timer: `launchctl list | grep section11` (macOS) or `systemctl --user status section11-sync.timer` (Linux). Follow [Request allowance and pauses](examples/json-local-sync/SETUP.md#request-allowance-and-pauses); do not delete state to reset the count.
+- Data appears stale → Check `source_freshness` and `sync.log` for a step-down, pause, provider hold or unavailable private state, then check the timer: `launchctl list | grep section11` (macOS) or `systemctl --user status section11-sync.timer` (Linux). Follow [Request allowance and pauses](examples/json-local-sync/SETUP.md#request-allowance-and-pauses); do not delete state to reset the count. If the timer is missing and `.section11-state/transaction.json` exists after an automatic update, follow the [recovery instructions](examples/maintenance/UPDATING.md#rollback-and-interruption-recovery).
 - Agent can't find SECTION_11.md → Verify `section11/` directory exists in the data directory and contains the protocol files.
 - "Missing credentials" in sync.log → `.sync_config` must be in the data directory root, not inside `section11/`. Re-run `--setup` from the data directory root.
 

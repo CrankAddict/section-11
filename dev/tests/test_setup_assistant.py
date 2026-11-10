@@ -33,7 +33,7 @@ class SetupAssistantTests(unittest.TestCase):
             'all commands use `section11/examples/sync.py`',
             'No PR-creation setting or new personal token is needed',
             'No PR or merge is required',
-            'first run created at or after 04:00 UTC',
+            'check after data work at most once every 10 minutes; failed checks count',
             'Default is manual `--update`',
             '"auto_update": true',
             '`--rollback` restores the one previous local installation',

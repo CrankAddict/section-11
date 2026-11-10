@@ -27,8 +27,10 @@ FTP history or explicit empty interval, route and workout collections. These
 files demonstrate the publication contract, not every sync.py field or analysis.
 The timestamp is the synthetic day's midnight UTC, not the runner's wall time.
 
-The single sync/update workflow uses the published sealed user template. Its
-data step uses [demo/generate.py](demo/generate.py) at 05:07 UTC daily; publication,
+**Old workflow only:** the demo builder accepts the published sealed user template,
+not the final hosted workflow. Its hosted maintenance keeps the daily 04:00 UTC
+allowance; the final workflow's ten-minute allowance does not apply to this demo.
+Its data step uses [demo/generate.py](demo/generate.py) at 05:07 UTC daily; publication,
 archiving, README timestamp updates and six-file downloads use the ordinary
 verified controller.
 The fictional producer needs no athlete secrets or slow-source cache.
@@ -69,8 +71,10 @@ Scheduler; an explicit --no-timer choice keeps manual operation. The configured
 check interval is preserved; see the [local sync guide](section11/examples/json-local-sync/SETUP.md).
 
 Local updates are manual by default and ask for your confirmation. You can opt
-into a daily update on the first run at or after 04:00 UTC, after data work even
-if it failed, with one-step rollback to the previous installation. Failed or
-unknown maintenance consumes the day; a rerun may claim an unclaimed day.
+into automatic installation. Both modes check after data work at most once every
+10 minutes, even if data work failed; failed checks count. Unchanged release and
+installation inputs reuse a verified result without release-file downloads.
+A clock moved back behind the saved attempt time defers once for ten minutes.
+There is one-step rollback to the previous installation.
 Automatic checks skip a rolled-back date; explicit Update installs it and clears
 the skip; see [updates and rollback](section11/examples/maintenance/UPDATING.md).

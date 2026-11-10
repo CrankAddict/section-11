@@ -18,11 +18,11 @@ For full guided setup, including your dossier and AI connection, give your AI th
 
 1. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
 2. At [github.com/new](https://github.com/new), create a **Private** repository such as `training-data`, leaving **Add a README file** unchecked. Click **Create repository**, not Fork.
-3. Download `section11-YYYY.MM.DD-auto-sync.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). If unavailable or marked `UNSEALED`, wait for a verified release ([workflow setup](#step-2-set-up-github-repository)).
-4. Back in your repository, click **creating a new file** and name it `.github/workflows/auto-sync.yml`. Paste the downloaded contents, keep the defaults and commit.
+3. Download `section11-YYYY.MM.DD-auto-sync.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). Wait if unavailable or `UNSEALED` ([workflow setup](#step-2-set-up-github-repository)).
+4. In your repository, click **creating a new file** and name it `.github/workflows/auto-sync.yml`. Paste the downloaded contents, keep the defaults and commit.
 5. Under **Settings > Secrets and variables > Actions > New repository secret**, add `ATHLETE_ID` and `INTERVALS_KEY` with your values.
 6. If required, select **Read and write permissions** under **Settings > Actions > General > Workflow permissions** and save ([permissions](#step-4-enable-workflow-permissions)).
-7. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow**, enabling workflows if prompted. Keep the default branch and **Operation: Sync**, then run it.
+7. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow**, enabling workflows if prompted. Keep the default branch and **Operation: Sync**, leave the checkbox unticked, then run it.
 8. In **Code**, check for a successful `Sync training data` commit and a current timestamp in `latest.json`.
 9. Connect your AI to the private repository and check it can read `latest.json` and `section11/`. Without a connector, on your repository page, press the green **Code** button and choose **Download ZIP**. Upload that ZIP to your AI ([AI access](#usage-with-ai)).
 
@@ -100,7 +100,7 @@ One web form, no code to paste; the simpler choice for a phone, but your token i
    {"ref":"main","inputs":{"operation":"Sync timer"}}
    ```
 
-   If your default branch has another name, replace `main` with that name. Keep only the shown input; extra inputs are rejected with HTTP 422.
+   If your default branch has another name, replace `main` with that name. Keep only the shown input; unknown inputs are rejected with HTTP 422.
 
 4. **Save**, then use **Test run**. HTTP **204** means GitHub accepted the start, not that the sync published. Follow [Check it works](#check-the-sync-timer-works) below. Failure notifications are optional.
 
@@ -178,12 +178,7 @@ Already have a repository? See [updating an existing repository](#updating-an-ex
 
 This guide explains how to create an automated JSON data mirror of your Intervals.icu training data for use with AI coaching systems.
 
-> **Already using GitHub sync?** Keep your repository, literal cron lines, settings,
-> secrets and data. Replace `.github/workflows/auto-sync.yml` in GitHub's editor
-> using [Step 2](#step-2-set-up-github-repository), then run its default **Sync**.
-> Hosted push users replace `auto-sync.yml` and `push-workout.yml` together in the same owner commit, before the first Sync; existing dispatch inputs
-> stay the same. The first run installs the verified release and removes the three
-> old root tools. No ZIP upload, PR setting or merge is involved.
+> **Already using GitHub sync?** Follow [Move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow). Keep your repository, literal cron lines, settings, secrets and data. An existing compatible installation stays in place in half mode until you choose Update.
 
 > **Prefer an interactive guide?** Paste [SETUP_ASSISTANT.md](../../SETUP_ASSISTANT.md) into any AI chat and it will walk you through this entire setup step by step.
 
@@ -225,8 +220,7 @@ We recommend one setup per user. Stop the old timer or workflow before changing 
 
 **Existing repositories:** follow the [migration steps](#updating-an-existing-repository).
 Keep every literal cron and optional environment setting in the replacement
-workflow. The published
-bootstrap verifies the release before any installation;
+workflow. The verified latest runtime checks the application before any installation;
 the controller retains cache staging, restore and changed-only save after
 confirmed publication. No new secret is needed.
 
@@ -259,10 +253,11 @@ confirmed publication. No new secret is needed.
 Use the published [scheduled workflow](auto-sync.yml), or the exact
 `section11-YYYY.MM.DD-auto-sync.yml` asset on the matching
 [official release](https://github.com/CrankAddict/section-11/releases/latest).
-The detached asset is verified byte-for-byte against the release manifest. If it still says
-`UNSEALED`, wait for the maintainer's verified release; do not substitute raw-main
-code or invent pins. An unsealed workflow stops before checkout or installation;
-an existing old workflow continues unchanged until you replace it. You do not upload a release ZIP.
+The detached asset is verified byte-for-byte against the release manifest. Use a
+release that supports the final workflow, with **Other** and the first-adoption
+checkbox. Do not substitute raw-main code. **Old templates only:** `UNSEALED`
+means the template is not ready to use; never invent its pins. An existing old
+workflow continues unchanged until you replace it. You do not upload a release ZIP.
 
 1. In GitHub, create or edit `.github/workflows/auto-sync.yml`.
 2. Replace its contents with the published scheduled template. Existing users
@@ -555,6 +550,15 @@ Date-only/exact-midnight workouts use labelled 10:00 local by default. Choose an
 The workflow file binds triggers, actions and secrets; verified managed code
 implements the operation. In outline:
 
+- **Runtime and application:** each run selects and verifies the latest official
+  runtime. Half mode keeps the installed application until you choose Update.
+  Verification failure stops the run; the next run selects again.
+- **Operations:** Sync, Update, Status, Rollback and Sync timer, plus Other and its
+  text field for operations added by later releases. Unknown operations stop safely.
+  Use the first-adoption checkbox only for the first Sync after moving over.
+- **Update allowance:** data sync still runs when automatic application maintenance
+  is deferred because another run was active or finished within ten minutes.
+  Both update modes share this allowance; completed skipped runs do not count.
 - **Actions:** checkout, setup-python, cache and upload-artifact retain full commit pins.
 - **Permissions:** effective `contents: write` and Actions-run read access are needed.
 - **One writer at a time:** sync, update and rollback share a queue without cancelling
@@ -570,8 +574,8 @@ implements the operation. In outline:
 - **Download:** a manual run retains the six-JSON artifact after successful validation,
   even if later publication or maintenance fails. It excludes maps, ETA history and state.
 - **Data commit:** generated files, UTC archive and normal README timestamp form one
-  separately validated child of the observed default tip. Installation and daily
-  control are separate commits. This data commit preserves personal files and changes
+  separately validated child of the observed default tip. Installations and changed
+  update notices use separate commits; there is no check-only commit. This data commit preserves personal files and changes
   only the README timestamp.
 - **Outcome:** one non-forced ref write is followed by commit/tree readback, even after
   a lost response. Confirmed presence is reported. An unknown outcome, denial or
@@ -813,30 +817,34 @@ export carries a fixed, privacy-safe `update_notice` until it is resolved. Choos
 **Status** only shows the plan; **Rollback** restores the previous installation.
 There is no PR or merge step. For automatic installation set
 `SECTION11_AUTO_UPDATE=true` under **Settings > Secrets and variables > Actions >
-Variables**. Either way the check runs once per UTC day, on the first run created
-at or after **04:00 UTC**.
+Variables**. Both modes check after data work, subject to the ten-minute run
+allowance. Runtime verification still happens on each run; it does not install a
+newer application. A later good official release fixes a broken runtime, which can
+also block Rollback; Rollback is for a bad application release.
+
+**Old workflow (v11.105 only):** daily hosted maintenance from 04:00 UTC remains
+until you follow the [move-over instructions](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow).
 
 See [updates and recovery](../maintenance/UPDATING.md#github-installation-and-updates)
-for full mode, the daily check, `.section11-update.json`, rollback and owner
+for full mode, conservative deferral, `.section11-update.json`, rollback and owner
 recovery.
 
 ## Keeping Section 11 current
 
 ### Updating an existing repository
 
-Keep the same repository, settings, secrets, data, dossier and personal files.
-Follow [Step 2](#step-2-set-up-github-repository), retaining every literal data
-cron and optional setting. Hosted push
-users replace both stubs together in the
-same owner commit, before the first Sync. Run default **Sync** once or wait for the retained
-schedule. Old/copy-only/receiptless setups receive the latest verified release,
-even after intervening releases; no first-PR or historical-match step exists.
+Follow [Move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow)
+once a supporting official release is available. It covers preserving your cron
+and settings, the first Sync checkbox, log checks and going back. For older
+root-tool setups, [Step 2](#step-2-set-up-github-repository) also covers replacing
+both stubs in the same owner commit, before the first Sync.
 
 ### Owner-controlled workflow maintenance
 
 The stable workflow contains triggers, action/runtime bindings, permissions,
-secret/variable bindings and trusted entry calls. Data/update/cache logic is
-managed under `section11/`; routine releases do not require another workflow edit.
+secret/variable bindings and a fixed verification gate. The latest verified official
+runtime supplies workflow logic on every run; `section11/` holds the installed
+application. Routine releases do not require another workflow edit.
 Future incompatible workflow/runtime changes remain owner-controlled. Preserve
 the current cron and settings when applying a published replacement.
 

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shlex
+import signal
 import subprocess
 import sys
 from unittest import mock
@@ -29,12 +30,24 @@ def steps(text):
     return dict((block.splitlines()[0], block) for block in text.split('      - name: ')[1:])
 
 
+def deadline_guard(text):
+    """The step guard exactly as a copied template writes it to the runner."""
+    start = '          cat > "$RUNNER_TEMP/section11-deadline.py" <<\'SECTION11_DEADLINE\'\n'
+    end = '          SECTION11_DEADLINE\n'
+    if text.count(start) != 1 or text.count(end) != 1:
+        raise ValueError('missing or ambiguous step deadline guard')
+    lines = text.split(start, 1)[1].split(end, 1)[0].splitlines(keepends=True)
+    if any(line.strip() and not line.startswith('          ') for line in lines):
+        raise ValueError('invalid embedded guard indentation')
+    return ''.join(line[10:] if line.strip() else '\n' for line in lines)
+
+
 class WorkflowTests(Offline):
     def test_verbatim_gate_and_legacy_fixture_hashes(self):
         gate = (ROOT / 'dev/hosted_gate.py').read_bytes()
         for name, text in zip(S.WORKFLOWS, workflows()):
             self.assertEqual(S.embedded_gate(text.encode()), gate)
-            self.assertEqual(text.splitlines()[0], '# Section 11 workflow v11.109')
+            self.assertEqual(text.splitlines()[0], '# Section 11 workflow v11.111')
             old = ROOT / 'dev/fixtures/hosted' / (name.split('/')[1] + '-v11.105.yml')
             expected = ('11b4954442730b61c8b5fc7090f7553ab511c4593ab4ee939f619f2319f8c93f'
                         if 'json-auto-sync' in name else
@@ -50,6 +63,7 @@ class WorkflowTests(Offline):
         for text in workflows():
             blocks = steps(text)
             names = ['Require default branch', 'Checkout default branch', 'Setup Python',
+                     'Write step deadline guard',
                      'Select and fetch official runtime', 'Write fixed verification gate',
                      'Verify runtime dependencies', 'Install dependencies', 'Prepare operation',
                      'Prepare slow cache staging', 'Restore slow sources', 'Run sync',
@@ -63,7 +77,9 @@ class WorkflowTests(Offline):
                 self.assertEqual('GITHUB_TOKEN:' in block, expected_token, name)
                 self.assertEqual('GH_TOKEN:' in block, name == 'Select and fetch official runtime', name)
                 self.assertEqual('secrets.' in block, name == 'Run sync', name)
-                if name not in ('Require default branch', 'Write fixed verification gate'):
+                # The three exempt steps only test a variable or write one fixed local file.
+                if name not in ('Require default branch', 'Write step deadline guard',
+                                'Write fixed verification gate'):
                     self.assertRegex(block, r'(?m)^        timeout-minutes: [1-9][0-9]*$')
                 if name in phases:
                     self.assertIn('python -I -B "$RUNNER_TEMP/section11-gate.py" ' + phases[name], block)
@@ -117,15 +133,23 @@ class WorkflowTests(Offline):
 
 
 class SelectionTests(Offline):
-    def execute(self, responses, *, template=0):
+    def execute(self, responses, *, template=0, seconds=30):
         block = steps(workflows()[template])['Select and fetch official runtime']
         source = '\n'.join(line[10:] for line in block.split('        run: |\n', 1)[1].splitlines())
+        # Every official read runs under the template's own guard. Only a stall
+        # test shortens the template's 30-second read deadline.
+        bound = 'python -I -B "$RUNNER_TEMP/section11-deadline.py" 30 \\\n'
+        self.assertEqual(source.count(bound), 1)
+        source = source.replace(bound, bound.replace(' 30 ', ' ' + str(seconds) + ' '))
+        guard = self.root / 'section11-deadline.py'
+        guard.write_text(deadline_guard(workflows()[template]))
         output = self.root / 'outputs'
         binary = self.root / 'bin'
         binary.mkdir()
         statuses = []
         for index, value in enumerate(responses):
-            status, body = (1, b'') if isinstance(value, int) else value if isinstance(value, tuple) else (0, value)
+            status, body = (('stall', b'') if value == 'stall' else (1, b'') if isinstance(value, int)
+                            else value if isinstance(value, tuple) else (0, value))
             statuses.append(status)
             (self.root / f'gh-{index}.out').write_bytes(body)
         (self.root / 'gh_status.json').write_text(json.dumps(statuses))
@@ -138,9 +162,24 @@ calls = json.loads(log.read_text()) if log.exists() else []
 index = len(calls)
 calls.append({{'argv': sys.argv[1:], 'env': dict(os.environ), 'cwd': os.getcwd()}})
 log.write_text(json.dumps(calls))
+status = json.loads((root / 'gh_status.json').read_text())[index]
+if status == 'stall':
+    # A hung read with a child; both ignore every signal that can be ignored.
+    import signal, subprocess, time
+    for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+        signal.signal(number, signal.SIG_IGN)
+    child = subprocess.Popen([sys.executable, '-I', '-B', '-c', 'import time; time.sleep(300)'])
+    (root / 'stall_pids').write_text(str(os.getpid()) + ' ' + str(child.pid))
+    time.sleep(300)
 sys.stdout.buffer.write((root / ('gh-' + str(index) + '.out')).read_bytes())
-raise SystemExit(json.loads((root / 'gh_status.json').read_text())[index])
+raise SystemExit(status)
 """)
+        self.addCleanup(self.stop_stalled)
+        # The guard's interpreter is the same protected one; record its use.
+        python = binary / 'python'
+        python.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> ' + shlex.quote(str(self.root / 'python_calls'))
+                          + '\nexec ' + shlex.quote(sys.executable) + ' "$@"\n')
+        python.chmod(0o700)
         # Only this offline stand-in can satisfy gh on the test PATH. Its Python
         # is the same protected interpreter running unittest, with isolation.
         fake = binary / 'gh'
@@ -155,8 +194,12 @@ raise SystemExit(json.loads((root / 'gh_status.json').read_text())[index])
                'GH_TOKEN': 'synthetic-token', 'GITHUB_OUTPUT': str(output),
                'GITHUB_TOKEN': 'must-not-inherit', 'GH_HOST': 'bad.invalid', 'GIT_CONFIG_COUNT': '1'}
         result = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', source],
-                                env=env, capture_output=True)
+                                env=env, capture_output=True, timeout=120)
         calls = json.loads((self.root / 'gh_calls.json').read_text())
+        guarded = (self.root / 'python_calls').read_text().splitlines()
+        self.assertEqual(len(guarded), len(calls))
+        for line in guarded:
+            self.assertTrue(line.startswith('-I -B ' + str(guard) + ' ' + str(seconds) + ' env -i PATH='), line)
         for call in calls:
             self.assertEqual(call['argv'][:5], ['api', '--hostname', 'github.com', '--method', 'GET'])
             self.assertTrue(call['argv'][5].startswith('repos/CrankAddict/section-11/'))
@@ -171,6 +214,15 @@ raise SystemExit(json.loads((root / 'gh_status.json').read_text())[index])
             if '/commits/' in call['argv'][5]:
                 self.assertEqual(call['argv'][6:], ['--jq', '.sha'])
         return result, calls, output.read_text() if output.exists() else None
+
+    def stalled(self):
+        path = self.root / 'stall_pids'
+        return [int(pid) for pid in path.read_text().split()] if path.exists() else []
+
+    def stop_stalled(self):
+        for pid in self.stalled():
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(pid, signal.SIGKILL)
 
     def selected(self, tag='2026.11.09-2'):
         # Model native gh --jq @tsv/@uri output, not a live API or jq check.
@@ -206,6 +258,25 @@ raise SystemExit(json.loads((root / 'gh_status.json').read_text())[index])
         self.assertEqual(len(calls), 3)
         self.assertIsNone(output)
         self.assertFalse((self.root / 'section11-entry/hosted_runtime.py').exists())
+
+    def stall_at(self, position):
+        responses = [self.selected(), self.commit(), b'{}', b'pass', self.commit()][:position] + ['stall']
+        result, calls, output = self.execute(responses, seconds=1)
+        self.assertEqual(result.returncode, 124, result.stderr)
+        self.assertIn(b'::error::Step deadline of 1 seconds reached', result.stderr)
+        self.assertEqual(len(calls), position + 1)
+        self.assertIsNone(output)
+        self.assertEqual(len(self.stalled()), 2)
+        for pid in self.stalled():
+            with self.assertRaises(ProcessLookupError):
+                os.kill(pid, 0)
+
+    def test_stalled_read_in_a_command_substitution_fails_at_its_deadline_with_no_process_left(self):
+        self.stall_at(0)
+
+    def test_stalled_redirected_read_fails_at_its_deadline_with_no_process_left(self):
+        self.stall_at(3)
+        self.assertFalse((self.root / 'section11-entry/hosted_runtime.py').read_bytes())
 
     def test_moved_tag_refuses_handoff(self):
         result, calls, output = self.execute([self.selected(), self.commit(), b'{}', b'pass', self.commit('b' * 40)])

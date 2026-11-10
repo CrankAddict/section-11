@@ -1,4 +1,4 @@
-# Section 11 workflow v11.109
+# Section 11 workflow v11.111
 name: Auto-Sync Intervals.icu Data
 run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'Sync timer' && 'Sync timer run' || 'Auto-Sync Intervals.icu Data' }}
 
@@ -55,6 +55,61 @@ jobs:
         timeout-minutes: 3
         with:
           python-version: '3.11'
+      - name: Write step deadline guard
+        shell: bash
+        run: |
+          umask 077
+          set -o noclobber
+          cat > "$RUNNER_TEMP/section11-deadline.py" <<'SECTION11_DEADLINE'
+          """Fixed step guard: run one command; nothing it started outlives the step."""
+          import os
+          import signal
+          import subprocess
+          import sys
+          import time
+
+
+          def clear(child):
+              """SIGKILL the command's process group until no member is left."""
+              end = time.monotonic() + 10
+              while time.monotonic() < end:
+                  child.poll()  # reap the group leader so an empty group is visible
+                  try:
+                      os.killpg(child.pid, signal.SIGKILL)
+                  except ProcessLookupError:
+                      return True
+                  except PermissionError:
+                      pass
+                  time.sleep(0.02)
+              return False
+
+
+          def main():
+              seconds, command = int(sys.argv[1]), sys.argv[2:]
+              stop = []
+              # Cancellation reaches this entry process as SIGINT, then SIGTERM.
+              for number in (signal.SIGINT, signal.SIGTERM):
+                  signal.signal(number, lambda received, frame: stop.append(received))
+              # A new session makes the command and all it starts one process group.
+              child = subprocess.Popen(command, start_new_session=True)
+              deadline = time.monotonic() + seconds
+              while child.poll() is None and not stop and time.monotonic() < deadline:
+                  time.sleep(0.05)
+              status = child.poll()
+              if not clear(child):
+                  print('::error::Step processes could not be stopped.', file=sys.stderr)
+                  return 1
+              if stop:
+                  return 128 + stop[0]
+              if status is None:
+                  print('::error::Step deadline of ' + str(seconds) + ' seconds reached; its processes were stopped.', file=sys.stderr)
+                  return 124
+              return status if status >= 0 else 128 - status
+
+
+          if __name__ == '__main__':
+              sys.exit(main())
+          SECTION11_DEADLINE
       - name: Select and fetch official runtime
         id: select
         timeout-minutes: 3
@@ -67,7 +122,8 @@ jobs:
           mkdir "$RUNNER_TEMP/section11-entry" "$RUNNER_TEMP/section11-gh-config"
           cd "$RUNNER_TEMP/section11-gh-config"
           gh_api() {
-            env -i PATH="$PATH" LANG=C.UTF-8 GH_TOKEN="$GH_TOKEN" GH_CONFIG_DIR="$PWD" GH_PROMPT_DISABLED=1 \
+            python -I -B "$RUNNER_TEMP/section11-deadline.py" 30 \
+              env -i PATH="$PATH" LANG=C.UTF-8 GH_TOKEN="$GH_TOKEN" GH_CONFIG_DIR="$PWD" GH_PROMPT_DISABLED=1 \
               gh api --hostname github.com --method GET "repos/CrankAddict/section-11/$1" "${@:2}"
           }
           selection="$(gh_api releases/latest --jq '[.tag_name, ("refs/tags/" + .tag_name | @uri)] | @tsv')"
@@ -208,10 +264,10 @@ jobs:
         env:
           RUNTIME_TAG: ${{ steps.select.outputs.tag }}
           RUNTIME_COMMIT: ${{ steps.select.outputs.commit }}
-        run: python -I -B "$RUNNER_TEMP/section11-gate.py" bootstrap --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2
+        run: exec python -I -B "$RUNNER_TEMP/section11-deadline.py" 270 python -I -B "$RUNNER_TEMP/section11-gate.py" bootstrap --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2
       - name: Install dependencies
         timeout-minutes: 3
-        run: python -I -B -m pip install requests
+        run: exec python -I -B "$RUNNER_TEMP/section11-deadline.py" 150 python -I -B -m pip install requests
       - name: Prepare operation
         id: prepare
         timeout-minutes: 5
@@ -225,7 +281,7 @@ jobs:
         run: |
           args=(--accept-install)
           if [[ "$FORCE_RELEASE_DOWNLOAD" == true ]]; then args+=(--force-release-download); fi
-          python -I -B "$RUNNER_TEMP/section11-gate.py" prepare --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" "${args[@]}"
+          exec python -I -B "$RUNNER_TEMP/section11-deadline.py" 270 python -I -B "$RUNNER_TEMP/section11-gate.py" prepare --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" "${args[@]}"
       - name: Prepare slow cache staging
         id: slow_cache_context
         if: steps.prepare.outputs.run_sync == 'true'
@@ -238,7 +294,7 @@ jobs:
           APPLICATION_TAG: ${{ steps.prepare.outputs.application_tag }}
           APPLICATION_COMMIT: ${{ steps.prepare.outputs.application_commit }}
           APPLICATION_DIGEST: ${{ steps.prepare.outputs.application_sha256 }}
-        run: python -I -B "$RUNNER_TEMP/section11-gate.py" cache-prepare --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
+        run: exec python -I -B "$RUNNER_TEMP/section11-deadline.py" 90 python -I -B "$RUNNER_TEMP/section11-gate.py" cache-prepare --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
       - name: Restore slow sources
         if: steps.slow_cache_context.outputs.enabled == 'true'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -271,7 +327,7 @@ jobs:
           SECTION11_ROUTE_WEATHER: ${{ vars.SECTION11_ROUTE_WEATHER }}
           SECTION11_ROUTE_WEATHER_DEFAULT_START: ${{ vars.SECTION11_ROUTE_WEATHER_DEFAULT_START }}
           SECTION11_DAYS: '7'
-        run: python -I -B "$RUNNER_TEMP/section11-gate.py" sync --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
+        run: exec python -I -B "$RUNNER_TEMP/section11-deadline.py" 570 python -I -B "$RUNNER_TEMP/section11-gate.py" sync --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
       - name: Verify generated data
         id: validate
         if: steps.prepare.outputs.run_sync == 'true'
@@ -283,7 +339,7 @@ jobs:
           APPLICATION_TAG: ${{ steps.prepare.outputs.application_tag }}
           APPLICATION_COMMIT: ${{ steps.prepare.outputs.application_commit }}
           APPLICATION_DIGEST: ${{ steps.prepare.outputs.application_sha256 }}
-        run: python -I -B "$RUNNER_TEMP/section11-gate.py" validate --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
+        run: exec python -I -B "$RUNNER_TEMP/section11-deadline.py" 90 python -I -B "$RUNNER_TEMP/section11-gate.py" validate --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
       - name: Publish data and update README
         id: publish
         if: steps.prepare.outputs.run_sync == 'true'
@@ -296,7 +352,7 @@ jobs:
           APPLICATION_COMMIT: ${{ steps.prepare.outputs.application_commit }}
           APPLICATION_DIGEST: ${{ steps.prepare.outputs.application_sha256 }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -I -B "$RUNNER_TEMP/section11-gate.py" publish --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
+        run: exec python -I -B "$RUNNER_TEMP/section11-deadline.py" 270 python -I -B "$RUNNER_TEMP/section11-gate.py" publish --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
       - name: Prepare changed slow sources for saving
         id: slow_cache_save_file
         if: success() && steps.publish.outputs.published == 'true' && steps.sync.outputs.cache_changed == 'true' && steps.slow_cache_context.outputs.enabled == 'true'
@@ -309,7 +365,7 @@ jobs:
           APPLICATION_TAG: ${{ steps.prepare.outputs.application_tag }}
           APPLICATION_COMMIT: ${{ steps.prepare.outputs.application_commit }}
           APPLICATION_DIGEST: ${{ steps.prepare.outputs.application_sha256 }}
-        run: python -I -B "$RUNNER_TEMP/section11-gate.py" cache-promote --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
+        run: exec python -I -B "$RUNNER_TEMP/section11-deadline.py" 90 python -I -B "$RUNNER_TEMP/section11-gate.py" cache-promote --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
       - name: Save changed slow sources
         if: success() && steps.publish.outputs.published == 'true' && steps.slow_cache_save_file.outputs.ready == 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -330,7 +386,7 @@ jobs:
           APPLICATION_COMMIT: ${{ steps.prepare.outputs.application_commit }}
           APPLICATION_DIGEST: ${{ steps.prepare.outputs.application_sha256 }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: python -I -B "$RUNNER_TEMP/section11-gate.py" maintain --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
+        run: exec python -I -B "$RUNNER_TEMP/section11-deadline.py" 270 python -I -B "$RUNNER_TEMP/section11-gate.py" maintain --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2 --manifest-sha256 "$RUNTIME_DIGEST" --application-tag "$APPLICATION_TAG" --application-commit "$APPLICATION_COMMIT" --application-sha256 "$APPLICATION_DIGEST"
       - name: Upload data files for download
         if: always() && github.event_name == 'workflow_dispatch' && steps.prepare.outputs.operation != 'Sync timer' && steps.validate.outcome == 'success'
         timeout-minutes: 2

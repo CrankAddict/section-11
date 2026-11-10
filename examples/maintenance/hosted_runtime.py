@@ -714,18 +714,39 @@ def main():
     if args.phase == 'maintain':
         controller.maintain(runtime=runtime)
     else:
-        try:
-            {'cache-prepare': controller.cache_prepare, 'sync': lambda: controller.run_sync(isolated=True),
-             'finalize-export': controller.finalize_export, 'validate': controller.validate_generated,
-             'publish': controller.publish_data, 'cache-promote': controller.cache_promote}[args.phase]()
-        except RuntimeError:
-            if args.phase == 'publish':
-                info = controller.context()
-                info['publication_uncertain'] = True
-                controller.context(info)
-            raise
+        run_phase(controller, args.phase)
     if privileged:
         print('Section 11 upstream total: requests=' + str(transport.requests) + '; bytes=' + str(transport.bytes))
+
+
+def run_phase(controller, phase):
+    call = {'cache-prepare': controller.cache_prepare, 'sync': lambda: controller.run_sync(isolated=True),
+            'finalize-export': controller.finalize_export, 'validate': controller.validate_generated,
+            'publish': controller.publish_data, 'cache-promote': controller.cache_promote}[phase]
+    if phase != 'publish':
+        return call()
+    # Recorded before the first publication request. A publisher stopped by its
+    # step deadline, cancellation or any other kill never reaches the lines
+    # below, so maintenance still reads the data outcome as uncertain.
+    publication_uncertain(controller, True)
+    try:
+        call()
+    except RuntimeError:
+        raise
+    except Exception:
+        # A refusal reported by this process is a known outcome, as before.
+        publication_uncertain(controller, False)
+        raise
+    publication_uncertain(controller, False)
+
+
+def publication_uncertain(controller, value):
+    info = controller.context()
+    if value:
+        info['publication_uncertain'] = True
+    else:
+        info.pop('publication_uncertain', None)
+    controller.context(info)
 
 
 def emit(**values):

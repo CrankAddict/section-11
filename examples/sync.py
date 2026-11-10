@@ -4,6 +4,10 @@ Intervals.icu → GitHub/Local JSON Export
 Exports training data for LLM access.
 Supports both automated GitHub sync and manual local export.
 
+Version 3.174 - Hosted workflow steps stop everything they started at their own
+  deadline or on cancel, so no later step can overlap a stopped one; an interrupted
+  publication stays uncertain for maintenance. Protocol v11.111.
+
 Version 3.173 - Local and Manual check for verified updates at most every 10 minutes after
   data work, instead of once a day; an unchanged release reuses the last verified check
   without downloading. Protocol v11.110.
@@ -6239,7 +6243,7 @@ class IntervalsSync:
     GITHUB_API_URL = "https://api.github.com"
     FTP_HISTORY_FILE = "ftp_history.json"
     HISTORY_FILE = "history.json"
-    VERSION = "3.173"
+    VERSION = "3.174"
     ROUTE_TERRAIN_VERSION = "3.142"
     ROUTE_RETRY_BACKOFF_SECONDS = 15 * 60
     INTERVALS_FILE = "intervals.json"

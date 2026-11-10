@@ -1,6 +1,6 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.110  
+**Protocol Version:** 11.111  
 **Last Updated:** 2026-11-08
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.111 - Hosted step deadlines (2026-11-10, sync.py v3.174):**
+
+Each long step in the hosted workflows now runs under a fixed guard with its own deadline, set just inside the step's time limit. At that deadline, or when a run is cancelled, the guard stops the step's program and everything it started before the step ends, so a stalled download, sync or publish can no longer keep running beside a later step. A publication that is cut off is treated as uncertain, so maintenance does not act on it. Workflow v11.111.
 
 **v11.110 - Local update check every 10 minutes (2026-11-10, sync.py v3.173):**
 

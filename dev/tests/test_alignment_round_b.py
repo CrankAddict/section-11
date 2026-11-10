@@ -166,8 +166,9 @@ class RoundBCleanupTests(Offline):
         (self.root / 'examples/agentic/push.py').unlink()
         self.assertFalse(SYNC._local_notice_matches(self.root, saved))
 
-    def test_timer_adapter_stays_within_rev4_ceiling(self):
+    def test_timer_adapter_stays_within_activation_recovery_ceiling(self):
         lines = (Path(__file__).resolve().parents[2] / 'examples/sync.py').read_text().splitlines()
         start = lines.index('class LocalTimers:')
         end = next(i for i in range(start + 1, len(lines)) if lines[i] and not lines[i][0].isspace())
-        self.assertLessEqual(end - start, 283)
+        # The hotfix adds loaded-job proof and the scheduled-change guard.
+        self.assertLessEqual(end - start, 435)  # Includes the ordinary-path fallback.

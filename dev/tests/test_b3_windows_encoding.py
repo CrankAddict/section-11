@@ -135,7 +135,7 @@ class WindowsEncodingTests(Offline):
         self.assertEqual(writes[0][1], '/Create')
         self.assertEqual(set(tasks), {'\\Section11Sync'})
         self.assertEqual(set(plan['before']['resources']), {'task:\\Section11Sync'})
-        self.assertIsNotNone(plan['create'])
+        self.assertIsNone(plan['create'])
         xml = tasks['\\Section11Sync'].decode('utf-16')
         for value in (str(root), 'PT5M', '--lockfile', 'local_scheduled'):
             self.assertIn(value, xml)

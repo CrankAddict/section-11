@@ -68,12 +68,12 @@ class LocalInstallerTests(Offline):
                 self.assertTrue(result, output)
                 self.assertEqual(prompts, 1)
                 self.assertEqual((self.root / '.section11-state/previous.json').read_bytes(), previous)
-        self.assertEqual(len(writes), 2)
-        self.assertEqual(writes[0], writes[1])
+        self.assertEqual(writes, [])
         self.assertFalse((self.root / '.section11-state/transaction.json').exists())
 
-    def test_matching_refresh_unknown_preserves_journal_and_previous_slot(self):
+    def test_changed_timer_unknown_preserves_journal_and_previous_slot(self):
         self.assertTrue(self.run_install()[0])
+        write(self.root, {'.sync_config.json': b'{"check_interval_minutes":10}'})
         previous = (self.root / '.section11-state/previous.json').read_bytes()
         original = self.timers.command
         writes = []

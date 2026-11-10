@@ -1,0 +1,68 @@
+# exit 0
+gui/UID/com.section11.sync = {
+	active count = 0
+	path = /Users/USER/Library/LaunchAgents/com.section11.sync.plist
+	type = LaunchAgent
+	state = not running
+
+	program = /Users/USER/section11-data/.venv/bin/python3
+	arguments = {
+		/Users/USER/section11-data/.venv/bin/python3
+		/Users/USER/section11-data/section11/examples/sync.py
+		--output
+		latest.json
+		--lockfile
+	}
+
+	working directory = /Users/USER/section11-data
+
+	stdout path = /Users/USER/section11-data/sync.log
+	stderr path = /Users/USER/section11-data/sync.log
+	inherited environment = {
+		<redacted inherited environment>
+	}
+
+	default environment = {
+		PATH => /usr/bin:/bin:/usr/sbin:/sbin
+	}
+
+	environment = {
+		OSLogRateLimit => 64
+		SECTION11_EXPORT_MODE => local_scheduled
+		XPC_SERVICE_NAME => com.section11.sync
+	}
+
+	domain = gui/UID [100003]
+	asid = 100003
+	minimum runtime = 10
+	exit timeout = 5
+	runs = 18
+	last exit code = 0
+
+	resource coalition = {
+		ID = 57334
+		type = resource
+		state = active
+		active count = 1
+		name = com.section11.sync
+	}
+
+	jetsam coalition = {
+		ID = 57335
+		type = jetsam
+		state = active
+		active count = 1
+		name = com.section11.sync
+	}
+
+	spawn type = daemon (3)
+	jetsam priority = 40
+	jetsam memory limit (active) = (unlimited)
+	jetsam memory limit (inactive) = (unlimited)
+	jetsamproperties category = daemon
+	jetsam thread limit = 32
+	cpumon = default
+	run interval = 60 seconds
+
+	properties = runatload | inferred program
+}

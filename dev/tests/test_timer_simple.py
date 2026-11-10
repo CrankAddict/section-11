@@ -52,7 +52,8 @@ class SimpleTimerTests(Offline):
             self.assertIn('--lockfile', plan['after']['cron'])
             timer.apply(plan, self.root)
             repeat = timer.plan({'check_interval_minutes': minutes})
-            self.assertIsNotNone(repeat['create'])
+            self.assertIsNone(repeat['create'])
+            self.assertEqual(repeat['remove'], [])
             self.assertEqual(repeat['after'], repeat['before']['resources'])
         for value in (True, '5', 3, None):
             self.assertEqual(timer.plan({'check_interval_minutes': value})['minutes'], 1)

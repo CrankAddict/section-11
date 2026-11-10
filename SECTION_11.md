@@ -1,6 +1,6 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.108  
+**Protocol Version:** 11.109  
 **Last Updated:** 2026-11-08
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.109 - Local timer fix (2026-11-10, sync.py v3.172):**
+
+A Local update no longer removes and reloads a timer that has not changed. On a Mac, an automatic update from release 2026.11.03 to 2026.11.10 could stop its own timer and leave the installation unfinished, so `latest.json` stopped updating. Running the fixed release's `sync.py --update` from the data folder completes that installation and reloads the timer. If an ordinary update or setup cannot confirm a timer's loaded state, it leaves the timer unchanged and prints a note.
 
 **v11.108 - Same-day release names (2026-11-09, sync.py v3.171):**
 

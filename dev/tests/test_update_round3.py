@@ -220,6 +220,8 @@ class LocalAutoTests(Offline):
 
     def test_post_refresh_metadata_failure_preserves_journal_without_another_write(self):
         self.run_auto()
+        self.protected['.sync_config.json'] = b'{"auto_update":true,"check_interval_minutes":5}'
+        write(self.root, {'.sync_config.json': self.protected['.sync_config.json']})
         previous = (self.root / '.section11-state/previous.json').read_bytes()
         self.clock.now.return_value = datetime(2026, 10, 25, 12, tzinfo=timezone.utc)
         state_write, command = SYNC._write_install_state, SYNC.LocalTimers.command

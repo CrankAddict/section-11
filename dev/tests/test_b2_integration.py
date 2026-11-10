@@ -285,7 +285,7 @@ class ControllerIntegration(Offline):
 class UnsealedWorkflowExecution(Offline):
     def test_actual_first_step_rejects_unsealed_and_accepts_only_synthetic_complete_pins(self):
         for name in ('json-auto-sync', 'json-on-demand'):
-            text = (ROOT / 'examples' / name / 'auto-sync.yml').read_text()
+            text = (ROOT / 'dev/fixtures/hosted' / (name + '-v11.105.yml')).read_text()
             guard = text.split('run: |', 1)[1].split('      - name:', 1)[0]
             script = '\n'.join(line[10:] for line in guard.splitlines() if line.strip())
             for commit, digest, result in (('UNSEALED', 'UNSEALED', 1),

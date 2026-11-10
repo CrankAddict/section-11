@@ -262,7 +262,7 @@ class StateLocation(unittest.TestCase):
         paths = [line.strip() for line in artifact.split("path: |", 1)[1].splitlines() if line.strip()]
         self.assertEqual(paths, ["latest.json", "history.json", "intervals.json", "routes.json",
                                  "saved_workouts.json", "ftp_history.json"])
-        self.assertIn('hosted.py" publish --wrapper-api 2', workflow)
+        self.assertIn('section11-gate.py" publish --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2', workflow)
         hosted = (SYNC_PATH.parent / 'maintenance/hosted.py').read_text()
         self.assertIn('validate_data.prepare(root, previous_path, stage)', hosted)
         self.assertIn('changes[archive] = latest', hosted)

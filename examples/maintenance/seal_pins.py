@@ -17,6 +17,8 @@ UPSTREAM = 'https://api.github.com/repos/CrankAddict/section-11'
 VERIFIER = 'examples/sync.py'
 BOOTSTRAP = 'examples/maintenance/hosted_bootstrap.py'
 WORKFLOWS = ('examples/json-auto-sync/auto-sync.yml', 'examples/json-on-demand/auto-sync.yml')
+RUNTIME = 'examples/maintenance/hosted_runtime.py'
+GATE_SHA256 = '7f769622bd28668908cc33de74b65cddf02b326cb84a46b7ccc036c1e696de38'
 MAX_BYTES = 8 * 1024 * 1024
 
 
@@ -103,13 +105,41 @@ def ordinary(root, name):
     return path.read_bytes()
 
 
+def embedded_gate(data):
+    start = b'          cat > "$RUNNER_TEMP/section11-gate.py" <<\'SECTION11_GATE\'\n'
+    end = b'          SECTION11_GATE\n'
+    if data.count(start) != 1 or data.count(end) != 1:
+        raise ValueError('missing or ambiguous fixed gate')
+    lines = data.split(start, 1)[1].split(end, 1)[0].splitlines(keepends=True)
+    if not lines or any(not line.startswith(b'          ') for line in lines):
+        raise ValueError('invalid embedded gate indentation')
+    gate = b''.join(line[10:] for line in lines)
+    if sha256(gate) != GATE_SHA256:
+        raise ValueError('fixed gate differs from reviewed bytes')
+    return gate
+
+
+def final_workflow(data):
+    return b'section11-gate.py' in data
+
+
 def validate_payload(files):
-    """Check all six slots and exact artifact relationships without execution."""
+    """Validate final gates or legacy pins, retaining the legacy bootstrap seal."""
     bootstrap = files[BOOTSTRAP]
     if not 0 < len(bootstrap) <= 1024 * 1024:
         raise ValueError('bootstrap exceeds workflow download bound')
     vc, vd = pins(bootstrap, 'VERIFIER')
     require_pin(vc, vd)
+    final = [final_workflow(files[name]) for name in WORKFLOWS]
+    if any(final):
+        if not all(final) or RUNTIME not in files or not 0 < len(files[RUNTIME]) <= 1024 * 1024:
+            raise ValueError('incomplete final hosted workflow payload')
+        for name in WORKFLOWS:
+            embedded_gate(files[name])
+            if b'BOOTSTRAP_BLOB' in files[name] or b'BOOTSTRAP_SHA256' in files[name]:
+                raise ValueError('mixed final gate and legacy workflow pins')
+        # The legacy entry remains a detached asset for existing workflows.
+        return (vc, vd), (blob_id(bootstrap), sha256(bootstrap))
     pairs = [pins(files[name], 'BOOTSTRAP') for name in WORKFLOWS]
     for bc, bd in pairs:
         require_pin(bc, bd)
@@ -145,6 +175,8 @@ def replace_pins(before, prefix, pair):
 
 def check_local(files):
     verifier, bootstrap = validate_payload(files)
+    if final_workflow(files[WORKFLOWS[0]]):
+        return {'verifier': verifier, 'bootstrap': bootstrap}
     if not 0 < len(files[VERIFIER]) <= MAX_BYTES:
         raise ValueError('verifier exceeds bootstrap download bound')
     if verifier != (blob_id(files[VERIFIER]), sha256(files[VERIFIER])):
@@ -156,7 +188,8 @@ def verify_source(files, published, commit):
     """First-release readback: exact W paths plus raw and JSON blob responses."""
     result = check_local(files)
     tree = published.tree(commit)
-    for name in (VERIFIER, BOOTSTRAP, *WORKFLOWS):
+    names = (VERIFIER, BOOTSTRAP, *WORKFLOWS) + ((RUNTIME,) if final_workflow(files[WORKFLOWS[0]]) else ())
+    for name in names:
         entries = [entry for entry in tree if entry.get('path') == name]
         if len(entries) != 1 or entries[0].get('mode') != '100644' or entries[0].get('type') != 'blob' or entries[0].get('sha') != blob_id(files[name]):
             raise ValueError('published source path differs: ' + name)
@@ -167,6 +200,11 @@ def verify_source(files, published, commit):
 def seal(root):
     root = Path(root).absolute()
     before = {name: ordinary(root, name) for name in (VERIFIER, BOOTSTRAP, *WORKFLOWS)}
+    if any(final_workflow(before[name]) for name in WORKFLOWS):
+        before[RUNTIME] = ordinary(root, RUNTIME)
+        verifier, bootstrap = validate_payload(before)
+        # No new workflow pin and no implicit reseal of the historical verifier.
+        return {'verifier': verifier, 'bootstrap': bootstrap, 'files': [], 'published': False}
     after = dict(before)
     verifier = (blob_id(before[VERIFIER]), sha256(before[VERIFIER]))
     after[BOOTSTRAP] = replace_pins(before[BOOTSTRAP], 'VERIFIER', verifier)
@@ -198,6 +236,8 @@ def main():
         result = seal(args.source)
     else:
         files = {name: ordinary(args.source.absolute(), name) for name in (VERIFIER, BOOTSTRAP, *WORKFLOWS)}
+        if any(final_workflow(files[name]) for name in WORKFLOWS):
+            files[RUNTIME] = ordinary(args.source.absolute(), RUNTIME)
         if args.operation == 'check':
             if args.commit:
                 parser.error('offline check does not take --commit')

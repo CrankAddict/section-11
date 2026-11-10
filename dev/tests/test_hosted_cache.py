@@ -608,7 +608,7 @@ class Workflow(unittest.TestCase):
         artifact = text.split("- name: Upload data files for download")[1].split("- name:")[0]
         self.assertNotIn("cache", artifact)
         self.assertNotIn("state", artifact)
-        self.assertIn('hosted.py" publish --wrapper-api 2', text)
+        self.assertIn('section11-gate.py" publish --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2', text)
         publication = (REPO_ROOT / 'examples/maintenance/hosted.py').read_text().split('def publish_data():', 1)[1].split('\ndef ', 1)[0]
         self.assertNotIn("slow-cache", publication)
         self.assertNotIn("cache.json", publication)
@@ -619,7 +619,7 @@ class Workflow(unittest.TestCase):
         self.assertIn("export_event = 'Sync timer' if info.get('operation') == 'Sync timer' else info['event']", controller)
         self.assertIn("'SECTION11_EXPORT_EVENT': export_event", controller)
         self.assertIn("'SECTION11_EXPORT_CRON': info['cron']", controller)
-        self.assertIn('hosted.py" sync --wrapper-api 2', run)
+        self.assertIn('section11-gate.py" sync --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2', run)
         self.assertIn('id: publish', text.split('- name: Publish data and update README')[1].split('- name:')[0])
         if method == 'json-on-demand':
             self.assertNotIn('  schedule:', text)

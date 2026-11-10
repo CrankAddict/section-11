@@ -247,7 +247,7 @@ class WorkflowPersistenceTests(unittest.TestCase):
                     "ftp_history.json", "route_eta_history.json"}
         from test_data_overview import workflow_rules
         self.assertEqual(set(workflow_rules()['FALLBACK']), expected | {"latest.json"})
-        self.assertIn('hosted.py" publish --wrapper-api 2', publish)
+        self.assertIn('section11-gate.py" publish --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2', publish)
         self.assertNotIn("route_eta_history.json", artifact)
         rules = (REPO_ROOT / "examples/maintenance/validate_data.py").read_text()
         self.assertIn('json.loads(content, parse_constant=invalid_constant)', rules)

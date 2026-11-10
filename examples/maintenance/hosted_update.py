@@ -355,14 +355,18 @@ class HostedUpdater:
                                       'manifest_sha256': D.digest(release[0])}, sort_keys=True)
         return self.publisher.publish(before, expected, message, exact_validator(expected))
 
-    def maintain(self, before, day, success, automatic=True, run_attempt=1):
-        """Explicit operations use install/status/rollback; failure consumes claim."""
-        claimed = self.claim(before, day)
+    def maintain(self, before, day, success, automatic=True, run_attempt=1, *, claim_attempt=True):
+        """Explicit operations use install/status/rollback; failures count too."""
+        # The verified final workflow uses native run evidence for its allowance.
+        # Legacy callers retain the daily claim and its existing failure behavior.
+        if not claim_attempt:
+            policy(self.env)
+        claimed = self.claim(before, day) if claim_attempt else before
         if claimed is None:
             return before, None
         full = policy(self.env)
-        # No latest-target discovery request precedes a confirmed daily claim.
-        # Bootstrap authentication of the installed controller is separate.
+        # Target discovery follows the legacy claim or the caller's native-run
+        # allowance. Bootstrap authentication of the controller is separate.
         status = self.status(claimed)
         if 'custom/README.md' not in claimed['entries']:
             expected = {'custom/README.md': self.latest()[1]['examples/maintenance/CUSTOM_README.md']}

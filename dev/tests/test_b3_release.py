@@ -24,7 +24,9 @@ import hosted_bootstrap as bootstrap
 def source_files():
     _, files = fixture()
     for name in (S.BOOTSTRAP, *S.WORKFLOWS):
-        data = (ROOT / name).read_bytes()
+        path = (ROOT / 'dev/fixtures/hosted' / (name.split('/')[1] + '-v11.105.yml')
+                if name in S.WORKFLOWS else ROOT / name)
+        data = path.read_bytes()
         if name == S.BOOTSTRAP:
             data = re.sub(rb"(?m)^VERIFIER_(BLOB|SHA256) = '[^']+'$", rb"VERIFIER_\1 = 'UNSEALED'", data)
         else:
@@ -212,7 +214,7 @@ class BootstrapTransportTests(B3Offline):
 
     def test_actual_workflow_download_authenticates_and_checks_before_subprocess(self):
         for name in S.WORKFLOWS:
-            text = (ROOT / name).read_text()
+            text = (ROOT / 'dev/fixtures/hosted' / (name.split('/')[1] + '-v11.105.yml')).read_text()
             block = text.split("python - <<'PY'\n", 1)[1].split('\n          PY', 1)[0]
             code = '\n'.join(line[10:] for line in block.splitlines())
             stage = self.root / name.split('/')[1]

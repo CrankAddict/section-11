@@ -331,7 +331,7 @@ class DeadlineConsumerContract(unittest.TestCase):
         self.assertIn("treat a future generation timestamp as fresh", protocol)
         self.assertIn("metadata.last_updated is also UTC (Z) from sync 3.164", protocol)
         workflow = (root / "examples/json-auto-sync/auto-sync.yml").read_text()
-        self.assertIn('hosted.py" sync --wrapper-api 2', workflow)
+        self.assertIn('section11-gate.py" sync --tag "$RUNTIME_TAG" --commit "$RUNTIME_COMMIT" --wrapper-api 2', workflow)
         controller = (root / 'examples/maintenance/hosted.py').read_text()
         self.assertIn("export_event = 'Sync timer' if info.get('operation') == 'Sync timer' else info['event']", controller)
         self.assertIn("'SECTION11_EXPORT_EVENT': export_event", controller)

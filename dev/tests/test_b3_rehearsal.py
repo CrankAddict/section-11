@@ -38,7 +38,8 @@ class RehearsalWorkflowTests(Offline):
             self.assertIn('same owner commit, before the first Sync', prose)
             self.assertNotIn('After the first successful **Sync**', guide)
             workflow = (ROOT / 'examples' / kind / 'auto-sync.yml').read_text()
-            names = ['Require sealed release pins', 'Checkout default branch', 'Setup Python',
-                     'Install dependencies', 'Authenticate controller and prepare operation']
+            names = ['Require default branch', 'Checkout default branch', 'Setup Python',
+                     'Select and fetch official runtime', 'Write fixed verification gate',
+                     'Verify runtime dependencies', 'Install dependencies', 'Prepare operation']
             positions = [workflow.index('- name: ' + name) for name in names]
             self.assertEqual(positions, sorted(positions))

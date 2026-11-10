@@ -1,0 +1,161 @@
+# Section 11 workflow v11.105
+name: Auto-Sync Intervals.icu Data
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'Sync timer' && 'Sync timer run' || 'Auto-Sync Intervals.icu Data' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Operation'
+        type: choice
+        required: false
+        default: Sync
+        options: [Sync, Update, Status, Rollback, 'Sync timer']
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: section11-writer
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  sync:
+    if: ${{ github.event_name != 'schedule' || vars.SECTION11_SYNC_TIMER != 'on' }}
+    runs-on: ubuntu-latest
+    cache-mode: write
+    timeout-minutes: 30
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      SECTION11_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      # B3 PIN BLOCK: reviewed examples/maintenance/hosted_bootstrap.py.
+      BOOTSTRAP_BLOB: c2d1801f3fbc6f1950acc67a73ca1aa43a492da1
+      BOOTSTRAP_SHA256: b3f038fb4955d4751c4594bbbc191b91f58806e6a49ad65f373eb91e23782087
+      SECTION11_AUTO_UPDATE: ${{ vars.SECTION11_AUTO_UPDATE }}
+    steps:
+      - name: Require sealed release pins
+        shell: bash
+        run: |
+          if [[ ! "$BOOTSTRAP_BLOB" =~ ^[0-9a-f]{40}$ || ! "$BOOTSTRAP_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "Section 11 bootstrap is unsealed; wait for a verified published workflow."
+            exit 1
+          fi
+      - name: Checkout default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install requests
+      - name: Authenticate controller and prepare operation
+        id: prepare
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import hashlib, os, re, subprocess, sys, urllib.request
+          from pathlib import Path
+          blob, digest = os.environ['BOOTSTRAP_BLOB'], os.environ['BOOTSTRAP_SHA256']
+          if not re.fullmatch('[0-9a-f]{40}', blob) or not re.fullmatch('[0-9a-f]{64}', digest):
+              raise SystemExit('Section 11 bootstrap is unsealed; wait for a verified published workflow.')
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  raise ValueError('bootstrap redirect refused')
+          token = os.environ.get('GITHUB_TOKEN', '')
+          if not token:
+              raise SystemExit('Authenticated bootstrap source token missing.')
+          url = 'https://api.github.com/repos/CrankAddict/section-11/git/blobs/' + blob
+          request = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + token,
+              'Accept': 'application/vnd.github.raw+json', 'X-GitHub-Api-Version': '2022-11-28'})
+          with urllib.request.build_opener(NoRedirect()).open(request, timeout=10) as response:
+              data = response.read(1024 * 1024 + 1)
+          if len(data) > 1024 * 1024 or hashlib.sha256(data).hexdigest() != digest:
+              raise SystemExit('Section 11 bootstrap digest mismatch; no code executed.')
+          if hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest() != blob:
+              raise SystemExit('Section 11 bootstrap blob identity mismatch; no code executed.')
+          path = Path(os.environ['RUNNER_TEMP']) / 'section11-bootstrap.py'
+          with path.open('xb') as handle:
+              handle.write(data)
+          subprocess.run([sys.executable, str(path), '--wrapper-api', '2', '--accept-install'], check=True)
+          PY
+      - name: Prepare slow cache staging
+        id: slow_cache_context
+        if: steps.prepare.outputs.run_sync == 'true'
+        continue-on-error: true
+        run: python "$RUNNER_TEMP/section11-trusted-source/examples/maintenance/hosted.py" cache-prepare --wrapper-api 2
+      - name: Restore slow sources
+        if: steps.slow_cache_context.outputs.enabled == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+        with:
+          path: ${{ runner.temp }}/section11-slow-cache/cache.json
+          key: ${{ steps.slow_cache_context.outputs.key }}
+          restore-keys: ${{ steps.slow_cache_context.outputs.prefix }}
+          fail-on-cache-miss: false
+          enableCrossOsArchive: false
+      - name: Run sync
+        id: sync
+        if: steps.prepare.outputs.run_sync == 'true'
+        env:
+          ATHLETE_ID: ${{ secrets.ATHLETE_ID }}
+          INTERVALS_KEY: ${{ secrets.INTERVALS_KEY }}
+          GITHUB_REPO: ${{ github.repository }}
+          WEEK_START: ${{ secrets.WEEK_START }}
+          ZONE_PREFERENCE: ${{ secrets.ZONE_PREFERENCE }}
+          SECTION11_ROUTE_WEATHER: ${{ vars.SECTION11_ROUTE_WEATHER }}
+          SECTION11_ROUTE_WEATHER_DEFAULT_START: ${{ vars.SECTION11_ROUTE_WEATHER_DEFAULT_START }}
+          SECTION11_DAYS: '7'
+        run: python "$RUNNER_TEMP/section11-trusted-source/examples/maintenance/hosted.py" sync --wrapper-api 2
+      - name: Verify generated data
+        id: validate
+        if: steps.prepare.outputs.run_sync == 'true'
+        run: python "$RUNNER_TEMP/section11-trusted-source/examples/maintenance/hosted.py" validate --wrapper-api 2
+      - name: Publish data and update README
+        id: publish
+        if: steps.prepare.outputs.run_sync == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python "$RUNNER_TEMP/section11-trusted-source/examples/maintenance/hosted.py" publish --wrapper-api 2
+      - name: Prepare changed slow sources for saving
+        id: slow_cache_save_file
+        if: success() && steps.publish.outputs.published == 'true' && steps.sync.outputs.cache_changed == 'true' && steps.slow_cache_context.outputs.enabled == 'true'
+        continue-on-error: true
+        run: python "$RUNNER_TEMP/section11-trusted-source/examples/maintenance/hosted.py" cache-promote --wrapper-api 2
+      - name: Save changed slow sources
+        if: success() && steps.publish.outputs.published == 'true' && steps.slow_cache_save_file.outputs.ready == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 2
+        with:
+          path: ${{ runner.temp }}/section11-slow-cache/cache.json
+          key: ${{ steps.slow_cache_context.outputs.key }}
+      - name: Eligible update maintenance
+        if: ${{ !cancelled() && steps.prepare.outputs.maintenance == 'true' }}
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python "$RUNNER_TEMP/section11-trusted-source/examples/maintenance/hosted.py" maintain --wrapper-api 2
+      - name: Upload data files for download
+        if: always() && github.event_name == 'workflow_dispatch' && inputs.operation != 'Sync timer' && steps.validate.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: training-data
+          path: |
+            latest.json
+            history.json
+            intervals.json
+            routes.json
+            saved_workouts.json
+            ftp_history.json
+          retention-days: 7
+          if-no-files-found: ignore

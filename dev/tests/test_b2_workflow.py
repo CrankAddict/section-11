@@ -54,7 +54,7 @@ class BootstrapTests(Offline):
 
     def test_both_workflows_stop_unsealed_before_checkout_or_dependency_install(self):
         for name in ('json-auto-sync', 'json-on-demand'):
-            text = (ROOT / 'examples' / name / 'auto-sync.yml').read_text()
+            text = (ROOT / 'dev/fixtures/hosted' / (name + '-v11.105.yml')).read_text()
             self.assertEqual(len(re.findall(r'^      BOOTSTRAP_BLOB: (?:UNSEALED|[0-9a-f]{40})$', text, re.M)), 1)
             self.assertEqual(len(re.findall(r'^      BOOTSTRAP_SHA256: (?:UNSEALED|[0-9a-f]{64})$', text, re.M)), 1)
             self.assertLess(text.index('Require sealed release pins'), text.index('uses: actions/checkout'))
@@ -84,10 +84,10 @@ class WorkflowTests(Offline):
         self.assertIn("jobs:\n  sync:\n    if: ${{ github.event_name != 'schedule' || vars.SECTION11_SYNC_TIMER != 'on' }}\n    runs-on:", text)
         self.assertIn("run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'Sync timer' && 'Sync timer run' || 'Auto-Sync Intervals.icu Data' }}", text)
         artifact = text.split('      - name: Upload data files for download\n', 1)[1]
-        self.assertTrue(artifact.startswith("        if: always() && github.event_name == 'workflow_dispatch' && inputs.operation != 'Sync timer' && steps.validate.outcome == 'success'\n"))
+        self.assertTrue(artifact.startswith("        if: always() && github.event_name == 'workflow_dispatch' && steps.prepare.outputs.operation != 'Sync timer' && steps.validate.outcome == 'success'\n"))
         self.assertEqual([line for line in self.auto.splitlines() if line.startswith(b'run-name:')],
                          [line for line in self.demand.splitlines() if line.startswith(b'run-name:')])
-        self.assertIn(b"options: [Sync, Update, Status, Rollback, 'Sync timer']", self.demand)
+        self.assertIn(b"options: [Sync, Update, Status, Rollback, 'Sync timer', Other]", self.demand)
 
     def test_timer_trigger_identity_operation_and_maintenance_timing(self):
         env = {'SECTION11_DEFAULT_BRANCH': 'main', 'GITHUB_REF': 'refs/heads/main',

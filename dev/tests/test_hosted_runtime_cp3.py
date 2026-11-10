@@ -730,7 +730,12 @@ class CP3(Offline):
             current = ('a' * 40, 'd' * 40, 'e' * 40, 'f' * 40)[i]
             self.upstream.responses[R.API + R.PREFIX + '/git/tags/' + current] = json.dumps({
                 'object': {'type': 'tag' if i < 3 else 'commit', 'sha': next_sha}}).encode()
+        self.assertEqual(self.upstream.transport.resolve(self.tag), self.commit)
+        fifth = '9' * 40
+        self.upstream.responses[R.API + R.PREFIX + '/git/tags/' + 'f' * 40] = json.dumps({
+            'object': {'type': 'tag', 'sha': fifth}}).encode()
         with self.assertRaisesRegex(ValueError, 'unresolved'): self.upstream.transport.resolve(self.tag)
+        self.assertFalse(any('/git/tags/' + fifth in call[0] for call in self.upstream.calls))
 
     def test_asset_redirect_never_receives_token_raw_redirect_refused(self):
         url = 'https://github.com/' + R.REPOSITORY + '/releases/download/' + self.tag + '/section11-' + self.tag + '.zip'
@@ -837,7 +842,7 @@ class CP3(Offline):
         self.assertEqual(reached[0][1], {})
         self.assertEqual((self.temp / 'section11-trusted-source' / R.ENTRY).read_bytes(), files[R.ENTRY])
 
-    def test_maintenance_handoff_retains_claim_policy_and_capability(self):
+    def test_maintenance_handoff_uses_native_allowance_and_retains_capability(self):
         snapshot = {'commit': 'd' * 40, 'entries': {}}
         pub = mock.Mock()
         pub.snapshot.return_value = snapshot
@@ -847,11 +852,13 @@ class CP3(Offline):
                 'event': 'workflow_dispatch', 'attempt': 1, 'scheduled': False, 'source_is_latest': False}
         runtime = SimpleNamespace(latest=mock.Mock())
         with mock.patch.object(hosted, 'context', side_effect=[info, None]), mock.patch.object(hosted, 'publisher', return_value=pub), \
+                mock.patch.object(hosted, 'maintenance_due', return_value=True), \
                 mock.patch.object(hosted.update, 'HostedUpdater', return_value=updater) as constructor:
             hosted.maintain(runtime=runtime)
         self.assertEqual(constructor.call_args.args[1], runtime.latest)
         self.assertIs(constructor.call_args.kwargs['suffix_capable'], True)
-        self.assertEqual(updater.maintain.call_args.args, (snapshot, '2026.11.09', True))
+        self.assertEqual(updater.maintain.call_args.args[::2], (snapshot, True))
+        self.assertIs(updater.maintain.call_args.kwargs['claim_attempt'], False)
 
     def test_transport_elapsed_and_total_byte_caps_stop_without_restart(self):
         opener = SimpleNamespace(open=mock.Mock(return_value=io.BytesIO(b'x')))

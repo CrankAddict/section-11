@@ -40,6 +40,8 @@ class DemoTests(Offline):
             paths += [p.relative_to(ROOT).as_posix() for p in (ROOT / 'dev/demo/templates').rglob('*') if p.is_file()]
             files = {name: (ROOT / name).read_bytes() for name in paths}
             name = 'examples/json-auto-sync/auto-sync.yml'
+            # This legacy demo builder supports the sealed workflow only.
+            files[name] = (ROOT / 'dev/fixtures/hosted/json-auto-sync-v11.105.yml').read_bytes()
             files[name] = re.sub(rb'BOOTSTRAP_BLOB: [^\s]+', b'BOOTSTRAP_BLOB: ' + b'a' * 40, files[name])
             files[name] = re.sub(rb'BOOTSTRAP_SHA256: [^\s]+', b'BOOTSTRAP_SHA256: ' + b'b' * 64, files[name])
             write(source, files)

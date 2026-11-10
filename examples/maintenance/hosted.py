@@ -9,7 +9,7 @@ import stat
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import requests
 from direct_commit import DirectPublisher, blob_sha
@@ -109,6 +109,8 @@ def trigger(api, event, env):
         raise ValueError('run identity differs from the default-branch invocation')
     update.eligible_day(run['created_at'], name, True, scheduled=True)
     operation = event.get('inputs', {}).get('operation', 'Sync') or 'Sync'
+    if operation == 'Other':
+        operation = event.get('inputs', {}).get('other_operation', '')
     if operation not in ('Sync', 'Update', 'Status', 'Rollback', 'Sync timer'):
         raise ValueError('unknown workflow operation')
     return {'event': name, 'created_at': run['created_at'], 'attempt': run['run_attempt'],
@@ -201,6 +203,7 @@ def prepare(source, source_release, verifier, *, runtime=None, argv=None):
     pub = publisher()
     event = D.json(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes())
     info = trigger(pub.api, event, os.environ)
+    output(operation=info['operation'])
     before = pub.snapshot()
     root = Path(os.environ['GITHUB_WORKSPACE'])
     check_checkout(pub, before, root)
@@ -431,15 +434,68 @@ def cache_promote():
     output(ready='true')
 
 
+def maintenance_due(api, env, now=None):
+    """Conservative, bounded native-run evidence; never writes a check record.
+
+    Only first attempts created in the last 30 minutes may maintain. Thus every
+    eligible attempt in the previous ten minutes belongs to a run created in
+    the last 40 minutes. Exclude completed skipped runs; count failures and
+    no-ops through their last update. Incomplete evidence defers maintenance.
+    Reruns and long-queued runs still sync; explicit operations remain available.
+    """
+    from urllib.parse import urlencode
+    now = datetime.now(timezone.utc) if now is None else now
+    def instant(value):
+        stamp = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        if stamp.tzinfo is None or stamp > now:
+            raise ValueError('invalid maintenance run timestamp')
+        return stamp.astimezone(timezone.utc)
+    run_id = env['GITHUB_RUN_ID']
+    run = api.get('/actions/runs/' + run_id)
+    if (str(run.get('id')) != run_id or run.get('run_attempt') != int(env['GITHUB_RUN_ATTEMPT'])
+            or run.get('head_branch') != env['SECTION11_DEFAULT_BRANCH']
+            or run.get('head_repository', {}).get('full_name') != env['GITHUB_REPOSITORY']
+            or run.get('event') != env['GITHUB_EVENT_NAME']
+            or type(run.get('workflow_id')) is not int or run['workflow_id'] < 1):
+        raise ValueError('maintenance run identity differs')
+    if run['run_attempt'] != 1 or now - instant(run['created_at']) > timedelta(minutes=30):
+        return False
+    query = urlencode({'branch': env['SECTION11_DEFAULT_BRANCH'], 'per_page': 100,
+                       'created': '>=' + (now - timedelta(minutes=40)).strftime('%Y-%m-%dT%H:%M:%SZ')})
+    page = api.get('/actions/workflows/' + str(run['workflow_id']) + '/runs?' + query)
+    runs, count = page.get('workflow_runs'), page.get('total_count')
+    if not isinstance(runs, list) or type(count) is not int or count != len(runs) or count >= 100:
+        return False
+    if len({r.get('id') for r in runs}) != len(runs) or not any(r.get('id') == run['id'] for r in runs):
+        return False
+    for other in runs:
+        if (other.get('workflow_id') != run['workflow_id']
+                or other.get('head_branch') != env['SECTION11_DEFAULT_BRANCH']):
+            raise ValueError('maintenance history identity differs')
+        if other['id'] == run['id']:
+            continue
+        if other.get('status') == 'completed' and other.get('conclusion') == 'skipped':
+            continue
+        # A queued or active sibling is conservatively counted too. The shared
+        # writer group serializes mutations, but is not used as timestamp proof.
+        if other.get('status') != 'completed' or now - instant(other['updated_at']) < timedelta(minutes=10):
+            return False
+    return True
+
+
 def maintain(*, runtime=None):
     info = context()
     success = info.get('published', False)
     if info.get('publication_uncertain'):
         raise UnknownOutcome('data publication needs reconciliation; no maintenance attempted')
     pub = publisher()
+    if runtime is not None and not maintenance_due(pub.api, os.environ):
+        print('Automatic application maintenance deferred by the ten-minute run allowance; data outcome unchanged.')
+        return
     before = pub.snapshot(info['base'])
-    day = update.eligible_day(info['created_at'], info['event'], success,
-                              info['attempt'], info['scheduled'])
+    day = (update.eligible_day(info['created_at'], info['event'], success,
+                              info['attempt'], info['scheduled']) if runtime is None else
+           datetime.now(timezone.utc).strftime('%Y.%m.%d'))
     if day is None:
         return
     controller = (update.HostedUpdater(pub, _sync._fetch_verified_release, os.environ)
@@ -448,7 +504,8 @@ def maintain(*, runtime=None):
     if info['source_is_latest']:
         raw, files = D.tree(Path(info['source']))
         controller._release = (raw, files, info['source_identity'])
-    after, status = controller.maintain(before, day, success, run_attempt=info['attempt'])
+    options = {} if runtime is None else {'claim_attempt': False}
+    after, status = controller.maintain(before, day, success, run_attempt=info['attempt'], **options)
     info['base'] = after['commit']
     context(info)
 

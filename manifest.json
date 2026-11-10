@@ -84,7 +84,7 @@
       "hash": "5856dd7ac0b7023df880c4bd98f83aa39ebec58269ac7b93a1bf2881be221304"
     },
     "examples/json-auto-sync/auto-sync.yml": {
-      "hash": "11b4954442730b61c8b5fc7090f7553ab511c4593ab4ee939f619f2319f8c93f"
+      "hash": "9a938bc3b8a34306f83f3d56fbc2eff1f73ac57fe94fb66f1bb4c17dcb68f6fe"
     },
     "examples/json-auto-sync/sync-timer/README.md": {
       "hash": "9eabf5dd3c03e37ae6e8681fea749fdae8d8ccf96fefde92fe5e3f8058994ab6"
@@ -126,7 +126,7 @@
       "hash": "1631f4613a1a3beb43398652b8c56321422cf0a1318a8beebc9137d99ee6c299"
     },
     "examples/json-on-demand/auto-sync.yml": {
-      "hash": "823116d6b09acf82983aa9fd68b1b04233c1664a0a49c9155dc5b4a5f717e2f2"
+      "hash": "73dda241d01db1071de7b9682ac1cc87d891f80d3a3e084bb60b97b685be5480"
     },
     "examples/maintenance/CUSTOM_README.md": {
       "hash": "dfa1beae4bb9d1bc614699420202f4e537b5df220089adbd05eeca8e2d6a939a"
@@ -144,16 +144,16 @@
       "hash": "97bd3972b16dd5bad13e334c7102d47baf91c9e66a6484632b0c0d1431253965"
     },
     "examples/maintenance/hosted.py": {
-      "hash": "1e103686908cc7dcfb01efbcc24f76de29d91b62e57f2c347898ad270dcbb720"
+      "hash": "dafb5d9c132f99915072ee9292a75474722d769d4f1ba0946edc063499b0ad77"
     },
     "examples/maintenance/hosted_bootstrap.py": {
       "hash": "b3f038fb4955d4751c4594bbbc191b91f58806e6a49ad65f373eb91e23782087"
     },
     "examples/maintenance/hosted_runtime.py": {
-      "hash": "35b04c6dd127320331a531fc0c5f116041dc05ac05d3a2ec1f7cde50260e01cb"
+      "hash": "5606d09853c5a09057b2f719b491b7049805c7bbbb380d74a3b8edd97fd743f2"
     },
     "examples/maintenance/hosted_update.py": {
-      "hash": "ef4e59890b408ac120c26c17900eada5966e105b551e8752a0c3c4c6fa3d1b58"
+      "hash": "5603e6670bdddc5d1c2bc26fe7e0e595fac73ff47709db1fccab4d5dca62a2aa"
     },
     "examples/maintenance/prepare_first_release.py": {
       "hash": "6a789aa09ae965639eec1663c0f517442882cc4235ab30a281f81daa2a2bf653"
@@ -165,7 +165,7 @@
       "hash": "a6253e45e01b726a7bf281fd8bab999807ad0af3decc2e5b0a25f7264d4a2972"
     },
     "examples/maintenance/seal_pins.py": {
-      "hash": "b36533b11260551b58340785f490986072738b76766bb0d060737121b2f503ae"
+      "hash": "c6ff675623cfcf2f9d905f24d8d6c764d0af56352d6cd28b751e2dfdabf742f6"
     },
     "examples/maintenance/validate_data.py": {
       "hash": "2f1d02417f531ee5064464ef09a4fc7a5f23345355a5809dd7822cb9e73723ba"

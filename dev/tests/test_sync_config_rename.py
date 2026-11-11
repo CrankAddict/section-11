@@ -320,10 +320,9 @@ class ConfigRename(Offline):
         self.assertEqual(json.loads((self.root / '.section11-state/transaction.json').read_bytes())['phase'],
                          'rollback-config')
 
-    def test_ignore_and_release_publication_exclusions_protect_both_names(self):
+    def test_release_publication_exclusions_protect_both_names(self):
         for name in ('.sync_config', '.sync_config.json'):
             with self.subTest(name=name):
-                self.assertIn(name, (ROOT / 'dev/demo/templates/.gitignore').read_text().splitlines())
                 self.assertIn(name, D.KEEP_ROOT)
                 self.assertTrue(D.cleanup_protected('nested/' + name))
                 with self.assertRaises(ValueError):

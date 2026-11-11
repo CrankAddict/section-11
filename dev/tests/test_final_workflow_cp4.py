@@ -500,7 +500,7 @@ class ReleaseTests(Offline):
         from test_demo_kit import B
         with contextlib.redirect_stdout(io.StringIO()):
             B.build(ROOT, self.root / 'demo')
-        auto = (self.root / 'demo/.github/workflows/auto-sync.yml').read_bytes()
+        auto = (self.root / 'demo/repo/.github/workflows/auto-sync.yml').read_bytes()
         self.assertEqual(S.embedded_gate(auto), (ROOT / 'dev/hosted_gate.py').read_bytes())
         self.assertIn(b"- cron: '7 5 * * *'", auto)
         self.assertIn(b'section11-gate.py" finalize-export ', auto)

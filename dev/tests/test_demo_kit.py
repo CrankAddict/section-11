@@ -1,6 +1,7 @@
 """Offline synthetic demo, existing publication validator and wrapper fidelity."""
 import ast
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -15,6 +16,7 @@ from unittest import mock
 from test_docs_contract import markdown_links
 from test_update_prototype import Offline, ROOT, inventory, validate_data, write
 from test_final_workflow_cp4 import deadline_guard, steps, R
+from test_b2_hosted import H, Remote, DirectPublisher, release
 
 
 def load(name, filename):
@@ -95,44 +97,60 @@ class DemoTests(Offline):
         for name in ('DOSSIER.md', 'custom/preferences.json', 'section11/sentinel.txt'):
             self.assertEqual((self.root / name).read_text(), 'preserve')
 
-    def test_built_readme_explains_local_setup_and_installed_guide_links(self):
+    def test_owner_authored_demo_explanation_is_preserved_at_its_live_path(self):
         output = self.root / 'kit'
         with contextlib.redirect_stdout(io.StringIO()):
             B.build(self.source(), output)
-        readme = (output / 'README.md').read_text()
-        self.assertEqual(readme, (ROOT / 'dev/demo/templates/README.md').read_text())
-        self.assertIn('**fictional demo data**', readme)
-        self.assertIn('Keep this repository entirely\nfictional.', readme)
-        self.assertEqual(readme.count('## Local setup\n'), 1)
-        local = readme.split('## Local setup\n', 1)[1]
-        tree = local.split('```text\n', 1)[1].split('\n```', 1)[0]
-        self.assertTrue(tree.startswith('training-data/\n'))
-        self.assertRegex(tree, r'(?m)^[├└]── latest\.json, history\.json, .*# live JSON files$')
-        for name, meaning in (('archive/', 'where present'), ('maps/', 'where present'),
-                              ('section11/', 'managed official files'), ('custom/', 'personal files'),
-                              ('DOSSIER.md', 'private dossier'), ('state/', 'private request accounting')):
-            lines = [line for line in tree.splitlines() if line.startswith(('├── ' + name, '└── ' + name))]
-            self.assertEqual(len(lines), 1, name)
-            self.assertIn(meaning, lines[0])
-        # State is named without displaying any private directory contents.
-        self.assertTrue(all(line.startswith(('├── ', '└── ')) for line in tree.splitlines()[1:]))
-        prose = ' '.join(local.split())
-        for wording in ('Keep `state/` on the machine; never publish it.',
-                        'Keep your real dossier private.',
-                        'Auto sync is installed by default using launchd, systemd, cron or Windows Task Scheduler',
-                        'explicit --no-timer choice keeps manual operation',
-                        'manual by default and ask for your confirmation',
-                        'opt into automatic installation',
-                        'Both modes check after data work at most once every 10 minutes',
-                        'one-step rollback to the previous installation'):
-            self.assertIn(wording, prose)
-        links = {target for _line, target, _syntax in markdown_links(local)}
-        self.assertEqual(links, {'section11/examples/json-local-sync/SETUP.md',
-                                 'section11/examples/maintenance/UPDATING.md'})
-        for target in links:
-            self.assertTrue((ROOT / target.removeprefix('section11/')).is_file(), target)
-        self.assertFalse((output / 'state').exists())
-        self.assertFalse((output / 'section11').exists())
+        about = (output / 'repo/demo/ABOUT_THIS_DEMO.md').read_bytes()
+        self.assertEqual(about, (ROOT / 'dev/demo/templates/demo/ABOUT_THIS_DEMO.md').read_bytes())
+        # Exact owner-authored public page from 6fb830d, not a rewritten demo README.
+        self.assertEqual(hashlib.sha256(about).hexdigest(),
+                         'a77732991f522b8b15a56a82705413d299a0f2ca527bce65a9de726a5ad75f65')
+        self.assertTrue(about.startswith(b'# About this demo\n'))
+        links = {target for _line, target, _syntax in markdown_links(about.decode())}
+        for target in ('#demo-vs-real-setup',
+                       'https://github.com/CrankAddict/section-11-demo/blob/main/section11/LICENSE',
+                       'https://github.com/CrankAddict/section-11-demo/blob/main/section11/examples/json-local-sync/SETUP.md'):
+            self.assertIn(target, links)
+        self.assertFalse((output / 'repo/README.md').exists())
+        self.assertFalse((output / 'repo/section11').exists())
+
+    def test_first_install_supplies_the_standard_readme_without_demo_text(self):
+        output = self.root / 'kit'
+        with contextlib.redirect_stdout(io.StringIO()):
+            B.build(self.source(), output)
+        owner_files = inventory(output / 'repo')
+        self.assertNotIn('README.md', owner_files)
+        remote = Remote(owner_files)
+        remote.repo = 'CrankAddict/section-11-demo'
+        pub = DirectPublisher(remote)
+        target = release()
+        with contextlib.redirect_stdout(io.StringIO()):
+            H.HostedUpdater(pub, lambda: target, {}).install(pub.snapshot(), accepted=True)
+        installed = remote.inventory()
+        expected = H.render_readme(None, (ROOT / H.README_TEMPLATE).read_bytes(),
+                                   '_updated automatically_', remote.repo, pub.default)
+        self.assertEqual(installed['README.md'], expected)
+        self.assertTrue(expected.startswith(b'# Your Section 11 training data\n'))
+        self.assertNotIn(b'# About this demo', expected)
+        self.assertNotIn(b'# Section 11 public demo', expected)
+        self.assertIn(b'[MIT licensed](section11/LICENSE)', expected)
+        for name, data in owner_files.items():
+            self.assertEqual(installed[name], data, name)
+
+    def test_repository_output_excludes_legacy_and_owner_only_files(self):
+        source = self.source()
+        write(source / 'dev/demo/templates', {
+            'README.md': b'# Section 11 public demo\n', 'LICENSE': b'legacy license\n',
+            '.gitignore': b'legacy ignore rules\n', 'owner-notes.md': b'not for the repository\n'})
+        output = self.root / 'kit'
+        with contextlib.redirect_stdout(io.StringIO()):
+            B.build(source, output)
+        self.assertEqual({path.name for path in output.iterdir()}, {'SETUP_DEMO.md', 'repo'})
+        for name in ('README.md', 'LICENSE', '.gitignore', 'SETUP_DEMO.md', 'owner-notes.md'):
+            self.assertFalse((output / 'repo' / name).exists(), name)
+        self.assertTrue((output / 'repo/demo/ABOUT_THIS_DEMO.md').is_file())
+        self.assertTrue((output / 'repo/custom/README.md').is_file())
 
     def test_public_templates_use_user_facing_terms(self):
         output = self.root / 'kit'
@@ -140,12 +158,14 @@ class DemoTests(Offline):
             B.build(self.source(), output)
         templates = ROOT / 'dev/demo/templates'
         markdown = sorted(templates.rglob('*.md'))
-        self.assertEqual({p.name for p in markdown}, {'README.md', 'SETUP_DEMO.md', 'DOSSIER.md'})
+        self.assertEqual({p.relative_to(templates).as_posix() for p in markdown},
+                         {'demo/ABOUT_THIS_DEMO.md', 'SETUP_DEMO.md', 'DOSSIER.md'})
         for path in markdown:
             with self.subTest(path=path.name):
                 text = path.read_text()
                 self.assertIsNone(INTERNAL_TERMS.search(text))
-                self.assertEqual((output / path.relative_to(templates)).read_text(), text)
+                base = output if path.name == 'SETUP_DEMO.md' else output / 'repo'
+                self.assertEqual((base / path.relative_to(templates)).read_text(), text)
         for term in ('Round 4', 'round-7', 'worker', 'Coach', 'Astra', 'T3 job',
                      'fixture release', 'prototype kit', 'checkpoint', 'rehearsal',
                      'pilot-workspace', 'reference/jobs/example', 'working/jobs/example'):
@@ -154,17 +174,17 @@ class DemoTests(Offline):
         self.assertIsNone(INTERNAL_TERMS.search(
             'Use an official date release, not a test or development copy. '
             'GitHub supplies the job token. Keep this demo fictional.'))
-        readme = (output / 'README.md').read_text()
-        self.assertIn('A test or development copy cannot\nsubstitute for an official release.', readme)
+        setup = (output / 'SETUP_DEMO.md').read_text()
+        self.assertIn('Do not use a test kit or development files.', setup)
 
     def test_kit_complete_owner_files_and_exact_workflow_exceptions(self):
         output = self.root / 'kit'
         with contextlib.redirect_stdout(io.StringIO()):
             B.build(self.source(), output)
         self.assertEqual(set(inventory(output)), {
-            'README.md', 'SETUP_DEMO.md', 'DOSSIER.md', 'LICENSE', '.gitignore', 'custom/README.md',
-            'demo/generate.py', '.github/workflows/auto-sync.yml'})
-        auto = (output / '.github/workflows/auto-sync.yml').read_text()
+            'SETUP_DEMO.md', 'repo/DOSSIER.md', 'repo/custom/README.md', 'repo/demo/ABOUT_THIS_DEMO.md',
+            'repo/demo/generate.py', 'repo/.github/workflows/auto-sync.yml'})
+        auto = (output / 'repo/.github/workflows/auto-sync.yml').read_text()
         original = (self.source() / 'examples/json-auto-sync/auto-sync.yml').read_text()
         start = original.index('      - name: Prepare slow cache staging\n')
         end = original.index('      - name: Verify generated data\n', start)
@@ -178,7 +198,7 @@ class DemoTests(Offline):
         self.assertEqual(restored, original)
         self.assertNotIn('secrets.', auto)
         self.assertNotIn('--rehearsal', auto)
-        self.assertFalse((output / 'section11').exists())
+        self.assertFalse((output / 'repo/section11').exists())
         setup = (output / 'SETUP_DEMO.md').read_text()
         for required in ('first official', 'workflow', 'SECTION11_AUTO_UPDATE', 'no official date release',
                          'No PR-creation or merge setting', 'sha', 'Status', 'Rollback'):
@@ -350,7 +370,7 @@ class DemoTests(Offline):
         output = self.root / 'kit'
         with contextlib.redirect_stdout(io.StringIO()):
             B.build(self.source(), output)
-        for name in ('README.md', 'SETUP_DEMO.md'):
+        for name in ('SETUP_DEMO.md',):
             text = ' '.join((output / name).read_text().split())
             self.assertNotIn('Old workflow only', text)
             self.assertNotIn('04:00 UTC', text)
@@ -359,3 +379,9 @@ class DemoTests(Offline):
         setup = ' '.join((output / 'SETUP_DEMO.md').read_text().split())
         self.assertIn('Use for the first Sync after adopting this workflow', setup)
         self.assertIn('SECTION11_SYNC_TIMER', setup)
+        for text in (setup, ' '.join((ROOT / 'dev/README.md').read_text().split())):
+            for phrase in ('demo/ABOUT_THIS_DEMO.md', 'description', 'homepage',
+                           'repo/.github/workflows/auto-sync.yml',
+                           'Never replace the root README of a running demo',
+                           'failed run with no data commit', 'Hosted acquisition or phase verification failed'):
+                self.assertIn(phrase, text)

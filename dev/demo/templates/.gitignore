@@ -1,6 +1,0 @@
-.section11-state/
-.sync_config
-.sync_config.json
-.sync_config.saved-*
-__pycache__/
-*.pyc

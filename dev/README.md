@@ -90,9 +90,29 @@ Build from the matching full release source, which includes `dev/demo/`:
 python3 -I -B dev/demo/build_demo.py --source /path/to/release-source --output /path/to/new-demo-kit
 ```
 
+The output separates `SETUP_DEMO.md` (owner instructions, kept outside the
+repository) from `repo/` (files for the repository root). The repository files are
+`demo/ABOUT_THIS_DEMO.md`, `demo/generate.py`, `DOSSIER.md`, `custom/README.md` and
+`.github/workflows/auto-sync.yml`. The demo explanation is the owner's unchanged
+text. Point the repository description to `demo/ABOUT_THIS_DEMO.md` and set the
+homepage to `https://github.com/CrankAddict/section-11-demo/blob/main/demo/ABOUT_THIS_DEMO.md`.
+
+The kit supplies no root README, LICENSE or .gitignore. The first Sync's normal
+installation creates the standard README from the verified release's template;
+data publication updates its timestamp. Section 11's license is installed at
+`section11/LICENSE`. To replace an existing demo's workflow, copy only
+`repo/.github/workflows/auto-sync.yml` to `.github/workflows/auto-sync.yml`.
+Never replace the root README of a running demo or copy the whole kit over it.
+
+A repeat Sync on the same UTC date shows as a failed run with no data commit when
+`latest.json` is unchanged. Its unchanged-latest guard reports the generic
+"Hosted acquisition or phase verification failed" message. A changed update
+notice can change the exported bytes; use Status or Update for maintenance alone.
+
 `test_demo_kit.py` uses the real source workflow and manifest, never a substituted
 legacy workflow. It checks refusal before output, guarded finalization, step
-conditions and byte preservation outside the three demo transformations. Run it
+conditions, the repository/owner-instruction separation, first-install README
+creation and byte preservation outside the three demo transformations. Run it
 with each workflow release, then review the generated workflow before the owner
 replaces the demo's active file. Offline checks do not prove publication.
 

@@ -91,20 +91,23 @@ def build(source, output):
     workflow = sync_workflow(source)  # Refuse unsealed input before any output.
     output.mkdir(parents=True, exist_ok=False)
     templates = source / 'dev/demo/templates'
-    for path in templates.rglob('*'):
-        if path.is_file():
-            target = output / path.relative_to(templates)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(path, target)
-    (output / 'demo').mkdir()
-    shutil.copyfile(source / 'dev/demo/generate.py', output / 'demo/generate.py')
-    shutil.copyfile(source / 'LICENSE', output / 'LICENSE')
-    (output / 'custom').mkdir()
-    shutil.copyfile(source / 'examples/maintenance/CUSTOM_README.md', output / 'custom/README.md')
-    workflows = output / '.github/workflows'
+    shutil.copyfile(templates / 'SETUP_DEMO.md', output / 'SETUP_DEMO.md')
+    repo = output / 'repo'
+    repo.mkdir()
+    # Only repository files go here. First Sync creates the standard README
+    # through the verified installer's ordinary release-template rendering.
+    for name in ('DOSSIER.md', 'demo/ABOUT_THIS_DEMO.md'):
+        target = repo / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(templates / name, target)
+    shutil.copyfile(source / 'dev/demo/generate.py', repo / 'demo/generate.py')
+    (repo / 'custom').mkdir()
+    shutil.copyfile(source / 'examples/maintenance/CUSTOM_README.md', repo / 'custom/README.md')
+    workflows = repo / '.github/workflows'
     workflows.mkdir(parents=True)
     (workflows / 'auto-sync.yml').write_text(workflow)
-    print('Demo owner files prepared at', output)
+    print('Demo repository files prepared at', repo)
+    print('Owner instructions:', output / 'SETUP_DEMO.md')
     print('Follow SETUP_DEMO.md; first Sync installs the verified official release.')
 
 

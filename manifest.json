@@ -20,7 +20,7 @@
       "hash": "9f282bf6fd4a253191661c5ec813ad5c4414c8b39bb833684dc5a215df470e94"
     },
     "SECTION_11.md": {
-      "hash": "c6e72b76ecb60043bbd4a9b6e8f082afd7caea4a464cf8975ad53c27fad905a9",
+      "hash": "54bff807651c9f9a310395708eac1261e7bd1a382ae30a20d9cbea9ed376a5cf",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
@@ -135,7 +135,7 @@
       "hash": "f82db6e8d236a520a11b6e54b0519d668c219075ac4eb4a3e1f95ca4ad5226c9"
     },
     "examples/maintenance/direct_commit.py": {
-      "hash": "c19a4061c850b086da7f79fbf4a3a46b5bafc92c35b87ebf61d7a36e60d05f7e"
+      "hash": "6d20e1cf08ae6100ff986189bc6485f735f0216bc4056f203ab7dd72406732f4"
     },
     "examples/maintenance/distribution.py": {
       "hash": "713d9a5024cc7ca6c57345ae19a31a26f45f4e383ec90364422e05a1dc60e4bb"
@@ -144,13 +144,13 @@
       "hash": "97bd3972b16dd5bad13e334c7102d47baf91c9e66a6484632b0c0d1431253965"
     },
     "examples/maintenance/hosted.py": {
-      "hash": "dafb5d9c132f99915072ee9292a75474722d769d4f1ba0946edc063499b0ad77"
+      "hash": "e7dd778d0946f351a8981db584cb7e975c6bf5ba851405b3632f754a12f9691b"
     },
     "examples/maintenance/hosted_bootstrap.py": {
       "hash": "b3f038fb4955d4751c4594bbbc191b91f58806e6a49ad65f373eb91e23782087"
     },
     "examples/maintenance/hosted_runtime.py": {
-      "hash": "8f37b2c867d4267792b026faf530421d1d67be208afd9e02c33fc389a508eb76"
+      "hash": "cb194b98f62c2a37f13501685e10a89ff4d015b238f05f0330b10ed9ca31565f"
     },
     "examples/maintenance/hosted_update.py": {
       "hash": "5603e6670bdddc5d1c2bc26fe7e0e595fac73ff47709db1fccab4d5dca62a2aa"
@@ -231,7 +231,7 @@
       "hash": "53b5f2cc457baab0f89dde417003572e221aea8852873be91fb88317447347a9"
     },
     "examples/sync.py": {
-      "hash": "7cc69bb7c2e07f19eb553c2eecde87f39916af2fa83d345d9fbc074acdb20248"
+      "hash": "87c3771fe680e440cec14e393dc803ea19b06b68ed50f90de4b1ce7adaa4430e"
     },
     "examples/workout-library/README.md": {
       "hash": "4d6f5ee1d7b87c8306d4dcbf9ea80bd305ff827f7d3b3c6629b9dd665a811208"

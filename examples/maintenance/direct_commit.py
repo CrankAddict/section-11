@@ -1,10 +1,37 @@
 """Exact-tree, single-parent GitHub publication. No force, rebase or write retry."""
 import base64
+from contextlib import nullcontext
 import hashlib
 import re
+import sys
+import time
 from urllib.parse import quote
 
+import requests
 from distribution import UnknownOutcome
+from github_api import APIError
+
+
+class ConfirmationBound(RuntimeError):
+    """A local read-only confirmation budget was exhausted."""
+
+
+def publication_outcome(category, commit):
+    # Only fixed internal categories and a validated object ID may reach logs.
+    messages = {
+        'acknowledged-not-visible': 'acknowledged publication absent on readback',
+        'write-unacknowledged-not-visible': 'publication not on observed default history',
+        'readback-error': 'publication outcome unknown: readback request failed',
+        'readback-invalid': 'publication outcome unknown: readback validation failed',
+        'readback-request-bound': 'publication outcome unknown: readback request bound reached',
+        'readback-deadline': 'publication outcome unknown: readback deadline reached',
+        'default-advanced': 'publication confirmed in history; default advanced afterwards',
+    }
+    message = messages[category] + '; no retry; inspect commit ' + sha(commit)
+    print('::error::Publication confirmation: ' + category + '; commit=' + commit
+          + '; no write retry.', file=sys.stderr, flush=True)
+    error = RuntimeError if category == 'write-unacknowledged-not-visible' else UnknownOutcome
+    return error(message)
 
 
 def sha(value):
@@ -151,28 +178,48 @@ class DirectPublisher:
             self.api.write('PATCH', self.write_ref, {'sha': commit, 'force': False})
         except Exception as exc:
             failure = exc
-        # Read back after success, denial and lost responses alike. Never retry.
+        # Keep the one readback after a lost/failed write response. Only an
+        # acknowledged PATCH permits additional reads; no path repeats a write.
+        deadline = time.monotonic() + 45
         try:
-            remote = self.tip()
-            present = remote == commit
-            if not present:
-                comparison = self.api.get('/compare/' + commit + '...' + remote)
-                present = comparison.get('status') in ('ahead', 'identical')
-                if comparison.get('status') not in ('ahead', 'identical', 'behind', 'diverged'):
-                    raise ValueError('unrecognized ancestry response')
-            if present:
-                current = self.snapshot(remote)
-                if remote == commit and current != prepared:
-                    raise ValueError('published commit readback differs')
-                print('Confirmed publication:', commit)
-                if remote != commit:
-                    raise UnknownOutcome('publication confirmed in history; default advanced afterwards; '
-                                         'inspect current state before another run: ' + commit)
-                return current
+            budget = getattr(self.api, 'confirmation_reads', nullcontext)
+            with budget():
+                for attempt in range(3 if failure is None else 1):
+                    if time.monotonic() + attempt >= deadline:
+                        raise ConfirmationBound('readback-deadline')
+                    if attempt:
+                        time.sleep(attempt)
+                    try:
+                        remote = self.tip()
+                        present = remote == commit
+                        if not present:
+                            comparison = self.api.get('/compare/' + commit + '...' + remote)
+                            present = comparison.get('status') in ('ahead', 'identical')
+                            if comparison.get('status') not in ('ahead', 'identical', 'behind', 'diverged'):
+                                raise ValueError('unrecognized ancestry response')
+                        if present:
+                            current = self.snapshot(remote)
+                            if remote == commit and current != prepared:
+                                raise ValueError('published commit readback differs')
+                            print('Confirmed publication:', commit, flush=True)
+                            if remote != commit:
+                                raise publication_outcome('default-advanced', commit)
+                            return current
+                        category = ('acknowledged-not-visible' if failure is None else
+                                    'write-unacknowledged-not-visible')
+                    except (APIError, requests.exceptions.RequestException) as exc:
+                        category = 'readback-error'
+                        # Do not repeat permission/policy or rate-limit refusals.
+                        if isinstance(exc, APIError) and exc.status != 404 and exc.status < 500:
+                            break
         except UnknownOutcome:
             raise
-        except Exception as exc:
-            raise UnknownOutcome('publication outcome unknown; no retry; inspect commit ' + commit) from exc
-        if failure is not None:
-            raise RuntimeError('publication not on observed default history; no retry; inspect commit ' + commit) from failure
-        raise UnknownOutcome('acknowledged publication absent on readback; no retry; inspect commit ' + commit)
+        except ConfirmationBound as exc:
+            category = ('readback-request-bound' if exc.args == ('readback-request-bound',)
+                        else 'readback-deadline' if exc.args == ('readback-deadline',)
+                        else 'readback-invalid')
+            raise publication_outcome(category, commit) from None
+        except Exception:
+            # Never expose response bodies, URLs, credentials or exception text.
+            raise publication_outcome('readback-invalid', commit) from None
+        raise publication_outcome(category, commit)

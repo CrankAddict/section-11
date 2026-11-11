@@ -641,6 +641,7 @@ class Runtime:
 
 
 def main():
+    phase_started = time.monotonic()
     parser = argparse.ArgumentParser()
     parser.add_argument('phase', choices=PHASES)
     parser.add_argument('--tag', required=True)
@@ -681,6 +682,10 @@ def main():
         return
     stage = verify_runtime(temp, raw, entry)
     controller = load_controller(stage)
+    if args.phase == 'publish':
+        # Include runtime verification and upstream identity reads in the
+        # confirmation allowance; do not restart the clock at the PATCH.
+        controller.PUBLICATION_DEADLINE = phase_started + 240
     privileged = args.phase in ('prepare', 'publish', 'maintain')
     if privileged and not token:
         raise ValueError('explicit job token missing')

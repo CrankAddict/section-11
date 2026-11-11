@@ -1,5 +1,6 @@
 """Stable hosted adapter: bootstrap, data publication, cache and maintenance."""
 import argparse
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -12,7 +13,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import requests
-from direct_commit import DirectPublisher, blob_sha
+from direct_commit import ConfirmationBound, DirectPublisher, blob_sha
 from distribution import Distribution as D, UnknownOutcome, _sync
 from github_api import GitHub, APIError
 import hosted_update as update
@@ -20,24 +21,53 @@ import validate_data
 
 WRAPPER_API = 2
 BACKUP = _sync.CarryForwardBackup
+PUBLICATION_DEADLINE = None
 
 class HostedGitHub(GitHub):
     """Separate bounded data/control transport; never used for upstream reads."""
     def __init__(self, repo, token=None):
         super().__init__(repo, token)
         self.count = 0
-        self.deadline = time.monotonic() + 300
+        started = time.monotonic()
+        self.deadline = started + 300
+        self.publication_deadline = min(started + 240, PUBLICATION_DEADLINE
+                                        if PUBLICATION_DEADLINE is not None else float('inf'))
+        self.confirming = False
+
+    @contextmanager
+    def confirmation_reads(self):
+        # At most three four-read checks, including the original readback.
+        # Reserve 30 seconds against the wrapper's 270-second phase deadline.
+        self.confirm_until = min(time.monotonic() + 45, self.deadline, self.publication_deadline)
+        self.confirm_count = 0
+        self.confirming = True
+        try:
+            yield
+        finally:
+            self.confirming = False
 
     def request(self, method, path, **kwargs):
         if path != self.prefix and not path.startswith(self.prefix + '/'):
             raise ValueError('cross-repository API path')
         remaining = self.deadline - time.monotonic()
+        if self.confirming:
+            if method != 'GET':
+                raise ValueError('confirmation is read-only')
+            if self.count >= 1200 or self.confirm_count >= 12:
+                raise ConfirmationBound('readback-request-bound')
+            remaining = min(remaining, self.confirm_until - time.monotonic())
+            # Admit a read only with its full ten-second timeout available.
+            if remaining <= 10:
+                raise ConfirmationBound('readback-deadline')
+            self.confirm_count += 1
         if self.count >= 1200 or remaining <= 0:
             raise ValueError('data/control request admission bound reached')
         self.count += 1
         headers = {'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + self.token}
         response = requests.request(method, D.API + path, headers=headers,
                                     timeout=min(10, max(0.1, remaining)), allow_redirects=False, **kwargs)
+        if self.confirming and time.monotonic() >= self.confirm_until:
+            raise ConfirmationBound('readback-deadline')
         if not 200 <= response.status_code < 300:
             raise APIError(response.status_code, 'GitHub data/control request refused; no automatic retry')
         if len(response.content) > 64 * 1024 * 1024:

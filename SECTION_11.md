@@ -1,6 +1,6 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.111  
+**Protocol Version:** 11.112  
 **Last Updated:** 2026-11-08
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.112 - Hosted publication confirmation (2026-11-11, sync.py v3.175):**
+
+After a hosted run updates the data branch, it now reads the result back up to three times, a few seconds apart, before reporting an unknown outcome. The write itself is never repeated. A confirmation that still fails names a safe reason and the commit, without links or tokens, and maintenance keeps waiting as before. Workflow files are unchanged.
 
 **v11.111 - Hosted step deadlines (2026-11-10, sync.py v3.174):**
 

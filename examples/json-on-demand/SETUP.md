@@ -18,7 +18,7 @@ For full guided setup, including your dossier and AI connection, give your AI th
 
 1. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
 2. At [github.com/new](https://github.com/new), create a **Private** repository such as `training-data`, leaving **Add a README file** unchecked. Click **Create repository**.
-3. Download `section11-YYYY.MM.DD-on-demand.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). Wait if unavailable or `UNSEALED` ([workflow setup](#step-2-set-up-github-repository)).
+3. Download `section11-YYYY.MM.DD-on-demand.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest); a same-day release adds `-N` after the date. Wait if unavailable or `UNSEALED` ([workflow setup](#step-2-set-up-github-repository)).
 4. In your repository, click **creating a new file** and name it `.github/workflows/auto-sync.yml`. Paste the downloaded contents and commit.
 5. Under **Settings > Secrets and variables > Actions > New repository secret**, add `ATHLETE_ID` and `INTERVALS_KEY` with your values.
 6. If required, select **Read and write permissions** under **Settings > Actions > General > Workflow permissions** and save ([permissions](#step-4-enable-workflow-permissions)).
@@ -51,7 +51,7 @@ Trigger a fresh Intervals.icu sync from your phone or browser, then download the
 
 > **Running an agentic platform locally?** See [json-local-sync](../json-local-sync/SETUP.md#local-sync-setup-guide). No GitHub needed.
 
-> **Already using On-demand sync?** Follow [Move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow). Keep your repository, secrets, settings and data. An existing compatible installation stays in place in half mode until you choose Update.
+> **Already using On-demand sync?** Moving to the [current hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow) is optional and enables same-day releases. Keep your repository, secrets, settings and data. An existing compatible installation stays in place in half mode until you choose Update.
 
 ---
 
@@ -123,6 +123,7 @@ An uploaded ZIP is a snapshot; re-upload for fresh data and after updates.
 Use the published [On-demand workflow](auto-sync.yml), or the exact
 `section11-YYYY.MM.DD-on-demand.yml` asset on the matching
 [official release](https://github.com/CrankAddict/section-11/releases/latest).
+For a same-day release, the asset name adds `-N` after the date.
 Its bytes are verified against the release manifest. Use a release supporting the
 final workflow, with **Other** and the first-adoption checkbox; do not use raw-main
 code. **Old templates only:** `UNSEALED` means the template is not ready to use;
@@ -267,12 +268,15 @@ a bad application release and may itself be blocked by a broken runtime.
 
 **Old workflow (v11.105 only):** daily maintenance from 04:00 UTC still applies
 on user-started runs until you move over.
+Current workflows accept same-day releases. An old pinned workflow with a
+recorded plain-date install keeps syncing and waits for the next plain-date
+release. For new setups using outdated files, see [same-day release compatibility](../maintenance/UPDATING.md#same-day-releases).
 See [updates and recovery](../maintenance/UPDATING.md#github-installation-and-updates).
 
 ## Updating an Existing Repository
 
-Follow [Move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow)
-once a supporting official release is available. Keep your optional settings and
+Optionally [move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow)
+to receive same-day releases. Keep your optional settings and
 secret names. Use the On-demand template as supplied; do not add the scheduled
 template's cron. For older root-tool setups, Step 2 also covers the push stub;
 hosted push users replace both stubs in the same owner commit, before the first Sync.

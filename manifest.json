@@ -20,14 +20,14 @@
       "hash": "9f282bf6fd4a253191661c5ec813ad5c4414c8b39bb833684dc5a215df470e94"
     },
     "SECTION_11.md": {
-      "hash": "54bff807651c9f9a310395708eac1261e7bd1a382ae30a20d9cbea9ed376a5cf",
+      "hash": "87b0f016ab88da7b143b1d7bff54919773ad235bf96bcc4413d52478455702a0",
       "description": "Coaching protocol"
     },
     "SECURITY.md": {
       "hash": "f7c85e8e0023ed6c1928945fb9e885d287bc18f1a0cc88dbd413f74363590336"
     },
     "SETUP_ASSISTANT.md": {
-      "hash": "be1ab7bf301d88b4f9f8263064b9d60d7451298fb28b2e297357f3722dceadc4"
+      "hash": "5d69e2cb703bd8096d9522c5476126fe46aaf4225be17c96ee8ec50ffe7459b0"
     },
     "SKILL.md": {
       "hash": "f4d43b991deb19792849dd0d4e80a8d9c7f325bf91d303383db4c17708295f54"
@@ -81,7 +81,7 @@
       "hash": "cd2c43fbe0e5accd33de82e3a0d9ca1473cb3c72e45126806d1b72e36e657200"
     },
     "examples/json-auto-sync/SETUP.md": {
-      "hash": "64ffd1cefbc3738c9710dc7bbee2ace973bd61c1af07fb935b7b153b436c926a"
+      "hash": "bf9af228f8b2687cdc887d5d3e5081d4b60c4e71d5918cbc7289bd3171aeec1a"
     },
     "examples/json-auto-sync/auto-sync.yml": {
       "hash": "a1ad6bf8ffeb46d9ff07c204cc34963e90cbe15c47c4427ea36d5bb8e858cc88"
@@ -117,13 +117,13 @@
       "hash": "f7a02e699d269b7ba5b98cdc853bf7bc4fbdf5eb6f2520d46ba63e30825c145a"
     },
     "examples/json-local-sync/SETUP.md": {
-      "hash": "19751ec87b666fcb7acedaaa9a8d2fc871c4d22515e74104ef3605d2554607f2"
+      "hash": "2182b79c3ecec28563aa327f7130fed054d3627be1adccc0ba829179a1de49ce"
     },
     "examples/json-manual/SETUP.md": {
-      "hash": "e400850a2b26c36d9c1573706600a90f530a88cb8f84f4d087df4b6c31713c1a"
+      "hash": "3fd7b2aef20a7ecaccfc4de99b35a4faec9ddb1ba45f5a6ebe8d0a95b9c5aa84"
     },
     "examples/json-on-demand/SETUP.md": {
-      "hash": "4e1bda1e6ccb1453efbcb9c85a22a3aec10b6db5271a03fbe466622e6e4161d5"
+      "hash": "41216cf888232e451c96ce1879a51a161688b62f35eb30f625c1f7bb7a9f297d"
     },
     "examples/json-on-demand/auto-sync.yml": {
       "hash": "a35f02522cc7bf120fd67b1a45eefa7a62c592f5d1e99b84eb36e5362449bec7"
@@ -132,7 +132,7 @@
       "hash": "dfa1beae4bb9d1bc614699420202f4e537b5df220089adbd05eeca8e2d6a939a"
     },
     "examples/maintenance/UPDATING.md": {
-      "hash": "f82db6e8d236a520a11b6e54b0519d668c219075ac4eb4a3e1f95ca4ad5226c9"
+      "hash": "417977f4ca2bdca0cfbbe53a8485a36e38e836462440e97daa110dff9c96cc73"
     },
     "examples/maintenance/direct_commit.py": {
       "hash": "6d20e1cf08ae6100ff986189bc6485f735f0216bc4056f203ab7dd72406732f4"

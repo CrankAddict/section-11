@@ -114,13 +114,16 @@ A "repository" (repo) is just a folder on GitHub that holds their files. A "work
 
 **Default: create a fresh repo:**
 
-New hosted setups use the final workflow directly, with no move-over step. For
-an existing repository, follow [Move to the final hosted workflow](examples/maintenance/UPDATING.md#move-to-the-final-hosted-workflow)
-only once a supporting official release exists. Keep its cron, variables, secrets
+New hosted setups use the current released workflow directly, with no move-over step.
+For an existing compatible repository, [moving to the final hosted workflow](examples/maintenance/UPDATING.md#move-to-the-final-hosted-workflow)
+is optional and enables same-day releases. Keep its cron, variables, secrets
 and external Sync timer unchanged; do not treat it as a new installation.
+Use [same-day release compatibility](examples/maintenance/UPDATING.md#same-day-releases)
+to explain older installs that wait for a plain-date release or an outdated
+workflow that cannot start a new setup while latest is `-N`.
 
 1. Go to https://github.com/CrankAddict/section-11
-2. Open the latest official date release: https://github.com/CrankAddict/section-11/releases/latest. If it does not support the final workflow, stop installation and wait for a supporting release.
+2. Open the latest official release: https://github.com/CrankAddict/section-11/releases/latest. Its tag and asset names may include a same-day `-N` suffix. If it does not support the final workflow, stop installation and wait for a supporting release.
 3. Create a **new repository** on GitHub:
    - Go to https://github.com/new
    - Name it something like `my-training-data` or `t1-data` (their choice)

@@ -37,6 +37,7 @@ On Windows, use `py -3` instead of `python3` throughout.
    Mac: type `cd ` (with a space), drag the folder into Terminal and press Return.  
    Windows: open it in File Explorer, enter `powershell` in the address bar and press Enter.
 6. Download `section11-YYYY.MM.DD.zip` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest) and extract it into an empty `Downloads/section11-bootstrap` folder, outside your data folder.  
+   A same-day release adds `-N` after the date in the ZIP name.  
    Mac: create that folder, double-click the ZIP (Safari may already have unzipped it) and move `section11` inside.  
    Windows: right-click the ZIP, choose **Extract All**, destination `Downloads\section11-bootstrap`.
 7. Move your own files from `section11/` to `custom/` first ([removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle)). Install from your data folder:
@@ -136,6 +137,7 @@ Choose the final data directory before `--init`. For cloud connector access, use
 the cloud-synced folder here instead of `~/training-data/` throughout these steps.
 From the official [latest date release](https://github.com/CrankAddict/section-11/releases/latest), download its canonical
 `section11-YYYY.MM.DD.zip` asset and extract it under `~/Downloads/section11-bootstrap/`.
+For a same-day release, the ZIP name adds `-N` after the date.
 Use the extracted `section11/examples/sync.py` as the bootstrap, outside your data
 folder. Do not overwrite an old root script to stage it. The installer independently
 verifies the latest official release before replacement. If no compatible release
@@ -472,6 +474,10 @@ Recommended for intervals under 5 minutes. If you're running every 5+ minutes, o
 ---
 
 ## Staying Up to Date
+
+Current installs accept same-day releases. If an older update check reports
+`invalid date release tag` for a same-day release, it keeps your sync result and waits for the next
+plain-date release. See [same-day releases](../maintenance/UPDATING.md#same-day-releases).
 
 Automatic installation is off by default. Check the official release status, run a
 confirmed update or roll back from the data directory:

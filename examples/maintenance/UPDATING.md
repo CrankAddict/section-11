@@ -54,7 +54,7 @@ After an update or rollback, check your files in `custom/`. Replace uploaded Sec
 
 # Technical guide
 
-Updates install the latest official date release (`YYYY.MM.DD`) directly,
+Updates install the latest official release (`YYYY.MM.DD` or `YYYY.MM.DD-N`) directly,
 without downloading missed releases. They verify its pinned commit, manifest and
 managed file hashes, and refuse moved tags and known downgrades. An unknown local
 identity can be repaired by an explicitly accepted installation.
@@ -71,6 +71,25 @@ beside the live JSON, separate from `section11/`, `custom/` and the updater's
 `.section11-state/`. Release checks contact GitHub only and do not use the
 Intervals.icu allowance or ledger. Updates and rollback preserve private sync
 state; never delete it to force another request.
+
+## Same-day releases
+
+A deliberate second release on a UTC day is named `YYYY.MM.DD-2`, then `-3`,
+and so on. Each release is marked latest. Current Local/Manual installs and
+current hosted workflows accept these names under your usual update settings.
+
+If an older Local/Manual update check reports `invalid date release tag` for a
+same-day release, it installs nothing and keeps the sync or export result.
+The next plain-date release can be picked up under your usual update settings.
+Manual still checks only when you run it.
+
+With the old pinned hosted workflow, an install whose recorded release is
+plain-dated keeps syncing while latest is `-N`. It skips that release and can
+update with the next plain-date release. A new setup from an outdated workflow
+with no installed release cannot start while latest is `-N`; use the current
+workflow file. Replacing an existing workflow is optional and enables same-day
+releases; follow [the move-over steps](#move-to-the-final-hosted-workflow).
+Older root-script workflows that do not read releases are unaffected.
 
 ## Local updates and automatic toggle
 
@@ -246,10 +265,10 @@ An uncertain scheduler write is not retried automatically.
 
 ### Move to the final hosted workflow
 
-Wait until an [official release](https://github.com/CrankAddict/section-11/releases/latest) supports the final workflow. The replacement's **Run workflow** form has **Other** and the checkbox **Use for the first Sync after adopting this workflow**. Do not copy an unreleased workflow from main. New repositories use that release's workflow directly and need no move-over.
+This move is optional for an existing compatible installation and enables same-day releases. Use the current [official release](https://github.com/CrankAddict/section-11/releases/latest). The replacement's **Run workflow** form has **Other** and the checkbox **Use for the first Sync after adopting this workflow**. Do not copy an unreleased workflow from main. New repositories use that release's workflow directly and need no move-over.
 
 1. Save a copy of your current `.github/workflows/auto-sync.yml` before editing it, and let any active run finish.
-2. Download `section11-YYYY.MM.DD-auto-sync.yml` for GitHub sync or `section11-YYYY.MM.DD-on-demand.yml` for On-demand from that release. In your repository's GitHub editor, replace `.github/workflows/auto-sync.yml` with its contents. Put back your own cron line(s) exactly and keep optional workflow settings. On-demand keeps no schedule. Keep all repository variables and secrets, then commit. For old root-tool workout push, also follow [workflow installation](#github-update-review) for the matching push stub.
+2. Download `section11-YYYY.MM.DD-auto-sync.yml` for GitHub sync or `section11-YYYY.MM.DD-on-demand.yml` for On-demand from that release; a same-day release adds `-N` after the date. In your repository's GitHub editor, replace `.github/workflows/auto-sync.yml` with its contents. Put back your own cron line(s) exactly and keep optional workflow settings. On-demand keeps no schedule. Keep all repository variables and secrets, then commit. For old root-tool workout push, also follow [workflow installation](#github-update-review) for the matching push stub.
 3. Open **Actions > Auto-Sync Intervals.icu Data > Run workflow** on the default branch. Choose **Sync**, tick **Use for the first Sync after adopting this workflow**, then run it. Leave that checkbox unticked on later runs. It requests a full verified download of the application already installed; choose **Update** separately to accept a newer application in half mode.
 4. In the log, look for `Section 11 runtime verified`, `Section 11 acquisition full ZIP` and `Confirmed publication:` for the data commit. Check that `latest.json` is current. An automatic-maintenance deferral does not mean the data sync failed.
 
@@ -269,7 +288,7 @@ later official releases. Leave that field empty for the five named operations;
 an unknown operation stops safely before application writes. Update, Status and
 Rollback do not run a data sync.
 
-Already using the v11.105 workflow? Follow [Move to the final hosted workflow](#move-to-the-final-hosted-workflow).
+Already using the v11.105 workflow? You can optionally [move to the final hosted workflow](#move-to-the-final-hosted-workflow) to receive same-day releases.
 
 The owner installs the published sync workflow through GitHub's editor, keeping
 every existing literal cron, optional setting and secret name. Hosted push

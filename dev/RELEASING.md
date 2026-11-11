@@ -79,11 +79,18 @@ for an explicit source input. The workflow has no schedule: a release starts onl
 when it is dispatched, by the maintainer's daily trigger or manually.
 Unchanged manifest content is a no-op; Daniel's deliberate changed-content dispatches use the UTC date, then `-2`, `-3`, etc. Never retag or replace published assets to resolve a failure.
 
+Every release, including a deliberate same-day `YYYY.MM.DD-N` release, is marked
+latest. Older installs that accept only plain dates receive its changes with the
+next plain-date release, under their usual update settings. Do not rely on a
+same-day release for a fix that must reach those installs that day. See
+[same-day release compatibility](../examples/maintenance/UPDATING.md#same-day-releases).
+
 The canonical ZIP, two lossless reading files and example PNG retain full
 reconstruction checks. Three additional assets are exact manifest-covered copies:
 `section11-YYYY.MM.DD-hosted-bootstrap.py`, `section11-YYYY.MM.DD-auto-sync.yml`
 and `section11-YYYY.MM.DD-on-demand.yml`. Every asset is read back before and after
 publication. A missing or different asset keeps the release incomplete.
+For a same-day release, every asset name includes `-N` after the date.
 
 The read-only promotion check, executed from the trusted main checkout against
 the clean staged source checkout, is:

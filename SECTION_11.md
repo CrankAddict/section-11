@@ -1,6 +1,6 @@
 # Section 11 - AI Coach Protocol
 
-**Protocol Version:** 11.112  
+**Protocol Version:** 11.113  
 **Last Updated:** 2026-11-08
 **License:** [MIT](https://opensource.org/licenses/MIT)
 
@@ -12,6 +12,10 @@ paths for those installed files. If a required file is unavailable, say what is
 missing and ask for it.
 
 ### Changelog
+
+**v11.113 - Same-day release compatibility (2026-11-11, doc-only):**
+
+The update and setup guides now describe same-day releases accurately. A deliberate second release on a UTC day, named `YYYY.MM.DD-2`, `-3` and so on, is marked latest like every release. Current Local, Manual and hosted installs accept it under their usual update settings. An older Local or Manual update check that reports `invalid date release tag` installs nothing, keeps the sync or export result and picks up the next plain-date release. An old pinned hosted workflow whose recorded release is plain-dated keeps syncing and can update with the next plain-date release; a new setup from such an outdated workflow cannot start while latest is a same-day release and needs the current workflow file. Replacing a working old workflow is optional and enables same-day releases. This corrects v11.108's note that hosted updates keep them off: that holds for an existing plain-date install, not for a new setup from an outdated workflow. No code or workflow changes.
 
 **v11.112 - Hosted publication confirmation (2026-11-11, sync.py v3.175):**
 

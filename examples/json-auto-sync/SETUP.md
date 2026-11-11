@@ -18,7 +18,7 @@ For full guided setup, including your dossier and AI connection, give your AI th
 
 1. In Intervals.icu **Settings**, find your Athlete ID near the bottom and your API key under **Developer Settings**.
 2. At [github.com/new](https://github.com/new), create a **Private** repository such as `training-data`, leaving **Add a README file** unchecked. Click **Create repository**, not Fork.
-3. Download `section11-YYYY.MM.DD-auto-sync.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest). Wait if unavailable or `UNSEALED` ([workflow setup](#step-2-set-up-github-repository)).
+3. Download `section11-YYYY.MM.DD-auto-sync.yml` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest); a same-day release adds `-N` after the date. Wait if unavailable or `UNSEALED` ([workflow setup](#step-2-set-up-github-repository)).
 4. In your repository, click **creating a new file** and name it `.github/workflows/auto-sync.yml`. Paste the downloaded contents, keep the defaults and commit.
 5. Under **Settings > Secrets and variables > Actions > New repository secret**, add `ATHLETE_ID` and `INTERVALS_KEY` with your values.
 6. If required, select **Read and write permissions** under **Settings > Actions > General > Workflow permissions** and save ([permissions](#step-4-enable-workflow-permissions)).
@@ -178,7 +178,7 @@ Already have a repository? See [updating an existing repository](#updating-an-ex
 
 This guide explains how to create an automated JSON data mirror of your Intervals.icu training data for use with AI coaching systems.
 
-> **Already using GitHub sync?** Follow [Move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow). Keep your repository, literal cron lines, settings, secrets and data. An existing compatible installation stays in place in half mode until you choose Update.
+> **Already using GitHub sync?** Moving to the [current hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow) is optional and enables same-day releases. Keep your repository, literal cron lines, settings, secrets and data. An existing compatible installation stays in place in half mode until you choose Update.
 
 > **Prefer an interactive guide?** Paste [SETUP_ASSISTANT.md](../../SETUP_ASSISTANT.md) into any AI chat and it will walk you through this entire setup step by step.
 
@@ -253,11 +253,12 @@ confirmed publication. No new secret is needed.
 Use the published [scheduled workflow](auto-sync.yml), or the exact
 `section11-YYYY.MM.DD-auto-sync.yml` asset on the matching
 [official release](https://github.com/CrankAddict/section-11/releases/latest).
+For a same-day release, the asset name adds `-N` after the date.
 The detached asset is verified byte-for-byte against the release manifest. Use a
 release that supports the final workflow, with **Other** and the first-adoption
 checkbox. Do not substitute raw-main code. **Old templates only:** `UNSEALED`
-means the template is not ready to use; never invent its pins. An existing old
-workflow continues unchanged until you replace it. You do not upload a release ZIP.
+means the template is not ready to use; never invent its pins. Replacing an existing
+compatible workflow is optional. You do not upload a release ZIP.
 
 1. In GitHub, create or edit `.github/workflows/auto-sync.yml`.
 2. Replace its contents with the published scheduled template. Existing users
@@ -824,6 +825,9 @@ also block Rollback; Rollback is for a bad application release.
 
 **Old workflow (v11.105 only):** daily hosted maintenance from 04:00 UTC remains
 until you follow the [move-over instructions](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow).
+Current workflows accept same-day releases. An old pinned workflow with a
+recorded plain-date install keeps syncing and waits for the next plain-date
+release. For new setups using outdated files, see [same-day release compatibility](../maintenance/UPDATING.md#same-day-releases).
 
 See [updates and recovery](../maintenance/UPDATING.md#github-installation-and-updates)
 for full mode, conservative deferral, `.section11-update.json`, rollback and owner
@@ -833,8 +837,8 @@ recovery.
 
 ### Updating an existing repository
 
-Follow [Move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow)
-once a supporting official release is available. It covers preserving your cron
+Optionally [move to the final hosted workflow](../maintenance/UPDATING.md#move-to-the-final-hosted-workflow)
+to receive same-day releases. It covers preserving your cron
 and settings, the first Sync checkbox, log checks and going back. For older
 root-tool setups, [Step 2](#step-2-set-up-github-repository) also covers replacing
 both stubs in the same owner commit, before the first Sync.

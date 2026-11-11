@@ -37,6 +37,7 @@ On Windows, use `py -3` instead of `python3` throughout.
    Mac: type `cd ` (with a space), drag the folder into Terminal and press Return.  
    Windows: open it in File Explorer, enter `powershell` in the address bar and press Enter.
 6. Download `section11-YYYY.MM.DD.zip` from the [latest official release](https://github.com/CrankAddict/section-11/releases/latest) and extract it into an empty `Downloads/section11-bootstrap` folder, outside your data folder.  
+   A same-day release adds `-N` after the date in the ZIP name.  
    Mac: create that folder, double-click the ZIP (Safari may already have unzipped it) and move `section11` inside.  
    Windows: right-click the ZIP, choose **Extract All**, destination `Downloads\section11-bootstrap`.
 7. Move your own files from `section11/` to `custom/` first ([removal rules](../maintenance/UPDATING.md#local-updates-and-automatic-toggle)). From your data folder, install for manual-only use:
@@ -104,7 +105,8 @@ If pip reports `externally-managed-environment` (Homebrew Python or recent Debia
 ## First-Time Setup
 
 Use the same [verified release bootstrap and data-folder setup](../json-local-sync/SETUP.md#initial-setup)
-as every local user. Download the canonical ZIP from the official date release,
+as every local user. Download the canonical ZIP from the latest official release
+(its name may include a same-day `-N` suffix),
 extract it outside the data folder, then run from your data folder:
 
 ```bash
@@ -270,6 +272,10 @@ after updates, replacing the previous upload.
 **Option 3: Use with agentic platforms**: Claude Code, Claude Cowork, OpenAI Codex CLI, Gemini CLI, OpenClaw, and Hermes read files directly from whatever filesystem their runtime can reach; where that runtime is the machine holding your exported files, no GitHub is needed. Point the agent at the folder containing your exported JSON files. Grok Bot is **experimental** and its filesystem is provider-hosted, so the data reaches it by connector or authenticated repository rather than from your disk; capability class is not a support promise. See the [agentic setup guide](../../README.md#agentic-setup).
 
 ### Automate it
+
+Current installs accept same-day releases. If an older update check reports
+`invalid date release tag` for a same-day release, it keeps your export result and waits for the next
+plain-date release. See [same-day releases](../maintenance/UPDATING.md#same-day-releases).
 
 Automatic maintenance follows the same ten-minute allowance as Local; see
 [Updating Section 11](../maintenance/UPDATING.md#local-updates-and-automatic-toggle).

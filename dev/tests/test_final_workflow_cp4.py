@@ -496,8 +496,12 @@ class ReleaseTests(Offline):
             with self.subTest(defect=defect), self.assertRaises(ValueError):
                 package.delivery_assets(files, '2026.11.09')
 
-    def test_existing_demo_builder_refuses_final_template_before_output(self):
+    def test_demo_builder_accepts_current_sealed_template(self):
         from test_demo_kit import B
-        with self.assertRaisesRegex(ValueError, 'published sealed workflow'):
+        with contextlib.redirect_stdout(io.StringIO()):
             B.build(ROOT, self.root / 'demo')
-        self.assertFalse((self.root / 'demo').exists())
+        auto = (self.root / 'demo/.github/workflows/auto-sync.yml').read_bytes()
+        self.assertEqual(S.embedded_gate(auto), (ROOT / 'dev/hosted_gate.py').read_bytes())
+        self.assertIn(b"- cron: '7 5 * * *'", auto)
+        self.assertIn(b'section11-gate.py" finalize-export ', auto)
+        self.assertNotIn(b'BOOTSTRAP_BLOB', auto)

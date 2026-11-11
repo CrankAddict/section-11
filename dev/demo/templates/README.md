@@ -27,9 +27,9 @@ FTP history or explicit empty interval, route and workout collections. These
 files demonstrate the publication contract, not every sync.py field or analysis.
 The timestamp is the synthetic day's midnight UTC, not the runner's wall time.
 
-**Old workflow only:** the demo builder accepts the published sealed user template,
-not the final hosted workflow. Its hosted maintenance keeps the daily 04:00 UTC
-allowance; the final workflow's ten-minute allowance does not apply to this demo.
+This kit uses the current published workflow, which verifies the latest official
+runtime on every run. Automatic application maintenance follows data work and
+defers after recent runs under the standard ten-minute allowance.
 Its data step uses [demo/generate.py](demo/generate.py) at 05:07 UTC daily; publication,
 archiving, README timestamp updates and six-file downloads use the ordinary
 verified controller.

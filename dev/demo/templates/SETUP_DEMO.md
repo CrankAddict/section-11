@@ -4,17 +4,15 @@ The owner creates and operates this one public repository after the updater is
 published and verified. It contains fictional data only. This kit does not create
 the repository or install a release for you. The first Sync does the installation.
 
-**Old workflow only:** the demo builder accepts sealed legacy templates and
-refuses the final hosted workflow. These steps retain the old hosted allowance;
-they do not demonstrate the final workflow's per-run runtime verification or
-ten-minute application-maintenance allowance. Do not substitute the final template
-without a separate demo-builder update.
+The kit uses the current published workflow with runtime verification on every
+run and the standard ten-minute application-maintenance allowance. Its fictional
+data schedule remains once daily at 05:07 UTC.
 
-1. Wait for the first official date release containing verified release updates
-   (Protocol 11.103 / sync.py 3.166 or later). If no official date release exists,
+1. Wait for the first official date release supporting this kit's guarded workflow
+   (workflow v11.111 or later). If no official date release exists,
    stop here. Use the matching published, sealed source to build this kit.
    Do not use a test kit or development files. A workflow containing UNSEALED
-   stops before checkout or installation; never invent pins.
+   is refused by the builder; never invent a seal or edit the release manifest.
 2. Create **CrankAddict/section-11-demo**, **Public**, default branch `main`.
    Add this kit's owner files, including its single
    `.github/workflows/auto-sync.yml`. No managed tree needs to be uploaded.
@@ -38,8 +36,8 @@ without a separate demo-builder update.
    A committed file alone does not prove workflow registration.
 5. Initially leave `SECTION11_AUTO_UPDATE` absent or false for half mode.
    No athlete secrets are needed.
-6. Select **Sync** in the same workflow. Its bootstrap verifies the latest official
-   release and reads back one installation commit before generating fictional
+6. Select **Sync** in the same workflow. It verifies the latest official runtime
+   and reads back one installation commit before generating fictional
    files. Inspect the complete `section11/` inventory, manifest, receipt tag,
    full commit SHA and manifest digest, missing custom guidance and all outside removals.
    Then inspect the separate data commit: seven labelled JSON files, today's UTC
@@ -50,15 +48,23 @@ without a separate demo-builder update.
    replacement when available; there is no adoption PR or merge.
 8. Read the installed [update contract](section11/examples/maintenance/UPDATING.md).
    Set **SECTION11_AUTO_UPDATE=true** only after verifying the first installation
-   and data readback. With this old workflow, automatic checks run once per UTC day at or after 04:00 UTC,
-   after data work even if it failed. Failed or unknown maintenance consumes the
-   day; a rerun can claim an unclaimed day. The daily 05:07 UTC data run
-   uses the ordinary once-per-day update allowance.
+   and data readback. Automatic application maintenance follows data work even
+   if it failed. It defers while another default-branch run is active or finished
+   less than ten minutes ago, including failures and no-ops. Reruns, old runs and
+   incomplete run history also defer it; unknown publication needs reconciliation.
+   This allowance does not skip the daily data sync or runtime verification.
    A later official release installs directly after trusted validation.
    Do not manufacture official releases for the demo.
 9. Verify the next scheduled data run and the next genuine update's exact
    parent/tree readback in Actions and repository history. A dispatch acceptance
    or green badge alone is not proof of installation.
+
+When replacing the demo's older workflow, save its current file and let any run
+finish first. Use this kit's workflow so the fictional producer and daily schedule
+stay intact. On the first **Sync** after replacement, tick **Use for the first
+Sync after adopting this workflow**; leave it unticked later. This forces a
+verified application download without selecting Update in half mode. Keep
+`SECTION11_SYNC_TIMER` absent or off to retain the daily GitHub schedule.
 
 The generator is deterministic per UTC date. Repeating that date normally stops
 at the unchanged-latest guard without another data commit; a newly recorded

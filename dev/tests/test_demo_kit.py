@@ -5,13 +5,16 @@ import importlib.util
 import io
 import json
 import re
+import shlex
 import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 from unittest import mock
 
 from test_docs_contract import markdown_links
 from test_update_prototype import Offline, ROOT, inventory, validate_data, write
+from test_final_workflow_cp4 import deadline_guard, steps, R
 
 
 def load(name, filename):
@@ -35,15 +38,11 @@ class DemoTests(Offline):
     def source(self):
         source = self.root / 'sealed-source'
         if not source.exists():
-            paths = ['LICENSE', 'dev/demo/generate.py', 'examples/maintenance/CUSTOM_README.md',
+            paths = ['LICENSE', 'manifest.json', 'dev/demo/generate.py', 'examples/maintenance/CUSTOM_README.md',
                      'examples/json-auto-sync/auto-sync.yml']
             paths += [p.relative_to(ROOT).as_posix() for p in (ROOT / 'dev/demo/templates').rglob('*') if p.is_file()]
             files = {name: (ROOT / name).read_bytes() for name in paths}
-            name = 'examples/json-auto-sync/auto-sync.yml'
-            # This legacy demo builder supports the sealed workflow only.
-            files[name] = (ROOT / 'dev/fixtures/hosted/json-auto-sync-v11.105.yml').read_bytes()
-            files[name] = re.sub(rb'BOOTSTRAP_BLOB: [^\s]+', b'BOOTSTRAP_BLOB: ' + b'a' * 40, files[name])
-            files[name] = re.sub(rb'BOOTSTRAP_SHA256: [^\s]+', b'BOOTSTRAP_SHA256: ' + b'b' * 64, files[name])
+            # Exercise the actual release workflow and its unchanged manifest.
             write(source, files)
         return source
 
@@ -169,11 +168,8 @@ class DemoTests(Offline):
         original = (self.source() / 'examples/json-auto-sync/auto-sync.yml').read_text()
         start = original.index('      - name: Prepare slow cache staging\n')
         end = original.index('      - name: Verify generated data\n', start)
-        restored = auto.replace('      - name: Generate clearly fictional daily data\n'
-                                "        if: steps.prepare.outputs.run_sync == 'true'\n"
-                                '        run: |\n'
-                                '          python demo/generate.py\n'
-                                '          python "$RUNNER_TEMP/section11-trusted-source/examples/maintenance/hosted.py" finalize-export --wrapper-api 2\n', original[start:end])
+        demo = '      - name: ' + steps(auto)['Generate clearly fictional daily data']
+        restored = auto.replace(demo, original[start:end])
         start = original.index('      - name: Prepare changed slow sources for saving\n')
         end = original.index('      - name: Eligible update maintenance\n', start)
         restored = restored.replace('      - name: Eligible update maintenance\n',
@@ -188,7 +184,7 @@ class DemoTests(Offline):
                          'No PR-creation or merge setting', 'sha', 'Status', 'Rollback'):
             self.assertIn(required.lower(), setup.lower())
         prose = ' '.join(setup.split())
-        self.assertIn('verified release updates (Protocol 11.103 / sync.py 3.166 or later)', prose)
+        self.assertIn('guarded workflow (workflow v11.111 or later)', prose)
         self.assertIn('This kit does not create the repository or install a release for you.', prose)
         self.assertIn('a test kit or development files', prose)
         with self.assertRaises(FileExistsError):
@@ -197,7 +193,169 @@ class DemoTests(Offline):
     def test_unsealed_demo_refuses_before_creating_output(self):
         source = self.source()
         path = source / 'examples/json-auto-sync/auto-sync.yml'
-        path.write_text(path.read_text().replace('BOOTSTRAP_BLOB: ' + 'a' * 40, 'BOOTSTRAP_BLOB: UNSEALED'))
+        path.write_text(path.read_text().replace("<<'SECTION11_GATE'", "<<'UNSEALED'"))
         with self.assertRaisesRegex(ValueError, 'published sealed workflow'):
             B.build(source, self.root / 'refused')
         self.assertFalse((self.root / 'refused').exists())
+
+    def test_modified_workflow_refuses_before_any_output(self):
+        source = self.source()
+        path = source / B.WORKFLOW
+        original = path.read_bytes()
+        changes = {
+            'gate': (b"LIMIT = 1024 * 1024", b"LIMIT = 2 * 1024 * 1024", 'fixed gate differs'),
+            'gate delimiter': (b"<<'SECTION11_GATE'", b"<<'OTHER_GATE'", 'fixed gate'),
+            'deadline': (b'child = subprocess.Popen', b'child = unsafe.Popen', 'release manifest'),
+            'runtime': (b'CrankAddict/section-11/', b'example/untrusted/', 'release manifest'),
+            'phase': (b'--wrapper-api 2', b'--wrapper-api 3', 'release manifest'),
+            'condition': (b"if: steps.prepare.outputs.run_sync == 'true'", b'if: always()', 'release manifest'),
+            'schedule': (b"7,37 * * * *", b"7 * * * *", 'release manifest'),
+        }
+        for name, (before, after, error) in changes.items():
+            with self.subTest(name=name):
+                self.assertIn(before, original)
+                path.write_bytes(original.replace(before, after, 1))
+                prior = inventory(self.root)
+                with self.assertRaisesRegex(ValueError, error):
+                    B.build(source, self.root / 'refused')
+                self.assertEqual(inventory(self.root), prior)
+                self.assertFalse((self.root / 'refused').exists())
+
+    def test_missing_malformed_or_mismatched_manifest_refuses(self):
+        source = self.source()
+        path = source / 'manifest.json'
+        original = path.read_bytes()
+        obj = json.loads(original)
+        del obj['files'][B.WORKFLOW]
+        for raw in (None, b'{', b'{"files":{},"files":{}}', json.dumps(obj).encode(),
+                    original.replace(json.loads(original)['files'][B.WORKFLOW]['hash'].encode(), b'0' * 64)):
+            with self.subTest(raw=raw is None):
+                if raw is None:
+                    path.unlink()
+                else:
+                    path.write_bytes(raw)
+                with self.assertRaisesRegex(ValueError, 'published sealed workflow'):
+                    B.build(source, self.root / 'refused')
+                self.assertFalse((self.root / 'refused').exists())
+
+    def test_legacy_workflow_and_mixed_pins_refuse(self):
+        source = self.source()
+        path = source / B.WORKFLOW
+        original = path.read_bytes()
+        legacy = (ROOT / 'dev/fixtures/hosted/json-auto-sync-v11.105.yml').read_bytes()
+        for raw in (legacy, original + b'      BOOTSTRAP_BLOB: ' + b'a' * 40 + b'\n'):
+            with self.subTest(legacy=raw == legacy):
+                path.write_bytes(raw)
+                with self.assertRaisesRegex(ValueError, 'legacy or unsealed'):
+                    B.build(source, self.root / 'refused')
+                self.assertFalse((self.root / 'refused').exists())
+
+    def test_step_boundaries_refuse_new_duplicate_or_reordered_steps(self):
+        text = (self.source() / B.WORKFLOW).read_text()
+        names = ('Prepare slow cache staging', 'Restore slow sources', 'Run sync')
+        following = 'Verify generated data'
+        anchor = '      - name: Run sync\n'
+        for replacement in ('      - name: Unexpected new step\n' + anchor,
+                            anchor + anchor, '      - name: Renamed sync\n'):
+            with self.subTest(replacement=replacement):
+                with self.assertRaisesRegex(ValueError, 'demo workflow step'):
+                    B.replace_steps(text.replace(anchor, replacement), names, following, B.DEMO_STEP)
+        with self.assertRaisesRegex(ValueError, 'step order'):
+            B.replace_steps(text, (names[1], names[0], names[2]), following, B.DEMO_STEP)
+        result = B.replace_steps(text, names, following, B.DEMO_STEP)
+        self.assertEqual(result.count('Generate clearly fictional daily data'), 1)
+        self.assertIn('      - name: Verify generated data\n', result)
+
+    def test_real_workflow_guard_identity_order_and_conditions(self):
+        source = self.source()
+        self.assertIn('finalize-export', R.PHASES)
+        self.assertEqual((source / B.WORKFLOW).read_bytes(), (ROOT / B.WORKFLOW).read_bytes())
+        self.assertEqual((source / 'manifest.json').read_bytes(), (ROOT / 'manifest.json').read_bytes())
+        auto = B.sync_workflow(source)
+        original = steps((source / B.WORKFLOW).read_text())
+        blocks = steps(auto)
+        generate = blocks['Generate clearly fictional daily data']
+        self.assertEqual(list(blocks)[-5:], ['Generate clearly fictional daily data', 'Verify generated data',
+                         'Publish data and update README', 'Eligible update maintenance', 'Upload data files for download'])
+        for name in ('Verify generated data', 'Publish data and update README',
+                     'Eligible update maintenance', 'Upload data files for download'):
+            self.assertEqual(blocks[name], original[name])
+        self.assertIn("        if: steps.prepare.outputs.run_sync == 'true'\n", generate)
+        self.assertIn('        id: sync\n', generate)
+        self.assertIn('        shell: bash\n', generate)
+        self.assertNotIn('continue-on-error', generate)
+        self.assertNotRegex(auto, r'steps\.(?:slow_cache_context|slow_cache_save_file)\.|steps\.sync\.outputs\.')
+        self.assertNotIn('section11-trusted-source/examples/maintenance/hosted.py', auto)
+        self.assertNotIn('secrets.', auto)
+        env = generate.split('        env:\n', 1)[1].split('        shell:', 1)[0]
+        expected_env = original['Verify generated data'].split('        env:\n', 1)[1].split('        run:', 1)[0]
+        self.assertEqual(env, expected_env)
+        commands = [line[10:] for line in generate.split('        run: |\n', 1)[1].splitlines()]
+        self.assertEqual(commands[0], 'python -I -B "$RUNNER_TEMP/section11-deadline.py" 30 python -I -B demo/generate.py')
+        validate = original['Verify generated data'].split('        run: ', 1)[1].strip()
+        self.assertEqual(commands[1], validate.replace('section11-gate.py" validate ', 'section11-gate.py" finalize-export '))
+        self.assertEqual(len(commands), 2)
+        seconds = sum(int(re.search(r'section11-deadline.py" (\d+)', command)[1]) for command in commands)
+        minutes = int(re.search(r'timeout-minutes: (\d+)', generate)[1])
+        self.assertGreaterEqual(minutes * 60 - seconds, 30)
+        self.assertEqual(B.SEAL.embedded_gate(auto.encode()), (ROOT / 'dev/hosted_gate.py').read_bytes())
+        self.assertEqual(deadline_guard(auto), deadline_guard((source / B.WORKFLOW).read_text()))
+        self.assertEqual(re.findall(r"(?m)^    - cron: (.+)$", auto), ["'7 5 * * *'"])
+
+    def test_changed_identity_or_missing_deadline_requires_builder_review(self):
+        text = (self.source() / B.WORKFLOW).read_text()
+        B.require_phase_contract(text)
+        for before, after in (('--application-sha256', '--new-application-digest'),
+                              ('steps.bootstrap.outputs.manifest_sha256', 'steps.bootstrap.outputs.new_digest'),
+                              ("<<'SECTION11_DEADLINE'", "<<'RENAMED_DEADLINE'")):
+            with self.subTest(before=before):
+                with self.assertRaisesRegex(ValueError, 'identity or deadline contract changed'):
+                    B.require_phase_contract(text.replace(before, after))
+
+    def test_generated_step_runs_and_propagates_producer_and_gate_failures(self):
+        auto = B.sync_workflow(self.source())
+        block = steps(auto)['Generate clearly fictional daily data']
+        script = '\n'.join(line[10:] for line in block.split('        run: |\n', 1)[1].splitlines())
+        # Use the test interpreter for every Python process, as on the runner.
+        script = script.replace('python ', shlex.quote(sys.executable) + ' ')
+        for producer_status, gate_status in ((0, 0), (7, 0), (0, 9)):
+            with self.subTest(producer=producer_status, gate=gate_status):
+                run = self.root / ('run-' + str(producer_status) + '-' + str(gate_status))
+                record = run / 'gate-arguments.json'
+                producer = ((ROOT / 'dev/demo/generate.py').read_bytes() if not producer_status
+                            else b'import sys\nsys.exit(7)\n')
+                write(run, {'demo/generate.py': producer,
+                            'section11-deadline.py': deadline_guard(auto).encode(),
+                            'section11-gate.py': b'import json, os, sys\nfrom pathlib import Path\n'
+                                b'root = Path(os.environ["RUNNER_TEMP"])\n'
+                                b'assert (root / "latest.json").is_file()\n'
+                                b'(root / "gate-arguments.json").write_text(json.dumps(sys.argv[1:]))\n'
+                                b'sys.exit(int(os.environ["DEMO_GATE_STATUS"]))\n'})
+                env = {'PATH': '/bin:/usr/bin', 'RUNNER_TEMP': str(run), 'TMPDIR': str(self.root),
+                       'RUNTIME_TAG': '2026.11.11', 'RUNTIME_COMMIT': 'a' * 40, 'RUNTIME_DIGEST': 'b' * 64,
+                       'APPLICATION_TAG': '2026.11.10', 'APPLICATION_COMMIT': 'c' * 40,
+                       'APPLICATION_DIGEST': 'd' * 64, 'DEMO_GATE_STATUS': str(gate_status)}
+                result = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', script],
+                                        cwd=run, env=env, capture_output=True, timeout=20)
+                self.assertEqual(result.returncode, producer_status or gate_status, result.stderr)
+                self.assertEqual(record.exists(), producer_status == 0)
+                if producer_status == 0:
+                    self.assertEqual(json.loads(record.read_text()), [
+                        'finalize-export', '--tag', env['RUNTIME_TAG'], '--commit', env['RUNTIME_COMMIT'],
+                        '--wrapper-api', '2', '--manifest-sha256', env['RUNTIME_DIGEST'],
+                        '--application-tag', env['APPLICATION_TAG'], '--application-commit', env['APPLICATION_COMMIT'],
+                        '--application-sha256', env['APPLICATION_DIGEST']])
+
+    def test_current_owner_instructions_match_workflow(self):
+        output = self.root / 'kit'
+        with contextlib.redirect_stdout(io.StringIO()):
+            B.build(self.source(), output)
+        for name in ('README.md', 'SETUP_DEMO.md'):
+            text = ' '.join((output / name).read_text().split())
+            self.assertNotIn('Old workflow only', text)
+            self.assertNotIn('04:00 UTC', text)
+            self.assertIn('ten-minute', text)
+            self.assertIn('05:07 UTC', text)
+        setup = ' '.join((output / 'SETUP_DEMO.md').read_text().split())
+        self.assertIn('Use for the first Sync after adopting this workflow', setup)
+        self.assertIn('SECTION11_SYNC_TIMER', setup)

@@ -79,10 +79,31 @@ ten-minute maintenance deferral without a check-only commit.
 
 **Old hosted workflow only:** v11.105 retains daily maintenance from 04:00 UTC
 and its sealed bootstrap. Those historical fixtures and assertions are intentional.
-The demo builder (`dev/demo/build_demo.py`) still accepts only sealed legacy
-templates and refuses final workflows. Its setup text describes that limitation;
-the demo's daily data schedule is separate from Local/Manual's update allowance.
-Adapting the demo builder is separate work.
+
+The demo builder (`dev/demo/build_demo.py`) accepts the current published source
+workflow after checking its fixed gate and exact bytes against the source release
+manifest. It creates owner files only, with fictional data at 05:07 UTC daily;
+the normal runtime verification and application-maintenance allowance remain.
+Build from the matching full release source, which includes `dev/demo/`:
+
+```sh
+python3 -I -B dev/demo/build_demo.py --source /path/to/release-source --output /path/to/new-demo-kit
+```
+
+`test_demo_kit.py` uses the real source workflow and manifest, never a substituted
+legacy workflow. It checks refusal before output, guarded finalization, step
+conditions and byte preservation outside the three demo transformations. Run it
+with each workflow release, then review the generated workflow before the owner
+replaces the demo's active file. Offline checks do not prove publication.
+
+Builder compatibility requires the reviewed fixed gate, manifest `files` hashes,
+the two named slow-cache/sync step ranges, and the literal source cron. The
+generated step also depends on `select`, `bootstrap` and `prepare` outputs,
+wrapper API 2, the `finalize-export` phase, both runtime and application identity
+arguments, and the step-deadline interface. Step-range or schedule changes refuse
+the build, as do a changed validation identity/command block or missing deadline
+guard. Changes to phase support, outputs, deadlines or downstream conditions
+require reviewing the builder and its real-workflow tests together.
 
 `test_b1_local.py` covers the common accepted local installer, whole-tree replacement,
 timer adapters under mocked OS commands, persistent opt-out, root-tool recovery,
